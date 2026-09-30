@@ -390,7 +390,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - There is no fixed step limit. Old steps are kept compactly so memory stays in check.
 - Every change to the image or layers is undoable, including shape and text commits, the selection-plus-move steps, layer operations, resizes and effects.
 
-### FR-13.2 History panel (Cmd+Y, proposed)
+### FR-13.2 History panel (Cmd+Y)
 - Lists past actions in order, each with a name and a small thumbnail (for example "Pencil", "Fill", "Gaussian Blur", "Move Selection", "Resize Canvas").
 - Clicking a row jumps to that point. Steps after it are dimmed and can be redone until you make a new change.
 
@@ -424,7 +424,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 |---|---|
 | **File** | New (Cmd+N), Open (Cmd+O), Open Recent, Close (Cmd+W), Save (Cmd+S), Save As (Cmd+Shift+S), Duplicate, Revert To, Export… (Cmd+Opt+S), Export As ▸ presets, Share, Set as Desktop Picture, Page Setup, Print (Cmd+P) |
 | **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z), Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Paste (Cmd+V), Paste into New Image (Cmd+Shift+V), Delete, Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I) |
-| **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9), Pixel Grid (Cmd+'), Rulers (Cmd+R), Status Bar, Layers (Cmd+L), History (Cmd+Y, proposed; see §22), Clipboard History (Cmd+Opt+V), Adjustments panel, Before/After (Cmd+Opt+B) |
+| **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9), Pixel Grid (Cmd+'), Rulers (Cmd+R), Status Bar, Layers (Cmd+L), History (Cmd+Y), Clipboard History (Cmd+Opt+V), Adjustments panel, Before/After (Cmd+Opt+B) |
 | **Image** | Crop to Selection (Cmd+Shift+X), Resize/Skew (Cmd+E), Canvas Properties (Cmd+Opt+E), Rotate ▸, Flip ▸, Symmetry ▸ |
 | **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete, Merge Down (Cmd+Shift+E), Flatten, New Adjustment Layer ▸, Revert Layer, Layer Properties |
 | **Adjustments** | Invert Colors (Cmd+I), Brightness/Contrast, Hue/Saturation, Desaturate (Cmd+Shift+U) |
@@ -542,7 +542,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 
 ## 22. Open questions (for Leah)
 
-1. **History panel shortcut:** Cmd+Opt+H (approved earlier) is macOS's standard "Hide Others", so it can't be used. Proposed: **Cmd+Y**. It's free now that redo is Cmd+Shift+Z only, and Safari uses Cmd+Y for History too.
+None right now.
 
 ---
 
@@ -565,4 +565,5 @@ Everything ships. This is only the order work happens in, and each stage builds 
 | 2026-09-30 | Merge Down = Cmd+Shift+E. |
 | 2026-09-30 | Before/After offers both baselines: As Opened (default) and Last Saved. |
 | 2026-09-30 | Added a keyboard shortcut editor (FR-15.3) that blocks every macOS-owned shortcut. |
-| 2026-09-30 | Withdrew Cmd+Opt+H for the History panel: it's the system Hide Others shortcut. Replacement pending (§22). |
+| 2026-09-30 | Withdrew Cmd+Opt+H for the History panel: it's the system Hide Others shortcut. Replaced with Cmd+Y. |
+| 2026-09-30 | The repo stays local only; no remote for now. |

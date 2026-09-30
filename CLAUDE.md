@@ -56,7 +56,7 @@ Docs/reference/              Original v1 spec, kept for reference only
 - Upload only dirty tiles. Never re-upload the full canvas for a stroke.
 - Flood fill and magic wand use scanline algorithms, never recursion.
 - Heavy effects run off the main thread. The main thread never blocks for more than a frame.
-- Compile shaders at build time (`.metal` files in the target). Never compile at runtime; that would break the 300ms cold start.
+- Compile shaders at build time (`.metal` files in the target). Never compile at runtime; it would add hundreds of milliseconds to launch.
 
 ## Code conventions
 

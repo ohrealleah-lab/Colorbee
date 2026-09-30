@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width:1050px;height:675px;position:relative;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Helvetica,sans-serif;color:#1d1c1d;display:flex;flex-direction:column;overflow:hidden;filter:{{ filter }}">
+  <div style="height:34px;flex:none;background:#171A26;display:flex;align-items:center;padding:0 12px;gap:7px">
+    <div style="width:10px;height:10px;border-radius:5px;background:#FF5F57"></div>
+    <div style="width:10px;height:10px;border-radius:5px;background:#FEBC2E"></div>
+    <div style="width:10px;height:10px;border-radius:5px;background:#28C840"></div>
+    <div style="flex:1;display:flex;justify-content:center"><div style="width:420px;height:22px;border-radius:6px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.6);font-size:11.5px;display:flex;align-items:center;padding:0 10px">Search Northwind</div></div>
+  </div>
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="width:210px;flex:none;background:#1F2332;color:rgba(255,255,255,.7);font-size:12.5px;display:flex;flex-direction:column;padding:12px 8px;gap:2px">
+      <div style="color:#fff;font-weight:700;font-size:15px;padding:2px 8px 12px">Northwind</div>
+      <div style="padding:4px 8px;font-size:11.5px;color:rgba(255,255,255,.5)">Channels</div>
+      <div style="padding:4px 8px"># general</div>
+      <div style="padding:4px 8px;border-radius:6px;background:#2F5FD0;color:#fff;font-weight:600"># checkout-bugs</div>
+      <div style="padding:4px 8px"># design-crit</div>
+      <div style="padding:4px 8px"># releases</div>
+      <div style="padding:4px 8px"># support-escalations</div>
+      <div style="padding:12px 8px 4px;font-size:11.5px;color:rgba(255,255,255,.5)">Direct messages</div>
+      <div style="padding:4px 8px;display:flex;align-items:center;gap:7px"><span style="width:7px;height:7px;border-radius:4px;background:#2BAC76"></span>Maya Chen</div>
+      <div style="padding:4px 8px;display:flex;align-items:center;gap:7px"><span style="width:7px;height:7px;border-radius:4px;background:#2BAC76"></span>Devon Park</div>
+      <div style="padding:4px 8px;display:flex;align-items:center;gap:7px"><span style="width:7px;height:7px;border-radius:4px;border:1px solid rgba(255,255,255,.5);box-sizing:border-box"></span>Jordan Ellis</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+      <div style="height:46px;flex:none;border-bottom:1px solid #e6e6e6;display:flex;align-items:center;padding:0 20px;gap:10px">
+        <span style="font-weight:700;font-size:15px"># checkout-bugs</span><span style="font-size:12px;color:#707070">Payments squad · triage</span>
+        <div style="flex:1"></div><span style="font-size:12px;color:#707070">12 members</span>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:11px;padding:12px 20px;font-size:12.5px;line-height:1.45;min-height:0">
+        <div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:7px;background:#E0A33A;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none">SO</div><div><div><b>Sam Ortiz</b> <span style="color:#8a8a8a;font-size:11px">10:31 AM</span></div><div>Morning — is anyone else seeing the checkout error rate spike on the dashboard?</div></div></div>
+        <div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:7px;background:#4A7BD8;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none">DP</div><div><div><b>Devon Park</b> <span style="color:#8a8a8a;font-size:11px">10:33 AM</span></div><div>Yep, about 4% since the 9:50 deploy. Looking now.</div></div></div>
+        <div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:7px;background:#E0A33A;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none">SO</div><div><div><b>Sam Ortiz</b> <span style="color:#8a8a8a;font-size:11px">10:36 AM</span></div><div>Rolling back is on the table if we can't pin it by 11.</div></div></div>
+        <div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:7px;background:#C2549A;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none">MC</div><div><div><b>Maya Chen</b> <span style="color:#8a8a8a;font-size:11px">10:42 AM</span></div><div>Customer report just came in from <span style="position:relative;border-radius:2px;outline:{{ e1.ol }};outline-offset:1px;background:{{ e1.bg }}"><sc-if value="{{ pix }}"><img src="{{ mosA }}" style="width:188px;height:14px;image-rendering:pixelated;vertical-align:-2px"></sc-if><sc-if value="{{ clear }}" hint-placeholder-val="{{ true }}"><span style="color:#1264A3">priya.natarajan@northwind.io</span></sc-if><sc-if value="{{ e1.show }}"><span style="position:absolute;left:-6px;top:-15px;width:15px;height:15px;border-radius:8px;background:{{ e1.badge }};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span></sc-if></span> — checkout fails right after a promo code is applied.<br>She also called support from <span style="position:relative;border-radius:2px;outline:{{ ph.ol }};outline-offset:1px;background:{{ ph.bg }}">+1 (415) 555-0148<sc-if value="{{ ph.show }}"><span style="position:absolute;left:-6px;top:-15px;width:15px;height:15px;border-radius:8px;background:{{ ph.badge }};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span></sc-if></span> to follow up.</div></div></div>
+        <div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:7px;background:#4A7BD8;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none">DP</div><div style="min-width:0"><div><b>Devon Park</b> <span style="color:#8a8a8a;font-size:11px">10:47 AM</span></div><div>Repro'd on staging — the payment intent gets confirmed twice. Full logs are with <span style="position:relative;border-radius:2px;outline:{{ e2.ol }};outline-offset:1px;background:{{ e2.bg }}"><sc-if value="{{ pix }}"><img src="{{ mosB }}" style="width:160px;height:14px;image-rendering:pixelated;vertical-align:-2px"></sc-if><sc-if value="{{ clear }}" hint-placeholder-val="{{ true }}"><span style="color:#1264A3">jordan.ellis@northwind.io</span></sc-if><sc-if value="{{ e2.show }}"><span style="position:absolute;left:-6px;top:-15px;width:15px;height:15px;border-radius:8px;background:{{ e2.badge }};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span></sc-if></span>.</div>
+          <div style="margin-top:6px;width:520px;background:#F7F7F9;border:1px solid #E3E3E6;border-radius:6px;padding:8px 10px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;line-height:1.55;color:#2b2b2b">POST /v1/payment_intents/confirm → 502<br>key=<span style="position:relative;border-radius:2px;outline:{{ ak.ol }};outline-offset:1px;background:{{ ak.bg }}">sk_live_51Hx9TqL2vR8mZ3kP0aYw<sc-if value="{{ ak.show }}"><span style="position:absolute;left:-6px;top:-15px;width:15px;height:15px;border-radius:8px;background:{{ ak.badge }};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:-apple-system,sans-serif">4</span></sc-if></span><br>error: "intent_already_confirmed"</div></div></div>
+        <div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:7px;background:#C2549A;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none">MC</div><div><div><b>Maya Chen</b> <span style="color:#8a8a8a;font-size:11px">10:49 AM</span></div><div>This is what the customer sees:</div>
+          <div style="position:relative;margin-top:6px;width:290px;height:112px;box-sizing:border-box;border:1px solid #E3E3E6;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:#fff">
+            <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#707070"><span>Checkout</span><span>Order #20931</span></div>
+            <div style="display:flex;justify-content:space-between;font-weight:600;font-size:13px"><span>Total</span><span>$48.00</span></div>
+            <div style="height:24px;border-radius:5px;background:#1d1c1d;color:#fff;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center">Pay now</div>
+            <div style="font-size:11px;color:#D12C2C;font-weight:500">Payment failed (502). Please try again.</div>
+            <sc-if value="{{ annotate }}">
+              <svg width="220" height="110" style="position:absolute;left:220px;top:0;overflow:visible"><line x1="205" y1="18" x2="26.8" y2="90.9" style="stroke:#FF0000;stroke-width:4;stroke-linecap:round"></line><polygon points="12,97 29.8,98.3 23.8,83.5" style="fill:#FF0000;stroke:#FF0000;stroke-width:2;stroke-linejoin:round"></polygon></svg>
+              <div style="position:absolute;left:418px;top:-30px;padding:6px 14px;border:3px solid #FF0000;border-radius:12px;background:#fff;color:#FF0000;font-weight:700;font-size:16px;white-space:nowrap">Bug is here</div>
+            </sc-if>
+          </div></div></div>
+      </div>
+      <div style="flex:none;padding:0 20px 14px"><div style="height:36px;border:1px solid #D6D6D9;border-radius:8px;display:flex;align-items:center;padding:0 12px;color:#8a8a8a;font-size:12.5px">Message #checkout-bugs</div></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1050,&quot;height&quot;:675},&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;original&quot;,&quot;edited&quot;,&quot;review&quot;],&quot;default&quot;:&quot;edited&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;uncheck&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;filter&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  mosaic(w, seed) {
+    this._m = this._m || {};
+    if (this._m[w]) return this._m[w];
+    let a = seed;
+    const R = () => { a = (a * 16807) % 2147483647; return a / 2147483647; };
+    const cols = Math.round(w / 6), rows = 3;
+    const c = document.createElement('canvas'); c.width = cols; c.height = rows;
+    const g = c.getContext('2d');
+    const pal = ['#ffffff','#f1f5fc','#d7e3f6','#b3c9ec','#7fa3db','#3f78c4','#1264A3'];
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const mid = y === 1 ? 2.2 : 0;
+      g.fillStyle = pal[Math.min(6, Math.floor(R() * 3.6 + mid))];
+      g.fillRect(x, y, 1, 1);
+    }
+    return (this._m[w] = c.toDataURL());
+  }
+  renderVals() {
+    const mode = this.props.mode ?? 'original';
+    const review = mode === 'review';
+    const pix = mode === 'edited';
+    const off = (this.props.uncheck ?? '').split(',');
+    const hl = k => {
+      if (!review) return { ol: 'none', bg: 'transparent', show: false, badge: '#FF9F0A' };
+      const o = off.includes(k);
+      return { ol: o ? '1.5px dashed #9A9AA0' : '2px solid #FF9F0A', bg: o ? 'transparent' : 'rgba(255,159,10,.22)', show: true, badge: o ? '#9A9AA0' : '#FF9F0A' };
+    };
+    return {
+      pix, clear: !pix, annotate: pix,
+      mosA: this.mosaic(188, 7), mosB: this.mosaic(160, 19),
+      e1: hl('e1'), e2: hl('e2'), ph: hl('ph'), ak: hl('ak'),
+      filter: this.props.filter ?? 'none'
+    };
+  }
+}
+</script>
+</body>
+</html>

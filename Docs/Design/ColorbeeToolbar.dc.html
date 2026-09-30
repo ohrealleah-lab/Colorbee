@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"></helmet>
+<div style="display:flex;flex-direction:column;background:var(--win);color:var(--ink);width:100%">
+  <div style="height:52px;display:flex;align-items:center;gap:8px;padding:0 12px 0 18px">
+    <div style="display:flex;gap:8px;width:62px;flex:none">
+      <div style="width:12px;height:12px;border-radius:6px;background:#FF5F57;box-shadow:inset 0 0 0 0.5px rgba(0,0,0,.15)"></div>
+      <div style="width:12px;height:12px;border-radius:6px;background:#FEBC2E;box-shadow:inset 0 0 0 0.5px rgba(0,0,0,.15)"></div>
+      <div style="width:12px;height:12px;border-radius:6px;background:#28C840;box-shadow:inset 0 0 0 0.5px rgba(0,0,0,.15)"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;line-height:1.2;min-width:96px;flex:none;margin-right:2px">
+      <span style="font-weight:600;font-size:13px">{{ title }}</span>
+      <span style="font-size:11px;color:var(--ink2);font-variant-numeric:tabular-nums">{{ subtitle }}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:1px;height:36px;padding:0 4px;border-radius:18px;background:var(--glass);border:0.5px solid var(--glassBorder);box-shadow:var(--glassShadow);flex:none">
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">content_paste</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">content_cut</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1;font-variation-settings:'wght' 350">content_copy</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:1px;height:36px;padding:0 4px;border-radius:18px;background:var(--glass);border:0.5px solid var(--glassBorder);box-shadow:var(--glassShadow);flex:none">
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.rect }};color:{{ fg.rect }}"><svg width="18" height="18"><rect x="2.5" y="3.5" width="13" height="11" rx="1" style="fill:none;stroke:currentColor;stroke-width:1.4;stroke-dasharray:2.2 1.8"></rect></svg></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.ellipse }};color:{{ fg.ellipse }}"><svg width="18" height="18"><ellipse cx="9" cy="9" rx="6.8" ry="5.6" style="fill:none;stroke:currentColor;stroke-width:1.4;stroke-dasharray:2.2 1.8"></ellipse></svg></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.lasso }};color:{{ fg.lasso }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">lasso_select</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.wand }};color:{{ fg.wand }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">wand_stars</span></div>
+      <div style="width:1px;height:16px;background:var(--sep);margin:0 3px"></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ tsBg }};color:{{ tsFg }}"><svg width="18" height="18"><rect x="2.5" y="2.5" width="13" height="13" rx="3" style="fill:none;stroke:currentColor;stroke-width:1.4"></rect><rect x="5" y="5" width="4" height="4" style="fill:currentColor"></rect><rect x="9" y="9" width="4" height="4" style="fill:currentColor"></rect></svg></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:1px;height:36px;padding:0 4px;border-radius:18px;background:var(--glass);border:0.5px solid var(--glassBorder);box-shadow:var(--glassShadow);flex:none">
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.pencil }};color:{{ fg.pencil }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">edit</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.fill }};color:{{ fg.fill }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">format_color_fill</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.text }};color:{{ fg.text }}"><span style="font-family:'Material Symbols Rounded';font-size:20px;line-height:1;font-variation-settings:'wght' 350">text_fields</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.eraser }};color:{{ fg.eraser }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">ink_eraser</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.picker }};color:{{ fg.picker }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">colorize</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.zoom }};color:{{ fg.zoom }}"><span style="font-family:'Material Symbols Rounded';font-size:20px;line-height:1;font-variation-settings:'wght' 350">zoom_in</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.gradient }};color:{{ fg.gradient }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">gradient</span></div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ bg.measure }};color:{{ fg.measure }}"><span style="font-family:'Material Symbols Rounded';font-size:20px;line-height:1;font-variation-settings:'wght' 350">straighten</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:1px;height:36px;padding:0 4px;border-radius:18px;background:var(--glass);border:0.5px solid var(--glassBorder);box-shadow:var(--glassShadow);flex:none">
+      <div style="height:28px;padding:0 5px 0 8px;border-radius:14px;display:flex;align-items:center;gap:1px;background:{{ bg.brushes }};color:{{ fg.brushes }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">brush</span><span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1;opacity:.6">expand_more</span></div>
+      <div style="height:28px;padding:0 5px 0 8px;border-radius:14px;display:flex;align-items:center;gap:1px;background:{{ bg.shapes }};color:{{ fg.shapes }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">shapes</span><span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1;opacity:.6">expand_more</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:1px;height:36px;padding:0 6px 0 4px;border-radius:18px;background:var(--glass);border:0.5px solid var(--glassBorder);box-shadow:var(--glassShadow);flex:none">
+      <sc-for list="{{ sizes }}" as="s" hint-placeholder-count="5">
+        <div style="width:22px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:{{ s.bg }}"><div style="width:13px;height:{{ s.h }}px;border-radius:1px;background:{{ s.fg }}"></div></div>
+      </sc-for>
+      <div style="height:22px;margin-left:4px;padding:0 7px;border-radius:7px;background:var(--field);font-size:12px;display:flex;align-items:center;gap:2px;font-variant-numeric:tabular-nums">{{ sizeLabel }}<span style="color:var(--ink2)">px</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:1px;height:36px;padding:0 4px;border-radius:18px;background:var(--glass);border:0.5px solid var(--glassBorder);box-shadow:var(--glassShadow);flex:none">
+      <div style="height:28px;padding:0 4px 0 8px;border-radius:14px;display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14"><rect x="1.5" y="1.5" width="11" height="11" rx="2.5" style="fill:none;stroke:currentColor;stroke-width:1.6"></rect></svg>
+        <div style="display:flex;flex-direction:column;line-height:1.05"><span style="font-size:9.5px;color:var(--ink2)">Outline</span><span style="font-size:12px">{{ outline }}</span></div>
+        <span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1;opacity:.6">expand_more</span>
+      </div>
+      <div style="width:1px;height:16px;background:var(--sep)"></div>
+      <div style="height:28px;padding:0 4px 0 8px;border-radius:14px;display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14"><rect x="1.5" y="1.5" width="11" height="11" rx="2.5" style="fill:currentColor;fill-opacity:.35;stroke:currentColor;stroke-width:1.6"></rect></svg>
+        <div style="display:flex;flex-direction:column;line-height:1.05"><span style="font-size:9.5px;color:var(--ink2)">Fill</span><span style="font-size:12px">{{ fill }}</span></div>
+        <span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1;opacity:.6">expand_more</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;height:36px;padding:0 10px 0 8px;border-radius:18px;background:var(--glass);border:0.5px solid var(--glassBorder);box-shadow:var(--glassShadow);flex:none">
+      <div style="position:relative;width:42px;height:30px">
+        <div style="position:absolute;left:15px;top:9px;width:20px;height:20px;border-radius:6px;background:{{ c2 }};box-shadow:0 0 0 0.5px rgba(128,128,128,.6)"></div>
+        <div style="position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:6px;background:{{ c1 }};box-shadow:0 0 0 0.5px rgba(128,128,128,.6),0 0 0 2px var(--win),0 0 0 3.5px var(--accent)"></div>
+        <span style="position:absolute;left:29px;top:-1px;font-family:'Material Symbols Rounded';font-size:12px;line-height:1;color:var(--ink2);transform:rotate(90deg)">sync_alt</span>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:1px;height:36px;padding:0 4px;border-radius:18px;background:var(--glass);border:0.5px solid var(--glassBorder);box-shadow:var(--glassShadow);flex:none">
+      <div style="height:28px;padding:0 8px;border-radius:14px;display:flex;align-items:center;gap:4px;background:{{ layersBg }};color:{{ layersFg }}">
+        <span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">layers</span>
+        <sc-if value="{{ showCount }}" hint-placeholder-val="{{ false }}"><span style="min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center">{{ layers }}</span></sc-if>
+      </div>
+      <div style="width:30px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ sideBg }};color:{{ sideFg }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;font-variation-settings:'wght' 350">right_panel_open</span></div>
+    </div>
+  </div>
+  <div style="height:46px;display:flex;align-items:center;gap:16px;padding:0 16px 0 18px;border-bottom:0.5px solid var(--sep)">
+    <div style="display:grid;grid-template-columns:repeat(14,17px);grid-auto-rows:17px;gap:2px">
+      <sc-for list="{{ palette }}" as="c" hint-placeholder-count="28">
+        <div style="border-radius:4px;background:{{ c }};box-shadow:inset 0 0 0 0.5px rgba(128,128,128,.55)"></div>
+      </sc-for>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,17px);grid-auto-rows:17px;gap:2px;margin-left:-6px">
+      <sc-for list="{{ custom }}" as="c" hint-placeholder-count="12">
+        <div style="border-radius:4px;box-sizing:border-box;background:{{ c.bg }};border:{{ c.border }}"></div>
+      </sc-for>
+    </div>
+    <div style="width:1px;height:26px;background:var(--sep)"></div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:12px">
+      <span style="color:var(--ink2)">Alpha</span>
+      <div style="position:relative;width:120px;height:18px;display:flex;align-items:center">
+        <div style="position:absolute;left:0;right:0;height:4px;border-radius:2px;background:var(--field);box-shadow:inset 0 0 0 0.5px var(--sep)"></div>
+        <div style="position:absolute;left:0;width:{{ alpha }}%;height:4px;border-radius:2px;background:var(--accent)"></div>
+        <div style="position:absolute;left:{{ alpha }}%;margin-left:-11px;width:22px;height:14px;border-radius:7px;background:#fff;box-shadow:0 0.5px 2px rgba(0,0,0,.35),0 0 0 0.5px rgba(0,0,0,.08)"></div>
+      </div>
+      <div style="height:22px;padding:0 7px;border-radius:7px;background:var(--field);display:flex;align-items:center;font-variant-numeric:tabular-nums;min-width:30px;justify-content:flex-end">{{ alpha }}%</div>
+    </div>
+    <div style="height:24px;padding:0 12px;border-radius:12px;background:var(--glass);border:0.5px solid var(--glassBorder);box-shadow:0 0.5px 1.5px rgba(0,0,0,.12);display:flex;align-items:center;font-size:12px">Edit Colors…</div>
+    <div style="height:24px;padding:0 6px 0 10px;border-radius:12px;display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink)"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;color:var(--ink2)">palette</span>Paint Classic<span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1;opacity:.6">unfold_more</span></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1512,&quot;height&quot;:98},&quot;tool&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;pencil&quot;,&quot;rect&quot;,&quot;ellipse&quot;,&quot;lasso&quot;,&quot;wand&quot;,&quot;fill&quot;,&quot;text&quot;,&quot;eraser&quot;,&quot;picker&quot;,&quot;zoom&quot;,&quot;gradient&quot;,&quot;measure&quot;,&quot;brushes&quot;,&quot;shapes&quot;],&quot;default&quot;:&quot;pencil&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;openMenu&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;&quot;,&quot;brushes&quot;,&quot;shapes&quot;],&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;c1&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#000000&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;c2&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#FFFFFF&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;layers&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;},&quot;layersOn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;sidebarOn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;size&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;},&quot;alpha&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:100,&quot;tsType&quot;:&quot;number&quot;},&quot;title&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Untitled&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;subtitle&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;1920 × 1080&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;outline&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Solid&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;fill&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;None&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;transparentSel&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const tool = p.tool ?? 'pencil';
+    const bg = {}, fg = {};
+    ['rect','ellipse','lasso','wand','pencil','fill','text','eraser','picker','zoom','gradient','measure','brushes','shapes'].forEach(k => {
+      const a = k === tool || k === p.openMenu;
+      bg[k] = a ? 'var(--accentSoft)' : 'transparent';
+      fg[k] = a ? 'var(--accent)' : 'var(--ink)';
+    });
+    const size = p.size ?? 3;
+    const layers = p.layers ?? 1;
+    const ts = !!p.transparentSel, lo = !!p.layersOn, so = !!p.sidebarOn;
+    return {
+      bg, fg,
+      title: p.title ?? 'Untitled',
+      subtitle: p.subtitle ?? '1920 × 1080',
+      tsBg: ts ? 'var(--accentSoft)' : 'transparent', tsFg: ts ? 'var(--accent)' : 'var(--ink)',
+      sizes: [1,2,3,4,5].map(h => ({ h, bg: h === size ? 'var(--accentSoft)' : 'transparent', fg: h === size ? 'var(--accent)' : 'var(--ink)' })),
+      sizeLabel: String(p.customSize ?? size),
+      outline: p.outline ?? 'Solid', fill: p.fill ?? 'None',
+      c1: p.c1 ?? '#000000', c2: p.c2 ?? '#FFFFFF',
+      layers, showCount: layers > 1,
+      layersBg: lo ? 'var(--accentSoft)' : 'transparent', layersFg: lo ? 'var(--accent)' : 'var(--ink)',
+      sideBg: so ? 'var(--accentSoft)' : 'transparent', sideFg: so ? 'var(--accent)' : 'var(--ink)',
+      alpha: p.alpha ?? 100,
+      custom: Array.from({ length: 12 }, (_, i) => {
+        const hex = (p.custom ?? '').split(',').map(s => s.trim()).filter(Boolean)[i];
+        return hex ? { bg: hex, border: '0.5px solid rgba(128,128,128,.55)' } : { bg: 'transparent', border: '1px dashed var(--ink3)' };
+      }),
+      palette: ['#000000','#808080','#800000','#808000','#008000','#008080','#000080','#800080','#808040','#004040','#0080FF','#004080','#8000FF','#804000',
+                '#FFFFFF','#C0C0C0','#FF0000','#FFFF00','#00FF00','#00FFFF','#0000FF','#FF00FF','#FFFF80','#00FF80','#80FFFF','#8080FF','#FF0080','#FF8040']
+    };
+  }
+}
+</script>
+</body>
+</html>

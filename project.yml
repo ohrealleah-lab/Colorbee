@@ -1,0 +1,50 @@
+name: Colorbee
+options:
+  bundleIdPrefix: com.leah
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    ARCHS: arm64
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+
+packages:
+  ColorbeeCore:
+    path: Packages/ColorbeeCore
+
+targets:
+  Colorbee:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/Colorbee
+    dependencies:
+      - package: ColorbeeCore
+    info:
+      path: Sources/Colorbee/Info.plist
+      properties:
+        CFBundleDisplayName: Colorbee
+        LSApplicationCategoryType: public.app-category.graphics-design
+        NSHumanReadableCopyright: Personal tool. Not for distribution.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.leah.Colorbee
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+
+schemes:
+  Colorbee:
+    build:
+      targets:
+        Colorbee: all
+    run:
+      config: Debug

@@ -67,6 +67,21 @@ final class CanvasView: NSView {
 
     // MARK: Rendering
 
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        super.viewWillMove(toWindow: newWindow)
+        if let window {
+            NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: window)
+        }
+        if let newWindow {
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(windowOcclusionChanged(_:)),
+                name: NSWindow.didChangeOcclusionStateNotification,
+                object: newWindow
+            )
+        }
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         guard window != nil else {
@@ -114,7 +129,7 @@ final class CanvasView: NSView {
             viewport.viewSize = size
             if shouldFit { viewport.fit(canvasSize, margin: 40) }
         }
-        if inLiveResize { render() } else { setNeedsRender() }
+        if inLiveResize, isWindowVisible { render() } else { setNeedsRender() }
     }
 
     private func updateSurroundColor() {
@@ -133,8 +148,19 @@ final class CanvasView: NSView {
         displayLink?.isPaused = false
     }
 
+    /// Hidden windows never get their frames composited, so waiting on a drawable would stall.
+    private var isWindowVisible: Bool {
+        window?.occlusionState.contains(.visible) ?? false
+    }
+
+    @objc private func windowOcclusionChanged(_ notification: Notification) {
+        if isWindowVisible, needsRender {
+            displayLink?.isPaused = false
+        }
+    }
+
     @objc private func displayLinkFired(_ link: CADisplayLink) {
-        if needsRender {
+        if needsRender, isWindowVisible {
             render()
         } else {
             link.isPaused = true

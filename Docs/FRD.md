@@ -352,12 +352,15 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 
 ### FR-11.2 Export presets
 - **File → Export As ▸** a preset exports a PNG scaled to a set width. The aspect ratio is kept, and the image is never made larger than its original size unless you allow it.
-- The starting presets are placeholders to be finalized (see §19): Slack (760px), 1280px, 1920px, Mobile (750px), Square 1024.
+- Presets: Slack (760px), 1280px, 1920px, Mobile (750px), Square 1024.
 - Resampling is chosen automatically: Nearest Neighbor for pixel-art-sized images, Smooth otherwise. You can override it.
 - Presets can be edited in Settings.
 
 ### FR-11.3 Before/After
-- **View → Before/After** (Cmd+Opt+B) shows the image as it was when opened (or when a new document was created from a paste) next to the current version.
+- **View → Before/After** (Cmd+Opt+B) shows a "before" image next to the current version.
+- **Compare against** (a switch in the Before/After bar):
+  - **As Opened** (default): the image when it was opened, or when a new document was created from a paste.
+  - **Last Saved:** the image at the most recent save. Not available until the document has been saved.
 - Two views: side by side, or a draggable split.
 - For viewing only. It never changes the image.
 
@@ -387,7 +390,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - There is no fixed step limit. Old steps are kept compactly so memory stays in check.
 - Every change to the image or layers is undoable, including shape and text commits, the selection-plus-move steps, layer operations, resizes and effects.
 
-### FR-13.2 History panel (Cmd+Opt+H)
+### FR-13.2 History panel (Cmd+Y, proposed)
 - Lists past actions in order, each with a name and a small thumbnail (for example "Pencil", "Fill", "Gaussian Blur", "Move Selection", "Resize Canvas").
 - Clicking a row jumps to that point. Steps after it are dimmed and can be redone until you make a new change.
 
@@ -421,18 +424,20 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 |---|---|
 | **File** | New (Cmd+N), Open (Cmd+O), Open Recent, Close (Cmd+W), Save (Cmd+S), Save As (Cmd+Shift+S), Duplicate, Revert To, Export… (Cmd+Opt+S), Export As ▸ presets, Share, Set as Desktop Picture, Page Setup, Print (Cmd+P) |
 | **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z), Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Paste (Cmd+V), Paste into New Image (Cmd+Shift+V), Delete, Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I) |
-| **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9), Pixel Grid (Cmd+'), Rulers (Cmd+R), Status Bar, Layers (Cmd+L), History (Cmd+Opt+H), Clipboard History (Cmd+Opt+V), Adjustments panel, Before/After (Cmd+Opt+B) |
+| **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9), Pixel Grid (Cmd+'), Rulers (Cmd+R), Status Bar, Layers (Cmd+L), History (Cmd+Y, proposed; see §22), Clipboard History (Cmd+Opt+V), Adjustments panel, Before/After (Cmd+Opt+B) |
 | **Image** | Crop to Selection (Cmd+Shift+X), Resize/Skew (Cmd+E), Canvas Properties (Cmd+Opt+E), Rotate ▸, Flip ▸, Symmetry ▸ |
-| **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete, Merge Down (Cmd+Shift+E, proposed; see §22), Flatten, New Adjustment Layer ▸, Revert Layer, Layer Properties |
+| **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete, Merge Down (Cmd+Shift+E), Flatten, New Adjustment Layer ▸, Revert Layer, Layer Properties |
 | **Adjustments** | Invert Colors (Cmd+I), Brightness/Contrast, Hue/Saturation, Desaturate (Cmd+Shift+U) |
 | **Effects** | Gaussian Blur…, Pixelate…, Sharpen…, Auto-Redact…, Batch Redact ▸ |
 | **Window / Help** | Standard |
 
 **Single-key shortcuts** (active only when you're not typing text): X swap colors, D default colors, [ and ] change size, Space (hold) pan. One key per tool: P pencil, B brush, E eraser, G fill, T text, I eyedropper, Z magnifier, M rectangle select, L lasso, W magic wand, U shapes, R measure.
 
+Every shortcut above is a default. All of them can be changed in the shortcut editor (FR-15.3).
+
 ---
 
-## 18. FR-15 — Presets
+## 18. FR-15 — Presets and customization
 
 ### FR-15.1 Palettes
 - Save the current 28 swatches as a named palette. Load, rename, delete, import or export palettes (`.colorpalette`). Reset to the classic palette.
@@ -440,6 +445,33 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 
 ### FR-15.2 Text styles
 - See FR-6.2.
+
+### FR-15.3 Keyboard shortcut editor
+**Settings → Shortcuts** (Colorbee → Settings…, Cmd+,).
+
+**The list**
+- Every menu command and every single-key action (tools, X, D, [ and ]) appears, grouped by menu, with a search field.
+- Each row shows the command name, its current shortcut, and a mark if it differs from the default.
+
+**Changing a shortcut**
+- Click the shortcut cell and press the new key combination to record it. Esc cancels the recording. Delete clears the shortcut (the command then has none).
+- **Menu commands** need Cmd or Ctrl in the shortcut. **Tool and canvas keys** can be a single key or Shift + a key, and are never active while you're typing text.
+- The new shortcut works immediately and shows in the menus straight away.
+
+**Protecting macOS shortcuts (never stepping on the Mac's toes)**
+- **Blocked:** Colorbee refuses shortcuts that belong to macOS or to standard Mac app behavior, and says who owns them. For example: "Cmd+H is used by macOS to Hide Colorbee." These include:
+  - App menu standards: Cmd+Q, Cmd+H, Cmd+Opt+H, Cmd+, and Cmd+Opt+Esc.
+  - Window standards: Cmd+W, Cmd+M, Cmd+Opt+M, Cmd+` and Ctrl+Cmd+F.
+  - Help and input: Cmd+Shift+/, Ctrl+Cmd+Space and Fn/Globe shortcuts.
+  - System-wide: Cmd+Tab, Cmd+Space, Cmd+Shift+3/4/5, Ctrl+Cmd+Q.
+  - **Any shortcut currently set system-wide in System Settings → Keyboard → Keyboard Shortcuts** (Mission Control, Spaces, Spotlight, Screenshots, input sources and so on). Colorbee reads these from the system, so the list matches this Mac even after they've been customized.
+- **Warn, then offer to reassign:** if the shortcut is already used by another Colorbee command, Colorbee names it and offers **Reassign** (the other command loses its shortcut) or **Cancel**.
+- **Cmd+Z, Cmd+X, Cmd+C, Cmd+V, Cmd+A and Cmd+S** can be changed, but only after a confirmation, because every Mac app expects them.
+
+**Resetting and backing up**
+- Reset one shortcut, or **Reset All** to the defaults.
+- Export and import the whole set as a file (`.colorbeekeys`).
+- Custom shortcuts are kept between launches.
 
 ---
 
@@ -468,7 +500,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 4. **Redaction:** Magic Wand, combined selections, batch redaction, Auto-Redact, Before/After, export presets.
 5. **Full toolset:** the other 6 brushes, pressure, all 23 shapes with every style, gradients, resize/skew/rotate/flip, symmetry, measure, sharpen and adjustments.
 6. **Layers:** layers panel, blend modes, opacity, adjustment layers, per-layer undo, .colorproj.
-7. **Integration:** Clipboard History, History panel, palettes, text styles, Finder, screenshot capture, share, print, desktop picture.
+7. **Integration:** Clipboard History, History panel, palettes, text styles, shortcut editor, Finder, screenshot capture, share, print, desktop picture.
 8. **Hardening:** performance, 8000×8000 soak tests, polish.
 
 ---
@@ -484,7 +516,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 - [ ] AC-7 Shift-drag of a selection leaves the smear trail.
 - [ ] AC-8 Blur, Pixelate and Fill affect only the selection. Batch redaction handles each separate region on its own, as one undo step.
 - [ ] AC-9 Auto-Redact finds emails, phone numbers, card numbers and API keys in a test screenshot, entirely offline.
-- [ ] AC-10 Before/After shows the opened state next to the current state.
+- [ ] AC-10 Before/After compares the current image with either "As Opened" or "Last Saved", and switching between them works.
 - [ ] AC-11 Export presets produce the right width, keep the aspect ratio and never enlarge unless allowed.
 - [ ] AC-12 Cmd+V paste keeps full resolution and alpha. Cmd+C puts a PNG with transparency on the system clipboard.
 - [ ] AC-13 Clipboard History shows the last 10 images. Clicking one pastes it and leaves the system clipboard unchanged.
@@ -502,14 +534,15 @@ Everything ships. This is only the order work happens in, and each stage builds 
 - [ ] AC-25 With screenshot capture on, a new Cmd+Shift+4 screenshot opens in Colorbee.
 - [ ] AC-26 Palettes and text styles are kept between launches.
 - [ ] AC-27 8000×8000: draw, blur, undo 50 steps and export with no stall over 1s and no crash.
+- [ ] AC-28 The shortcut editor changes a command's shortcut, and the menus update immediately.
+- [ ] AC-29 The shortcut editor blocks every macOS-owned shortcut (including ones customized in System Settings) and names the owner.
+- [ ] AC-30 Assigning a shortcut already used in Colorbee offers Reassign or Cancel. Reset All brings back the defaults.
 
 ---
 
 ## 22. Open questions (for Leah)
 
-1. **Export preset widths:** confirm the list in FR-11.2.
-2. **Merge Down shortcut:** Cmd+E is taken by Resize/Skew, and Cmd+Opt+M is the system Minimize All. Proposed: Cmd+Shift+E.
-3. **Before/After baseline:** "as opened" is proposed. An alternative is "as of last save".
+1. **History panel shortcut:** Cmd+Opt+H (approved earlier) is macOS's standard "Hide Others", so it can't be used. Proposed: **Cmd+Y**. It's free now that redo is Cmd+Shift+Z only, and Safari uses Cmd+Y for History too.
 
 ---
 
@@ -528,3 +561,8 @@ Everything ships. This is only the order work happens in, and each stage builds 
 | 2026-09-30 | Redo is Cmd+Shift+Z only. Cmd+Y (a Windows convention) is removed. |
 | 2026-09-30 | Auto-Redact reads text entirely on this Mac. |
 | 2026-09-30 | Added Polygon as shape #23. The v1 list named only 22 shapes; Polygon is the missing one from Windows Paint. |
+| 2026-09-30 | Export preset widths confirmed (FR-11.2). |
+| 2026-09-30 | Merge Down = Cmd+Shift+E. |
+| 2026-09-30 | Before/After offers both baselines: As Opened (default) and Last Saved. |
+| 2026-09-30 | Added a keyboard shortcut editor (FR-15.3) that blocks every macOS-owned shortcut. |
+| 2026-09-30 | Withdrew Cmd+Opt+H for the History panel: it's the system Hide Others shortcut. Replacement pending (§22). |

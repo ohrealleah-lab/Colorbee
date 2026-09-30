@@ -73,6 +73,10 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 
 ### FR-1.2 Palette bar (docked under the toolbar)
 - 28 swatches in 2 rows of 14.
+- **12 custom-color slots** (2 rows of 6) next to the swatches, for your own colors:
+  - A color picked with Edit Colors… or the eyedropper's "Add to Custom Colors" goes into the next empty slot. When all are full, the oldest is replaced.
+  - Left-click sets Color 1, right-click sets Color 2, exactly like the swatches. Ctrl-click → Remove clears a slot.
+  - The custom colors are kept between launches and saved as part of a palette (FR-15.1).
 - An Alpha slider (0–100%) for the active color.
 - An **Edit Colors…** button that opens the system Color Panel (Display P3, hex, sliders, screen eyedropper).
 - A palette menu: choose, save, import, export or reset palettes (FR-15.1).
@@ -97,6 +101,8 @@ One collapsible sidebar holds these panels. Each panel can be shown or hidden on
 - Selection size as `W × H px`.
 - Distance from the Measure tool (FR-7.1).
 - Canvas size as `W × H px`.
+- **Pixel Grid switch:** turns the grid on or off. Available at 400% zoom and above; dimmed below that.
+- **Symmetry switch:** shows the current mode (Off, Vertical, Horizontal, Both). Click it to choose a mode.
 - Zoom slider, percentage, and a reset-to-100% button.
 
 ---
@@ -269,10 +275,18 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 
 ### FR-8.2 What layers can do
 - As many layers as memory allows.
-- Add, Duplicate, Delete, Merge Down, Flatten.
+- Add, Duplicate, Delete, Merge Down, **Merge Visible** (combines all visible layers into one), Flatten.
 - Drag to reorder. Double-click to rename.
-- Eye icon to show or hide each layer. Opacity slider from 0 to 100%.
-- Blend modes: Normal, Multiply, Screen, Overlay, Darken, Lighten, Difference, Additive.
+- Eye icon to show or hide each layer. **Hide/Show Layer** is also a menu command for the active layer.
+- **Lock:** a padlock on each layer. A locked layer can't be painted, erased, filled, moved, filtered, merged into or deleted. It can still be hidden, shown or reordered. Tools show a "not allowed" pointer over a locked layer.
+- Opacity slider from 0 to 100%.
+- **Blend modes (17),** grouped in the menu like this:
+  - Normal
+  - Darken, Multiply, Color Burn
+  - Lighten, Screen, Color Dodge, Additive
+  - Overlay, Soft Light, Hard Light
+  - Difference, Exclusion
+  - Hue, Saturation, Color, Luminosity
 - Every tool, effect and adjustment works on the **active layer** only.
 
 ### FR-8.3 Per-layer undo
@@ -433,7 +447,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 | **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z), Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Paste (Cmd+V), Paste into New Image (Cmd+Shift+V), Delete, Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I) |
 | **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9), Pixel Grid (Cmd+'), Rulers (Cmd+R), Status Bar, Layers (Cmd+L), History (Cmd+Y), Clipboard History (Cmd+Opt+V), Adjustments panel, Before/After (Cmd+Opt+B) |
 | **Image** | Crop to Selection (Cmd+Shift+X), Resize/Skew (Cmd+E), Canvas Properties (Cmd+Opt+E), Rotate ▸, Flip ▸, Symmetry ▸ |
-| **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete, Merge Down (Cmd+Shift+E), Flatten, New Adjustment Layer ▸, Revert Layer, Layer Properties |
+| **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete (Cmd+Delete), Merge Down (Cmd+Shift+E), Merge Visible (Cmd+Opt+Shift+E), Flatten, Hide/Show Layer (no default shortcut), Lock/Unlock Layer, New Adjustment Layer ▸, Revert Layer, Layer Properties |
 | **Adjustments** | Invert Colors (Cmd+I), Brightness/Contrast, Hue/Saturation, Desaturate (Cmd+Shift+U) |
 | **Effects** | Gaussian Blur…, Pixelate…, Sharpen…, Auto-Redact…, Batch Redact ▸ |
 | **Window / Help** | Standard |
@@ -447,7 +461,7 @@ Every shortcut above is a default. All of them can be changed in the shortcut ed
 ## 18. FR-15 — Presets and customization
 
 ### FR-15.1 Palettes
-- Save the current 28 swatches as a named palette. Load, rename, delete, import or export palettes (`.colorpalette`). Reset to the classic palette.
+- Save the current 28 swatches and 12 custom colors as a named palette. Load, rename, delete, import or export palettes (`.colorpalette`). Reset to the classic palette.
 - The chosen palette is kept between launches.
 
 ### FR-15.2 Text styles
@@ -542,6 +556,9 @@ Everything ships. This is only the order work happens in, and each stage builds 
 - [ ] AC-25 With screenshot capture on, a new Cmd+Shift+4 screenshot opens in Colorbee.
 - [ ] AC-26 Palettes and text styles are kept between launches.
 - [ ] AC-27 8000×8000: draw, blur, undo 50 steps and export with no stall over 1s and no crash.
+- [ ] AC-27a A locked layer rejects every pixel edit, move, merge and delete, and can still be hidden and reordered.
+- [ ] AC-27b All 17 blend modes render the same on screen and in export.
+- [ ] AC-27c Picking a color with Edit Colors… fills the next custom slot. The slots survive a relaunch.
 - [ ] AC-28 The shortcut editor changes a command's shortcut, and the menus update immediately.
 - [ ] AC-29 The shortcut editor blocks every macOS-owned shortcut (including ones customized in System Settings) and names the owner.
 - [ ] AC-30 Assigning a shortcut already used in Colorbee offers Reassign or Cancel. Reset All brings back the defaults.
@@ -577,3 +594,6 @@ None right now.
 | 2026-09-30 | The repo stays local only; no remote for now. |
 | 2026-09-30 | Added drag-to-resize for selections and pasted images. **Exception to macOS conventions:** free stretch by default, Shift keeps proportions (Windows Paint behavior). |
 | 2026-09-30 | Colorbee is a paint program first. Simple diagrams are in scope; mind-mapping and structured diagram features are out. |
+| 2026-09-30 | UI mockups adopted as the visual reference (`Docs/Design/`). Where a mockup and the FRD disagree on behavior or shortcuts, the FRD wins. The mockup's Settings screen showed wrong default shortcuts; the FRD's are correct. |
+| 2026-09-30 | Blend modes expanded from 8 to 17: the mockup's 16 plus Additive. |
+| 2026-09-30 | Added from the mockups: 12 custom-color slots, layer lock, Merge Visible (Cmd+Opt+Shift+E), Hide/Show Layer command, Pixel Grid and Symmetry switches in the status bar. |

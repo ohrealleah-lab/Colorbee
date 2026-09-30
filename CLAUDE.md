@@ -3,6 +3,7 @@
 A native macOS raster editor: MS Paint's immediacy plus redaction, annotation, layers and effects. It's a personal tool with one user, Leah, who is also the PM. Claude is the sole engineer.
 
 - **What to build:** [Docs/FRD.md](Docs/FRD.md) is the single source of truth. When the FRD and this file disagree about behavior, the FRD wins.
+- **What it looks like:** the mockups in [Docs/Design/](Docs/Design/) are the visual reference. To view them, run the `design-mockups` launch config (serves the folder on port 8765) and open `Colorbee Mockups.dc.html`. The mockup icons are stand-ins; use SF Symbols. When a mockup and the FRD disagree on behavior or shortcuts, the FRD wins.
 - **How to build it:** this file.
 - Functional decisions belong to Leah. When a behavior question comes up, ask her, then record the answer in the FRD decision log (§23).
 

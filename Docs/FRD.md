@@ -20,7 +20,8 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 4. **Two colors.** Left-click uses Color 1 and right-click uses Color 2, for every tool.
 5. **Exact pixels.** Rendering is sharp at every zoom level, and coordinates are always whole pixels.
 6. **Editing first.** Redaction, annotation and export are the fastest paths through the app.
-7. **macOS conventions.** Standard Mac shortcuts, document behavior and autosave apply. Where Windows Paint and macOS disagree, macOS wins.
+7. **macOS conventions.** Standard Mac shortcuts, document behavior and autosave apply. Where Windows Paint and macOS disagree, macOS wins, except for the deliberate exceptions listed in the decision log (§23).
+8. **A paint program first.** Simple diagrams (boxes, arrows, callouts, labels) are in scope. Structured diagramming or mind-mapping (live objects, attached connectors, node trees) is not.
 
 ---
 
@@ -124,7 +125,7 @@ One collapsible sidebar holds these panels. Each panel can be shown or hidden on
 ## 6. FR-3 — Selection
 
 ### FR-3.1 Selection tools
-- **Rectangle:** 8 resize handles after the selection is drawn.
+- **Rectangle:** 8 handles after the selection is drawn (see "Resize by dragging", FR-3.3).
 - **Ellipse**
 - **Free-Form (lasso):** closes automatically when you release the mouse.
 - **Magic Wand:** selects by color similarity. Has a Tolerance slider (0–100%) and a Contiguous toggle.
@@ -147,6 +148,12 @@ These let you build several separate regions for batch redaction (FR-9.4).
 - **Duplicate-drag:** Option-drag moves a copy and leaves the original in place.
 - **Smear:** Shift-drag stamps a continuous trail of copies along the path (the classic Paint trick).
 - **Transparent Selection mode:** pixels that match Color 2 are treated as transparent while moving or pasting.
+- **Resize by dragging:** every selection, including a pasted image, has 8 handles (4 corners, 4 sides).
+  - Dragging a handle stretches the selected pixels. If they haven't been lifted yet, they're lifted into a floating selection first.
+  - **Stretching is free by default. Hold Shift to keep the proportions** (Windows Paint behavior; see §23).
+  - Quality doesn't degrade: until you commit, every resize is recalculated from the original pixels, so repeated resizing never blurs.
+  - The status bar shows the new size and percentage live while you drag.
+  - Smoothing follows the Resize/Skew setting (FR-7.2): Nearest Neighbor for sharp pixels, Smooth for photos and screenshots.
 - **Nudge:** arrow keys move a floating selection by 1px, Shift+arrow by 10px.
 - **Resize the selection's bounds:** Cmd+arrow grows or shrinks the marquee by 1px, Cmd+Shift+arrow by 10px. The pixels inside are not changed.
 - **Commit:** clicking outside the selection, pressing Return or switching tools places the floating pixels. Clicking without dragging never moves any pixels.
@@ -496,7 +503,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 
 1. **Walking skeleton:** window → canvas → one brush → undo → paste → PNG export. Measure NFR-1, 2 and 3.
 2. **Core model:** document and layers (starting with 1 layer), history, selection and floating selection, zoom/pan/grid.
-3. **Everyday editing:** Pencil, Round brush, Marker, Eraser/Color Eraser, Fill, Eyedropper, Rectangle/Ellipse/Lasso select, crop, blur, pixelate, basic shapes (line, arrow, rectangle, rounded rectangle, ellipse), text, copy, export in all formats.
+3. **Everyday editing:** Pencil, Round brush, Marker, Eraser/Color Eraser, Fill, Eyedropper, Rectangle/Ellipse/Lasso select, drag-to-resize selections, crop, blur, pixelate, basic shapes (line, arrow, rectangle, rounded rectangle, ellipse), text, copy, export in all formats.
 4. **Redaction:** Magic Wand, combined selections, batch redaction, Auto-Redact, Before/After, export presets.
 5. **Full toolset:** the other 6 brushes, pressure, all 23 shapes with every style, gradients, resize/skew/rotate/flip, symmetry, measure, sharpen and adjustments.
 6. **Layers:** layers panel, blend modes, opacity, adjustment layers, per-layer undo, .colorproj.
@@ -514,6 +521,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 - [ ] AC-5 Magic Wand respects Tolerance and Contiguous.
 - [ ] AC-6 Shift, Option and Shift+Option combine selections as FR-3.2 describes.
 - [ ] AC-7 Shift-drag of a selection leaves the smear trail.
+- [ ] AC-7a Dragging a pasted image's handle stretches it freely. Shift keeps the proportions. Shrinking and then enlarging again before committing looks identical to the original.
 - [ ] AC-8 Blur, Pixelate and Fill affect only the selection. Batch redaction handles each separate region on its own, as one undo step.
 - [ ] AC-9 Auto-Redact finds emails, phone numbers, card numbers and API keys in a test screenshot, entirely offline.
 - [ ] AC-10 Before/After compares the current image with either "As Opened" or "Last Saved", and switching between them works.
@@ -567,3 +575,5 @@ None right now.
 | 2026-09-30 | Added a keyboard shortcut editor (FR-15.3) that blocks every macOS-owned shortcut. |
 | 2026-09-30 | Withdrew Cmd+Opt+H for the History panel: it's the system Hide Others shortcut. Replaced with Cmd+Y. |
 | 2026-09-30 | The repo stays local only; no remote for now. |
+| 2026-09-30 | Added drag-to-resize for selections and pasted images. **Exception to macOS conventions:** free stretch by default, Shift keeps proportions (Windows Paint behavior). |
+| 2026-09-30 | Colorbee is a paint program first. Simple diagrams are in scope; mind-mapping and structured diagram features are out. |

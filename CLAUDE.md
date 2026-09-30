@@ -15,6 +15,7 @@ make build    # debug build of the app
 make test     # core unit tests (fast, headless) + full app build
 make core     # core unit tests only (swift test)
 make run      # build and launch the app
+make bench     # Release build + scripted perf run (launch, stroke latency, undo, memory). Brings a window to the front; ask Leah first.
 make clean
 ```
 
@@ -39,14 +40,16 @@ Docs/reference/              Original v1 spec, kept for reference only
 - **Two layers of code.** `ColorbeeCore` is pure Swift with **no AppKit/SwiftUI/Metal imports**. It owns pixels, documents, history, selection and tool/effect algorithms, and is fully unit-testable headless. The app target owns UI, input, rendering and OS integration.
 - **The CPU owns the pixels.** Each layer is one contiguous buffer (page-aligned). Metal is for *display only*: zero-copy texture from the buffer, compositing, nearest-neighbor zoom, checkerboard, pixel grid, overlays. Never treat a GPU texture as the source of truth.
 - **Pixel format:** BGRA8, **straight (non-premultiplied) alpha** in storage. Premultiply only in the display shader. Exact-match tools (color eraser, magic wand, fill) depend on this.
-- **Color space:** each document keeps its source color profile (usually Display P3 for screenshots). Blend in the document's space; embed the profile on export. Never silently convert to sRGB.
-- **Coordinates:** image-space pixel coordinates are `Int`. Convert from view points exactly once, at the input boundary.
+- **Color space:** each document keeps its source color profile (usually Display P3 for screenshots). Blend in the document's space; embed the profile on export. Never silently convert to sRGB. New blank documents use Display P3.
+- **Coordinates:** pixel addresses are `Int` (`IntPoint`, `IntRect`); continuous positions such as stroke paths use `Point2D`. Convert from view points exactly once, at the input boundary, through `Viewport`.
 - **Document model from day one:** `Document → [Layer]` (starting with 1 layer), plus a `SelectionMask` and an optional `FloatingSelection`. Tools draw into `activeLayer`. Display composites the whole layer stack. Nothing may assume there's only one layer.
 - **Tiles are logical:** a 256px grid over each contiguous buffer, used for dirty tracking, GPU uploads and undo. They are not a separate storage format.
 - **History:** command pattern. Pixel edits store the *before-images of the dirty tiles*, keyed by (layer, tile). Invertible operations (flip, rotate) store no pixels; geometry changes (resize, crop) store full buffers. Memory is capped by a **byte budget**, not a step count; older entries spill to disk compressed (LZ4, Compression framework). Every entry also captures selection, floating selection and canvas size. **All document mutations go through history. No exceptions.**
-- **Canvas view:** an AppKit `NSView` subclass backed by `CAMetalLayer`, embedded in SwiftUI with `NSViewRepresentable`. It handles left/right mouse, pressure, tablet, magnify, scroll and keys directly. SwiftUI handles toolbar, palette, sidebar panels, dialogs, menus (`Commands`) and settings.
+- **Canvas view:** an AppKit `NSView` subclass backed by `CAMetalLayer`, embedded in SwiftUI with `NSViewRepresentable`. It handles left/right mouse, pressure, tablet, magnify, scroll and keys directly. SwiftUI handles toolbar, palette, sidebar panels, dialogs and settings.
+- **App lifecycle and menus are AppKit** (`main.swift`, `AppDelegate`, `MainMenu`). Menus are `NSMenu` so the shortcut editor (FRD FR-15.3) can change key equivalents at runtime. Document commands are handled by `DocumentWindow`.
 - **Rasterizing:** use Core Graphics on the layer buffer for shapes, anti-aliased lines, gradients and text (via Core Text). Use Accelerate/vImage for blur, resampling and conversions. Write custom code only where the platform can't do it (pencil, flood fill, brush dabs, color eraser, magic wand).
-- **Documents:** `NSDocument`-based, for standard autosave, versions and window restoration (FRD §15).
+- **Documents:** `NSDocument`-based, for standard autosave, versions and window restoration (FRD §15). Undo is Colorbee's own `History`, not `NSUndoManager`.
+- **Display:** render on demand from a display link, and never while the window is hidden (occluded windows never composite, so waiting on a drawable stalls).
 - **On-device only:** Vision for Auto-Redact text recognition. No networking anywhere.
 
 ## Performance rules

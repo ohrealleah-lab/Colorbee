@@ -51,6 +51,7 @@ public struct IntRect: Hashable, Sendable {
     public var maxX: Int { x + width }
     public var maxY: Int { y + height }
     public var isEmpty: Bool { width <= 0 || height <= 0 }
+    public var size: IntSize { IntSize(width: width, height: height) }
     public var area: Int { isEmpty ? 0 : width * height }
 
     public func contains(_ point: IntPoint) -> Bool {

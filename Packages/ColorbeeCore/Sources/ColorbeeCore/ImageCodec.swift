@@ -31,7 +31,7 @@ public enum ImageCodec {
         let colorSpace = target ?? rgbColorSpace(of: image)
         var format = try storageFormat(for: colorSpace)
         let buffer = PixelBuffer(width: image.width, height: image.height)
-        var destination = vImageBuffer(wrapping: buffer)
+        var destination = buffer.vImageBuffer
         let error = vImageBuffer_InitWithCGImage(&destination, &format, nil, image, vImage_Flags(kvImageNoAllocate))
         guard error == kvImageNoError else { throw ImageCodecError.conversionFailed(error) }
         return DecodedImage(buffer: buffer, colorSpace: colorSpace)
@@ -39,7 +39,7 @@ public enum ImageCodec {
 
     public static func makeCGImage(_ buffer: PixelBuffer, colorSpace: CGColorSpace) throws -> CGImage {
         var format = try storageFormat(for: colorSpace)
-        var source = vImageBuffer(wrapping: buffer)
+        var source = buffer.vImageBuffer
         var error = vImage_Error(kvImageNoError)
         guard let image = vImageCreateCGImageFromBuffer(&source, &format, nil, nil, vImage_Flags(kvImageNoFlags), &error)?
             .takeRetainedValue(), error == kvImageNoError else {
@@ -73,14 +73,5 @@ public enum ImageCodec {
             return colorSpace
         }
         return CGColorSpace(name: CGColorSpace.sRGB)!
-    }
-
-    private static func vImageBuffer(wrapping buffer: PixelBuffer) -> vImage_Buffer {
-        vImage_Buffer(
-            data: buffer.baseAddress,
-            height: vImagePixelCount(buffer.height),
-            width: vImagePixelCount(buffer.width),
-            rowBytes: buffer.bytesPerRow
-        )
     }
 }

@@ -46,15 +46,51 @@ struct HistoryTests {
         #expect(!history.canUndo)
     }
 
-    @Test func byteBudgetDropsTheOldestEntries() {
+    @Test func stepsOverTheMemoryBudgetSpillToDiskAndStillUndo() {
         let canvas = Canvas(size: IntSize(width: 64, height: 64), colorSpace: Canvas.defaultColorSpace, background: .white)
         let entryBytes = 64 * 64 * 4
         let history = History(byteBudget: entryBytes * 2)
-        for index in 0..<5 {
+        let original = canvas.activeLayer.buffer.contentHash()
+        for index in 0..<6 {
             fill(canvas.bounds, with: Pixel(r: UInt8(index * 40), g: 0, b: 0), on: canvas, history: history)
         }
-        #expect(history.undoCount == 2)
+        let final = canvas.activeLayer.buffer.contentHash()
+
+        #expect(history.undoCount == 6)
+        #expect(history.spilledEntryCount > 0)
         #expect(history.byteCount <= history.byteBudget)
+
+        while history.canUndo { history.undo(on: canvas) }
+        #expect(canvas.activeLayer.buffer.contentHash() == original)
+        #expect(history.byteCount <= history.byteBudget)
+
+        while history.canRedo { history.redo(on: canvas) }
+        #expect(canvas.activeLayer.buffer.contentHash() == final)
+    }
+
+    @Test func undoRestoresTheSelection() {
+        let canvas = Canvas(size: IntSize(width: 32, height: 32), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max)
+        let mask = SelectionMask.rectangle(IntRect(x: 0, y: 0, width: 8, height: 8), clippedTo: canvas.bounds)!
+        canvas.selection = .marquee(mask)
+        fill(IntRect(x: 20, y: 20, width: 4, height: 4), with: red, on: canvas, history: history)
+        canvas.selection = .none
+
+        history.undo(on: canvas)
+        #expect(canvas.selection.marquee?.revision == mask.revision)
+    }
+
+    @Test func selectionOnlyChangesAreRecordedOnlyWhenAsked() {
+        let canvas = Canvas(size: IntSize(width: 16, height: 16), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max)
+        let quiet = history.beginEdit("Select", on: canvas)
+        canvas.selection = .marquee(SelectionMask.rectangle(canvas.bounds, clippedTo: canvas.bounds)!)
+        #expect(!history.commit(quiet))
+
+        let recorded = history.beginEdit("Deselect", on: canvas)
+        recorded.recordsSelectionChange = true
+        canvas.selection = .none
+        #expect(history.commit(recorded))
     }
 
     @Test func randomEditsUndoBackToTheOriginal() {

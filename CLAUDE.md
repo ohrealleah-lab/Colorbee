@@ -54,7 +54,7 @@ Docs/reference/              Original v1 spec, kept for reference only
 
 ## Performance rules
 
-- Drawing latency is measured from the input event to frame presentation with `os_signpost`. Target: under 16ms.
+- Drawing latency: Colorbee's own processing (input event → frame handed to macOS) must stay under 16ms. `make bench` also reports the full input-to-screen time, which includes ~16ms of macOS compositing.
 - Turn mouse coalescing off while drawing. Draw on demand, not in a free-running loop. Keep `maximumDrawableCount = 2`.
 - Upload only dirty tiles. Never re-upload the full canvas for a stroke.
 - Flood fill and magic wand use scanline algorithms, never recursion.

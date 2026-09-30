@@ -8,6 +8,7 @@ final class CanvasView: NSView {
     private enum Drag {
         case primary
         case secondary
+        case select(last: Point2D)
         case pan(last: NSPoint)
     }
 
@@ -20,6 +21,7 @@ final class CanvasView: NSView {
     private let editor: Editor
     private let renderer = Renderer.shared
     private var displayLink: CADisplayLink?
+    private var antsTimer: Timer?
     private var needsRender = true
     private var pendingInputTime: TimeInterval?
     private var hasFitted = false
@@ -90,7 +92,16 @@ final class CanvasView: NSView {
         guard window != nil else {
             displayLink?.invalidate()
             displayLink = nil
+            antsTimer?.invalidate()
+            antsTimer = nil
             return
+        }
+        if antsTimer == nil {
+            let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.animateAnts() }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            antsTimer = timer
         }
         updateSurroundColor()
         updateDrawableSize()
@@ -170,6 +181,32 @@ final class CanvasView: NSView {
         }
     }
 
+    private func animateAnts() {
+        if editor.hasSelection { setNeedsRender() }
+    }
+
+    private var renderScene: RenderScene {
+        let selection = editor.canvas.selection
+        let outline: (mask: SelectionMask, rect: IntRect)? =
+            if let preview = editor.marqueePreview {
+                (preview, preview.bounds)
+            } else if case .marquee(let mask) = selection {
+                (mask, mask.bounds)
+            } else if let floating = selection.floating {
+                (floating.mask, floating.destination)
+            } else {
+                nil
+            }
+        return RenderScene(
+            canvas: editor.canvas,
+            viewport: editor.viewport,
+            outline: outline,
+            transparentKey: editor.selectionContext.transparentKey,
+            showsPixelGrid: editor.showsPixelGrid,
+            antsPhase: Float((CACurrentMediaTime() * 4).truncatingRemainder(dividingBy: 2))
+        )
+    }
+
     private func render() {
         needsRender = false
         let inputTime = pendingInputTime
@@ -178,8 +215,7 @@ final class CanvasView: NSView {
         let screenLatency = screenLatency
         let signpostState = Diagnostics.signposter.beginInterval("Render")
         renderer.render(
-            editor.canvas,
-            viewport: editor.viewport,
+            renderScene,
             into: metalLayer,
             scale: backingScale,
             surround: surroundColor,
@@ -230,6 +266,17 @@ final class CanvasView: NSView {
         let point = imagePoint(event)
         let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         editor.pointer = editor.canvas.bounds.contains(pixel) ? pixel : nil
+        if drag == nil { currentCursor(at: point).set() }
+    }
+
+    private func currentCursor(at point: Point2D?) -> NSCursor {
+        if spaceHeld { return .openHand }
+        if editor.tool.selectionShape != nil, let point, editor.selectionContains(point) { return .openHand }
+        return .crosshair
+    }
+
+    private func dragModifiers(_ event: NSEvent) -> DragModifiers {
+        DragModifiers(shift: event.modifierFlags.contains(.shift), option: event.modifierFlags.contains(.option))
     }
 
     private func beginDrag(_ event: NSEvent, secondary: Bool) {
@@ -239,9 +286,17 @@ final class CanvasView: NSView {
             NSCursor.closedHand.set()
             return
         }
-        drag = secondary ? .secondary : .primary
-        noteInput(event)
-        editor.beginStroke(at: imagePoint(event), secondary: secondary)
+        let point = imagePoint(event)
+        if editor.tool.selectionShape != nil {
+            guard !secondary else { return }
+            drag = .select(last: point)
+            editor.beginSelectionDrag(at: point, modifiers: dragModifiers(event))
+            if editor.selectionContains(point) { NSCursor.closedHand.set() }
+        } else {
+            drag = secondary ? .secondary : .primary
+            noteInput(event)
+            editor.beginStroke(at: point, secondary: secondary)
+        }
         updatePointer(event)
     }
 
@@ -251,37 +306,56 @@ final class CanvasView: NSView {
             let point = convert(event.locationInWindow, from: nil)
             editor.updateViewport { $0.pan(byViewDeltaX: point.x - last.x, y: point.y - last.y) }
             drag = .pan(last: point)
+        case .select:
+            let point = imagePoint(event)
+            drag = .select(last: point)
+            editor.continueSelectionDrag(to: point, shiftDown: event.modifierFlags.contains(.shift))
+            updatePointer(event)
         case .primary, .secondary:
             noteInput(event)
             editor.continueStroke(to: imagePoint(event))
-                updatePointer(event)
+            updatePointer(event)
         case nil:
             break
         }
     }
 
-    private func endDrag() {
-        if case .pan = drag {
-            (spaceHeld ? NSCursor.openHand : NSCursor.crosshair).set()
-        } else {
+    private func endDrag(_ event: NSEvent) {
+        switch drag {
+        case .pan:
+            break
+        case .select:
+            editor.endSelectionDrag(at: imagePoint(event))
+        case .primary, .secondary:
             editor.endStroke()
+        case nil:
+            return
         }
         drag = nil
+        currentCursor(at: imagePoint(event)).set()
     }
 
     override func mouseDown(with event: NSEvent) { beginDrag(event, secondary: false) }
     override func mouseDragged(with event: NSEvent) { continueDrag(event) }
-    override func mouseUp(with event: NSEvent) { endDrag() }
+    override func mouseUp(with event: NSEvent) { endDrag(event) }
 
     override func rightMouseDown(with event: NSEvent) { beginDrag(event, secondary: true) }
     override func rightMouseDragged(with event: NSEvent) { continueDrag(event) }
-    override func rightMouseUp(with event: NSEvent) { endDrag() }
+    override func rightMouseUp(with event: NSEvent) { endDrag(event) }
 
     override func mouseMoved(with event: NSEvent) { updatePointer(event) }
     override func mouseExited(with event: NSEvent) { editor.pointer = nil }
 
     override func cursorUpdate(with event: NSEvent) {
-        (spaceHeld ? NSCursor.openHand : NSCursor.crosshair).set()
+        currentCursor(at: imagePoint(event)).set()
+    }
+
+    /// Pressing or releasing Shift mid-drag changes the marquee's constraint without moving the mouse.
+    override func flagsChanged(with event: NSEvent) {
+        if case .select(let last) = drag {
+            editor.continueSelectionDrag(to: last, shiftDown: event.modifierFlags.contains(.shift))
+        }
+        super.flagsChanged(with: event)
     }
 
     override func scrollWheel(with event: NSEvent) {
@@ -297,16 +371,48 @@ final class CanvasView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
-        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.capsLock)
-        switch (event.charactersIgnoringModifiers, modifiers.isEmpty) {
-        case (" ", true):
-            spaceHeld = true
-            if drag == nil { NSCursor.openHand.set() }
-        case ("x", true):
-            editor.swapColors()
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        let plain = modifiers.isEmpty
+        let step = modifiers == .shift ? 10 : 1
+
+        switch event.specialKey {
+        case .leftArrow where plain || modifiers == .shift:
+            nudge(dx: -step, dy: 0, event)
+        case .rightArrow where plain || modifiers == .shift:
+            nudge(dx: step, dy: 0, event)
+        case .upArrow where plain || modifiers == .shift:
+            nudge(dx: 0, dy: -step, event)
+        case .downArrow where plain || modifiers == .shift:
+            nudge(dx: 0, dy: step, event)
+        case .carriageReturn where plain, .enter where plain:
+            editor.deselect()
+        case .delete where plain, .deleteForward where plain, .backspace where plain:
+            if editor.hasSelection { editor.deleteSelection() } else { super.keyDown(with: event) }
         default:
-            super.keyDown(with: event)
+            switch (event.charactersIgnoringModifiers, plain) {
+            case ("\u{1b}", true):
+                editor.deselect()
+            case (" ", true):
+                spaceHeld = true
+                if drag == nil { NSCursor.openHand.set() }
+            case ("x", true):
+                editor.swapColors()
+            case ("b", true):
+                editor.selectTool(.brush)
+            case ("m", true):
+                editor.selectTool(.rectangleSelect)
+            default:
+                super.keyDown(with: event)
+            }
         }
+    }
+
+    private func nudge(dx: Int, dy: Int, _ event: NSEvent) {
+        guard editor.hasSelection else {
+            super.keyDown(with: event)
+            return
+        }
+        editor.nudgeSelection(dx: dx, dy: dy)
     }
 
     override func keyUp(with event: NSEvent) {

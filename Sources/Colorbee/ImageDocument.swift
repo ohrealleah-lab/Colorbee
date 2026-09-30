@@ -37,7 +37,8 @@ final class ImageDocument: NSDocument {
         MainActor.assumeIsolated {
             editor = Editor(canvas: Canvas(
                 colorSpace: decoded.colorSpace,
-                layers: [Layer(name: "Background", buffer: decoded.buffer)]
+                layers: [Layer(name: "Background", buffer: decoded.buffer)],
+                hasTransparentBackground: decoded.buffer.hasTransparency
             ))
         }
     }

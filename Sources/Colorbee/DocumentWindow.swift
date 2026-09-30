@@ -15,15 +15,45 @@ final class DocumentWindow: NSWindow {
         editor?.redo()
     }
 
+    /// Copies the selection, or the whole image when nothing is selected (FR-10.3).
     @objc func copy(_ sender: Any?) {
         guard let editor else { return }
         do {
+            let png = try editor.selectedPixels().map {
+                try ImageCodec.encodePNG($0, colorSpace: editor.canvas.colorSpace)
+            } ?? editor.flattenedPNG()
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
-            pasteboard.setData(try editor.flattenedPNG(), forType: .png)
+            pasteboard.setData(png, forType: .png)
         } catch {
             presentError(error)
         }
+    }
+
+    @objc func cut(_ sender: Any?) {
+        guard let editor, editor.hasSelection else { return }
+        copy(sender)
+        editor.deleteSelection(named: "Cut")
+    }
+
+    @objc func delete(_ sender: Any?) {
+        editor?.deleteSelection()
+    }
+
+    @objc override func selectAll(_ sender: Any?) {
+        editor?.selectAll()
+    }
+
+    @objc func deselect(_ sender: Any?) {
+        editor?.deselect()
+    }
+
+    @objc func invertSelection(_ sender: Any?) {
+        editor?.invertSelection()
+    }
+
+    @objc func togglePixelGrid(_ sender: Any?) {
+        editor?.showsPixelGrid.toggle()
     }
 
     @objc func paste(_ sender: Any?) {
@@ -52,6 +82,13 @@ final class DocumentWindow: NSWindow {
             return editor.redoActionName != nil
         case #selector(paste(_:)):
             return Self.imageDataOnPasteboard() != nil
+        case #selector(cut(_:)), #selector(delete(_:)), #selector(deselect(_:)):
+            return editor.hasSelection
+        case #selector(selectAll(_:)), #selector(invertSelection(_:)):
+            return true
+        case #selector(togglePixelGrid(_:)):
+            menuItem.state = editor.showsPixelGrid ? .on : .off
+            return true
         case #selector(copy(_:)), #selector(zoomIn(_:)), #selector(zoomOut(_:)),
              #selector(actualSize(_:)), #selector(zoomToFit(_:)):
             return true

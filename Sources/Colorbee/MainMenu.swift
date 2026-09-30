@@ -78,7 +78,12 @@ enum MainMenu {
         menu.addItem(item("Cut", "cut:", "x"))
         menu.addItem(item("Copy", "copy:", "c"))
         menu.addItem(item("Paste", "paste:", "v"))
+        // The canvas handles the Delete key itself, so text fields keep their own Delete.
+        menu.addItem(item("Delete", "delete:"))
+        menu.addItem(.separator())
         menu.addItem(item("Select All", "selectAll:", "a"))
+        menu.addItem(item("Deselect", "deselect:", "d"))
+        menu.addItem(item("Invert Selection", "invertSelection:", "i", [.command, .shift]))
         return menu
     }
 
@@ -88,6 +93,8 @@ enum MainMenu {
         menu.addItem(item("Zoom Out", "zoomOut:", "-"))
         menu.addItem(item("Actual Size", "actualSize:", "0"))
         menu.addItem(item("Zoom to Fit", "zoomToFit:", "9"))
+        menu.addItem(.separator())
+        menu.addItem(item("Pixel Grid", "togglePixelGrid:", "'"))
         menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", "toggleFullScreen:", "f", [.command, .control]))
         return menu

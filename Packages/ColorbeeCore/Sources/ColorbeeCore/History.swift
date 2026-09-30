@@ -113,6 +113,8 @@ public final class History {
     public let byteBudget: Int
     /// Bytes of tile data currently held in memory.
     public private(set) var byteCount = 0
+    /// Increases whenever a step is recorded, merged, undone or redone.
+    public private(set) var revision = 0
     private var undoStack: [HistoryEntry] = []
     private var redoStack: [HistoryEntry] = []
     private var spillStore: SpillStore?
@@ -160,11 +162,13 @@ public final class History {
             previous.changes += added
             previous.selectionAfter = selectionAfter
             byteCount += added.reduce(0) { $0 + $1.byteCount }
+            revision += 1
         } else {
             discardRedo()
             let entry = HistoryEntry(name: edit.name, changes: changes, selectionBefore: edit.selectionBefore, selectionAfter: selectionAfter)
             undoStack.append(entry)
             byteCount += entry.byteCount
+            revision += 1
         }
         spillToBudget()
         return true
@@ -182,6 +186,7 @@ public final class History {
         let changed = swapPixels(entry, on: canvas)
         canvas.selection = entry.selectionBefore
         redoStack.append(entry)
+        revision += 1
         spillToBudget()
         return changed
     }
@@ -197,6 +202,7 @@ public final class History {
         let changed = swapPixels(entry, on: canvas)
         canvas.selection = entry.selectionAfter
         undoStack.append(entry)
+        revision += 1
         spillToBudget()
         return changed
     }

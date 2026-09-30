@@ -77,6 +77,17 @@ public final class PixelBuffer {
         }
     }
 
+    /// Whether any pixel is less than fully opaque.
+    public var hasTransparency: Bool {
+        for y in 0..<height {
+            let row = row(y)
+            for x in 0..<width where row[x].a < 255 {
+                return true
+            }
+        }
+        return false
+    }
+
     public func copy() -> PixelBuffer {
         let result = PixelBuffer(width: width, height: height)
         result.baseAddress.copyMemory(from: baseAddress, byteCount: bytesPerRow * height)

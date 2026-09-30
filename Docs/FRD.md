@@ -501,7 +501,7 @@ Every shortcut above is a default. All of them can be changed in the shortcut ed
 | ID | Requirement |
 |---|---|
 | NFR-1 | Cold start to a drawable canvas **on screen** in **under 500ms** on Apple Silicon. Measured at ~330–400ms (Sept 2026); the limit guards against regressions. |
-| NFR-2 | Drawing latency **under 16ms**, measured from the input event to the frame being shown. The display itself adds its own delay on top. Strokes must use every input sample, with none skipped. |
+| NFR-2 | Colorbee's processing, from the input event to the frame handed to macOS, **under 16ms**. Strokes must use every input sample, with none skipped. Measured ~5ms; the full input-to-screen figure (~22ms, mostly macOS window compositing) is reported but not a limit. |
 | NFR-3 | Memory use is measured, not guessed: record it at 1920×1080 once the core is built, then keep it from growing. Expected range: 100–150MB. |
 | NFR-4 | 8000×8000 images open, draw, undo and export without stalls or crashes. |
 | NFR-5 | Full Light/Dark mode support. |
@@ -567,7 +567,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 
 ## 22. Open questions (for Leah)
 
-1. **Drawing latency (NFR-2):** measured ~22ms from input to screen. Colorbee's own work is ~5ms; the other ~16ms is macOS compositing the window, which no app controls. Proposed: redefine NFR-2 as "Colorbee's processing, from input event to the frame handed to macOS, under 16ms", and keep reporting the full on-screen figure.
+None right now.
 
 ---
 
@@ -593,6 +593,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 | 2026-09-30 | Withdrew Cmd+Opt+H for the History panel: it's the system Hide Others shortcut. Replaced with Cmd+Y. |
 | 2026-09-30 | The repo stays local only; no remote for now. |
 | 2026-09-30 | Added drag-to-resize for selections and pasted images. **Exception to macOS conventions:** free stretch by default, Shift keeps proportions (Windows Paint behavior). |
+| 2026-09-30 | Drawing latency accepted: NFR-2 now covers Colorbee's own processing (~5ms). The ~16ms macOS adds to put the window on screen is outside any app's control. |
 | 2026-09-30 | Launch time of ~330–400ms accepted. NFR-1 relaxed from 300ms to a 500ms regression limit. |
 | 2026-09-30 | Colorbee is a paint program first. Simple diagrams are in scope; mind-mapping and structured diagram features are out. |
 | 2026-09-30 | UI mockups adopted as the visual reference (`Docs/Design/`). Where a mockup and the FRD disagree on behavior or shortcuts, the FRD wins. The mockup's Settings screen showed wrong default shortcuts; the FRD's are correct. |

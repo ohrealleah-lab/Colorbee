@@ -12,7 +12,10 @@ final class CanvasView: NSView {
     }
 
     var onFirstFrame: (() -> Void)?
-    let latency = LatencyStats()
+    /// Input event → GPU finished the frame: Colorbee's own share (NFR-2).
+    let processingLatency = LatencyStats()
+    /// Input event → frame on screen, including macOS compositing.
+    let screenLatency = LatencyStats()
 
     private let editor: Editor
     private let renderer = Renderer.shared
@@ -171,14 +174,18 @@ final class CanvasView: NSView {
         needsRender = false
         let inputTime = pendingInputTime
         pendingInputTime = nil
-        let latency = latency
+        let processingLatency = processingLatency
+        let screenLatency = screenLatency
         let signpostState = Diagnostics.signposter.beginInterval("Render")
         renderer.render(
             editor.canvas,
             viewport: editor.viewport,
             into: metalLayer,
             scale: backingScale,
-            surround: surroundColor
+            surround: surroundColor,
+            onRendered: { renderedTime in
+                if let inputTime { processingLatency.record(renderedTime - inputTime) }
+            }
         ) { [weak self] presentedTime in
             // A zero time means the frame never reached the screen, e.g. the window was still ordering in.
             guard presentedTime > 0 else {
@@ -186,7 +193,7 @@ final class CanvasView: NSView {
                 return
             }
             if let inputTime {
-                latency.record(presentedTime - inputTime)
+                screenLatency.record(presentedTime - inputTime)
             }
             Task { @MainActor in self?.frameFinished(shown: true) }
         }

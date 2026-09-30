@@ -70,13 +70,15 @@ final class Renderer {
         linearSampler = sampler(.linear)
     }
 
-    /// Draws `canvas` and presents it. `onPresented` receives the host time the frame reached the screen.
+    /// Draws `canvas` and presents it. `onRendered` receives the host time the GPU finished the frame;
+    /// `onPresented` receives the host time it reached the screen (0 if it never did).
     func render(
         _ canvas: Canvas,
         viewport: Viewport,
         into metalLayer: CAMetalLayer,
         scale: Double,
         surround: MTLClearColor,
+        onRendered: @escaping @Sendable (CFTimeInterval) -> Void,
         onPresented: @escaping @Sendable (CFTimeInterval) -> Void
     ) {
         guard let drawable = metalLayer.nextDrawable(),
@@ -125,6 +127,9 @@ final class Renderer {
 
         drawable.addPresentedHandler { presented in
             onPresented(presented.presentedTime)
+        }
+        commandBuffer.addCompletedHandler { _ in
+            onRendered(CACurrentMediaTime())
         }
         commandBuffer.present(drawable)
         commandBuffer.commit()

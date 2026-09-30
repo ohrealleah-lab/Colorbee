@@ -37,7 +37,8 @@ enum Benchmark {
         Diagnostics.report("Memory at idle: \(Diagnostics.megabytes(Diagnostics.physicalFootprint()))")
 
         editor.brushDiameter = brushDiameter
-        _ = canvasView.latency.drain()
+        _ = canvasView.processingLatency.drain()
+        _ = canvasView.screenLatency.drain()
 
         // Events go straight to the view: a terminal-launched app isn't frontmost, and the window
         // would swallow the first click as an activation click.
@@ -55,7 +56,8 @@ enum Benchmark {
             canvasView.mouseUp(with: up)
         }
         try? await Task.sleep(for: .milliseconds(300))
-        Diagnostics.report("Stroke latency (input → on screen): \(LatencyStats.summary(canvasView.latency.drain()))")
+        Diagnostics.report("Colorbee processing (input → frame handed to macOS, NFR-2): \(LatencyStats.summary(canvasView.processingLatency.drain()))")
+        Diagnostics.report("Full latency (input → on screen, incl. macOS): \(LatencyStats.summary(canvasView.screenLatency.drain()))")
 
         let clock = ContinuousClock()
         let undoTime = clock.measure { editor.undo() }

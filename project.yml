@@ -35,6 +35,13 @@ targets:
         CFBundleDisplayName: Colorbee
         LSApplicationCategoryType: public.app-category.graphics-design
         NSHumanReadableCopyright: Personal tool. Not for distribution.
+        NSPrincipalClass: NSApplication
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: PNG image
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.png]
+            NSDocumentClass: $(PRODUCT_MODULE_NAME).ImageDocument
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.leah.Colorbee

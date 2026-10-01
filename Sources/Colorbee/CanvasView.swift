@@ -237,6 +237,9 @@ final class CanvasView: NSView {
         if editor.symmetry == .horizontal || editor.symmetry == .both {
             lines.append((Point2D(x: 0, y: height / 2), Point2D(x: width, y: height / 2), guide))
         }
+        for guide in editor.pendingShapeGuides {
+            lines.append((guide.0, guide.1, SIMD4(0.2, 0.45, 0.95, 0.9)))
+        }
         if let measurement = editor.measurement {
             let center = { (p: IntPoint) in Point2D(x: Double(p.x) + 0.5, y: Double(p.y) + 0.5) }
             lines.append((center(measurement.start), center(measurement.end), SIMD4(1, 0.25, 0.45, 1)))
@@ -366,7 +369,8 @@ final class CanvasView: NSView {
             }
             switch editor.shapeHandle(atView: view) {
             case .box(let handle): return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
-            case .start, .end: return .pointingHand
+            case .rotate: return .pointingHand
+            case .start, .end, .vertex: return .crosshair
             case nil: if editor.pendingShapeContains(point) { return .openHand }
             }
         }
@@ -411,7 +415,7 @@ final class CanvasView: NSView {
             editor.beginGradient(at: point, secondary: secondary)
         case .shape:
             drag = .shape
-            editor.beginShapeDrag(at: point, viewPoint: viewPoint(event), secondary: secondary)
+            editor.beginShapeDrag(at: point, viewPoint: viewPoint(event), secondary: secondary, clickCount: event.clickCount)
         case .text:
             // A click away from an open text box places it; the next click starts a new one.
             if editor.pendingText != nil {
@@ -559,7 +563,13 @@ final class CanvasView: NSView {
         case .downArrow where plain || modifiers == .shift:
             nudge(dx: 0, dy: step, event)
         case .carriageReturn where plain, .enter where plain:
-            if editor.pendingShape != nil { editor.commitPendingShape() } else { editor.deselect() }
+            if editor.pendingShape?.isBuilding == true {
+                editor.finishBuilding()
+            } else if editor.pendingShape != nil {
+                editor.commitPendingShape()
+            } else {
+                editor.deselect()
+            }
         case .delete where plain, .deleteForward where plain, .backspace where plain:
             if editor.hasSelection { editor.deleteSelection() } else { super.keyDown(with: event) }
         default:

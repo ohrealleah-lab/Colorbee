@@ -151,10 +151,10 @@ private struct ToolOptions: View {
                     Label(kind.name, systemImage: kind.symbol).tag(kind)
                 }
             }
-            .pickerStyle(.segmented)
-            .labelStyle(.iconOnly)
             .labelsHidden()
             .fixedSize()
+            .help(editor.shapeKind == .polygon ? "Click each corner; click the first corner or double-click to close"
+                  : editor.shapeKind == .curve ? "Drag a line, then drag twice to bend it" : "Shift keeps proportions")
             HStack {
                 Text("Width").fixedSize()
                 Slider(value: $editor.shapeLineWidth, in: 1...50, step: 1)
@@ -163,7 +163,7 @@ private struct ToolOptions: View {
                     .monospacedDigit()
                     .frame(width: 40, alignment: .trailing)
             }
-            if !editor.shapeKind.isLinear {
+            if !editor.shapeKind.isOpen {
                 Picker("Outline", selection: $editor.shapeHasOutline) {
                     Text("Solid").tag(true)
                     Text("None").tag(false)
@@ -352,9 +352,28 @@ private extension ShapeKind {
         switch self {
         case .line: "line.diagonal"
         case .arrow: "arrow.up.right"
+        case .curve: "scribble"
         case .rectangle: "rectangle"
         case .roundedRectangle: "app"
         case .ellipse: "circle"
+        case .triangle: "triangle"
+        case .rightTriangle: "righttriangle"
+        case .diamond: "diamond"
+        case .pentagon: "pentagon"
+        case .hexagon: "hexagon"
+        case .rightArrow: "arrowshape.right"
+        case .leftArrow: "arrowshape.left"
+        case .upArrow: "arrowshape.up"
+        case .downArrow: "arrowshape.down"
+        case .star4: "sparkle"
+        case .star5: "star"
+        case .star6: "staroflife"
+        case .roundedRectangleCallout: "bubble.left"
+        case .ovalCallout: "bubble"
+        case .cloudCallout: "cloud"
+        case .heart: "heart"
+        case .lightning: "bolt"
+        case .polygon: "pentagon.righthalf.filled"
         }
     }
 }

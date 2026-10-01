@@ -19,10 +19,11 @@ enum Tool: CaseIterable {
     case rectangleSelect
     case ellipseSelect
     case lassoSelect
+    case magicWand
 
     var isSelectionTool: Bool {
         switch self {
-        case .rectangleSelect, .ellipseSelect, .lassoSelect: true
+        case .rectangleSelect, .ellipseSelect, .lassoSelect, .magicWand: true
         default: false
         }
     }
@@ -148,6 +149,9 @@ final class Editor {
     var eraserSize = 8
     /// Fill bucket tolerance, 0...1.
     var fillTolerance = 0.0
+    /// Magic Wand tolerance, 0...1.
+    var wandTolerance = 0.1
+    var wandContiguous = true
     var transparentSelection = false {
         didSet { onRender() }
     }
@@ -575,7 +579,9 @@ final class Editor {
     func beginSelectionDrag(at point: Point2D, modifiers: DragModifiers) {
         guard tool.isSelectionTool else { return }
         finishInteractions()
-        if selectionContains(point), let origin = canvas.selection.bounds.map({ IntPoint(x: $0.minX, y: $0.minY) }) {
+        // The wand always selects when a modifier is held, so it can add to or subtract from a selection.
+        let wandCombining = tool == .magicWand && (modifiers.shift || modifiers.option)
+        if !wandCombining, selectionContains(point), let origin = canvas.selection.bounds.map({ IntPoint(x: $0.minX, y: $0.minY) }) {
             selectionDrag = .move(edit: nil, grab: point, origin: origin, smear: modifiers.shift, duplicate: modifiers.option)
             return
         }
@@ -586,6 +592,14 @@ final class Editor {
         case (false, false): .replace
         }
         switch tool {
+        case .magicWand:
+            let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+            let mask = SelectionMask.magicWand(in: canvas.activeLayer.buffer, at: seed, tolerance: wandTolerance, contiguous: wandContiguous)
+            recordingChanges {
+                SelectionActions.select(mask, mode: mode, canvas: canvas, history: history, context: selectionContext)
+            }
+            selectionDidChange()
+            return
         case .lassoSelect:
             selectionDrag = .lasso(points: [point], mode: mode)
         case .ellipseSelect:
@@ -797,6 +811,17 @@ final class Editor {
         guard let kind = activeEffect, let edit = effectEdit else { return }
         edit.restoreOriginals()
         Effects.apply(kind.effect(effectValue), to: canvas.activeLayer, selection: canvas.selection.marquee, edit: edit)
+        onRender()
+    }
+
+    /// Batch redaction with a solid color: every selected region becomes Color 1 in one step (FR-9.4).
+    func applySolidFill() {
+        finishInteractions()
+        placeFloatingSelection()
+        guard let selection = canvas.selection.marquee else { return }
+        let edit = history.beginEdit("Solid Fill", on: canvas)
+        Effects.apply(.solidFill(color1), to: canvas.activeLayer, selection: selection, edit: edit)
+        recordingChanges { history.commit(edit) }
         onRender()
     }
 

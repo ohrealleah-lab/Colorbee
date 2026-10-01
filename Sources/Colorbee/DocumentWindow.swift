@@ -69,6 +69,10 @@ final class DocumentWindow: NSWindow {
         editor?.beginEffect(.pixelate)
     }
 
+    @objc func applySolidFill(_ sender: Any?) {
+        editor?.applySolidFill()
+    }
+
     @objc func togglePixelGrid(_ sender: Any?) {
         editor?.showsPixelGrid.toggle()
     }
@@ -105,7 +109,8 @@ final class DocumentWindow: NSWindow {
             return editor.redoActionName != nil
         case #selector(paste(_:)):
             return Self.imageDataOnPasteboard() != nil
-        case #selector(cut(_:)), #selector(delete(_:)), #selector(deselect(_:)), #selector(cropToSelection(_:)):
+        case #selector(cut(_:)), #selector(delete(_:)), #selector(deselect(_:)), #selector(cropToSelection(_:)),
+             #selector(applySolidFill(_:)):
             return editor.hasSelection
         case #selector(selectAll(_:)), #selector(invertSelection(_:)),
              #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)):

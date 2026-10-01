@@ -5,11 +5,14 @@ public enum Effect: Sendable, Equatable {
     case gaussianBlur(radius: Double)
     /// Square mosaic blocks of `cellSize` pixels (2...100), aligned to the canvas.
     case pixelate(cellSize: Int)
+    /// Every selected pixel becomes this color (redaction).
+    case solidFill(Pixel)
 
     public var name: String {
         switch self {
         case .gaussianBlur: "Gaussian Blur"
         case .pixelate: "Pixelate"
+        case .solidFill: "Solid Fill"
         }
     }
 }
@@ -28,6 +31,16 @@ public enum Effects {
     private static func applyToRegion(_ effect: Effect, layer: Layer, selection: SelectionMask?, edit: Edit) -> IntRect {
         let region = (selection?.bounds ?? layer.buffer.bounds).intersection(layer.buffer.bounds)
         guard !region.isEmpty else { return .zero }
+        if case .solidFill(let color) = effect {
+            edit.willModify(region, in: layer)
+            for y in region.minY..<region.maxY {
+                let row = layer.buffer.row(y)
+                for x in region.minX..<region.maxX where (selection?[x, y] ?? 255) > 0 {
+                    row[x] = color
+                }
+            }
+            return region
+        }
         let result: PixelBuffer
         let origin: IntPoint
         switch effect {
@@ -35,6 +48,8 @@ public enum Effects {
             (result, origin) = blurred(layer.buffer, region: region, sigma: radius, selection: selection)
         case .pixelate(let cellSize):
             (result, origin) = pixelated(layer.buffer, region: region, cellSize: max(2, cellSize), selection: selection)
+        case .solidFill:
+            return .zero
         }
         edit.willModify(region, in: layer)
         for y in region.minY..<region.maxY {

@@ -110,16 +110,18 @@ private struct ToolOptions: View {
         case .eyedropper:
             Text("Click: Color 1 · Right-click: Color 2 · Option: all layers")
                 .foregroundStyle(.secondary)
+        case .magicWand:
+            Text("Tolerance")
+            Slider(value: $editor.wandTolerance, in: 0...1)
+                .frame(width: 120)
+            Text("\(Int((editor.wandTolerance * 100).rounded()))%")
+                .monospacedDigit()
+                .frame(width: 40, alignment: .trailing)
+            Toggle("Contiguous", isOn: $editor.wandContiguous)
+                .help("Contiguous selects only the connected area; off selects every matching pixel")
+            selectionOptions
         case .rectangleSelect, .ellipseSelect, .lassoSelect:
-            Toggle("Transparent Selection", systemImage: "square.on.square.dashed", isOn: $editor.transparentSelection)
-                .toggleStyle(.button)
-                .help("Transparent Selection: pixels matching Color 2 aren't placed")
-            Picker("Resize", selection: $editor.smoothResize) {
-                Text("Smooth").tag(true)
-                Text("Sharp pixels").tag(false)
-            }
-            .fixedSize()
-            .help("How resized selections are scaled. Drag a handle to stretch; hold Shift to keep proportions.")
+            selectionOptions
         case .shape:
             Picker("Shape", selection: $editor.shapeKind) {
                 ForEach(ShapeKind.allCases, id: \.self) { kind in
@@ -158,6 +160,19 @@ private struct ToolOptions: View {
         }
     }
 
+    @ViewBuilder
+    private var selectionOptions: some View {
+        Toggle("Transparent Selection", systemImage: "square.on.square.dashed", isOn: $editor.transparentSelection)
+            .toggleStyle(.button)
+            .help("Transparent Selection: pixels matching Color 2 aren't placed")
+        Picker("Resize", selection: $editor.smoothResize) {
+            Text("Smooth").tag(true)
+            Text("Sharp pixels").tag(false)
+        }
+        .fixedSize()
+        .help("How resized selections are scaled. Drag a handle to stretch; hold Shift to keep proportions.")
+    }
+
     private var sizeSlider: some View {
         HStack {
             Text("Size")
@@ -183,6 +198,7 @@ private extension Tool {
         case .rectangleSelect: "Rectangle Select (M)"
         case .ellipseSelect: "Ellipse Select"
         case .lassoSelect: "Free-Form Select (L)"
+        case .magicWand: "Magic Wand (W)"
         }
     }
 
@@ -198,6 +214,7 @@ private extension Tool {
         case .rectangleSelect: "rectangle.dashed"
         case .ellipseSelect: "circle.dashed"
         case .lassoSelect: "lasso"
+        case .magicWand: "wand.and.stars"
         }
     }
 }

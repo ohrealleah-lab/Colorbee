@@ -514,6 +514,7 @@ final class CanvasView: NSView {
             case ("l", true): editor.selectTool(.lassoSelect)
             case ("u", true): editor.selectTool(.shape)
             case ("t", true): editor.selectTool(.text)
+            case ("w", true): editor.selectTool(.magicWand)
             case ("[", true): editor.adjustToolSize(larger: false)
             case ("]", true): editor.adjustToolSize(larger: true)
             default:

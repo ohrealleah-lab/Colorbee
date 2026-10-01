@@ -112,6 +112,12 @@ enum MainMenu {
         let menu = NSMenu(title: "Effects")
         menu.addItem(item("Gaussian Blur…", "showGaussianBlur:"))
         menu.addItem(item("Pixelate…", "showPixelate:"))
+        menu.addItem(.separator())
+        let batch = NSMenu(title: "Batch Redact")
+        batch.addItem(item("Blur…", "showGaussianBlur:"))
+        batch.addItem(item("Pixelate…", "showPixelate:"))
+        batch.addItem(item("Solid Fill with Color 1", "applySolidFill:"))
+        menu.addItem(submenu(batch))
         return menu
     }
 

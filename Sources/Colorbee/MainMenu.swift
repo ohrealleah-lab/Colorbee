@@ -127,6 +127,7 @@ enum MainMenu {
         batch.addItem(item("Pixelate…", "showPixelate:"))
         batch.addItem(item("Solid Fill with Color 1", "applySolidFill:"))
         menu.addItem(submenu(batch))
+        menu.addItem(item("Auto-Redact…", "showAutoRedact:"))
         return menu
     }
 

@@ -82,6 +82,35 @@ enum EffectKind {
     }
 }
 
+enum RedactionTreatment: CaseIterable {
+    case blur
+    case pixelate
+    case solidFill
+
+    var title: String {
+        switch self {
+        case .blur: "Blur"
+        case .pixelate: "Pixelate"
+        case .solidFill: "Solid Fill"
+        }
+    }
+}
+
+/// An Auto-Redact review in progress (FR-9.3).
+struct AutoRedactSession {
+    /// The area searched: the selection, or nil for the whole image.
+    let region: SelectionMask?
+    var scan: TextScan?
+    var failure: String?
+    var matches: [RedactionMatch] = []
+    /// Matches the person unchecked to keep visible.
+    var keptVisible: Set<UUID> = []
+    var treatment: RedactionTreatment = .solidFill
+
+    var isReading: Bool { scan == nil && failure == nil }
+    var selectedMatches: [RedactionMatch] { matches.filter { !keptVisible.contains($0.id) } }
+}
+
 /// The Before/After view's settings (FR-11.3).
 struct Comparison: Equatable {
     enum Baseline { case asOpened, lastSaved }
@@ -208,6 +237,13 @@ final class Editor {
     @ObservationIgnored let asOpened: PixelBuffer
     /// The image at the last explicit save.
     private(set) var lastSaved: PixelBuffer?
+    private(set) var autoRedact: AutoRedactSession?
+    var redactionPatterns = Editor.loadRedactionPatterns() {
+        didSet {
+            Editor.saveRedactionPatterns(redactionPatterns)
+            refreshAutoRedactMatches()
+        }
+    }
     /// The gap between the two images in side-by-side Before/After, in image pixels.
     static let comparisonGap = 40
     /// The effect whose dialog is open, if any.
@@ -919,6 +955,110 @@ final class Editor {
 
     func zoomToFit() {
         updateViewport { $0.fit(canvas.size, margin: 40) }
+    }
+
+    // MARK: Auto-Redact
+
+    /// Reads the text in the selection (or the whole image) on this Mac and opens the review.
+    func beginAutoRedact() {
+        finishInteractions()
+        placeFloatingSelection()
+        let region = canvas.selection.marquee
+        let area = region?.bounds ?? canvas.bounds
+        let image = canvas.flattened()
+        let cropped = PixelBuffer(width: area.width, height: area.height)
+        cropped.setPixels(image.pixels(in: area), in: cropped.bounds)
+        autoRedact = AutoRedactSession(region: region)
+        onRender()
+        do {
+            let cgImage = try ImageCodec.makeCGImage(cropped, colorSpace: canvas.colorSpace)
+            Task { [weak self] in
+                do {
+                    let scan = try await TextScan.read(cgImage, offset: IntPoint(x: area.minX, y: area.minY))
+                    guard let self, self.autoRedact != nil else { return }
+                    self.autoRedact?.scan = scan
+                    self.refreshAutoRedactMatches()
+                } catch {
+                    self?.autoRedact?.failure = error.localizedDescription
+                }
+            }
+        } catch {
+            autoRedact?.failure = error.localizedDescription
+        }
+    }
+
+    private func refreshAutoRedactMatches() {
+        guard let session = autoRedact, let scan = session.scan else { return }
+        var matches = scan.matches(for: redactionPatterns)
+        if let region = session.region {
+            matches = matches.filter { match in
+                let center = IntPoint(x: match.rect.minX + match.rect.width / 2, y: match.rect.minY + match.rect.height / 2)
+                return region.contains(center)
+            }
+        }
+        autoRedact?.matches = matches
+        autoRedact?.keptVisible.formIntersection(matches.map(\.id))
+        onRender()
+    }
+
+    func setRedactionMatch(_ id: UUID, included: Bool) {
+        if included { autoRedact?.keptVisible.remove(id) } else { autoRedact?.keptVisible.insert(id) }
+        onRender()
+    }
+
+    func setRedactionTreatment(_ treatment: RedactionTreatment) {
+        autoRedact?.treatment = treatment
+    }
+
+    /// Redacts every checked match in one step. Each match is treated on its own, scaled to its text size.
+    func applyAutoRedact() {
+        guard let session = autoRedact else { return }
+        autoRedact = nil
+        let selected = session.selectedMatches
+        guard var mask = AutoRedact.mask(covering: selected.map(\.rect), in: canvas.bounds) else {
+            onRender()
+            return
+        }
+        if let region = session.region, let clipped = SelectionMask.combine(mask, with: region, mode: .intersect) {
+            mask = clipped
+        }
+        let heights = selected.map(\.rect.height).sorted()
+        let textHeight = Double(heights[heights.count / 2])
+        let strength = max(6, textHeight / 3)
+        let effect: Effect = switch session.treatment {
+        case .blur: .gaussianBlur(radius: strength)
+        case .pixelate: .pixelate(cellSize: Int(strength.rounded()))
+        case .solidFill: .solidFill(color1)
+        }
+        let edit = history.beginEdit("Auto-Redact", on: canvas)
+        Effects.apply(effect, to: canvas.activeLayer, selection: mask, edit: edit)
+        recordingChanges { history.commit(edit) }
+        onRender()
+    }
+
+    func cancelAutoRedact() {
+        autoRedact = nil
+        onRender()
+    }
+
+    private static let patternsKey = "AutoRedactPatterns"
+
+    /// Saved patterns, with every built-in present (new built-ins are added, their expressions kept current).
+    private static func loadRedactionPatterns() -> [RedactionPattern] {
+        let saved = UserDefaults.standard.data(forKey: patternsKey)
+            .flatMap { try? JSONDecoder().decode([RedactionPattern].self, from: $0) } ?? []
+        let builtIns = RedactionPattern.builtIns.map { builtIn in
+            var pattern = builtIn
+            pattern.isEnabled = saved.first { $0.id == builtIn.id }?.isEnabled ?? true
+            return pattern
+        }
+        return builtIns + saved.filter { !$0.isBuiltIn }
+    }
+
+    private static func saveRedactionPatterns(_ patterns: [RedactionPattern]) {
+        if let data = try? JSONEncoder().encode(patterns) {
+            UserDefaults.standard.set(data, forKey: patternsKey)
+        }
     }
 
     // MARK: Before/After

@@ -15,6 +15,9 @@ struct DocumentView: View {
                 Divider()
             }
             CanvasHost(view: canvasView)
+                .sheet(isPresented: autoRedactBinding) {
+                    AutoRedactSheet(editor: editor)
+                }
             Divider()
             StatusBar(editor: editor)
         }
@@ -25,6 +28,10 @@ struct DocumentView: View {
 }
 
 extension DocumentView {
+    fileprivate var autoRedactBinding: Binding<Bool> {
+        Binding(get: { editor.autoRedact != nil }, set: { if !$0, editor.autoRedact != nil { editor.cancelAutoRedact() } })
+    }
+
     fileprivate var effectBinding: Binding<EffectKind?> {
         Binding(get: { editor.activeEffect }, set: { if $0 == nil, editor.activeEffect != nil { editor.cancelEffect() } })
     }

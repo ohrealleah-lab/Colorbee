@@ -30,6 +30,8 @@ struct RenderScene {
     let handlePoints: [Point2D]
     let showsPixelGrid: Bool
     let antsPhase: Float
+    /// Auto-Redact matches to outline: orange when they'll be redacted, gray when kept visible.
+    let highlights: [(rect: IntRect, active: Bool)]
     /// Before/After: the earlier image and how to show it.
     let comparison: (before: PixelBuffer, layout: Comparison.Layout, dividerX: Double)?
 }
@@ -239,6 +241,21 @@ final class Renderer {
         if scene.showsPixelGrid, zoom >= Self.pixelGridMinimumZoom {
             uniforms.rect = deviceRect(canvas.bounds)
             draw(gridPipeline)
+        }
+
+        for highlight in scene.highlights {
+            let rect = deviceRect(highlight.rect)
+            let line = Float(2 * scale)
+            uniforms.keyColor = highlight.active ? SIMD4(1, 0.55, 0, 1) : SIMD4(0.55, 0.55, 0.55, 1)
+            for edge in [
+                SIMD4(rect.x, rect.y, rect.z, line),
+                SIMD4(rect.x, rect.y + rect.w - line, rect.z, line),
+                SIMD4(rect.x, rect.y, line, rect.w),
+                SIMD4(rect.x + rect.z - line, rect.y, line, rect.w),
+            ] {
+                uniforms.rect = edge
+                draw(solidPipeline)
+            }
         }
 
         if !scene.handlePoints.isEmpty {

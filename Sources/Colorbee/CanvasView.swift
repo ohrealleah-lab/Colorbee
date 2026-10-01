@@ -218,8 +218,14 @@ final class CanvasView: NSView {
             handlePoints: comparing ? [] : handlePoints(selection),
             showsPixelGrid: editor.showsPixelGrid,
             antsPhase: Float((CACurrentMediaTime() * 4).truncatingRemainder(dividingBy: 2)),
+            highlights: redactionHighlights,
             comparison: comparisonScene
         )
+    }
+
+    private var redactionHighlights: [(rect: IntRect, active: Bool)] {
+        guard let session = editor.autoRedact else { return [] }
+        return session.matches.map { ($0.rect, !session.keptVisible.contains($0.id)) }
     }
 
     private var comparisonScene: (before: PixelBuffer, layout: Comparison.Layout, dividerX: Double)? {

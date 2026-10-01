@@ -69,6 +69,10 @@ final class DocumentWindow: NSWindow {
         editor?.beginEffect(.pixelate)
     }
 
+    @objc func showAutoRedact(_ sender: Any?) {
+        editor?.beginAutoRedact()
+    }
+
     @objc func applySolidFill(_ sender: Any?) {
         editor?.applySolidFill()
     }
@@ -117,7 +121,7 @@ final class DocumentWindow: NSWindow {
              #selector(applySolidFill(_:)):
             return editor.hasSelection
         case #selector(selectAll(_:)), #selector(invertSelection(_:)),
-             #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)):
+             #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showAutoRedact(_:)):
             return true
         case #selector(toggleBeforeAfter(_:)):
             menuItem.state = editor.comparison != nil ? .on : .off

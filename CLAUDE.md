@@ -2,6 +2,7 @@
 
 A native macOS raster editor: MS Paint's immediacy plus redaction, annotation, layers and effects. It's a personal tool with one user, Leah, who is also the PM. Claude is the sole engineer.
 
+- **Where things stand:** [Docs/STATUS.md](Docs/STATUS.md): what's built, what's next, working agreements with Leah. Read it first; update it at the end of every stage and commit it with the work.
 - **What to build:** [Docs/FRD.md](Docs/FRD.md) is the single source of truth. When the FRD and this file disagree about behavior, the FRD wins.
 - **What it looks like:** the mockups in [Docs/Design/](Docs/Design/) are the visual reference. To view them, run the `design-mockups` launch config (serves the folder on port 8765) and open `Colorbee Mockups.dc.html`. The mockup icons are stand-ins; use SF Symbols. When a mockup and the FRD disagree on behavior or shortcuts, the FRD wins.
 - **How to build it:** this file.
@@ -74,6 +75,8 @@ Docs/reference/              Original v1 spec, kept for reference only
 
 ## Workflow
 
+- Before each stage, tell Leah the recommended model and effort (Opus; high for design-heavy work, medium for routine UI).
+- Log behavior choices you make on your own in FRD §23 ("veto any"), then list them for Leah.
 - Work in the build order in FRD §20. Get each stage working end-to-end before starting the next.
 - After UI changes, build and run the app and check the change visually. Type-checking alone isn't verification.
 - Keep `make test` green. Don't commit a failing build.

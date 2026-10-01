@@ -114,6 +114,12 @@ private struct ToolOptions: View {
             Toggle("Transparent Selection", systemImage: "square.on.square.dashed", isOn: $editor.transparentSelection)
                 .toggleStyle(.button)
                 .help("Transparent Selection: pixels matching Color 2 aren't placed")
+            Picker("Resize", selection: $editor.smoothResize) {
+                Text("Smooth").tag(true)
+                Text("Sharp pixels").tag(false)
+            }
+            .fixedSize()
+            .help("How resized selections are scaled. Drag a handle to stretch; hold Shift to keep proportions.")
         case .pencil:
             Text("1 px · Shift draws straight lines")
                 .foregroundStyle(.secondary)
@@ -200,7 +206,7 @@ private struct StatusBar: View {
             Label(pointerText, systemImage: "cursorarrow")
                 .frame(width: 130, alignment: .leading)
             Label(selectionText, systemImage: "rectangle.dashed")
-                .frame(width: 130, alignment: .leading)
+                .frame(width: 170, alignment: .leading)
             Label("\(editor.canvasSize.width) × \(editor.canvasSize.height) px", systemImage: "photo")
             Spacer()
             Toggle("Pixel Grid", systemImage: "grid", isOn: $editor.showsPixelGrid)
@@ -222,7 +228,8 @@ private struct StatusBar: View {
 
     private var selectionText: String {
         guard let bounds = editor.selectionBounds else { return "—" }
-        return "\(bounds.width) × \(bounds.height) px"
+        let size = "\(bounds.width) × \(bounds.height) px"
+        return editor.selectionScalePercent.map { "\(size) · \($0)%" } ?? size
     }
 
     private var pointerText: String {

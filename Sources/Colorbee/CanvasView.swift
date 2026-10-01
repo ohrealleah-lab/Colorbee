@@ -202,6 +202,8 @@ final class CanvasView: NSView {
             viewport: editor.viewport,
             outline: outline,
             transparentKey: editor.selectionContext.transparentKey,
+            smoothFloating: editor.smoothResize,
+            handlesRect: editor.tool.isSelectionTool && editor.marqueePreview == nil ? selection.bounds : nil,
             showsPixelGrid: editor.showsPixelGrid,
             antsPhase: Float((CACurrentMediaTime() * 4).truncatingRemainder(dividingBy: 2))
         )
@@ -271,6 +273,9 @@ final class CanvasView: NSView {
 
     private func currentCursor(at point: Point2D?) -> NSCursor {
         if spaceHeld { return .openHand }
+        if let point, let handle = editor.selectionHandle(atView: editor.viewport.viewPoint(fromImage: point)) {
+            return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
+        }
         if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
         return .crosshair
     }
@@ -291,6 +296,10 @@ final class CanvasView: NSView {
         case let tool where tool.isSelectionTool:
             guard !secondary else { return }
             drag = .select(last: point)
+            if let handle = editor.selectionHandle(atView: viewPoint(event)) {
+                editor.beginResize(handle, at: point)
+                return
+            }
             editor.beginSelectionDrag(at: point, modifiers: dragModifiers(event))
             if editor.selectionContains(point) { NSCursor.closedHand.set() }
         case .fill:
@@ -380,7 +389,18 @@ final class CanvasView: NSView {
         let plain = modifiers.isEmpty
         let step = modifiers == .shift ? 10 : 1
 
+        let resizeStep = modifiers == [.command, .shift] ? 10 : 1
+        let resizing = modifiers == .command || modifiers == [.command, .shift]
+
         switch event.specialKey {
+        case .leftArrow where resizing:
+            editor.resizeMarquee(byWidth: -resizeStep, height: 0)
+        case .rightArrow where resizing:
+            editor.resizeMarquee(byWidth: resizeStep, height: 0)
+        case .upArrow where resizing:
+            editor.resizeMarquee(byWidth: 0, height: -resizeStep)
+        case .downArrow where resizing:
+            editor.resizeMarquee(byWidth: 0, height: resizeStep)
         case .leftArrow where plain || modifiers == .shift:
             nudge(dx: -step, dy: 0, event)
         case .rightArrow where plain || modifiers == .shift:
@@ -431,6 +451,21 @@ final class CanvasView: NSView {
             if drag == nil { NSCursor.crosshair.set() }
         } else {
             super.keyUp(with: event)
+        }
+    }
+}
+
+private extension SelectionHandle {
+    var cursorPosition: NSCursor.FrameResizePosition {
+        switch self {
+        case .topLeft: .topLeft
+        case .top: .top
+        case .topRight: .topRight
+        case .right: .right
+        case .bottomRight: .bottomRight
+        case .bottom: .bottom
+        case .bottomLeft: .bottomLeft
+        case .left: .left
         }
     }
 }

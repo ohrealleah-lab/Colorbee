@@ -42,6 +42,11 @@ fragment float4 layer_fragment(QuadOut in [[stage_in]],
     return float4(color.rgb * alpha, alpha);
 }
 
+// A flat color (keyColor), for handles.
+fragment float4 solid_fragment(QuadOut in [[stage_in]], constant QuadUniforms &u [[buffer(0)]]) {
+    return float4(u.keyColor.rgb * u.keyColor.a, u.keyColor.a);
+}
+
 fragment float4 checker_fragment(QuadOut in [[stage_in]], constant QuadUniforms &u [[buffer(0)]]) {
     float2 cell = floor(in.position.xy / u.checkerSize);
     float shade = fmod(cell.x + cell.y, 2.0) < 1.0 ? 1.0 : 0.85;

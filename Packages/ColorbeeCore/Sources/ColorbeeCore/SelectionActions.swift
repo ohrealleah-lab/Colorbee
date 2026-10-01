@@ -89,8 +89,8 @@ public enum SelectionActions {
     /// Starts moving the selection. A marquee's pixels are lifted off the active layer, leaving the vacated
     /// fill behind unless `duplicate` is set. A duplicate of a floating selection leaves a copy where it was.
     /// Finish with `history.commit(_:)`.
-    public static func beginMove(duplicate: Bool, canvas: Canvas, history: History, context: SelectionContext) -> Edit? {
-        let edit = history.beginEdit(duplicate ? "Duplicate Selection" : "Move Selection", on: canvas)
+    public static func beginMove(duplicate: Bool, named name: String? = nil, canvas: Canvas, history: History, context: SelectionContext) -> Edit? {
+        let edit = history.beginEdit(name ?? (duplicate ? "Duplicate Selection" : "Move Selection"), on: canvas)
         edit.recordsSelectionChange = true
         switch canvas.selection {
         case .none:
@@ -119,6 +119,24 @@ public enum SelectionActions {
         }
         floating.destination = IntRect(x: origin.x, y: origin.y, width: floating.destination.width, height: floating.destination.height)
         canvas.selection = .floating(floating)
+    }
+
+    /// Stretches the floating selection to `rect`. The pixels are always scaled from the original.
+    public static func resize(to rect: IntRect, canvas: Canvas) {
+        guard var floating = canvas.selection.floating, !rect.isEmpty else { return }
+        floating.destination = rect
+        canvas.selection = .floating(floating)
+    }
+
+    /// Grows or shrinks the marquee's outline (not the pixels) by `dx`, `dy`, keeping its top-left corner.
+    /// Floating selections are left alone; their handles resize the pixels instead.
+    public static func resizeMarquee(byWidth dx: Int, height dy: Int, canvas: Canvas) {
+        guard let mask = canvas.selection.marquee else { return }
+        let bounds = mask.bounds
+        let target = IntRect(x: bounds.minX, y: bounds.minY, width: max(1, bounds.width + dx), height: max(1, bounds.height + dy))
+        if let stretched = mask.stretched(to: target), let clipped = SelectionMask.combine(stretched, with: .rectangle(canvas.bounds, clippedTo: canvas.bounds), mode: .intersect) {
+            canvas.selection = .marquee(clipped)
+        }
     }
 
     /// Moves the selected pixels by a few pixels as one step.

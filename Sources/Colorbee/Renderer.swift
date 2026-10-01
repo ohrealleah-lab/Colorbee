@@ -22,6 +22,10 @@ struct RenderScene {
     /// The selection outline: a mask drawn stretched over a rect in image coordinates.
     let outline: (mask: SelectionMask, rect: IntRect)?
     let transparentKey: Pixel?
+    /// Whether a stretched floating selection is shown smooth rather than as sharp pixels.
+    let smoothFloating: Bool
+    /// Draw resize handles around this rect (image coordinates).
+    let handlesRect: IntRect?
     let showsPixelGrid: Bool
     let antsPhase: Float
 }
@@ -38,6 +42,7 @@ final class Renderer {
     private let checkerPipeline: MTLRenderPipelineState
     private let antsPipeline: MTLRenderPipelineState
     private let gridPipeline: MTLRenderPipelineState
+    private let solidPipeline: MTLRenderPipelineState
     private let nearestSampler: MTLSamplerState
     private let linearSampler: MTLSamplerState
     private let maskSampler: MTLSamplerState
@@ -82,6 +87,7 @@ final class Renderer {
         checkerPipeline = pipeline(fragment: "checker_fragment")
         antsPipeline = pipeline(fragment: "ants_fragment")
         gridPipeline = pipeline(fragment: "grid_fragment", blended: false)
+        solidPipeline = pipeline(fragment: "solid_fragment")
 
         func sampler(_ filter: MTLSamplerMinMagFilter, address: MTLSamplerAddressMode = .clampToEdge) -> MTLSamplerState {
             let descriptor = MTLSamplerDescriptor()
@@ -160,12 +166,15 @@ final class Renderer {
 
             if let floating, floating.layerID == layer.id {
                 uniforms.rect = deviceRect(floating.destination)
+                let stretched = floating.destination.size != floating.pixels.size
+                encoder.setFragmentSamplerState(stretched && scene.smoothFloating ? linearSampler : nearestSampler, index: 0)
                 if let key = scene.transparentKey {
                     uniforms.keyEnabled = 1
                     uniforms.keyColor = SIMD4(Float(key.r) / 255, Float(key.g) / 255, Float(key.b) / 255, 1)
                 }
                 encoder.setFragmentTexture(texture(for: floating.pixels, live: &liveBuffers), index: 0)
                 draw(layerPipeline)
+                encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
             }
         }
         pixelTextures = pixelTextures.filter { liveBuffers.contains($0.key) }
@@ -182,6 +191,20 @@ final class Renderer {
         if scene.showsPixelGrid, zoom >= Self.pixelGridMinimumZoom {
             uniforms.rect = deviceRect(canvas.bounds)
             draw(gridPipeline)
+        }
+
+        if let rect = scene.handlesRect {
+            // Fixed on-screen size: an 8 pt dark square with a 6 pt white center.
+            for handle in SelectionHandle.allCases {
+                let point = handle.point(on: rect)
+                let centerX = Float(originX + point.x * zoom * scale)
+                let centerY = Float(originY + point.y * zoom * scale)
+                for (size, shade) in [(Float(8 * scale), Float(0.15)), (Float(6 * scale), Float(1))] {
+                    uniforms.rect = SIMD4(centerX - size / 2, centerY - size / 2, size, size)
+                    uniforms.keyColor = SIMD4(shade, shade, shade, 1)
+                    draw(solidPipeline)
+                }
+            }
         }
         encoder.endEncoding()
 

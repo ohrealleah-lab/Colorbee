@@ -109,6 +109,10 @@ final class Editor {
     var transparentSelection = false {
         didSet { onRender() }
     }
+    /// How stretched selections are resampled: smooth for photos and screenshots, sharp for pixel art.
+    var smoothResize = true {
+        didSet { onRender() }
+    }
     var showsPixelGrid = true {
         didSet { onRender() }
     }
@@ -120,6 +124,8 @@ final class Editor {
     private(set) var selectionBounds: IntRect?
     /// The canvas size, observable for the status bar (the canvas itself isn't observable).
     private(set) var canvasSize: IntSize
+    /// A stretched floating selection's width as a percentage of its original, for the status bar.
+    private(set) var selectionScalePercent: Int?
     /// The effect whose dialog is open, if any.
     private(set) var activeEffect: EffectKind?
     var effectValue = 8.0
@@ -140,6 +146,7 @@ final class Editor {
         case marquee(shape: SelectionShape, start: Point2D, mode: SelectionCombineMode, shiftHeldAtStart: Bool, shiftReleased: Bool)
         case lasso(points: [Point2D], mode: SelectionCombineMode)
         case move(edit: Edit?, grab: Point2D, origin: IntPoint, smear: Bool, duplicate: Bool)
+        case resize(edit: Edit?, handle: SelectionHandle, original: IntRect, grab: Point2D)
     }
 
     init(canvas: Canvas) {
@@ -153,7 +160,7 @@ final class Editor {
     }
 
     var selectionContext: SelectionContext {
-        SelectionContext(color2: color2, transparentSelection: transparentSelection)
+        SelectionContext(color2: color2, transparentSelection: transparentSelection, resampling: smoothResize ? .smooth : .nearestNeighbor)
     }
 
     var hasSelection: Bool { !canvas.selection.isEmpty || marqueePreview != nil }
@@ -288,6 +295,21 @@ final class Editor {
         canvas.selection.contains(IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))))
     }
 
+    /// The handle under a view point, if the selection's handles are showing there.
+    func selectionHandle(atView point: Point2D) -> SelectionHandle? {
+        guard tool.isSelectionTool, marqueePreview == nil, let rect = canvas.selection.bounds else { return nil }
+        return SelectionHandle.allCases.first { handle in
+            let center = viewport.viewPoint(fromImage: handle.point(on: rect))
+            return abs(center.x - point.x) <= 6 && abs(center.y - point.y) <= 6
+        }
+    }
+
+    func beginResize(_ handle: SelectionHandle, at point: Point2D) {
+        finishInteractions()
+        guard let rect = canvas.selection.bounds else { return }
+        selectionDrag = .resize(edit: nil, handle: handle, original: rect, grab: point)
+    }
+
     func beginSelectionDrag(at point: Point2D, modifiers: DragModifiers) {
         guard tool.isSelectionTool else { return }
         finishInteractions()
@@ -334,6 +356,19 @@ final class Editor {
                 selectionDidChange()
             }
             selectionDrag = .move(edit: edit, grab: grab, origin: origin, smear: smear, duplicate: duplicate)
+        case .resize(var edit, let handle, let original, let grab):
+            if edit == nil {
+                // Resizing a marquee lifts its pixels first.
+                edit = SelectionActions.beginMove(duplicate: false, named: "Resize Selection", canvas: canvas, history: history, context: selectionContext)
+                guard edit != nil else {
+                    selectionDrag = nil
+                    return
+                }
+            }
+            let delta = Point2D(x: point.x - grab.x, y: point.y - grab.y)
+            SelectionActions.resize(to: handle.resize(original, by: delta, keepProportions: shiftDown), canvas: canvas)
+            selectionDrag = .resize(edit: edit, handle: handle, original: original, grab: grab)
+            selectionDidChange()
         case nil:
             break
         }
@@ -349,7 +384,7 @@ final class Editor {
             commitSelectionPreview(deselecting: clicked && mode == .replace)
         case .lasso(let points, let mode):
             commitSelectionPreview(deselecting: points.count < 3 && mode == .replace)
-        case .move(let edit, _, _, _, _):
+        case .move(let edit, _, _, _, _), .resize(let edit, _, _, _):
             if let edit { recordingChanges { history.commit(edit) } }
         }
         selectionDidChange()
@@ -428,6 +463,13 @@ final class Editor {
         }
     }
 
+    /// ⌘-arrows: grow or shrink the marquee's outline without touching the pixels.
+    func resizeMarquee(byWidth dx: Int, height dy: Int) {
+        finishInteractions()
+        SelectionActions.resizeMarquee(byWidth: dx, height: dy, canvas: canvas)
+        selectionDidChange()
+    }
+
     func nudgeSelection(dx: Int, dy: Int) {
         performSelectionCommand {
             SelectionActions.nudge(dx: dx, dy: dy, canvas: canvas, history: history, context: selectionContext)
@@ -455,6 +497,11 @@ final class Editor {
 
     private func selectionDidChange() {
         selectionBounds = marqueePreview?.bounds ?? canvas.selection.bounds
+        if let floating = canvas.selection.floating, floating.destination.size != floating.pixels.size {
+            selectionScalePercent = Int((Double(floating.destination.width) / Double(floating.pixels.width) * 100).rounded())
+        } else {
+            selectionScalePercent = nil
+        }
         if canvasSize != canvas.size { canvasDidResize() }
         onRender()
     }

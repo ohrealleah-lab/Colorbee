@@ -53,15 +53,22 @@ private struct ToolStrip: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Picker("Tool", selection: toolBinding) {
+            HStack(spacing: 2) {
                 ForEach(Tool.allCases, id: \.self) { tool in
-                    Label(tool.title, systemImage: tool.symbol).tag(tool)
+                    Button {
+                        editor.selectTool(tool)
+                    } label: {
+                        Image(systemName: tool.symbol)
+                            .frame(width: 26, height: 22)
+                            .background(editor.tool == tool ? Color.accentColor.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 5))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(editor.tool == tool ? Color.accentColor : .primary)
+                    .help("\(tool.title): \(tool.summary)")
+                    .accessibilityLabel(tool.title)
                 }
             }
-            .pickerStyle(.segmented)
-            .labelStyle(.iconOnly)
-            .labelsHidden()
-            .fixedSize()
             Divider().frame(height: 20)
             ColorPicker("Color 1", selection: colorBinding(\.color1))
             ColorPicker("Color 2", selection: colorBinding(\.color2))
@@ -209,6 +216,24 @@ private struct ToolOptions: View {
 }
 
 private extension Tool {
+    var summary: String {
+        switch self {
+        case .pencil: "1-pixel hard line. Shift draws straight lines."
+        case .brush: "Soft round brush or translucent marker."
+        case .eraser: "Erase to Color 2. Right-drag replaces only Color 1."
+        case .fill: "Fill an area of similar color."
+        case .eyedropper: "Pick a color from the image."
+        case .gradient: "Drag to blend Color 1 into Color 2."
+        case .measure: "Drag to measure distance and angle."
+        case .shape: "Lines, arrows, boxes, stars, callouts and more."
+        case .text: "Click to type, or drag out a box."
+        case .rectangleSelect: "Drag to select a rectangle. Shift adds, Option subtracts."
+        case .ellipseSelect: "Drag to select an oval. Shift adds, Option subtracts."
+        case .lassoSelect: "Draw around an area to select it."
+        case .magicWand: "Click to select an area of similar color."
+        }
+    }
+
     var title: String {
         switch self {
         case .pencil: "Pencil (P)"

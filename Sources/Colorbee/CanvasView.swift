@@ -238,6 +238,19 @@ final class CanvasView: NSView {
         if editor.symmetry == .horizontal || editor.symmetry == .both {
             lines.append((Point2D(x: 0, y: height / 2), Point2D(x: width, y: height / 2), guide))
         }
+        let frameColor = SIMD4<Float>(0.2, 0.45, 0.95, 0.9)
+        func frame(_ minX: Double, _ minY: Double, _ maxX: Double, _ maxY: Double) {
+            let corners = [Point2D(x: minX, y: minY), Point2D(x: maxX, y: minY), Point2D(x: maxX, y: maxY), Point2D(x: minX, y: maxY)]
+            for index in 0..<4 { lines.append((corners[index], corners[(index + 1) % 4], frameColor)) }
+        }
+        if let drag = editor.textDragFrame {
+            frame(min(drag.start.x, drag.end.x), min(drag.start.y, drag.end.y), max(drag.start.x, drag.end.x), max(drag.start.y, drag.end.y))
+        }
+        if let box = editor.pendingTextFrame {
+            // A little outside the text so the border doesn't touch the glyphs.
+            let pad = 3 / editor.viewport.zoom
+            frame(Double(box.minX) - pad, Double(box.minY) - pad, Double(box.maxX) + pad, Double(box.maxY) + pad)
+        }
         for guide in editor.pendingShapeGuides {
             lines.append((guide.0, guide.1, SIMD4(0.2, 0.45, 0.95, 0.9)))
         }
@@ -290,7 +303,7 @@ final class CanvasView: NSView {
             appliedTextStyle = (style, zoom)
         }
         let origin = editor.viewport.viewPoint(fromImage: pending.origin)
-        view.fit(at: NSPoint(x: origin.x, y: origin.y), wrapWidth: pending.wrapWidth.map { $0 * zoom })
+        view.fit(at: NSPoint(x: origin.x, y: origin.y), wrapWidth: pending.wrapWidth.map { $0 * zoom }, minimumHeight: pending.minimumHeight * zoom)
     }
 
     private func handlePoints(_ selection: SelectionState) -> [Point2D] {
@@ -469,7 +482,8 @@ final class CanvasView: NSView {
         case .shape:
             editor.continueShapeDrag(to: imagePoint(event), shiftDown: event.modifierFlags.contains(.shift))
             updatePointer(event)
-        case .text:
+        case .text(let start):
+            editor.updateTextDragFrame(from: start, to: imagePoint(event))
             updatePointer(event)
         case .select:
             let point = imagePoint(event)
@@ -497,11 +511,15 @@ final class CanvasView: NSView {
             editor.endShapeDrag()
         case .text(let start):
             let end = imagePoint(event)
-            // Dragging sets the wrap width; a plain click lets the text run on.
+            // Dragging out a box sets its width (lines wrap) and height; a plain click lets the text run on.
             let width = abs(end.x - start.x)
-            let wrapWidth = width * editor.viewport.zoom > 8 ? width : nil
+            let dragged = width * editor.viewport.zoom > 8
             drag = nil
-            editor.beginText(at: Point2D(x: min(start.x, end.x), y: start.y), wrapWidth: wrapWidth)
+            editor.beginText(
+                at: Point2D(x: min(start.x, end.x), y: dragged ? min(start.y, end.y) : start.y),
+                wrapWidth: dragged ? width : nil,
+                minimumHeight: dragged ? abs(end.y - start.y) : 0
+            )
             return
         case .select:
             editor.endSelectionDrag(at: imagePoint(event))

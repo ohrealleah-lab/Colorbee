@@ -68,7 +68,7 @@ final class CanvasTextView: NSTextView {
     }
 
     /// Sizes the view to its text. `wrapWidth` is in view points.
-    func fit(at origin: NSPoint, wrapWidth: Double?) {
+    func fit(at origin: NSPoint, wrapWidth: Double?, minimumHeight: Double = 0) {
         guard let container = textContainer, let layoutManager else { return }
         if let wrapWidth {
             isHorizontallyResizable = false
@@ -82,6 +82,6 @@ final class CanvasTextView: NSTextView {
         let font = typingAttributes[.font] as? NSFont ?? .systemFont(ofSize: 12)
         let lineHeight = layoutManager.defaultLineHeight(for: font)
         let width = wrapWidth ?? max(used.width + 4, lineHeight / 2)
-        frame = NSRect(x: origin.x, y: origin.y, width: width, height: max(used.height, lineHeight))
+        frame = NSRect(x: origin.x, y: origin.y, width: width, height: max(used.height, lineHeight, minimumHeight))
     }
 }

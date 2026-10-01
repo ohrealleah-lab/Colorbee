@@ -208,6 +208,8 @@ struct PendingText: Equatable {
     var origin: Point2D
     /// Set when the box was dragged out; otherwise lines run as long as they need.
     var wrapWidth: Double?
+    /// A dragged-out box keeps at least its dragged height.
+    var minimumHeight: Double = 0
     var string = ""
 }
 
@@ -890,15 +892,33 @@ final class Editor {
     // MARK: Text
 
     /// Opens a text box with its top-left at `origin`. Any open box is placed first.
-    func beginText(at origin: Point2D, wrapWidth: Double?) {
+    func beginText(at origin: Point2D, wrapWidth: Double?, minimumHeight: Double = 0) {
         finishInteractions()
         placeFloatingSelection()
-        pendingText = PendingText(origin: origin, wrapWidth: wrapWidth)
+        textDragFrame = nil
+        pendingText = PendingText(origin: origin, wrapWidth: wrapWidth, minimumHeight: minimumHeight)
         onRender()
+    }
+
+    /// The box being dragged out with the Text tool, shown as a frame until the mouse is released.
+    private(set) var textDragFrame: (start: Point2D, end: Point2D)?
+
+    func updateTextDragFrame(from start: Point2D, to end: Point2D) {
+        textDragFrame = (start, end)
+        onRender()
+    }
+
+    /// The open text box's frame in image coordinates, for drawing its border.
+    var pendingTextFrame: IntRect? {
+        guard let text = pendingText else { return nil }
+        var spec = textSpec(for: text)
+        if spec.text.isEmpty { spec.text = " " }
+        return TextRenderer.box(for: spec)
     }
 
     func updatePendingText(_ string: String) {
         pendingText?.string = string
+        onRender()
     }
 
     func textSpec(for text: PendingText) -> TextSpec {
@@ -916,6 +936,7 @@ final class Editor {
         spec.underline = textStyle.underline
         spec.strikethrough = textStyle.strikethrough
         spec.alignment = textStyle.alignment
+        spec.minimumHeight = text.minimumHeight
         return spec
     }
 

@@ -16,6 +16,8 @@ public struct TextSpec: Equatable, Sendable {
     public var origin: Point2D
     /// Wrap lines at this width; nil lets lines run as long as they need.
     public var wrapWidth: Double?
+    /// The box is at least this tall (a dragged-out text box); it grows if the text needs more.
+    public var minimumHeight: Double = 0
     public var fontFamily: String
     public var fontSize: Double
     public var bold = false
@@ -107,7 +109,7 @@ public enum TextRenderer {
         let suggested = CTFramesetterSuggestFrameSizeWithConstraints(framesetter, CFRange(location: 0, length: 0), nil, constraint, nil)
         // A pixel of slack keeps the last character from wrapping on rounding.
         let width = spec.wrapWidth ?? (suggested.width.rounded(.up) + 1)
-        return Size2D(width: max(1, width), height: max(1, suggested.height.rounded(.up)))
+        return Size2D(width: max(1, width), height: max(1, suggested.height.rounded(.up), spec.minimumHeight.rounded(.up)))
     }
 
     private static func attributedString(for spec: TextSpec, colorSpace: CGColorSpace) -> CFAttributedString {

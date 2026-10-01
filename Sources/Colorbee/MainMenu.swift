@@ -23,6 +23,56 @@ enum MainMenu {
         return main
     }
 
+    /// Hover text for every command, keyed by its action.
+    private static let tooltips: [String: String] = [
+        "orderFrontStandardAboutPanel:": "Version and credits.",
+        "hide:": "Hide Colorbee's windows until you switch back.",
+        "hideOtherApplications:": "Hide every other app's windows.",
+        "unhideAllApplications:": "Show every app's windows again.",
+        "terminate:": "Quit Colorbee. Your work is saved automatically.",
+        "newDocument:": "Start a new blank 1920 × 1080 image.",
+        "openDocument:": "Open an image file (PNG, JPEG, HEIC, TIFF, GIF, BMP or WebP).",
+        "clearRecentDocuments:": "Forget the list of recently opened images.",
+        "performClose:": "Close this window.",
+        "saveDocument:": "Save the image. Untitled images ask for a name and format.",
+        "saveDocumentAs:": "Save a copy under a new name or in another format.",
+        "duplicateDocument:": "Open a copy of this image in a new window.",
+        "revertDocumentToSaved:": "Throw away changes since the last save.",
+        "exportDocument:": "Save a copy in any format, with a quality setting for JPEG and HEIC.",
+        "exportPreset:": "Save a PNG at this exact size; the aspect ratio is kept and nothing is enlarged.",
+        "undo:": "Undo the last change.",
+        "redo:": "Redo the change you just undid.",
+        "cut:": "Copy the selection to the clipboard, then clear it.",
+        "copy:": "Copy the selection (or the whole image) to the clipboard as a PNG.",
+        "paste:": "Paste an image as a selection you can move and resize.",
+        "delete:": "Clear the selected pixels to Color 2 (or transparency).",
+        "selectAll:": "Select the whole image.",
+        "deselect:": "Remove the selection, placing any moved pixels.",
+        "invertSelection:": "Select everything that isn't selected, and nothing that is.",
+        "zoomIn:": "Zoom in one step.",
+        "zoomOut:": "Zoom out one step.",
+        "actualSize:": "Show the image at 100%, one image pixel per screen point.",
+        "zoomToFit:": "Fit the whole image in the window.",
+        "togglePixelGrid:": "Show a line between pixels at 400% zoom and above.",
+        "toggleBeforeAfter:": "Compare the image now with how it was opened or last saved.",
+        "toggleFullScreen:": "Fill the screen with this window.",
+        "cropToSelection:": "Trim the image to the selection's edges.",
+        "applyOrientation:": "Turn or mirror the selection, or the whole image if nothing is selected.",
+        "setSymmetry:": "Mirror pencil, brush and eraser strokes across the image's center lines.",
+        "invertColors:": "Turn colors into their opposites (black becomes white).",
+        "showBrightnessContrast:": "Make the selection or image lighter, darker, or more or less contrasty.",
+        "showHueSaturation:": "Shift colors around the color wheel, or make them more or less vivid.",
+        "desaturate:": "Turn the selection or image to grayscale.",
+        "showGaussianBlur:": "Blur the selection (or image). Each separate selected area is blurred on its own.",
+        "showPixelate:": "Turn the selection (or image) into large square blocks.",
+        "showSharpen:": "Make edges crisper.",
+        "applySolidFill:": "Cover every selected area with Color 1. The most secure way to hide text.",
+        "showAutoRedact:": "Find emails, phone numbers, keys and more on this Mac, then hide the ones you choose.",
+        "performMiniaturize:": "Minimize this window to the Dock.",
+        "performZoom:": "Make this window as large as it needs to be.",
+        "arrangeInFront:": "Bring all Colorbee windows to the front.",
+    ]
+
     private static func submenu(_ menu: NSMenu) -> NSMenuItem {
         let item = NSMenuItem(title: menu.title, action: nil, keyEquivalent: "")
         item.submenu = menu
@@ -37,6 +87,7 @@ enum MainMenu {
     ) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: Selector(action), keyEquivalent: key)
         item.keyEquivalentModifierMask = key.isEmpty ? [] : modifiers
+        item.toolTip = tooltips[action]
         return item
     }
 

@@ -18,8 +18,11 @@ core:
 
 test: core build
 
-run: build
-	open $(APP)
+# Release, so it runs at real speed (Debug pixel loops are ~50x slower).
+run: gen
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release \
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -quiet build
+	open $(DERIVED)/Build/Products/Release/Colorbee.app
 
 bench: gen
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release \

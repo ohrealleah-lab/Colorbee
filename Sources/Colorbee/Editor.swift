@@ -255,6 +255,9 @@ final class Editor {
     @ObservationIgnored private var activeStroke: ActiveStroke?
     @ObservationIgnored private var selectionDrag: SelectionDrag?
     @ObservationIgnored private var effectEdit: Edit?
+    /// The selection's separate regions, worked out once per dialog; nil applies to the whole layer.
+    @ObservationIgnored private var effectRegions: [SelectionMask]?
+    @ObservationIgnored private var effectPreviewScheduled = false
     @ObservationIgnored private var shapeDrag: ShapeDrag?
     @ObservationIgnored private var shapeRenderCache: (spec: ShapeSpec, pixels: PixelBuffer, origin: IntPoint)?
 
@@ -861,14 +864,29 @@ final class Editor {
         placeFloatingSelection()
         effectValue = kind.defaultValue
         effectEdit = history.beginEdit(kind.title, on: canvas)
+        effectRegions = canvas.selection.marquee?.connectedRegions()
         activeEffect = kind
-        previewEffect()
+        renderEffectPreview()
     }
 
+    /// Called as the slider moves. Updates are merged, so only the latest value is ever computed
+    /// and the slider never waits on a backlog.
     func previewEffect() {
+        guard !effectPreviewScheduled else { return }
+        effectPreviewScheduled = true
+        Task { @MainActor [weak self] in self?.renderEffectPreview() }
+    }
+
+    private func renderEffectPreview() {
+        effectPreviewScheduled = false
         guard let kind = activeEffect, let edit = effectEdit else { return }
         edit.restoreOriginals()
-        Effects.apply(kind.effect(effectValue), to: canvas.activeLayer, selection: canvas.selection.marquee, edit: edit)
+        let effect = kind.effect(effectValue)
+        if let regions = effectRegions {
+            Effects.apply(effect, to: canvas.activeLayer, regions: regions, edit: edit)
+        } else {
+            Effects.apply(effect, to: canvas.activeLayer, selection: nil, edit: edit)
+        }
         onRender()
     }
 
@@ -884,6 +902,7 @@ final class Editor {
     }
 
     func applyEffect() {
+        if effectPreviewScheduled { renderEffectPreview() }
         guard let edit = effectEdit else { return }
         effectEdit = nil
         activeEffect = nil

@@ -14,7 +14,7 @@ make gen      # regenerate Colorbee.xcodeproj from project.yml (run after adding
 make build    # debug build of the app
 make test     # core unit tests (fast, headless) + full app build
 make core     # core unit tests only (swift test)
-make run      # build and launch the app
+make run      # Release build, then launch (Debug pixel loops are ~50x slower; use run for real use)
 make bench     # Release build + scripted perf run (launch, stroke latency, undo, memory). Brings a window to the front; ask Leah first.
 make clean
 ```

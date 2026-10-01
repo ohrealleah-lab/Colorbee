@@ -23,7 +23,14 @@ public enum Effects {
     @discardableResult
     public static func apply(_ effect: Effect, to layer: Layer, selection: SelectionMask?, edit: Edit) -> IntRect {
         guard let selection else { return applyToRegion(effect, layer: layer, selection: nil, edit: edit) }
-        return selection.connectedRegions().reduce(IntRect.zero) { changed, region in
+        return apply(effect, to: layer, regions: selection.connectedRegions(), edit: edit)
+    }
+
+    /// Applies `effect` to each region separately. Pass regions from `SelectionMask.connectedRegions()`;
+    /// callers that apply repeatedly (live previews) should compute them once.
+    @discardableResult
+    public static func apply(_ effect: Effect, to layer: Layer, regions: [SelectionMask], edit: Edit) -> IntRect {
+        regions.reduce(IntRect.zero) { changed, region in
             changed.union(applyToRegion(effect, layer: layer, selection: region, edit: edit))
         }
     }
@@ -35,7 +42,7 @@ public enum Effects {
             edit.willModify(region, in: layer)
             for y in region.minY..<region.maxY {
                 let row = layer.buffer.row(y)
-                for x in region.minX..<region.maxX where (selection?[x, y] ?? 255) > 0 {
+                for x in region.minX..<region.maxX where isSelected(selection, x, y) {
                     row[x] = color
                 }
             }
@@ -55,7 +62,7 @@ public enum Effects {
         for y in region.minY..<region.maxY {
             let source = result.row(y - origin.y)
             let destination = layer.buffer.row(y)
-            for x in region.minX..<region.maxX where (selection?[x, y] ?? 255) > 0 {
+            for x in region.minX..<region.maxX where isSelected(selection, x, y) {
                 destination[x] = source[x - origin.x]
             }
         }
@@ -74,7 +81,7 @@ public enum Effects {
         for y in work.minY..<work.maxY {
             let source = buffer.row(y)
             let destination = scratch.row(y - work.minY)
-            for x in work.minX..<work.maxX where (selection?[x, y] ?? 255) > 0 {
+            for x in work.minX..<work.maxX where isSelected(selection, x, y) {
                 destination[x - work.minX] = source[x]
             }
         }
@@ -85,7 +92,7 @@ public enum Effects {
             let coverage = PixelBuffer(width: work.width, height: work.height)
             for y in work.minY..<work.maxY {
                 let row = coverage.row(y - work.minY)
-                for x in work.minX..<work.maxX where selection[x, y] > 0 {
+                for x in work.minX..<work.maxX where isSelected(selection, x, y) {
                     row[x - work.minX] = .white
                 }
             }
@@ -119,6 +126,15 @@ public enum Effects {
         return second
     }
 
+    /// Whether a pixel is selected; no selection means everything is. Reads the mask's storage directly.
+    @inline(__always)
+    private static func isSelected(_ selection: SelectionMask?, _ x: Int, _ y: Int) -> Bool {
+        guard let selection else { return true }
+        let bounds = selection.bounds
+        guard x >= bounds.minX, x < bounds.maxX, y >= bounds.minY, y < bounds.maxY else { return false }
+        return selection.values.withUnsafeBufferPointer { $0[(y - bounds.minY) * bounds.width + (x - bounds.minX)] } > 0
+    }
+
     private static func pixelated(_ buffer: PixelBuffer, region: IntRect, cellSize: Int, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
         let result = PixelBuffer(width: region.width, height: region.height)
         var cellY = region.minY / cellSize * cellSize
@@ -142,7 +158,7 @@ public enum Effects {
         var red = 0.0, green = 0.0, blue = 0.0, alpha = 0.0, count = 0.0
         for y in rect.minY..<rect.maxY {
             let row = buffer.row(y)
-            for x in rect.minX..<rect.maxX where (selection?[x, y] ?? 255) > 0 {
+            for x in rect.minX..<rect.maxX where isSelected(selection, x, y) {
                 let pixel = row[x]
                 let weight = Double(pixel.a)
                 red += Double(pixel.r) * weight

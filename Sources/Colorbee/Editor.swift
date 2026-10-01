@@ -397,9 +397,10 @@ final class Editor {
         guard newTool != tool else { return }
         finishInteractions()
         measurement = nil
+        // Moved or pasted pixels are placed, but the outline stays selected so tools like
+        // Fill and Gradient (and the Effects) still work inside it.
         if !newTool.isSelectionTool {
-            recordingChanges { SelectionActions.deselect(canvas: canvas, history: history, context: selectionContext) }
-            selectionDidChange()
+            placeFloatingKeepingOutline()
         }
         tool = newTool
     }
@@ -520,7 +521,7 @@ final class Editor {
 
     func fill(at point: Point2D, secondary: Bool) {
         finishInteractions()
-        placeFloatingSelection()
+        placeFloatingKeepingOutline()
         let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         let edit = history.beginEdit("Fill", on: canvas)
         FloodFill.fill(

@@ -16,10 +16,10 @@ public struct ExportPreset: Hashable, Sendable {
     }
 
     public static let defaults = [
-        ExportPreset(name: "Slack (760 px)", size: .width(760)),
-        ExportPreset(name: "1280 px", size: .width(1280)),
-        ExportPreset(name: "1920 px", size: .width(1920)),
-        ExportPreset(name: "Mobile (750 px)", size: .width(750)),
+        ExportPreset(name: "Slack", size: .width(760)),
+        ExportPreset(name: "1280 wide", size: .width(1280)),
+        ExportPreset(name: "1920 wide", size: .width(1920)),
+        ExportPreset(name: "Mobile", size: .width(750)),
         ExportPreset(name: "Square 1024", size: .fitSquare(1024)),
     ]
 

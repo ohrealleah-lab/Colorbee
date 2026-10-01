@@ -15,6 +15,8 @@ final class ImageDocument: NSDocument {
         true
     }
 
+    var canvasSize: IntSize? { editor?.canvasSize }
+
     override func makeWindowControllers() {
         let editor = self.editor ?? Editor(canvas: Canvas(
             size: Benchmark.canvasSize ?? IntSize(width: 1920, height: 1080),

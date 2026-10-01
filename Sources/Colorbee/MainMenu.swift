@@ -71,6 +71,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item("Export…", "exportDocument:", "s", [.command, .option]))
         let presets = NSMenu(title: "Export As")
+        presets.delegate = ExportPresetMenuTitles.shared
         for (index, preset) in ExportPreset.defaults.enumerated() {
             let presetItem = item(preset.name, "exportPreset:")
             presetItem.tag = index
@@ -138,5 +139,27 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item("Bring All to Front", "arrangeInFront:"))
         return menu
+    }
+}
+
+/// Shows each export preset's exact output size for the current document when the menu opens.
+@MainActor
+final class ExportPresetMenuTitles: NSObject, NSMenuDelegate {
+    static let shared = ExportPresetMenuTitles()
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let size = (NSDocumentController.shared.currentDocument as? ImageDocument)?.canvasSize
+        for item in menu.items where ExportPreset.defaults.indices.contains(item.tag) {
+            let preset = ExportPreset.defaults[item.tag]
+            guard let size else {
+                item.title = preset.name
+                continue
+            }
+            let target = preset.targetSize(for: size)
+            let dimensions = "\(target.width) × \(target.height) px"
+            item.title = target == size && preset.targetSize(for: size, allowEnlarging: true) != size
+                ? "\(preset.name) — \(dimensions) (original size)"
+                : "\(preset.name) — \(dimensions)"
+        }
     }
 }

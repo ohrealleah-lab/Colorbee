@@ -243,10 +243,10 @@ final class Editor {
     var brushKind: BrushKind = .round
     // Colors show live in pending shapes and transparent selections.
     var color1: Pixel = .black {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     var color2: Pixel = .white {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     var brushDiameter: Double = 5
     var eraserSize = 8
@@ -256,14 +256,14 @@ final class Editor {
     var wandTolerance = 0.1
     var wandContiguous = true
     var transparentSelection = false {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     /// How stretched selections are resampled: smooth for photos and screenshots, sharp for pixel art.
     var smoothResize = true {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     var showsPixelGrid = true {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     private(set) var viewport = Viewport()
     var pointer: IntPoint?
@@ -285,32 +285,32 @@ final class Editor {
                     commitPendingShape()
                 }
             }
-            onRender()
+            renderSoon()
         }
     }
     var shapeLineWidth = 3.0 {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     var shapeHasOutline = true {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     var shapeHasFill = false {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     private(set) var pendingShape: PendingShape?
     var gradientMode: GradientMode = .linear
     var symmetry: SymmetryMode = .off {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     /// The last measurement; it stays on screen until the next one or a tool change.
     private(set) var measurement: Measurement?
     var textStyle = TextStyle() {
-        didSet { onRender() }
+        didSet { renderSoon() }
     }
     private(set) var pendingText: PendingText?
     /// Non-nil while Before/After is showing. The view is read-only while it's on.
     var comparison: Comparison? {
-        didSet { if oldValue?.layout != comparison?.layout { fitComparison() } else { onRender() } }
+        didSet { if oldValue?.layout != comparison?.layout { fitComparison() } else { renderSoon() } }
     }
     /// The image when the document was opened or created.
     @ObservationIgnored let asOpened: PixelBuffer
@@ -330,6 +330,7 @@ final class Editor {
     var effectValues: [Double] = []
 
     @ObservationIgnored var onRender: () -> Void = {}
+    @ObservationIgnored private var renderScheduled = false
     @ObservationIgnored var onDocumentChange: (DocumentChange) -> Void = { _ in }
     @ObservationIgnored private var activeStroke: ActiveStroke?
     @ObservationIgnored private var selectionDrag: SelectionDrag?
@@ -414,6 +415,17 @@ final class Editor {
             eraserSize = max(1, min(100, eraserSize + (larger ? 2 : -2)))
         default:
             brushDiameter = max(1, min(50, brushDiameter + (larger ? 1 : -1)))
+        }
+    }
+
+    /// Redraws on the next turn of the run loop. Property observers use this instead of `onRender()`:
+    /// drawing reads other settings, and reading one while another is mid-change crashes (Swift exclusivity).
+    private func renderSoon() {
+        guard !renderScheduled else { return }
+        renderScheduled = true
+        Task { @MainActor [weak self] in
+            self?.renderScheduled = false
+            self?.onRender()
         }
     }
 
@@ -1309,7 +1321,10 @@ final class Editor {
     // MARK: Colors
 
     func swapColors() {
-        swap(&color1, &color2)
+        // One at a time: swapping both in place holds both open while their observers run.
+        let first = color1
+        color1 = color2
+        color2 = first
     }
 
     // MARK: Viewport

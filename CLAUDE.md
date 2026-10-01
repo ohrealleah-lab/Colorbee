@@ -66,6 +66,7 @@ Docs/reference/              Original v1 spec, kept for reference only
 
 ## Code conventions
 
+- `Editor` property observers (`didSet`) call `renderSoon()`, never `onRender()`: drawing reads other settings, and reading one while another is mid-change is a Swift exclusivity crash. Don't `swap(&a, &b)` observed properties.
 - Swift 6 strict concurrency. Mark UI types `@MainActor`. Core types are value types or `Sendable` where practical.
 - Tests use **Swift Testing** (`import Testing`, `@Test`, `#expect`), not XCTest, except for performance baselines (which need `XCTest` `measure`).
 - Every core algorithm gets unit tests. Pixel algorithms get exact-value tests on small images.

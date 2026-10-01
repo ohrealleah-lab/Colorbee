@@ -121,6 +121,15 @@ private struct ToolOptions: View {
         case .eyedropper:
             Text("Click: Color 1 · Right-click: Color 2 · Option: all layers")
                 .foregroundStyle(.secondary)
+        case .gradient:
+            Picker("Gradient", selection: $editor.gradientMode) {
+                ForEach(GradientMode.allCases, id: \.self) { Text($0.name).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            Text("Drag: Color 1 → Color 2 · Right-drag reverses")
+                .foregroundStyle(.secondary)
         case .measure:
             Text("Drag between two points · the status bar shows the distance")
                 .foregroundStyle(.secondary)
@@ -208,6 +217,7 @@ private extension Tool {
         case .fill: "Fill (G)"
         case .eyedropper: "Eyedropper (I)"
         case .measure: "Measure (R)"
+        case .gradient: "Gradient"
         case .shape: "Shapes (U)"
         case .text: "Text (T)"
         case .rectangleSelect: "Rectangle Select (M)"
@@ -225,6 +235,7 @@ private extension Tool {
         case .fill: "drop.fill"
         case .eyedropper: "eyedropper"
         case .measure: "ruler"
+        case .gradient: "square.tophalf.filled"
         case .shape: "square.on.circle"
         case .text: "textformat"
         case .rectangleSelect: "rectangle.dashed"

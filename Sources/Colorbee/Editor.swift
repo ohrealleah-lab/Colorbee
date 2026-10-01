@@ -14,6 +14,7 @@ enum Tool: CaseIterable {
     case eraser
     case fill
     case eyedropper
+    case gradient
     case measure
     case shape
     case text
@@ -268,6 +269,7 @@ final class Editor {
         didSet { onRender() }
     }
     private(set) var pendingShape: PendingShape?
+    var gradientMode: GradientMode = .linear
     var symmetry: SymmetryMode = .off {
         didSet { onRender() }
     }
@@ -307,6 +309,17 @@ final class Editor {
     @ObservationIgnored private var effectRegions: [SelectionMask]?
     @ObservationIgnored private var effectPreviewScheduled = false
     @ObservationIgnored private var shapeDrag: ShapeDrag?
+    @ObservationIgnored private var gradientDrag: GradientDrag?
+    @ObservationIgnored private var gradientRenderScheduled = false
+
+    private struct GradientDrag {
+        let edit: Edit
+        let start: Point2D
+        var end: Point2D
+        /// Right-drag runs from Color 2 to Color 1.
+        let reversed: Bool
+        let selection: SelectionMask?
+    }
     @ObservationIgnored private var shapeRenderCache: (spec: ShapeSpec, pixels: PixelBuffer, origin: IntPoint)?
 
     private enum ShapeDrag {
@@ -372,6 +385,7 @@ final class Editor {
     /// Ends any drag in progress so menu commands and undo see a settled document.
     /// A pending shape is placed.
     private func finishInteractions() {
+        endGradient()
         shapeDrag = nil
         commitPendingShape()
         commitPendingText()
@@ -503,6 +517,51 @@ final class Editor {
             picked = canvas.activeLayer.buffer[pixel.x, pixel.y]
         }
         if secondary { color2 = picked } else { color1 = picked }
+    }
+
+    // MARK: Gradient
+
+    func beginGradient(at point: Point2D, secondary: Bool) {
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        gradientDrag = GradientDrag(
+            edit: history.beginEdit("Gradient", on: canvas),
+            start: point,
+            end: point,
+            reversed: secondary,
+            selection: canvas.selection.marquee
+        )
+    }
+
+    func continueGradient(to point: Point2D) {
+        gradientDrag?.end = point
+        guard !gradientRenderScheduled else { return }
+        gradientRenderScheduled = true
+        Task { @MainActor [weak self] in self?.renderGradient() }
+    }
+
+    private func renderGradient() {
+        gradientRenderScheduled = false
+        guard let drag = gradientDrag else { return }
+        drag.edit.restoreOriginals()
+        Gradients.draw(
+            gradientMode,
+            from: drag.start,
+            to: drag.end,
+            startColor: drag.reversed ? color2 : color1,
+            endColor: drag.reversed ? color1 : color2,
+            onto: canvas.activeLayer,
+            selection: drag.selection,
+            edit: drag.edit
+        )
+        onRender()
+    }
+
+    func endGradient() {
+        guard let drag = gradientDrag else { return }
+        if gradientRenderScheduled { renderGradient() }
+        gradientDrag = nil
+        recordingChanges { history.commit(drag.edit) }
     }
 
     // MARK: Measure

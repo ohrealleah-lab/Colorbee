@@ -10,6 +10,7 @@ final class CanvasView: NSView {
         case secondary
         case select(last: Point2D)
         case measure(start: Point2D)
+        case gradient
         case divider
         case shape
         case text(start: Point2D)
@@ -405,6 +406,9 @@ final class CanvasView: NSView {
         case .measure:
             drag = .measure(start: point)
             editor.measure(from: point, to: point)
+        case .gradient:
+            drag = .gradient
+            editor.beginGradient(at: point, secondary: secondary)
         case .shape:
             drag = .shape
             editor.beginShapeDrag(at: point, viewPoint: viewPoint(event), secondary: secondary)
@@ -438,6 +442,9 @@ final class CanvasView: NSView {
         case .measure(let start):
             editor.measure(from: start, to: imagePoint(event))
             updatePointer(event)
+        case .gradient:
+            editor.continueGradient(to: imagePoint(event))
+            updatePointer(event)
         case .shape:
             editor.continueShapeDrag(to: imagePoint(event), shiftDown: event.modifierFlags.contains(.shift))
             updatePointer(event)
@@ -463,6 +470,8 @@ final class CanvasView: NSView {
             break
         case .divider, .measure:
             break
+        case .gradient:
+            editor.endGradient()
         case .shape:
             editor.endShapeDrag()
         case .text(let start):

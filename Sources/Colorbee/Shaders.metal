@@ -61,6 +61,12 @@ fragment float4 solid_fragment(QuadOut in [[stage_in]], constant QuadUniforms &u
     return float4(u.keyColor.rgb * u.keyColor.a, u.keyColor.a);
 }
 
+// A flat-colored disc filling the quad, for round handles.
+fragment float4 disc_fragment(QuadOut in [[stage_in]], constant QuadUniforms &u [[buffer(0)]]) {
+    if (length(in.uv - 0.5) > 0.5) discard_fragment();
+    return float4(u.keyColor.rgb * u.keyColor.a, u.keyColor.a);
+}
+
 fragment float4 checker_fragment(QuadOut in [[stage_in]], constant QuadUniforms &u [[buffer(0)]]) {
     float2 cell = floor(in.position.xy / u.checkerSize);
     float shade = fmod(cell.x + cell.y, 2.0) < 1.0 ? 1.0 : 0.85;

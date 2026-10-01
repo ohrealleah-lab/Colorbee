@@ -647,7 +647,13 @@ final class Editor {
         guard let spec = pendingShapeSpec else { return [] }
         if spec.kind.isLinear { return [spec.start, spec.end] }
         if spec.kind.isPointBased { return spec.points }
-        return SelectionHandle.allCases.map { spec.rotated($0.point(on: spec.box)) } + [rotateHandlePoint(for: spec)]
+        return SelectionHandle.allCases.map { spec.rotated($0.point(on: spec.box)) }
+    }
+
+    /// The round rotate handle above a box shape.
+    var pendingShapeRotateHandle: Point2D? {
+        guard let spec = pendingShapeSpec, spec.kind.isBoxShape, pendingShape?.isBuilding == false else { return nil }
+        return rotateHandlePoint(for: spec)
     }
 
     /// Guide lines for the pending shape: the rotate handle's stem, and a curve's control arms.

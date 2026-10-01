@@ -28,6 +28,8 @@ struct RenderScene {
     let overlay: (pixels: PixelBuffer, origin: IntPoint)?
     /// Handle positions in image coordinates.
     let handlePoints: [Point2D]
+    /// Round handles (rotation), in image coordinates.
+    let roundHandlePoints: [Point2D]
     let showsPixelGrid: Bool
     let antsPhase: Float
     /// Guide and measuring lines in image coordinates, drawn on top at a fixed on-screen width.
@@ -52,6 +54,7 @@ final class Renderer {
     private let gridPipeline: MTLRenderPipelineState
     private let solidPipeline: MTLRenderPipelineState
     private let linePipeline: MTLRenderPipelineState
+    private let discPipeline: MTLRenderPipelineState
     private let nearestSampler: MTLSamplerState
     private let linearSampler: MTLSamplerState
     private let maskSampler: MTLSamplerState
@@ -98,6 +101,7 @@ final class Renderer {
         gridPipeline = pipeline(fragment: "grid_fragment", blended: false)
         solidPipeline = pipeline(fragment: "solid_fragment")
         linePipeline = pipeline(fragment: "solid_fragment", vertex: "line_vertex")
+        discPipeline = pipeline(fragment: "disc_fragment")
 
         func sampler(_ filter: MTLSamplerMinMagFilter, address: MTLSamplerAddressMode = .clampToEdge) -> MTLSamplerState {
             let descriptor = MTLSamplerDescriptor()
@@ -270,6 +274,16 @@ final class Renderer {
             ] {
                 uniforms.rect = edge
                 draw(solidPipeline)
+            }
+        }
+
+        for point in scene.roundHandlePoints {
+            let centerX = Float(originX + point.x * zoom * scale)
+            let centerY = Float(originY + point.y * zoom * scale)
+            for (size, shade) in [(Float(11 * scale), Float(0.15)), (Float(8 * scale), Float(1))] {
+                uniforms.rect = SIMD4(centerX - size / 2, centerY - size / 2, size, size)
+                uniforms.keyColor = SIMD4(shade, shade, shade, 1)
+                draw(discPipeline)
             }
         }
 

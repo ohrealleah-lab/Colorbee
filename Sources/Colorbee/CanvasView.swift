@@ -218,6 +218,7 @@ final class CanvasView: NSView {
             smoothFloating: editor.smoothResize,
             overlay: comparing ? nil : editor.renderedPendingShape(),
             handlePoints: comparing ? [] : handlePoints(selection),
+            roundHandlePoints: comparing ? [] : [editor.pendingShapeRotateHandle].compactMap { $0 },
             showsPixelGrid: editor.showsPixelGrid,
             antsPhase: Float((CACurrentMediaTime() * 4).truncatingRemainder(dividingBy: 2)),
             lines: comparing ? [] : overlayLines,
@@ -360,6 +361,22 @@ final class CanvasView: NSView {
         if drag == nil { currentCursor(at: point).set() }
     }
 
+    /// A circular-arrow pointer for the rotate handle (macOS has no built-in one).
+    private static let rotateCursor: NSCursor = {
+        let configuration = NSImage.SymbolConfiguration(pointSize: 16, weight: .semibold)
+        guard let symbol = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Rotate")?
+            .withSymbolConfiguration(configuration) else { return .crosshair }
+        let size = NSSize(width: 22, height: 22)
+        let image = NSImage(size: size, flipped: false) { rect in
+            // A white halo keeps the arrow visible on dark pixels.
+            NSColor.white.setFill()
+            NSBezierPath(ovalIn: rect).fill()
+            symbol.draw(in: rect.insetBy(dx: 3, dy: 3))
+            return true
+        }
+        return NSCursor(image: image, hotSpot: NSPoint(x: size.width / 2, y: size.height / 2))
+    }()
+
     private func currentCursor(at point: Point2D?) -> NSCursor {
         if spaceHeld { return .openHand }
         if let point {
@@ -369,7 +386,7 @@ final class CanvasView: NSView {
             }
             switch editor.shapeHandle(atView: view) {
             case .box(let handle): return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
-            case .rotate: return .pointingHand
+            case .rotate: return Self.rotateCursor
             case .start, .end, .vertex: return .crosshair
             case nil: if editor.pendingShapeContains(point) { return .openHand }
             }

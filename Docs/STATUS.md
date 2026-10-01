@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-01 · 37 commits · 139 core tests passing_
+_Last updated: 2026-10-01 · 44 commits · 161 core tests passing_
 
 ---
 
@@ -29,8 +29,8 @@ _Last updated: 2026-10-01 · 37 commits · 139 core tests passing_
 | 3a. Everyday tools | ✅ Done | Pencil, marker, eraser and color eraser, fill, eyedropper, lasso, blur, pixelate, formats |
 | 3b. Editable objects | ✅ Done | Crop, resize handles, 5 shapes plus arrow, text tool |
 | 4. Redaction | ✅ Done | Magic wand, batch redact, Auto-Redact, Before/After, export presets |
-| **5a. Full toolset (routine)** | ⏭ **Next** | **Opus · medium** |
-| 5b. Full toolset (hard) | Planned | **Opus · high** |
+| 5a. Full toolset (routine) | ✅ Done | All 23 shapes plus rotation, gradient, rotate/flip, symmetry, measure, adjustments, sharpen, D key |
+| **5b. Full toolset (hard)** | ⏭ **Next** | **Opus · high** |
 | 6. Layers | Planned | **Opus · high** |
 | 7. Integration | Planned | Mostly medium; shortcut editor high |
 | 8. Hardening | Planned | Medium |
@@ -50,15 +50,22 @@ _Last updated: 2026-10-01 · 37 commits · 139 core tests passing_
 
 **Tools** (key)
 - Pencil P · Brush B (Round, Marker) · Eraser E (right-drag = Color Eraser) · Fill G (tolerance) · Eyedropper I (Option = all layers)
-- Shapes U: line, arrow, rectangle, rounded rectangle, ellipse. Editable until placed; outline and fill solid or none.
+- Shapes U: all 23 FR-5.1 shapes plus Arrow (gallery menu). Editable until placed: move, handles, rotate handle (box shapes, Shift snaps 15°), outline and fill solid or none. Polygon: click corners, close on the first one or double-click. Curve: line, then two bends.
+- Gradient: linear, radial, reflected, diamond, conical; right-drag reverses; fades to transparent cleanly.
+- Measure R: distance, ΔX/ΔY, angle in the status bar.
 - Text T: in-place editing; font, size, B/I/U/S, alignment, opaque or transparent background.
 - Rectangle M · Ellipse · Lasso L · Magic Wand W (tolerance, contiguous).
-- Keys: X swaps colors, [ ] change size, Space-drag pans, arrows nudge, ⌘-arrows resize the outline, Return/Esc place, Delete clears.
+- Symmetry (status bar or Image ▸ Symmetry): mirrors pencil, brush and eraser.
+- Keys: X swaps colors, D resets to black/white, [ ] change size, Space-drag pans, arrows nudge, ⌘-arrows resize the outline, Return/Esc place, Delete clears.
 
 **Selections**
 - Shift adds, Option subtracts, Shift+Option intersects. Select All, Deselect, Invert.
 - Floating selection: move, Option-duplicate, Shift-smear, 8 resize handles (Shift keeps proportions; Smooth or Sharp), transparent-selection mode.
 - Copy and Cut work on the selection. Paste floats. Crop to Selection.
+
+**Image and adjustments**
+- Image ▸ Rotate (90° CW, 90° CCW, 180°) and Flip (horizontal, vertical): the selection around its center, or the whole image.
+- Adjustments: Invert ⌘I, Brightness/Contrast, Hue/Saturation, Desaturate ⇧⌘U. Effects ▸ Sharpen. All apply to the selection or the whole layer.
 
 **Effects and redaction**
 - Gaussian Blur and Pixelate with live preview (each separate region on its own; edges stay opaque).
@@ -72,17 +79,9 @@ _Last updated: 2026-10-01 · 37 commits · 139 core tests passing_
 
 ## Not built yet (by stage)
 
-**5a (medium)**
-- The other 18 shapes, the textured outline and fill styles, shape rotation (moved from 3b).
-- Gradient tool (5 modes).
-- Rotate 90°/180° and Flip, for the selection or the image.
-- Symmetry (status-bar switch and Image menu).
-- Measure tool (distance, ΔX/ΔY, angle in the status bar).
-- Sharpen. Adjustments menu: Invert ⌘I, Brightness/Contrast, Hue/Saturation, Desaturate ⇧⌘U.
-- **D key** (reset colors to black and white): in the FRD, not wired up.
-
 **5b (high)**
 - 6 textured brushes: calligraphy ×2, airbrush, oil, crayon, natural pencil, watercolor.
+- Textured shape outline and fill styles (crayon, marker, oil, watercolor, natural pencil); moved from 5a because they reuse the brush textures.
 - Pressure sensitivity.
 - Resize/Skew dialog (⌘E).
 
@@ -106,7 +105,8 @@ _Last updated: 2026-10-01 · 37 commits · 139 core tests passing_
 ## Not yet checked by hand
 
 These are covered by automated tests but haven't been tried in the app. Ask Leah to check them, or check with computer-use when the app can come to the front:
-- Crop, resize handles, arrow / ellipse / rounded-rectangle shapes, Before/After, Export As output sizes.
+- Crop, resize handles, Before/After, Export As output sizes.
+- All of stage 5a: shape gallery, polygon and curve placement, rotate handle, gradient modes, rotate/flip, symmetry, measure, adjustment dialogs.
 - The Auto-Redact apply step (Leah confirmed detection works).
 - Blur responsiveness after the Release-build fix.
 

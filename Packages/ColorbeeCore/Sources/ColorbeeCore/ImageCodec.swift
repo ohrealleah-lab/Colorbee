@@ -49,12 +49,37 @@ public enum ImageCodec {
     }
 
     public static func encodePNG(_ buffer: PixelBuffer, colorSpace: CGColorSpace) throws -> Data {
-        let image = try makeCGImage(buffer, colorSpace: colorSpace)
+        try encode(buffer, colorSpace: colorSpace, as: .png)
+    }
+
+    /// Encodes in `format`. Formats without transparency are composited over `matte` first (FR-11.1).
+    /// `quality` (0...1) applies to lossy formats.
+    public static func encode(
+        _ buffer: PixelBuffer,
+        colorSpace: CGColorSpace,
+        as format: ImageFileFormat,
+        quality: Double = 0.9,
+        matte: Pixel = .white
+    ) throws -> Data {
+        guard format.canWrite else { throw ImageCodecError.encodingFailed }
+        var pixels = buffer
+        if !format.supportsTransparency {
+            pixels = PixelBuffer(width: buffer.width, height: buffer.height, fill: Pixel(r: matte.r, g: matte.g, b: matte.b))
+            for y in 0..<buffer.height {
+                let source = buffer.row(y)
+                let destination = pixels.row(y)
+                for x in 0..<buffer.width {
+                    destination[x] = Compositing.over(destination[x], source[x])
+                }
+            }
+        }
+        let image = try makeCGImage(pixels, colorSpace: colorSpace)
         let data = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, UTType.png.identifier as CFString, 1, nil) else {
+        guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, format.type.identifier as CFString, 1, nil) else {
             throw ImageCodecError.encodingFailed
         }
-        CGImageDestinationAddImage(destination, image, nil)
+        let options = [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary
+        CGImageDestinationAddImage(destination, image, format.isLossy ? options : nil)
         guard CGImageDestinationFinalize(destination) else { throw ImageCodecError.encodingFailed }
         return data as Data
     }
@@ -73,5 +98,54 @@ public enum ImageCodec {
             return colorSpace
         }
         return CGColorSpace(name: CGColorSpace.sRGB)!
+    }
+}
+
+/// File formats Colorbee opens and saves (FR-11.1).
+public enum ImageFileFormat: CaseIterable, Sendable {
+    case png
+    case jpeg
+    case bmp
+    case gif
+    case tiff
+    case webp
+    case heic
+
+    public var type: UTType {
+        switch self {
+        case .png: .png
+        case .jpeg: .jpeg
+        case .bmp: .bmp
+        case .gif: .gif
+        case .tiff: .tiff
+        case .webp: .webP
+        case .heic: .heic
+        }
+    }
+
+    public init?(type: UTType) {
+        guard let format = ImageFileFormat.allCases.first(where: { type.conforms(to: $0.type) }) else { return nil }
+        self = format
+    }
+
+    public var name: String {
+        switch self {
+        case .png: "PNG"
+        case .jpeg: "JPEG"
+        case .bmp: "BMP"
+        case .gif: "GIF"
+        case .tiff: "TIFF"
+        case .webp: "WebP"
+        case .heic: "HEIC"
+        }
+    }
+
+    public var supportsTransparency: Bool { self != .jpeg }
+    public var isLossy: Bool { self == .jpeg || self == .heic || self == .webp }
+
+    /// Whether this Mac's ImageIO can write the format (it can read all of them).
+    public var canWrite: Bool {
+        let writable = CGImageDestinationCopyTypeIdentifiers() as? [String] ?? []
+        return writable.contains(type.identifier)
     }
 }

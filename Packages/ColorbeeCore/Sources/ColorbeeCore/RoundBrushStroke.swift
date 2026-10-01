@@ -1,26 +1,22 @@
-/// One anti-aliased round-brush stroke. Each pixel keeps the maximum coverage it has received
-/// and is recomposited from its pre-stroke value, so overlapping dabs never darken a translucent stroke.
-public final class RoundBrushStroke {
+/// One anti-aliased round-brush stroke (also used for the marker, with a translucent color).
+public final class RoundBrushStroke: Stroke {
     public let diameter: Double
     public let color: Pixel
-    public private(set) var dirtyRect: IntRect = .zero
 
-    private let layer: Layer
-    private let edit: Edit
-    private var coverage: [TileKey: TileCoverage] = [:]
+    private let painter: CoveragePainter
     private var lastPoint: Point2D?
     private var distanceToNextDab: Double = 0
 
     public init(diameter: Double, color: Pixel, layer: Layer, edit: Edit) {
         self.diameter = max(1, diameter)
         self.color = color
-        self.layer = layer
-        self.edit = edit
+        painter = CoveragePainter(layer: layer, edit: edit, effect: .over(color))
     }
+
+    public var dirtyRect: IntRect { painter.dirtyRect }
 
     private var spacing: Double { max(0.25, diameter * 0.1) }
 
-    /// Extends the stroke to `point`. Returns the region repainted by this call.
     @discardableResult
     public func move(to point: Point2D) -> IntRect {
         guard let last = lastPoint else {
@@ -49,46 +45,75 @@ public final class RoundBrushStroke {
         let area = IntRect(
             enclosingMinX: center.x - radius - 1, minY: center.y - radius - 1,
             maxX: center.x + radius + 1, maxY: center.y + radius + 1
-        ).intersection(layer.buffer.bounds)
-        guard !area.isEmpty else { return .zero }
-
-        edit.willModify(area, in: layer)
-        for cell in TileGrid.cells(covering: area) {
-            let key = TileKey(layer: layer.id, column: cell.column, row: cell.row)
-            guard let original = edit.originalTile(key) else { continue }
-            let tile = original.rect
-            let tileCoverage = coverage[key] ?? {
-                let created = TileCoverage(count: tile.area)
-                coverage[key] = created
-                return created
-            }()
-            let region = area.intersection(tile)
-            for y in region.minY..<region.maxY {
-                let offsetY = Double(y) + 0.5 - center.y
-                let row = layer.buffer.row(y)
-                let tileRowStart = (y - tile.minY) * tile.width - tile.minX
-                for x in region.minX..<region.maxX {
-                    let offsetX = Double(x) + 0.5 - center.x
-                    let distance = (offsetX * offsetX + offsetY * offsetY).squareRoot()
-                    let amount = min(1, radius + 0.5 - distance)
-                    guard amount > 0 else { continue }
-                    let value = UInt8((amount * 255).rounded())
-                    let index = tileRowStart + x
-                    guard value > tileCoverage.values[index] else { continue }
-                    tileCoverage.values[index] = value
-                    row[x] = Compositing.over(original.pixels[index], color, coverage: Float(value) / 255)
-                }
-            }
+        )
+        return painter.paint(area) { x, y in
+            let offsetX = Double(x) + 0.5 - center.x
+            let offsetY = Double(y) + 0.5 - center.y
+            let amount = min(1, radius + 0.5 - (offsetX * offsetX + offsetY * offsetY).squareRoot())
+            return amount > 0 ? UInt8((amount * 255).rounded()) : 0
         }
-        dirtyRect = dirtyRect.union(area)
-        return area
     }
 }
 
-private final class TileCoverage {
-    var values: [UInt8]
+/// A 1-pixel hard-edged line with no anti-aliasing (FR-4.1).
+public final class PencilStroke: Stroke {
+    private let painter: CoveragePainter
+    private var lastPixel: IntPoint?
 
-    init(count: Int) {
-        values = [UInt8](repeating: 0, count: count)
+    public init(color: Pixel, layer: Layer, edit: Edit) {
+        painter = CoveragePainter(layer: layer, edit: edit, effect: .over(color))
+    }
+
+    @discardableResult
+    public func move(to point: Point2D) -> IntRect {
+        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        defer { lastPixel = pixel }
+        var changed = IntRect.zero
+        for step in Line.pixels(from: lastPixel ?? pixel, to: pixel) {
+            changed = changed.union(painter.paint(IntRect(x: step.x, y: step.y, width: 1, height: 1)) { _, _ in 255 })
+        }
+        return changed
+    }
+}
+
+/// A square eraser (FR-4.3). The effect decides between plain erasing and the color eraser.
+public final class EraserStroke: Stroke {
+    public let size: Int
+    private let painter: CoveragePainter
+    private var lastPixel: IntPoint?
+
+    public init(size: Int, effect: StrokeEffect, layer: Layer, edit: Edit) {
+        self.size = max(1, size)
+        painter = CoveragePainter(layer: layer, edit: edit, effect: effect)
+    }
+
+    @discardableResult
+    public func move(to point: Point2D) -> IntRect {
+        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        defer { lastPixel = pixel }
+        var changed = IntRect.zero
+        for center in Line.pixels(from: lastPixel ?? pixel, to: pixel) {
+            let square = IntRect(x: center.x - size / 2, y: center.y - size / 2, width: size, height: size)
+            changed = changed.union(painter.paint(square) { _, _ in 255 })
+        }
+        return changed
+    }
+}
+
+enum Line {
+    /// Every pixel on the line between two pixels, inclusive (Bresenham).
+    static func pixels(from start: IntPoint, to end: IntPoint) -> [IntPoint] {
+        var points: [IntPoint] = []
+        var x = start.x, y = start.y
+        let dx = abs(end.x - start.x), dy = -abs(end.y - start.y)
+        let stepX = start.x < end.x ? 1 : -1, stepY = start.y < end.y ? 1 : -1
+        var error = dx + dy
+        while true {
+            points.append(IntPoint(x: x, y: y))
+            if x == end.x && y == end.y { return points }
+            let doubled = 2 * error
+            if doubled >= dy { error += dy; x += stepX }
+            if doubled <= dx { error += dx; y += stepY }
+        }
     }
 }

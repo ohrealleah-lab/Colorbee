@@ -71,6 +71,13 @@ public final class Edit {
     public func originalTile(_ key: TileKey) -> TileSnapshot? {
         snapshots[key]
     }
+
+    /// Puts back every pixel this edit has changed so far. Used for live previews that are recomputed.
+    public func restoreOriginals() {
+        for (key, snapshot) in snapshots {
+            canvas.layer(withID: key.layer)?.buffer.setPixels(snapshot.pixels, in: snapshot.rect)
+        }
+    }
 }
 
 final class TileChange {

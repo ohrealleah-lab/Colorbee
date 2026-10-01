@@ -93,6 +93,40 @@ public struct SelectionMask: Sendable {
         return values[(y - bounds.minY) * bounds.width + (x - bounds.minX)]
     }
 
+    /// Each separate (8-connected) area of the selection as its own mask.
+    public func connectedRegions() -> [SelectionMask] {
+        let width = bounds.width, height = bounds.height
+        var labelled = [Bool](repeating: false, count: values.count)
+        var regions: [SelectionMask] = []
+        for start in values.indices where values[start] > 0 && !labelled[start] {
+            var members: [Int] = []
+            var pending = [start]
+            labelled[start] = true
+            var minX = Int.max, minY = Int.max, maxX = Int.min, maxY = Int.min
+            while let index = pending.popLast() {
+                members.append(index)
+                let x = index % width, y = index / width
+                minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+                for ny in max(0, y - 1)...min(height - 1, y + 1) {
+                    for nx in max(0, x - 1)...min(width - 1, x + 1) {
+                        let neighbor = ny * width + nx
+                        if values[neighbor] > 0 && !labelled[neighbor] {
+                            labelled[neighbor] = true
+                            pending.append(neighbor)
+                        }
+                    }
+                }
+            }
+            let regionBounds = IntRect(x: bounds.minX + minX, y: bounds.minY + minY, width: maxX - minX + 1, height: maxY - minY + 1)
+            var regionValues = [UInt8](repeating: 0, count: regionBounds.area)
+            for index in members {
+                regionValues[(index / width - minY) * regionBounds.width + (index % width - minX)] = 255
+            }
+            regions.append(SelectionMask(bounds: regionBounds, values: regionValues))
+        }
+        return regions
+    }
+
     public func translatedBy(dx: Int, dy: Int) -> SelectionMask {
         SelectionMask(bounds: bounds.offsetBy(dx: dx, dy: dy), values: values)
     }

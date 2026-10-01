@@ -74,3 +74,16 @@ struct SelectionMaskTests {
         #expect(a?.revision != b?.revision)
     }
 }
+
+struct SelectionRegionTests {
+    @Test func separateAreasBecomeSeparateRegions() {
+        let canvas = IntRect(x: 0, y: 0, width: 50, height: 50)
+        let a = SelectionMask.rectangle(IntRect(x: 0, y: 0, width: 5, height: 5), clippedTo: canvas)
+        let b = SelectionMask.rectangle(IntRect(x: 10, y: 10, width: 3, height: 3), clippedTo: canvas)
+        let touching = SelectionMask.rectangle(IntRect(x: 13, y: 13, width: 2, height: 2), clippedTo: canvas)
+        let combined = SelectionMask.combine(SelectionMask.combine(a, with: b, mode: .add), with: touching, mode: .add)
+        let regions = combined?.connectedRegions() ?? []
+        #expect(regions.count == 2)
+        #expect(Set(regions.map(\.bounds)) == [IntRect(x: 0, y: 0, width: 5, height: 5), IntRect(x: 10, y: 10, width: 5, height: 5)])
+    }
+}

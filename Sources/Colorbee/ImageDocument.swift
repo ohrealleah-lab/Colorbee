@@ -53,6 +53,25 @@ final class ImageDocument: NSDocument {
 
     // MARK: Export
 
+    @IBAction func exportPreset(_ sender: Any?) {
+        guard let editor, let window = windowForSheet,
+              let tag = (sender as? NSMenuItem)?.tag, ExportPreset.defaults.indices.contains(tag) else { return }
+        let preset = ExportPreset.defaults[tag]
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        let base = (displayName as NSString).deletingPathExtension
+        let size = preset.targetSize(for: editor.canvasSize)
+        panel.nameFieldStringValue = "\(base) \(size.width)x\(size.height).png"
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try editor.encoded(using: preset).write(to: url, options: .atomic)
+            } catch {
+                self?.presentError(error)
+            }
+        }
+    }
+
     @IBAction func exportDocument(_ sender: Any?) {
         guard let editor, let window = windowForSheet else { return }
         let options = ExportOptions()

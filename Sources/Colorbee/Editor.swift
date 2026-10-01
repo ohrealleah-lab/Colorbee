@@ -913,6 +913,13 @@ final class Editor {
         )
     }
 
+    /// A PNG scaled by an export preset, using the sharpness that suits the image's size.
+    func encoded(using preset: ExportPreset) throws -> Data {
+        let image = canvas.flattened(transparentKey: selectionContext.transparentKey)
+        let scaled = image.resampled(to: preset.targetSize(for: image.size), using: ExportPreset.resampling(for: image.size))
+        return try ImageCodec.encode(scaled, colorSpace: canvas.colorSpace, as: .png)
+    }
+
     func flattenedPNG() throws -> Data {
         try encoded(as: .png)
     }

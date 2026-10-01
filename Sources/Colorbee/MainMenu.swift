@@ -1,4 +1,5 @@
 import AppKit
+import ColorbeeCore
 
 @MainActor
 enum MainMenu {
@@ -69,6 +70,13 @@ enum MainMenu {
         menu.addItem(item("Revert To Saved", "revertDocumentToSaved:"))
         menu.addItem(.separator())
         menu.addItem(item("Export…", "exportDocument:", "s", [.command, .option]))
+        let presets = NSMenu(title: "Export As")
+        for (index, preset) in ExportPreset.defaults.enumerated() {
+            let presetItem = item(preset.name, "exportPreset:")
+            presetItem.tag = index
+            presets.addItem(presetItem)
+        }
+        menu.addItem(submenu(presets))
         return menu
     }
 

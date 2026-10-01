@@ -120,6 +120,36 @@ private struct ToolOptions: View {
             }
             .fixedSize()
             .help("How resized selections are scaled. Drag a handle to stretch; hold Shift to keep proportions.")
+        case .shape:
+            Picker("Shape", selection: $editor.shapeKind) {
+                ForEach(ShapeKind.allCases, id: \.self) { kind in
+                    Label(kind.name, systemImage: kind.symbol).tag(kind)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelStyle(.iconOnly)
+            .labelsHidden()
+            .fixedSize()
+            HStack {
+                Text("Width")
+                Slider(value: $editor.shapeLineWidth, in: 1...50, step: 1)
+                    .frame(width: 100)
+                Text("\(Int(editor.shapeLineWidth)) px")
+                    .monospacedDigit()
+                    .frame(width: 40, alignment: .trailing)
+            }
+            if !editor.shapeKind.isLinear {
+                Picker("Outline", selection: $editor.shapeHasOutline) {
+                    Text("Solid").tag(true)
+                    Text("None").tag(false)
+                }
+                .fixedSize()
+                Picker("Fill", selection: $editor.shapeHasFill) {
+                    Text("None").tag(false)
+                    Text("Solid").tag(true)
+                }
+                .fixedSize()
+            }
         case .pencil:
             Text("1 px · Shift draws straight lines")
                 .foregroundStyle(.secondary)
@@ -146,6 +176,7 @@ private extension Tool {
         case .eraser: "Eraser (E)"
         case .fill: "Fill (G)"
         case .eyedropper: "Eyedropper (I)"
+        case .shape: "Shapes (U)"
         case .rectangleSelect: "Rectangle Select (M)"
         case .ellipseSelect: "Ellipse Select"
         case .lassoSelect: "Free-Form Select (L)"
@@ -159,6 +190,7 @@ private extension Tool {
         case .eraser: "eraser"
         case .fill: "drop.fill"
         case .eyedropper: "eyedropper"
+        case .shape: "square.on.circle"
         case .rectangleSelect: "rectangle.dashed"
         case .ellipseSelect: "circle.dashed"
         case .lassoSelect: "lasso"
@@ -235,5 +267,17 @@ private struct StatusBar: View {
     private var pointerText: String {
         guard let pointer = editor.pointer else { return "—" }
         return "\(pointer.x), \(pointer.y) px"
+    }
+}
+
+private extension ShapeKind {
+    var symbol: String {
+        switch self {
+        case .line: "line.diagonal"
+        case .arrow: "arrow.up.right"
+        case .rectangle: "rectangle"
+        case .roundedRectangle: "app"
+        case .ellipse: "circle"
+        }
     }
 }

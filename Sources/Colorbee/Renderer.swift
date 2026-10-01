@@ -24,8 +24,10 @@ struct RenderScene {
     let transparentKey: Pixel?
     /// Whether a stretched floating selection is shown smooth rather than as sharp pixels.
     let smoothFloating: Bool
-    /// Draw resize handles around this rect (image coordinates).
-    let handlesRect: IntRect?
+    /// A shape being edited, drawn above the active layer.
+    let overlay: (pixels: PixelBuffer, origin: IntPoint)?
+    /// Handle positions in image coordinates.
+    let handlePoints: [Point2D]
     let showsPixelGrid: Bool
     let antsPhase: Float
 }
@@ -176,6 +178,12 @@ final class Renderer {
                 draw(layerPipeline)
                 encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
             }
+            if let overlay = scene.overlay, layer.id == canvas.activeLayer.id {
+                uniforms.rect = deviceRect(IntRect(x: overlay.origin.x, y: overlay.origin.y, width: overlay.pixels.width, height: overlay.pixels.height))
+                uniforms.keyEnabled = 0
+                encoder.setFragmentTexture(texture(for: overlay.pixels, live: &liveBuffers), index: 0)
+                draw(layerPipeline)
+            }
         }
         pixelTextures = pixelTextures.filter { liveBuffers.contains($0.key) }
 
@@ -193,10 +201,9 @@ final class Renderer {
             draw(gridPipeline)
         }
 
-        if let rect = scene.handlesRect {
+        if !scene.handlePoints.isEmpty {
             // Fixed on-screen size: an 8 pt dark square with a 6 pt white center.
-            for handle in SelectionHandle.allCases {
-                let point = handle.point(on: rect)
+            for point in scene.handlePoints {
                 let centerX = Float(originX + point.x * zoom * scale)
                 let centerY = Float(originY + point.y * zoom * scale)
                 for (size, shade) in [(Float(8 * scale), Float(0.15)), (Float(6 * scale), Float(1))] {

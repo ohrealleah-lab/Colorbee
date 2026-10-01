@@ -14,6 +14,7 @@ enum Tool: CaseIterable {
     case eraser
     case fill
     case eyedropper
+    case shape
     case rectangleSelect
     case ellipseSelect
     case lassoSelect
@@ -79,6 +80,21 @@ enum EffectKind {
     }
 }
 
+/// A shape still being edited, before it's placed into the layer (FR-5.1).
+struct PendingShape: Equatable {
+    var start: Point2D
+    var end: Point2D
+    /// Right-dragged: outline uses Color 2 and fill uses Color 1.
+    var swapped: Bool
+}
+
+/// What a press on a pending shape grabbed.
+enum ShapeHandle: Equatable {
+    case box(SelectionHandle)
+    case start
+    case end
+}
+
 /// Modifier keys that matter to canvas drags.
 struct DragModifiers {
     var shift = false
@@ -98,9 +114,12 @@ final class Editor {
 
     private(set) var tool: Tool = .pencil
     var brushKind: BrushKind = .round
-    var color1: Pixel = .black
+    // Colors show live in pending shapes and transparent selections.
+    var color1: Pixel = .black {
+        didSet { onRender() }
+    }
     var color2: Pixel = .white {
-        didSet { if transparentSelection { onRender() } }
+        didSet { onRender() }
     }
     var brushDiameter: Double = 5
     var eraserSize = 8
@@ -126,6 +145,19 @@ final class Editor {
     private(set) var canvasSize: IntSize
     /// A stretched floating selection's width as a percentage of its original, for the status bar.
     private(set) var selectionScalePercent: Int?
+    var shapeKind: ShapeKind = .rectangle {
+        didSet { onRender() }
+    }
+    var shapeLineWidth = 3.0 {
+        didSet { onRender() }
+    }
+    var shapeHasOutline = true {
+        didSet { onRender() }
+    }
+    var shapeHasFill = false {
+        didSet { onRender() }
+    }
+    private(set) var pendingShape: PendingShape?
     /// The effect whose dialog is open, if any.
     private(set) var activeEffect: EffectKind?
     var effectValue = 8.0
@@ -135,6 +167,14 @@ final class Editor {
     @ObservationIgnored private var activeStroke: ActiveStroke?
     @ObservationIgnored private var selectionDrag: SelectionDrag?
     @ObservationIgnored private var effectEdit: Edit?
+    @ObservationIgnored private var shapeDrag: ShapeDrag?
+    @ObservationIgnored private var shapeRenderCache: (spec: ShapeSpec, pixels: PixelBuffer, origin: IntPoint)?
+
+    private enum ShapeDrag {
+        case draw
+        case move(grab: Point2D, original: PendingShape)
+        case handle(ShapeHandle, grab: Point2D, original: PendingShape)
+    }
 
     private struct ActiveStroke {
         let edit: Edit
@@ -188,7 +228,10 @@ final class Editor {
     }
 
     /// Ends any drag in progress so menu commands and undo see a settled document.
+    /// A pending shape is placed.
     private func finishInteractions() {
+        shapeDrag = nil
+        commitPendingShape()
         endStroke()
         if selectionDrag != nil { endSelectionDrag(at: nil) }
         if activeEffect != nil { cancelEffect() }
@@ -286,6 +329,153 @@ final class Editor {
             picked = canvas.activeLayer.buffer[pixel.x, pixel.y]
         }
         if secondary { color2 = picked } else { color1 = picked }
+    }
+
+    // MARK: Shapes
+
+    /// The pending shape with the current toolbar settings applied.
+    var pendingShapeSpec: ShapeSpec? {
+        guard let pendingShape else { return nil }
+        let outlineColor = pendingShape.swapped ? color2 : color1
+        let fillColor = pendingShape.swapped ? color1 : color2
+        return ShapeSpec(
+            kind: shapeKind,
+            start: pendingShape.start,
+            end: pendingShape.end,
+            lineWidth: shapeLineWidth,
+            outline: shapeHasOutline || shapeKind.isLinear ? outlineColor : nil,
+            fill: shapeHasFill ? fillColor : nil
+        )
+    }
+
+    /// The pending shape drawn into pixels, cached until it changes.
+    func renderedPendingShape() -> (pixels: PixelBuffer, origin: IntPoint)? {
+        guard let spec = pendingShapeSpec else { return nil }
+        if let cache = shapeRenderCache, cache.spec == spec { return (cache.pixels, cache.origin) }
+        guard let rendered = ShapeRenderer.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) else {
+            shapeRenderCache = nil
+            return nil
+        }
+        shapeRenderCache = (spec, rendered.pixels, rendered.origin)
+        return rendered
+    }
+
+    /// Where the pending shape's handles are, in image coordinates.
+    var pendingShapeHandlePoints: [Point2D] {
+        guard let spec = pendingShapeSpec else { return [] }
+        if spec.kind.isLinear { return [spec.start, spec.end] }
+        return SelectionHandle.allCases.map { $0.point(on: spec.box) }
+    }
+
+    func shapeHandle(atView point: Point2D) -> ShapeHandle? {
+        guard let spec = pendingShapeSpec else { return nil }
+        func near(_ imagePoint: Point2D) -> Bool {
+            let center = viewport.viewPoint(fromImage: imagePoint)
+            return abs(center.x - point.x) <= 6 && abs(center.y - point.y) <= 6
+        }
+        if spec.kind.isLinear {
+            if near(spec.end) { return .end }
+            if near(spec.start) { return .start }
+            return nil
+        }
+        return SelectionHandle.allCases.first { near($0.point(on: spec.box)) }.map(ShapeHandle.box)
+    }
+
+    /// Whether `point` is on the pending shape, so a drag there moves it.
+    func pendingShapeContains(_ point: Point2D) -> Bool {
+        guard let spec = pendingShapeSpec else { return false }
+        if !spec.kind.isLinear {
+            return spec.box.contains(IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))))
+        }
+        let dx = spec.end.x - spec.start.x, dy = spec.end.y - spec.start.y
+        let lengthSquared = max(dx * dx + dy * dy, 1e-9)
+        let t = min(1, max(0, ((point.x - spec.start.x) * dx + (point.y - spec.start.y) * dy) / lengthSquared))
+        let nearestX = spec.start.x + t * dx, nearestY = spec.start.y + t * dy
+        let distance = ((point.x - nearestX) * (point.x - nearestX) + (point.y - nearestY) * (point.y - nearestY)).squareRoot()
+        return distance <= spec.lineWidth / 2 + 4 / viewport.zoom
+    }
+
+    func beginShapeDrag(at point: Point2D, viewPoint: Point2D, secondary: Bool) {
+        if let pendingShape {
+            if let handle = shapeHandle(atView: viewPoint) {
+                shapeDrag = .handle(handle, grab: point, original: pendingShape)
+                return
+            }
+            if pendingShapeContains(point) {
+                shapeDrag = .move(grab: point, original: pendingShape)
+                return
+            }
+        }
+        finishInteractions()
+        placeFloatingSelection()
+        pendingShape = PendingShape(start: point, end: point, swapped: secondary)
+        shapeDrag = .draw
+        onRender()
+    }
+
+    func continueShapeDrag(to point: Point2D, shiftDown: Bool) {
+        guard var shape = pendingShape, let drag = shapeDrag else { return }
+        switch drag {
+        case .draw:
+            shape.end = point
+            if shiftDown, let spec = pendingShapeSpec {
+                var constrained = spec
+                constrained.end = point
+                shape.end = constrained.constrained().end
+            }
+        case .move(let grab, let original):
+            let dx = point.x - grab.x, dy = point.y - grab.y
+            shape.start = Point2D(x: original.start.x + dx, y: original.start.y + dy)
+            shape.end = Point2D(x: original.end.x + dx, y: original.end.y + dy)
+        case .handle(let handle, let grab, let original):
+            let delta = Point2D(x: point.x - grab.x, y: point.y - grab.y)
+            switch handle {
+            case .start:
+                shape.start = Point2D(x: original.start.x + delta.x, y: original.start.y + delta.y)
+            case .end:
+                shape.end = Point2D(x: original.end.x + delta.x, y: original.end.y + delta.y)
+            case .box(let boxHandle):
+                let originalBox = IntRect(
+                    enclosingMinX: min(original.start.x, original.end.x), minY: min(original.start.y, original.end.y),
+                    maxX: max(original.start.x, original.end.x), maxY: max(original.start.y, original.end.y)
+                )
+                let box = boxHandle.resize(originalBox, by: delta, keepProportions: shiftDown)
+                shape.start = Point2D(x: Double(box.minX), y: Double(box.minY))
+                shape.end = Point2D(x: Double(box.maxX), y: Double(box.maxY))
+            }
+        }
+        pendingShape = shape
+        onRender()
+    }
+
+    func endShapeDrag() {
+        defer { shapeDrag = nil }
+        if case .draw = shapeDrag, let shape = pendingShape,
+           abs(shape.end.x - shape.start.x) < 1, abs(shape.end.y - shape.start.y) < 1 {
+            pendingShape = nil
+            onRender()
+        }
+    }
+
+    /// Draws the pending shape into the active layer as one step.
+    func commitPendingShape() {
+        guard let spec = pendingShapeSpec else { return }
+        let rendered = renderedPendingShape()
+        pendingShape = nil
+        shapeRenderCache = nil
+        if let rendered {
+            let edit = history.beginEdit(spec.kind.name, on: canvas)
+            Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.activeLayer, edit: edit)
+            recordingChanges { history.commit(edit) }
+        }
+        onRender()
+    }
+
+    func cancelPendingShape() {
+        pendingShape = nil
+        shapeRenderCache = nil
+        shapeDrag = nil
+        onRender()
     }
 
     // MARK: Selection dragging
@@ -558,6 +748,11 @@ final class Editor {
     var redoActionName: String? { history.redoActionName }
 
     func undo() {
+        // Undo first discards a shape that hasn't been placed yet.
+        if pendingShape != nil {
+            cancelPendingShape()
+            return
+        }
         finishInteractions()
         guard history.undo(on: canvas) != nil else { return }
         onDocumentChange(.undone)

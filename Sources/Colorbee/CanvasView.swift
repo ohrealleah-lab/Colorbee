@@ -9,6 +9,7 @@ final class CanvasView: NSView {
         case primary
         case secondary
         case select(last: Point2D)
+        case shape
         case pan(last: NSPoint)
     }
 
@@ -203,10 +204,17 @@ final class CanvasView: NSView {
             outline: outline,
             transparentKey: editor.selectionContext.transparentKey,
             smoothFloating: editor.smoothResize,
-            handlesRect: editor.tool.isSelectionTool && editor.marqueePreview == nil ? selection.bounds : nil,
+            overlay: editor.renderedPendingShape(),
+            handlePoints: handlePoints(selection),
             showsPixelGrid: editor.showsPixelGrid,
             antsPhase: Float((CACurrentMediaTime() * 4).truncatingRemainder(dividingBy: 2))
         )
+    }
+
+    private func handlePoints(_ selection: SelectionState) -> [Point2D] {
+        if editor.pendingShape != nil { return editor.pendingShapeHandlePoints }
+        guard editor.tool.isSelectionTool, editor.marqueePreview == nil, let rect = selection.bounds else { return [] }
+        return SelectionHandle.allCases.map { $0.point(on: rect) }
     }
 
     private func render() {
@@ -273,8 +281,16 @@ final class CanvasView: NSView {
 
     private func currentCursor(at point: Point2D?) -> NSCursor {
         if spaceHeld { return .openHand }
-        if let point, let handle = editor.selectionHandle(atView: editor.viewport.viewPoint(fromImage: point)) {
-            return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
+        if let point {
+            let view = editor.viewport.viewPoint(fromImage: point)
+            if let handle = editor.selectionHandle(atView: view) {
+                return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
+            }
+            switch editor.shapeHandle(atView: view) {
+            case .box(let handle): return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
+            case .start, .end: return .pointingHand
+            case nil: if editor.pendingShapeContains(point) { return .openHand }
+            }
         }
         if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
         return .crosshair
@@ -302,6 +318,9 @@ final class CanvasView: NSView {
             }
             editor.beginSelectionDrag(at: point, modifiers: dragModifiers(event))
             if editor.selectionContains(point) { NSCursor.closedHand.set() }
+        case .shape:
+            drag = .shape
+            editor.beginShapeDrag(at: point, viewPoint: viewPoint(event), secondary: secondary)
         case .fill:
             editor.fill(at: point, secondary: secondary)
         case .eyedropper:
@@ -320,6 +339,9 @@ final class CanvasView: NSView {
             let point = convert(event.locationInWindow, from: nil)
             editor.updateViewport { $0.pan(byViewDeltaX: point.x - last.x, y: point.y - last.y) }
             drag = .pan(last: point)
+        case .shape:
+            editor.continueShapeDrag(to: imagePoint(event), shiftDown: event.modifierFlags.contains(.shift))
+            updatePointer(event)
         case .select:
             let point = imagePoint(event)
             drag = .select(last: point)
@@ -338,6 +360,8 @@ final class CanvasView: NSView {
         switch drag {
         case .pan:
             break
+        case .shape:
+            editor.endShapeDrag()
         case .select:
             editor.endSelectionDrag(at: imagePoint(event))
         case .primary, .secondary:
@@ -410,13 +434,13 @@ final class CanvasView: NSView {
         case .downArrow where plain || modifiers == .shift:
             nudge(dx: 0, dy: step, event)
         case .carriageReturn where plain, .enter where plain:
-            editor.deselect()
+            if editor.pendingShape != nil { editor.commitPendingShape() } else { editor.deselect() }
         case .delete where plain, .deleteForward where plain, .backspace where plain:
             if editor.hasSelection { editor.deleteSelection() } else { super.keyDown(with: event) }
         default:
             switch (event.charactersIgnoringModifiers, plain) {
             case ("\u{1b}", true):
-                editor.deselect()
+                if editor.pendingShape != nil { editor.cancelPendingShape() } else { editor.deselect() }
             case (" ", true):
                 spaceHeld = true
                 if drag == nil { NSCursor.openHand.set() }
@@ -429,6 +453,7 @@ final class CanvasView: NSView {
             case ("i", true): editor.selectTool(.eyedropper)
             case ("m", true): editor.selectTool(.rectangleSelect)
             case ("l", true): editor.selectTool(.lassoSelect)
+            case ("u", true): editor.selectTool(.shape)
             case ("[", true): editor.adjustToolSize(larger: false)
             case ("]", true): editor.adjustToolSize(larger: true)
             default:

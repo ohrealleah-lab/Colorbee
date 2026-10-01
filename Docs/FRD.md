@@ -567,7 +567,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 
 ## 22. Open questions (for Leah)
 
-None right now.
+1. **Saving WebP:** macOS can read WebP but not write it. Saving it needs Google's libwebp added as a third-party library. Add it, or keep WebP open-only?
 
 ---
 
@@ -593,6 +593,7 @@ None right now.
 | 2026-09-30 | Withdrew Cmd+Opt+H for the History panel: it's the system Hide Others shortcut. Replaced with Cmd+Y. |
 | 2026-09-30 | The repo stays local only; no remote for now. |
 | 2026-09-30 | Added drag-to-resize for selections and pasted images. **Exception to macOS conventions:** free stretch by default, Shift keeps proportions (Windows Paint behavior). |
+| 2026-09-30 | Stage 3a behavior choices (veto any): new documents start with the Pencil. The Marker paints at half the chosen color's opacity. Fill replaces pixels (it doesn't blend). Blur radius is the Gaussian's spread in pixels. Pixelate blocks line up with the canvas grid. Blur and Pixelate treat each separate selected region on its own. WebP opens but can't be saved yet (macOS can't write it; see §22). |
 | 2026-09-30 | Stage 2 behavior choices (veto any): drawing a marquee on its own isn't an undo step, as in Paint (moving, placing, deleting and pasting are). Placing a moved selection undoes together with the move. Return and Esc both place the selection and deselect. Delete on a marquee keeps the marquee. Switching to a non-selection tool places and deselects. Pasting switches to the rectangle select tool. Undo has no step limit; old steps are compressed to disk. |
 | 2026-09-30 | Drawing latency accepted: NFR-2 now covers Colorbee's own processing (~5ms). The ~16ms macOS adds to put the window on screen is outside any app's control. |
 | 2026-09-30 | Launch time of ~330–400ms accepted. NFR-1 relaxed from 300ms to a 500ms regression limit. |

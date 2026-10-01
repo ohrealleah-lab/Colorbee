@@ -52,6 +52,10 @@ final class DocumentWindow: NSWindow {
         editor?.invertSelection()
     }
 
+    @objc func cropToSelection(_ sender: Any?) {
+        editor?.cropToSelection()
+    }
+
     @objc func showGaussianBlur(_ sender: Any?) {
         editor?.beginEffect(.gaussianBlur)
     }
@@ -90,7 +94,7 @@ final class DocumentWindow: NSWindow {
             return editor.redoActionName != nil
         case #selector(paste(_:)):
             return Self.imageDataOnPasteboard() != nil
-        case #selector(cut(_:)), #selector(delete(_:)), #selector(deselect(_:)):
+        case #selector(cut(_:)), #selector(delete(_:)), #selector(deselect(_:)), #selector(cropToSelection(_:)):
             return editor.hasSelection
         case #selector(selectAll(_:)), #selector(invertSelection(_:)),
              #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)):

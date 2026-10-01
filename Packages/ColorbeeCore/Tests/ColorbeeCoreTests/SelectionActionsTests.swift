@@ -243,7 +243,12 @@ struct SelectionActionsTests {
         for _ in 0..<60 {
             let color = Pixel(r: random.byte(), g: random.byte(), b: random.byte())
             let context = SelectionContext(color2: color, transparentSelection: random.next() % 4 == 0)
-            switch random.int(0..<7) {
+            switch random.int(0..<8) {
+            case 7 where random.next() % 3 == 0:
+                let size = canvas.size
+                let rect = IntRect(x: random.int(0..<max(1, size.width / 3)), y: random.int(0..<max(1, size.height / 3)),
+                                   width: random.int(max(1, size.width / 2)..<(size.width + 1)), height: random.int(max(1, size.height / 2)..<(size.height + 1)))
+                ImageActions.crop(to: rect, canvas: canvas, history: history, context: context)
             case 0:
                 let edit = history.beginEdit("Fill", on: canvas)
                 let rect = randomRect()
@@ -279,6 +284,7 @@ struct SelectionActionsTests {
         let finalFlattened = canvas.flattened().contentHash()
 
         while history.canUndo { history.undo(on: canvas) }
+        #expect(canvas.size == IntSize(width: 300, height: 300))
         #expect(canvas.activeLayer.buffer.contentHash() == original)
         #expect(canvas.selection.floating == nil)
 

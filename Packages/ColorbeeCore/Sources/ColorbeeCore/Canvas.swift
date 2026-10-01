@@ -2,7 +2,7 @@ import CoreGraphics
 
 /// The document: a stack of equally sized layers in one color space, plus the current selection.
 public final class Canvas {
-    public let size: IntSize
+    public private(set) var size: IntSize
     public let colorSpace: CGColorSpace
     public private(set) var layers: [Layer]
     public var activeLayerIndex: Int
@@ -43,6 +43,19 @@ public final class Canvas {
     public func insertLayer(_ layer: Layer, at index: Int) {
         precondition(layer.buffer.size == size, "Layer size doesn't match the canvas")
         layers.insert(layer, at: index)
+    }
+
+    /// Swaps in new pixel buffers of `size` for every layer. Used by geometry changes and their undo.
+    func replaceContents(size: IntSize, buffers: [LayerID: PixelBuffer]) {
+        precondition(layers.allSatisfy { buffers[$0.id]?.size == size }, "Every layer needs a buffer of the new size")
+        self.size = size
+        for layer in layers {
+            layer.buffer = buffers[layer.id]!
+        }
+    }
+
+    var currentGeometry: GeometryChange {
+        GeometryChange(size: size, buffers: Dictionary(uniqueKeysWithValues: layers.map { ($0.id, $0.buffer) }))
     }
 
     /// What erasing or lifting pixels leaves behind on `layer`: Color 2 on a solid background, otherwise transparency.

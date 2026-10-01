@@ -13,7 +13,8 @@ public final class Layer {
     public var name: String
     public var isVisible: Bool
     public var opacity: Double
-    public let buffer: PixelBuffer
+    /// Replaced (never resized in place) when the canvas size changes.
+    public internal(set) var buffer: PixelBuffer
 
     public init(name: String, buffer: PixelBuffer, id: LayerID = LayerID()) {
         self.id = id

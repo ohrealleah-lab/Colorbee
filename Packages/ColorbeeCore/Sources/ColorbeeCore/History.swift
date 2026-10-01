@@ -45,6 +45,7 @@ public final class Edit {
     let selectionBefore: SelectionState
     /// Record this edit even when only the selection changed (for example, moving a floating selection).
     public var recordsSelectionChange = false
+    private(set) var geometryBefore: GeometryChange?
     private(set) var snapshots: [TileKey: TileSnapshot] = [:]
     public private(set) var dirtyRect: IntRect = .zero
 
@@ -72,6 +73,13 @@ public final class Edit {
         snapshots[key]
     }
 
+    /// Call before replacing the canvas's size or layer buffers. The old buffers are kept, not copied,
+    /// since geometry changes swap in new buffers rather than editing the old ones.
+    public func willChangeGeometry() {
+        precondition(snapshots.isEmpty, "Geometry changes can't be mixed with pixel edits in one step")
+        if geometryBefore == nil { geometryBefore = canvas.currentGeometry }
+    }
+
     /// Puts back every pixel this edit has changed so far. Used for live previews that are recomputed.
     public func restoreOriginals() {
         for (key, snapshot) in snapshots {
@@ -97,9 +105,26 @@ final class TileChange {
     var byteCount: Int { rect.area * MemoryLayout<Pixel>.stride }
 }
 
+/// A whole-canvas state (size plus every layer's buffer), swapped in and out by undo and redo.
+final class GeometryChange {
+    let size: IntSize
+    var buffers: [LayerID: PixelBuffer]?
+    var spillLocations: [LayerID: SpillStore.Location]?
+
+    init(size: IntSize, buffers: [LayerID: PixelBuffer]) {
+        self.size = size
+        self.buffers = buffers
+    }
+
+    var byteCount: Int {
+        (buffers?.count ?? spillLocations?.count ?? 0) * size.width * size.height * MemoryLayout<Pixel>.stride
+    }
+}
+
 final class HistoryEntry {
     let name: String
     var changes: [TileChange]
+    var geometry: GeometryChange?
     let selectionBefore: SelectionState
     var selectionAfter: SelectionState
     var isSpilled = false
@@ -111,7 +136,8 @@ final class HistoryEntry {
         self.selectionAfter = selectionAfter
     }
 
-    var byteCount: Int { changes.reduce(0) { $0 + $1.byteCount } }
+    var byteCount: Int { changes.reduce(0) { $0 + $1.byteCount } + (geometry?.byteCount ?? 0) }
+    var hasSpillableData: Bool { !changes.isEmpty || geometry != nil }
 }
 
 /// Linear undo/redo with no step limit. Entries hold tile pre-images; once they use more memory
@@ -160,6 +186,16 @@ public final class History {
             }
         }
         let selectionChanged = edit.recordsSelectionChange && !edit.selectionBefore.isSame(as: selectionAfter)
+        if let geometry = edit.geometryBefore {
+            discardRedo()
+            let entry = HistoryEntry(name: edit.name, changes: [], selectionBefore: edit.selectionBefore, selectionAfter: selectionAfter)
+            entry.geometry = geometry
+            undoStack.append(entry)
+            byteCount += entry.byteCount
+            revision += 1
+            spillToBudget()
+            return true
+        }
         guard !changes.isEmpty || selectionChanged else { return false }
 
         if mergingIntoPrevious, redoStack.isEmpty, let previous = undoStack.last, load(previous) {
@@ -215,6 +251,11 @@ public final class History {
     }
 
     private func swapPixels(_ entry: HistoryEntry, on canvas: Canvas) -> IntRect {
+        if let geometry = entry.geometry, let buffers = geometry.buffers {
+            entry.geometry = canvas.currentGeometry
+            canvas.replaceContents(size: geometry.size, buffers: buffers)
+            return canvas.bounds
+        }
         var changed = IntRect.zero
         for change in entry.changes {
             guard let layer = canvas.layer(withID: change.key.layer), let pixels = change.pixels else { continue }
@@ -250,10 +291,10 @@ public final class History {
 
     /// The in-memory entry furthest from the present, never the newest undo or redo step.
     private func nextSpillCandidate() -> HistoryEntry? {
-        if let entry = undoStack.dropLast().first(where: { !$0.isSpilled && !$0.changes.isEmpty }) {
+        if let entry = undoStack.dropLast().first(where: { !$0.isSpilled && $0.hasSpillableData }) {
             return entry
         }
-        return redoStack.dropLast().first { !$0.isSpilled && !$0.changes.isEmpty }
+        return redoStack.dropLast().first { !$0.isSpilled && $0.hasSpillableData }
     }
 
     private func spill(_ entry: HistoryEntry) -> Bool {
@@ -264,12 +305,24 @@ public final class History {
             guard let pixels = change.pixels, let location = try? store.write(pixels) else { return false }
             locations.append(location)
         }
+        var geometryLocations: [LayerID: SpillStore.Location] = [:]
+        if let geometry = entry.geometry, let buffers = geometry.buffers {
+            for (id, buffer) in buffers {
+                guard let location = try? store.write(buffer.pixels(in: buffer.bounds)) else { return false }
+                geometryLocations[id] = location
+            }
+        }
+        let bytes = entry.byteCount
         for (change, location) in zip(entry.changes, locations) {
             change.pixels = nil
             change.spillLocation = location
         }
+        if let geometry = entry.geometry {
+            geometry.buffers = nil
+            geometry.spillLocations = geometryLocations
+        }
         entry.isSpilled = true
-        byteCount -= entry.byteCount
+        byteCount -= bytes
         return true
     }
 
@@ -283,9 +336,22 @@ public final class History {
                   let pixels = try? store.read(location, count: change.rect.area) else { return false }
             loaded.append(pixels)
         }
+        var buffers: [LayerID: PixelBuffer] = [:]
+        if let geometry = entry.geometry, let locations = geometry.spillLocations {
+            for (id, location) in locations {
+                guard let pixels = try? store.read(location, count: geometry.size.width * geometry.size.height) else { return false }
+                let buffer = PixelBuffer(width: geometry.size.width, height: geometry.size.height)
+                buffer.setPixels(pixels, in: buffer.bounds)
+                buffers[id] = buffer
+            }
+        }
         for (change, pixels) in zip(entry.changes, loaded) {
             change.pixels = pixels
             change.spillLocation = nil
+        }
+        if let geometry = entry.geometry, geometry.spillLocations != nil {
+            geometry.buffers = buffers
+            geometry.spillLocations = nil
         }
         entry.isSpilled = false
         byteCount += entry.byteCount

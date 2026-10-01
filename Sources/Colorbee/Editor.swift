@@ -118,6 +118,8 @@ final class Editor {
     private(set) var marqueePreview: SelectionMask?
     /// Bounds of the selected area, for the status bar.
     private(set) var selectionBounds: IntRect?
+    /// The canvas size, observable for the status bar (the canvas itself isn't observable).
+    private(set) var canvasSize: IntSize
     /// The effect whose dialog is open, if any.
     private(set) var activeEffect: EffectKind?
     var effectValue = 8.0
@@ -142,6 +144,7 @@ final class Editor {
 
     init(canvas: Canvas) {
         self.canvas = canvas
+        canvasSize = canvas.size
         history = History(byteBudget: Editor.historyByteBudget)
     }
 
@@ -452,7 +455,21 @@ final class Editor {
 
     private func selectionDidChange() {
         selectionBounds = marqueePreview?.bounds ?? canvas.selection.bounds
+        if canvasSize != canvas.size { canvasDidResize() }
         onRender()
+    }
+
+    // MARK: Image
+
+    func cropToSelection() {
+        performSelectionCommand { ImageActions.cropToSelection(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    /// Keeps the zoom and recenters on the new canvas.
+    private func canvasDidResize() {
+        canvasSize = canvas.size
+        let center = Point2D(x: Double(canvas.size.width) / 2, y: Double(canvas.size.height) / 2)
+        updateViewport { $0.center = center }
     }
 
     // MARK: Effects

@@ -8,6 +8,7 @@ enum MainMenu {
         main.addItem(submenu(fileMenu()))
         main.addItem(submenu(editMenu()))
         main.addItem(submenu(viewMenu()))
+        main.addItem(submenu(imageMenu()))
         main.addItem(submenu(effectsMenu()))
 
         let window = windowMenu()
@@ -98,6 +99,12 @@ enum MainMenu {
         menu.addItem(item("Pixel Grid", "togglePixelGrid:", "'"))
         menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", "toggleFullScreen:", "f", [.command, .control]))
+        return menu
+    }
+
+    private static func imageMenu() -> NSMenu {
+        let menu = NSMenu(title: "Image")
+        menu.addItem(item("Crop to Selection", "cropToSelection:", "x", [.command, .shift]))
         return menu
     }
 

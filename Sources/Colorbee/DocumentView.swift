@@ -201,7 +201,7 @@ private struct StatusBar: View {
                 .frame(width: 130, alignment: .leading)
             Label(selectionText, systemImage: "rectangle.dashed")
                 .frame(width: 130, alignment: .leading)
-            Label("\(editor.canvas.size.width) × \(editor.canvas.size.height) px", systemImage: "photo")
+            Label("\(editor.canvasSize.width) × \(editor.canvasSize.height) px", systemImage: "photo")
             Spacer()
             Toggle("Pixel Grid", systemImage: "grid", isOn: $editor.showsPixelGrid)
                 .toggleStyle(.button)

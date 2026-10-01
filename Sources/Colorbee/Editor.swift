@@ -15,6 +15,7 @@ enum Tool: CaseIterable {
     case fill
     case eyedropper
     case shape
+    case text
     case rectangleSelect
     case ellipseSelect
     case lassoSelect
@@ -88,6 +89,28 @@ struct PendingShape: Equatable {
     var swapped: Bool
 }
 
+/// Text formatting for the text tool (FR-6.1).
+struct TextStyle: Equatable {
+    var fontFamily = "Helvetica Neue"
+    /// In image pixels at 100% zoom.
+    var fontSize = 24.0
+    var bold = false
+    var italic = false
+    var underline = false
+    var strikethrough = false
+    var alignment: TextAlignment = .left
+    /// Opaque draws a Color 2 rectangle behind the text.
+    var opaqueBackground = false
+}
+
+/// A text box still being typed into.
+struct PendingText: Equatable {
+    var origin: Point2D
+    /// Set when the box was dragged out; otherwise lines run as long as they need.
+    var wrapWidth: Double?
+    var string = ""
+}
+
 /// What a press on a pending shape grabbed.
 enum ShapeHandle: Equatable {
     case box(SelectionHandle)
@@ -158,6 +181,10 @@ final class Editor {
         didSet { onRender() }
     }
     private(set) var pendingShape: PendingShape?
+    var textStyle = TextStyle() {
+        didSet { onRender() }
+    }
+    private(set) var pendingText: PendingText?
     /// The effect whose dialog is open, if any.
     private(set) var activeEffect: EffectKind?
     var effectValue = 8.0
@@ -232,6 +259,7 @@ final class Editor {
     private func finishInteractions() {
         shapeDrag = nil
         commitPendingShape()
+        commitPendingText()
         endStroke()
         if selectionDrag != nil { endSelectionDrag(at: nil) }
         if activeEffect != nil { cancelEffect() }
@@ -475,6 +503,50 @@ final class Editor {
         pendingShape = nil
         shapeRenderCache = nil
         shapeDrag = nil
+        onRender()
+    }
+
+    // MARK: Text
+
+    /// Opens a text box with its top-left at `origin`. Any open box is placed first.
+    func beginText(at origin: Point2D, wrapWidth: Double?) {
+        finishInteractions()
+        placeFloatingSelection()
+        pendingText = PendingText(origin: origin, wrapWidth: wrapWidth)
+        onRender()
+    }
+
+    func updatePendingText(_ string: String) {
+        pendingText?.string = string
+    }
+
+    func textSpec(for text: PendingText) -> TextSpec {
+        var spec = TextSpec(
+            text: text.string,
+            origin: text.origin,
+            wrapWidth: text.wrapWidth,
+            fontFamily: textStyle.fontFamily,
+            fontSize: textStyle.fontSize,
+            color: color1,
+            background: textStyle.opaqueBackground ? color2 : nil
+        )
+        spec.bold = textStyle.bold
+        spec.italic = textStyle.italic
+        spec.underline = textStyle.underline
+        spec.strikethrough = textStyle.strikethrough
+        spec.alignment = textStyle.alignment
+        return spec
+    }
+
+    /// Turns the open text box into pixels on the active layer (FR-6.3).
+    func commitPendingText() {
+        guard let text = pendingText else { return }
+        pendingText = nil
+        if let rendered = TextRenderer.render(textSpec(for: text), colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) {
+            let edit = history.beginEdit("Text", on: canvas)
+            Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.activeLayer, edit: edit)
+            recordingChanges { history.commit(edit) }
+        }
         onRender()
     }
 

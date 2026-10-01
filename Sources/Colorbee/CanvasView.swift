@@ -10,6 +10,7 @@ final class CanvasView: NSView {
         case secondary
         case select(last: Point2D)
         case shape
+        case text(start: Point2D)
         case pan(last: NSPoint)
     }
 
@@ -23,6 +24,8 @@ final class CanvasView: NSView {
     private let renderer = Renderer.shared
     private var displayLink: CADisplayLink?
     private var antsTimer: Timer?
+    private var textView: CanvasTextView?
+    private var appliedTextStyle: (spec: TextSpec, zoom: Double)?
     private var needsRender = true
     private var pendingInputTime: TimeInterval?
     private var hasFitted = false
@@ -41,7 +44,10 @@ final class CanvasView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layerContentsRedrawPolicy = .duringViewResize
-        editor.onRender = { [weak self] in self?.setNeedsRender() }
+        editor.onRender = { [weak self] in
+            self?.setNeedsRender()
+            self?.syncTextEditor()
+        }
         addTrackingArea(NSTrackingArea(
             rect: .zero,
             options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect, .cursorUpdate],
@@ -211,6 +217,41 @@ final class CanvasView: NSView {
         )
     }
 
+    // MARK: Text editing
+
+    /// Shows, positions and styles the text box to match the editor's pending text, or removes it.
+    private func syncTextEditor() {
+        guard let pending = editor.pendingText else {
+            if let textView {
+                textView.removeFromSuperview()
+                self.textView = nil
+                appliedTextStyle = nil
+                window?.makeFirstResponder(self)
+            }
+            return
+        }
+        let view: CanvasTextView
+        if let textView {
+            view = textView
+        } else {
+            view = CanvasTextView.make()
+            view.delegate = self
+            view.onCommit = { [weak self] in self?.editor.commitPendingText() }
+            addSubview(view)
+            textView = view
+            window?.makeFirstResponder(view)
+        }
+        var style = editor.textSpec(for: pending)
+        style.text = ""
+        let zoom = editor.viewport.zoom
+        if appliedTextStyle?.spec != style || appliedTextStyle?.zoom != zoom {
+            view.apply(style, zoom: zoom, colorSpace: editor.canvas.colorSpace)
+            appliedTextStyle = (style, zoom)
+        }
+        let origin = editor.viewport.viewPoint(fromImage: pending.origin)
+        view.fit(at: NSPoint(x: origin.x, y: origin.y), wrapWidth: pending.wrapWidth.map { $0 * zoom })
+    }
+
     private func handlePoints(_ selection: SelectionState) -> [Point2D] {
         if editor.pendingShape != nil { return editor.pendingShapeHandlePoints }
         guard editor.tool.isSelectionTool, editor.marqueePreview == nil, let rect = selection.bounds else { return [] }
@@ -293,6 +334,7 @@ final class CanvasView: NSView {
             }
         }
         if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
+        if editor.tool == .text { return .iBeam }
         return .crosshair
     }
 
@@ -321,6 +363,13 @@ final class CanvasView: NSView {
         case .shape:
             drag = .shape
             editor.beginShapeDrag(at: point, viewPoint: viewPoint(event), secondary: secondary)
+        case .text:
+            // A click away from an open text box places it; the next click starts a new one.
+            if editor.pendingText != nil {
+                editor.commitPendingText()
+            } else if !secondary {
+                drag = .text(start: point)
+            }
         case .fill:
             editor.fill(at: point, secondary: secondary)
         case .eyedropper:
@@ -342,6 +391,8 @@ final class CanvasView: NSView {
         case .shape:
             editor.continueShapeDrag(to: imagePoint(event), shiftDown: event.modifierFlags.contains(.shift))
             updatePointer(event)
+        case .text:
+            updatePointer(event)
         case .select:
             let point = imagePoint(event)
             drag = .select(last: point)
@@ -362,6 +413,14 @@ final class CanvasView: NSView {
             break
         case .shape:
             editor.endShapeDrag()
+        case .text(let start):
+            let end = imagePoint(event)
+            // Dragging sets the wrap width; a plain click lets the text run on.
+            let width = abs(end.x - start.x)
+            let wrapWidth = width * editor.viewport.zoom > 8 ? width : nil
+            drag = nil
+            editor.beginText(at: Point2D(x: min(start.x, end.x), y: start.y), wrapWidth: wrapWidth)
+            return
         case .select:
             editor.endSelectionDrag(at: imagePoint(event))
         case .primary, .secondary:
@@ -454,6 +513,7 @@ final class CanvasView: NSView {
             case ("m", true): editor.selectTool(.rectangleSelect)
             case ("l", true): editor.selectTool(.lassoSelect)
             case ("u", true): editor.selectTool(.shape)
+            case ("t", true): editor.selectTool(.text)
             case ("[", true): editor.adjustToolSize(larger: false)
             case ("]", true): editor.adjustToolSize(larger: true)
             default:
@@ -492,5 +552,13 @@ private extension SelectionHandle {
         case .bottomLeft: .bottomLeft
         case .left: .left
         }
+    }
+}
+
+extension CanvasView: NSTextViewDelegate {
+    func textDidChange(_ notification: Notification) {
+        guard let textView else { return }
+        editor.updatePendingText(textView.string)
+        syncTextEditor()
     }
 }

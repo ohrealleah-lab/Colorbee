@@ -131,7 +131,7 @@ private struct ToolOptions: View {
             .labelsHidden()
             .fixedSize()
             HStack {
-                Text("Width")
+                Text("Width").fixedSize()
                 Slider(value: $editor.shapeLineWidth, in: 1...50, step: 1)
                     .frame(width: 100)
                 Text("\(Int(editor.shapeLineWidth)) px")
@@ -150,6 +150,8 @@ private struct ToolOptions: View {
                 }
                 .fixedSize()
             }
+        case .text:
+            TextOptions(style: $editor.textStyle)
         case .pencil:
             Text("1 px · Shift draws straight lines")
                 .foregroundStyle(.secondary)
@@ -177,6 +179,7 @@ private extension Tool {
         case .fill: "Fill (G)"
         case .eyedropper: "Eyedropper (I)"
         case .shape: "Shapes (U)"
+        case .text: "Text (T)"
         case .rectangleSelect: "Rectangle Select (M)"
         case .ellipseSelect: "Ellipse Select"
         case .lassoSelect: "Free-Form Select (L)"
@@ -191,6 +194,7 @@ private extension Tool {
         case .fill: "drop.fill"
         case .eyedropper: "eyedropper"
         case .shape: "square.on.circle"
+        case .text: "textformat"
         case .rectangleSelect: "rectangle.dashed"
         case .ellipseSelect: "circle.dashed"
         case .lassoSelect: "lasso"
@@ -279,5 +283,49 @@ private extension ShapeKind {
         case .roundedRectangle: "app"
         case .ellipse: "circle"
         }
+    }
+}
+
+private struct TextOptions: View {
+    @Binding var style: TextStyle
+    private static let families = NSFontManager.shared.availableFontFamilies
+
+    var body: some View {
+        Picker("Font", selection: $style.fontFamily) {
+            ForEach(Self.families, id: \.self) { Text($0).tag($0) }
+        }
+        .labelsHidden()
+        .frame(width: 160)
+        HStack(spacing: 2) {
+            TextField("Size", value: $style.fontSize, format: .number)
+                .frame(width: 40)
+                .multilineTextAlignment(.trailing)
+            Stepper("Size", value: $style.fontSize, in: 6...500)
+                .labelsHidden()
+            Text("pt")
+        }
+        HStack(spacing: 2) {
+            Toggle("Bold", systemImage: "bold", isOn: $style.bold)
+            Toggle("Italic", systemImage: "italic", isOn: $style.italic)
+            Toggle("Underline", systemImage: "underline", isOn: $style.underline)
+            Toggle("Strikethrough", systemImage: "strikethrough", isOn: $style.strikethrough)
+        }
+        .toggleStyle(.button)
+        .labelStyle(.iconOnly)
+        Picker("Alignment", selection: $style.alignment) {
+            Label("Left", systemImage: "text.alignleft").tag(ColorbeeCore.TextAlignment.left)
+            Label("Center", systemImage: "text.aligncenter").tag(ColorbeeCore.TextAlignment.center)
+            Label("Right", systemImage: "text.alignright").tag(ColorbeeCore.TextAlignment.right)
+        }
+        .pickerStyle(.segmented)
+        .labelStyle(.iconOnly)
+        .labelsHidden()
+        .fixedSize()
+        Picker("Background", selection: $style.opaqueBackground) {
+            Text("Transparent").tag(false)
+            Text("Opaque").tag(true)
+        }
+        .fixedSize()
+        .help("Opaque puts a Color 2 rectangle behind the text")
     }
 }

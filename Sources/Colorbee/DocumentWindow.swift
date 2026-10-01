@@ -7,12 +7,17 @@ final class DocumentWindow: NSWindow {
 
     private static let pasteboardImageTypes: [NSPasteboard.PasteboardType] = [.png, .tiff]
 
+    /// While text is being typed, undo belongs to the text box.
+    private var textUndoManager: UndoManager? {
+        firstResponder is NSTextView ? undoManager : nil
+    }
+
     @objc func undo(_ sender: Any?) {
-        editor?.undo()
+        if let textUndoManager { textUndoManager.undo() } else { editor?.undo() }
     }
 
     @objc func redo(_ sender: Any?) {
-        editor?.redo()
+        if let textUndoManager { textUndoManager.redo() } else { editor?.redo() }
     }
 
     /// Copies the selection, or the whole image when nothing is selected (FR-10.3).
@@ -86,6 +91,12 @@ final class DocumentWindow: NSWindow {
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let editor else { return super.validateMenuItem(menuItem) }
         switch menuItem.action {
+        case #selector(undo(_:)) where textUndoManager != nil:
+            menuItem.title = textUndoManager!.undoMenuItemTitle
+            return textUndoManager!.canUndo
+        case #selector(redo(_:)) where textUndoManager != nil:
+            menuItem.title = textUndoManager!.redoMenuItemTitle
+            return textUndoManager!.canRedo
         case #selector(undo(_:)):
             menuItem.title = editor.undoActionName.map { "Undo \($0)" } ?? "Undo"
             return editor.undoActionName != nil

@@ -73,6 +73,10 @@ final class DocumentWindow: NSWindow {
         editor?.applySolidFill()
     }
 
+    @objc func toggleBeforeAfter(_ sender: Any?) {
+        editor?.toggleComparison()
+    }
+
     @objc func togglePixelGrid(_ sender: Any?) {
         editor?.showsPixelGrid.toggle()
     }
@@ -114,6 +118,9 @@ final class DocumentWindow: NSWindow {
             return editor.hasSelection
         case #selector(selectAll(_:)), #selector(invertSelection(_:)),
              #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)):
+            return true
+        case #selector(toggleBeforeAfter(_:)):
+            menuItem.state = editor.comparison != nil ? .on : .off
             return true
         case #selector(togglePixelGrid(_:)):
             menuItem.state = editor.showsPixelGrid ? .on : .off

@@ -10,6 +10,10 @@ struct DocumentView: View {
         VStack(spacing: 0) {
             ToolStrip(editor: editor)
             Divider()
+            if editor.comparison != nil {
+                CompareBar(editor: editor)
+                Divider()
+            }
             CanvasHost(view: canvasView)
             Divider()
             StatusBar(editor: editor)
@@ -344,5 +348,48 @@ private struct TextOptions: View {
         }
         .fixedSize()
         .help("Opaque puts a Color 2 rectangle behind the text")
+    }
+}
+
+/// The Before/After controls (FR-11.3).
+private struct CompareBar: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Label("Compare", systemImage: "square.split.2x1")
+                .font(.headline)
+            Text("Edited against")
+                .foregroundStyle(.secondary)
+            Picker("Baseline", selection: baseline) {
+                Text("As Opened").tag(Comparison.Baseline.asOpened)
+                Text("Last Saved").tag(Comparison.Baseline.lastSaved)
+                    .selectionDisabled(editor.lastSaved == nil)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help(editor.lastSaved == nil ? "Last Saved is available after you save with ⌘S" : "")
+            Spacer()
+            Picker("Layout", selection: layout) {
+                Label("Side by side", systemImage: "rectangle.split.2x1").tag(Comparison.Layout.sideBySide)
+                Label("Split", systemImage: "square.split.2x1").tag(Comparison.Layout.split)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            Button("Done") { editor.comparison = nil }
+                .keyboardShortcut(.cancelAction)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    private var baseline: Binding<Comparison.Baseline> {
+        Binding(get: { editor.comparison?.baseline ?? .asOpened }, set: { editor.comparison?.baseline = $0 })
+    }
+
+    private var layout: Binding<Comparison.Layout> {
+        Binding(get: { editor.comparison?.layout ?? .split }, set: { editor.comparison?.layout = $0 })
     }
 }

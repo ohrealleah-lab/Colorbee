@@ -105,6 +105,7 @@ enum MainMenu {
         menu.addItem(item("Zoom to Fit", "zoomToFit:", "9"))
         menu.addItem(.separator())
         menu.addItem(item("Pixel Grid", "togglePixelGrid:", "'"))
+        menu.addItem(item("Before/After", "toggleBeforeAfter:", "b", [.command, .option]))
         menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", "toggleFullScreen:", "f", [.command, .control]))
         return menu

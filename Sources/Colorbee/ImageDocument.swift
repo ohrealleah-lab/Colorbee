@@ -44,6 +44,17 @@ final class ImageDocument: NSDocument {
         }
     }
 
+    override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,
+                       completionHandler: @escaping (Error?) -> Void) {
+        let explicit = saveOperation == .saveOperation || saveOperation == .saveAsOperation
+        super.save(to: url, ofType: typeName, for: saveOperation) { [weak self] error in
+            if error == nil, explicit {
+                Task { @MainActor in self?.editor?.markSaved() }
+            }
+            completionHandler(error)
+        }
+    }
+
     override func data(ofType typeName: String) throws -> Data {
         guard let editor, let format = UTType(typeName).flatMap(ImageFileFormat.init(type:)) else {
             throw CocoaError(.fileWriteUnknown)

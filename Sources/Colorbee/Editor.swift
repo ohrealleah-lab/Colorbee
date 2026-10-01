@@ -82,6 +82,17 @@ enum EffectKind {
     }
 }
 
+/// The Before/After view's settings (FR-11.3).
+struct Comparison: Equatable {
+    enum Baseline { case asOpened, lastSaved }
+    enum Layout { case split, sideBySide }
+
+    var baseline: Baseline = .asOpened
+    var layout: Layout = .split
+    /// The split's divider, as a fraction of the view's width.
+    var divider = 0.5
+}
+
 /// A shape still being edited, before it's placed into the layer (FR-5.1).
 struct PendingShape: Equatable {
     var start: Point2D
@@ -189,6 +200,16 @@ final class Editor {
         didSet { onRender() }
     }
     private(set) var pendingText: PendingText?
+    /// Non-nil while Before/After is showing. The view is read-only while it's on.
+    var comparison: Comparison? {
+        didSet { if oldValue?.layout != comparison?.layout { fitComparison() } else { onRender() } }
+    }
+    /// The image when the document was opened or created.
+    @ObservationIgnored let asOpened: PixelBuffer
+    /// The image at the last explicit save.
+    private(set) var lastSaved: PixelBuffer?
+    /// The gap between the two images in side-by-side Before/After, in image pixels.
+    static let comparisonGap = 40
     /// The effect whose dialog is open, if any.
     private(set) var activeEffect: EffectKind?
     var effectValue = 8.0
@@ -223,6 +244,7 @@ final class Editor {
     init(canvas: Canvas) {
         self.canvas = canvas
         canvasSize = canvas.size
+        asOpened = canvas.flattened()
         history = History(byteBudget: Editor.historyByteBudget)
     }
 
@@ -897,6 +919,41 @@ final class Editor {
 
     func zoomToFit() {
         updateViewport { $0.fit(canvas.size, margin: 40) }
+    }
+
+    // MARK: Before/After
+
+    var comparisonBaseline: PixelBuffer? {
+        switch comparison?.baseline {
+        case .asOpened: asOpened
+        case .lastSaved: lastSaved
+        case nil: nil
+        }
+    }
+
+    func toggleComparison() {
+        if comparison == nil {
+            finishInteractions()
+            comparison = Comparison()
+        } else {
+            comparison = nil
+        }
+    }
+
+    /// Fits the view to what's being compared: both images side by side, or just the canvas.
+    private func fitComparison() {
+        if comparison?.layout == .sideBySide {
+            let width = asOpened.width + canvas.size.width + Self.comparisonGap
+            let height = max(asOpened.height, canvas.size.height)
+            updateViewport { $0.fit(IntSize(width: width, height: height), margin: 40) }
+        } else {
+            zoomToFit()
+        }
+    }
+
+    /// Records the image as of an explicit save, for "Last Saved".
+    func markSaved() {
+        lastSaved = canvas.flattened(transparentKey: selectionContext.transparentKey)
     }
 
     // MARK: Files

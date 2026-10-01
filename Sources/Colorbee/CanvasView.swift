@@ -9,6 +9,7 @@ final class CanvasView: NSView {
         case primary
         case secondary
         case select(last: Point2D)
+        case divider
         case shape
         case text(start: Point2D)
         case pan(last: NSPoint)
@@ -194,8 +195,11 @@ final class CanvasView: NSView {
 
     private var renderScene: RenderScene {
         let selection = editor.canvas.selection
+        let comparing = editor.comparison != nil
         let outline: (mask: SelectionMask, rect: IntRect)? =
-            if let preview = editor.marqueePreview {
+            if comparing {
+                nil
+            } else if let preview = editor.marqueePreview {
                 (preview, preview.bounds)
             } else if case .marquee(let mask) = selection {
                 (mask, mask.bounds)
@@ -210,11 +214,17 @@ final class CanvasView: NSView {
             outline: outline,
             transparentKey: editor.selectionContext.transparentKey,
             smoothFloating: editor.smoothResize,
-            overlay: editor.renderedPendingShape(),
-            handlePoints: handlePoints(selection),
+            overlay: comparing ? nil : editor.renderedPendingShape(),
+            handlePoints: comparing ? [] : handlePoints(selection),
             showsPixelGrid: editor.showsPixelGrid,
-            antsPhase: Float((CACurrentMediaTime() * 4).truncatingRemainder(dividingBy: 2))
+            antsPhase: Float((CACurrentMediaTime() * 4).truncatingRemainder(dividingBy: 2)),
+            comparison: comparisonScene
         )
+    }
+
+    private var comparisonScene: (before: PixelBuffer, layout: Comparison.Layout, dividerX: Double)? {
+        guard let comparison = editor.comparison, let before = editor.comparisonBaseline else { return nil }
+        return (before, comparison.layout, comparison.divider * bounds.width)
     }
 
     // MARK: Text editing
@@ -344,6 +354,12 @@ final class CanvasView: NSView {
 
     private func beginDrag(_ event: NSEvent, secondary: Bool) {
         window?.makeFirstResponder(self)
+        // Before/After is view-only: a drag moves the split's divider.
+        if editor.comparison != nil {
+            drag = .divider
+            moveDivider(event)
+            return
+        }
         if spaceHeld {
             drag = .pan(last: convert(event.locationInWindow, from: nil))
             NSCursor.closedHand.set()
@@ -388,6 +404,8 @@ final class CanvasView: NSView {
             let point = convert(event.locationInWindow, from: nil)
             editor.updateViewport { $0.pan(byViewDeltaX: point.x - last.x, y: point.y - last.y) }
             drag = .pan(last: point)
+        case .divider:
+            moveDivider(event)
         case .shape:
             editor.continueShapeDrag(to: imagePoint(event), shiftDown: event.modifierFlags.contains(.shift))
             updatePointer(event)
@@ -411,6 +429,8 @@ final class CanvasView: NSView {
         switch drag {
         case .pan:
             break
+        case .divider:
+            break
         case .shape:
             editor.endShapeDrag()
         case .text(let start):
@@ -430,6 +450,11 @@ final class CanvasView: NSView {
         }
         drag = nil
         currentCursor(at: imagePoint(event)).set()
+    }
+
+    private func moveDivider(_ event: NSEvent) {
+        guard editor.comparison?.layout == .split, bounds.width > 0 else { return }
+        editor.comparison?.divider = min(1, max(0, viewPoint(event).x / bounds.width))
     }
 
     override func mouseDown(with event: NSEvent) { beginDrag(event, secondary: false) }

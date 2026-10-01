@@ -30,6 +30,8 @@ struct RenderScene {
     let handlePoints: [Point2D]
     let showsPixelGrid: Bool
     let antsPhase: Float
+    /// Before/After: the earlier image and how to show it.
+    let comparison: (before: PixelBuffer, layout: Comparison.Layout, dividerX: Double)?
 }
 
 /// Displays a canvas. Layer pixels are read straight from their CPU buffers with no copies.
@@ -126,8 +128,14 @@ final class Renderer {
 
         let canvas = scene.canvas
         let zoom = scene.viewport.zoom
+        // Side by side, the "before" image sits at the image origin and the canvas to its right.
+        let canvasOffset: Double = if let comparison = scene.comparison, comparison.layout == .sideBySide {
+            Double(comparison.before.width + Editor.comparisonGap)
+        } else {
+            0
+        }
         // Snap the canvas origin to device pixels so 100% zoom is exactly 1:1.
-        let origin = scene.viewport.viewPoint(fromImage: .zero)
+        let origin = scene.viewport.viewPoint(fromImage: Point2D(x: canvasOffset, y: 0))
         let originX = (origin.x * scale).rounded()
         let originY = (origin.y * scale).rounded()
         func deviceRect(_ rect: IntRect) -> SIMD4<Float> {
@@ -155,10 +163,23 @@ final class Renderer {
         }
 
         draw(checkerPipeline)
+        var liveBuffers = Set<ObjectIdentifier>()
+        if let comparison = scene.comparison, comparison.layout == .sideBySide {
+            let before = comparison.before
+            let beforeOrigin = scene.viewport.viewPoint(fromImage: .zero)
+            uniforms.rect = SIMD4(
+                Float((beforeOrigin.x * scale).rounded()), Float((beforeOrigin.y * scale).rounded()),
+                Float(Double(before.width) * zoom * scale), Float(Double(before.height) * zoom * scale)
+            )
+            draw(checkerPipeline)
+            encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
+            encoder.setFragmentTexture(texture(for: before, live: &liveBuffers), index: 0)
+            draw(layerPipeline)
+            uniforms.rect = deviceRect(canvas.bounds)
+        }
 
         encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
         let floating = canvas.selection.floating
-        var liveBuffers = Set<ObjectIdentifier>()
         for layer in canvas.layers where layer.isVisible && layer.opacity > 0 {
             uniforms.opacity = Float(layer.opacity)
             uniforms.rect = deviceRect(canvas.bounds)
@@ -184,6 +205,25 @@ final class Renderer {
                 encoder.setFragmentTexture(texture(for: overlay.pixels, live: &liveBuffers), index: 0)
                 draw(layerPipeline)
             }
+        }
+        if let comparison = scene.comparison, comparison.layout == .split {
+            // Left of the divider shows "before", drawn over the current image.
+            let dividerDevice = max(0, min(Double(metalLayer.drawableSize.width), comparison.dividerX * scale))
+            if dividerDevice > 0 {
+                encoder.setScissorRect(MTLScissorRect(x: 0, y: 0, width: Int(dividerDevice), height: Int(metalLayer.drawableSize.height)))
+                uniforms.rect = deviceRect(IntRect(size: comparison.before.size))
+                uniforms.opacity = 1
+                uniforms.keyEnabled = 0
+                encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
+                encoder.setFragmentTexture(texture(for: comparison.before, live: &liveBuffers), index: 0)
+                draw(checkerPipeline)
+                draw(layerPipeline)
+                encoder.setScissorRect(MTLScissorRect(x: 0, y: 0, width: Int(metalLayer.drawableSize.width), height: Int(metalLayer.drawableSize.height)))
+            }
+            let lineWidth = Float(2 * scale)
+            uniforms.rect = SIMD4(Float(dividerDevice) - lineWidth / 2, 0, lineWidth, Float(metalLayer.drawableSize.height))
+            uniforms.keyColor = SIMD4(1, 1, 1, 1)
+            draw(solidPipeline)
         }
         pixelTextures = pixelTextures.filter { liveBuffers.contains($0.key) }
 

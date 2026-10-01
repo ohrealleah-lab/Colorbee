@@ -593,6 +593,7 @@ None right now.
 | 2026-09-30 | Withdrew Cmd+Opt+H for the History panel: it's the system Hide Others shortcut. Replaced with Cmd+Y. |
 | 2026-09-30 | The repo stays local only; no remote for now. |
 | 2026-09-30 | Added drag-to-resize for selections and pasted images. **Exception to macOS conventions:** free stretch by default, Shift keeps proportions (Windows Paint behavior). |
+| 2026-09-30 | Stage 2 behavior choices (veto any): drawing a marquee on its own isn't an undo step, as in Paint (moving, placing, deleting and pasting are). Placing a moved selection undoes together with the move. Return and Esc both place the selection and deselect. Delete on a marquee keeps the marquee. Switching to a non-selection tool places and deselects. Pasting switches to the rectangle select tool. Undo has no step limit; old steps are compressed to disk. |
 | 2026-09-30 | Drawing latency accepted: NFR-2 now covers Colorbee's own processing (~5ms). The ~16ms macOS adds to put the window on screen is outside any app's control. |
 | 2026-09-30 | Launch time of ~330–400ms accepted. NFR-1 relaxed from 300ms to a 500ms regression limit. |
 | 2026-09-30 | Colorbee is a paint program first. Simple diagrams are in scope; mind-mapping and structured diagram features are out. |

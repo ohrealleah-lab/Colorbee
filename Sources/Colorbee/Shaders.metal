@@ -29,6 +29,20 @@ vertex QuadOut quad_vertex(uint vid [[vertex_id]], constant QuadUniforms &u [[bu
     return out;
 }
 
+// A line segment: rect holds the two end points (x0, y0, x1, y1) in drawable pixels, pixelSize its width.
+vertex QuadOut line_vertex(uint vid [[vertex_id]], constant QuadUniforms &u [[buffer(0)]]) {
+    float2 a = u.rect.xy, b = u.rect.zw;
+    float2 direction = length(b - a) > 0 ? normalize(b - a) : float2(1, 0);
+    float2 normal = float2(-direction.y, direction.x) * (u.pixelSize / 2);
+    const float2 corners[4] = { {0, -1}, {1, -1}, {0, 1}, {1, 1} };
+    float2 corner = corners[vid];
+    float2 pixel = mix(a, b, corner.x) + normal * corner.y;
+    QuadOut out;
+    out.position = float4(pixel.x / u.viewportSize.x * 2 - 1, 1 - pixel.y / u.viewportSize.y * 2, 0, 1);
+    out.uv = corner;
+    return out;
+}
+
 // Layer pixels are stored with straight alpha; premultiply here for blending.
 fragment float4 layer_fragment(QuadOut in [[stage_in]],
                                texture2d<float> layer [[texture(0)]],

@@ -9,6 +9,7 @@ final class CanvasView: NSView {
         case primary
         case secondary
         case select(last: Point2D)
+        case measure(start: Point2D)
         case divider
         case shape
         case text(start: Point2D)
@@ -218,9 +219,28 @@ final class CanvasView: NSView {
             handlePoints: comparing ? [] : handlePoints(selection),
             showsPixelGrid: editor.showsPixelGrid,
             antsPhase: Float((CACurrentMediaTime() * 4).truncatingRemainder(dividingBy: 2)),
+            lines: comparing ? [] : overlayLines,
             highlights: redactionHighlights,
             comparison: comparisonScene
         )
+    }
+
+    /// The symmetry axes (faint) and the current measurement (accent color).
+    private var overlayLines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)] {
+        var lines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)] = []
+        let width = Double(editor.canvas.size.width), height = Double(editor.canvas.size.height)
+        let guide = SIMD4<Float>(0.1, 0.6, 0.9, 0.6)
+        if editor.symmetry == .vertical || editor.symmetry == .both {
+            lines.append((Point2D(x: width / 2, y: 0), Point2D(x: width / 2, y: height), guide))
+        }
+        if editor.symmetry == .horizontal || editor.symmetry == .both {
+            lines.append((Point2D(x: 0, y: height / 2), Point2D(x: width, y: height / 2), guide))
+        }
+        if let measurement = editor.measurement {
+            let center = { (p: IntPoint) in Point2D(x: Double(p.x) + 0.5, y: Double(p.y) + 0.5) }
+            lines.append((center(measurement.start), center(measurement.end), SIMD4(1, 0.25, 0.45, 1)))
+        }
+        return lines
     }
 
     private var redactionHighlights: [(rect: IntRect, active: Bool)] {
@@ -382,6 +402,9 @@ final class CanvasView: NSView {
             }
             editor.beginSelectionDrag(at: point, modifiers: dragModifiers(event))
             if editor.selectionContains(point) { NSCursor.closedHand.set() }
+        case .measure:
+            drag = .measure(start: point)
+            editor.measure(from: point, to: point)
         case .shape:
             drag = .shape
             editor.beginShapeDrag(at: point, viewPoint: viewPoint(event), secondary: secondary)
@@ -412,6 +435,9 @@ final class CanvasView: NSView {
             drag = .pan(last: point)
         case .divider:
             moveDivider(event)
+        case .measure(let start):
+            editor.measure(from: start, to: imagePoint(event))
+            updatePointer(event)
         case .shape:
             editor.continueShapeDrag(to: imagePoint(event), shiftDown: event.modifierFlags.contains(.shift))
             updatePointer(event)
@@ -435,7 +461,7 @@ final class CanvasView: NSView {
         switch drag {
         case .pan:
             break
-        case .divider:
+        case .divider, .measure:
             break
         case .shape:
             editor.endShapeDrag()
@@ -548,6 +574,7 @@ final class CanvasView: NSView {
             case ("u", true): editor.selectTool(.shape)
             case ("t", true): editor.selectTool(.text)
             case ("w", true): editor.selectTool(.magicWand)
+            case ("r", true): editor.selectTool(.measure)
             case ("[", true): editor.adjustToolSize(larger: false)
             case ("]", true): editor.adjustToolSize(larger: true)
             default:

@@ -14,6 +14,7 @@ enum Tool: CaseIterable {
     case eraser
     case fill
     case eyedropper
+    case measure
     case shape
     case text
     case rectangleSelect
@@ -40,6 +41,35 @@ enum Tool: CaseIterable {
 enum BrushKind: CaseIterable {
     case round
     case marker
+}
+
+/// Mirror drawing across the canvas's center lines (FR-7.3).
+enum SymmetryMode: CaseIterable {
+    case off
+    case vertical
+    case horizontal
+    case both
+
+    var title: String {
+        switch self {
+        case .off: "Off"
+        case .vertical: "Vertical"
+        case .horizontal: "Horizontal"
+        case .both: "Both"
+        }
+    }
+}
+
+/// A measured distance (FR-7.1), between pixel centers.
+struct Measurement: Equatable {
+    var start: IntPoint
+    var end: IntPoint
+
+    var dx: Int { end.x - start.x }
+    var dy: Int { end.y - start.y }
+    var distance: Double { (Double(dx * dx + dy * dy)).squareRoot() }
+    /// Degrees counter-clockwise from the positive x axis, as on a protractor.
+    var angle: Double { atan2(Double(-dy), Double(dx)) * 180 / .pi }
 }
 
 /// An effect with a dialog, and the sliders it shows.
@@ -238,6 +268,11 @@ final class Editor {
         didSet { onRender() }
     }
     private(set) var pendingShape: PendingShape?
+    var symmetry: SymmetryMode = .off {
+        didSet { onRender() }
+    }
+    /// The last measurement; it stays on screen until the next one or a tool change.
+    private(set) var measurement: Measurement?
     var textStyle = TextStyle() {
         didSet { onRender() }
     }
@@ -282,7 +317,8 @@ final class Editor {
 
     private struct ActiveStroke {
         let edit: Edit
-        let stroke: Stroke
+        /// One stroke per mirror image when Symmetry is on.
+        let strokes: [Stroke]
         let start: Point2D
     }
 
@@ -315,6 +351,7 @@ final class Editor {
     func selectTool(_ newTool: Tool) {
         guard newTool != tool else { return }
         finishInteractions()
+        measurement = nil
         if !newTool.isSelectionTool {
             recordingChanges { SelectionActions.deselect(canvas: canvas, history: history, context: selectionContext) }
             selectionDidChange()
@@ -364,32 +401,55 @@ final class Editor {
         placeFloatingSelection()
         let layer = canvas.activeLayer
         let color = secondary ? color2 : color1
-        let edit: Edit
-        let stroke: Stroke
+        let name: String
+        let makeStroke: (Edit) -> Stroke
         switch tool {
         case .pencil:
-            edit = history.beginEdit("Pencil", on: canvas)
-            stroke = PencilStroke(color: color, layer: layer, edit: edit)
+            name = "Pencil"
+            makeStroke = { PencilStroke(color: color, layer: layer, edit: $0) }
         case .brush where brushKind == .marker:
-            edit = history.beginEdit("Marker", on: canvas)
+            name = "Marker"
             var translucent = color
             translucent.a = UInt8((Double(color.a) * Self.markerOpacity).rounded())
-            stroke = RoundBrushStroke(diameter: brushDiameter, color: translucent, layer: layer, edit: edit)
+            makeStroke = { [brushDiameter] in RoundBrushStroke(diameter: brushDiameter, color: translucent, layer: layer, edit: $0) }
         case .brush:
-            edit = history.beginEdit("Brush Stroke", on: canvas)
-            stroke = RoundBrushStroke(diameter: brushDiameter, color: color, layer: layer, edit: edit)
+            name = "Brush Stroke"
+            makeStroke = { [brushDiameter] in RoundBrushStroke(diameter: brushDiameter, color: color, layer: layer, edit: $0) }
         case .eraser:
             // Right-drag is the Color Eraser: only Color 1 pixels become Color 2.
             let effect: StrokeEffect = secondary
                 ? .replaceMatching(target: color1, tolerance: 0, with: color2)
                 : .replace(canvas.vacatedFill(for: layer, color2: color2))
-            edit = history.beginEdit(secondary ? "Color Erase" : "Erase", on: canvas)
-            stroke = EraserStroke(size: eraserSize, effect: effect, layer: layer, edit: edit)
+            name = secondary ? "Color Erase" : "Erase"
+            makeStroke = { [eraserSize] in EraserStroke(size: eraserSize, effect: effect, layer: layer, edit: $0) }
         default:
             return
         }
-        activeStroke = ActiveStroke(edit: edit, stroke: stroke, start: point)
-        if !stroke.move(to: point).isEmpty { onRender() }
+        let edit = history.beginEdit(name, on: canvas)
+        let strokes = mirrors.map { _ in makeStroke(edit) }
+        activeStroke = ActiveStroke(edit: edit, strokes: strokes, start: point)
+        moveStrokes(strokes, to: point)
+    }
+
+    /// How a point is reflected for each active mirror; the first is always the point itself.
+    private var mirrors: [(Point2D) -> Point2D] {
+        let width = Double(canvas.size.width), height = Double(canvas.size.height)
+        let flipX: (Point2D) -> Point2D = { Point2D(x: width - $0.x, y: $0.y) }
+        let flipY: (Point2D) -> Point2D = { Point2D(x: $0.x, y: height - $0.y) }
+        switch symmetry {
+        case .off: return [{ $0 }]
+        case .vertical: return [{ $0 }, flipX]
+        case .horizontal: return [{ $0 }, flipY]
+        case .both: return [{ $0 }, flipX, flipY, { flipY(flipX($0)) }]
+        }
+    }
+
+    private func moveStrokes(_ strokes: [Stroke], to point: Point2D) {
+        var changed = false
+        for (stroke, mirror) in zip(strokes, mirrors) where !stroke.move(to: mirror(point)).isEmpty {
+            changed = true
+        }
+        if changed { onRender() }
     }
 
     /// With `constrain`, the pencil only draws horizontally or vertically from where it started.
@@ -403,7 +463,7 @@ final class Editor {
                 target.x = active.start.x
             }
         }
-        if !active.stroke.move(to: target).isEmpty { onRender() }
+        moveStrokes(active.strokes, to: target)
     }
 
     func endStroke() {
@@ -443,6 +503,14 @@ final class Editor {
             picked = canvas.activeLayer.buffer[pixel.x, pixel.y]
         }
         if secondary { color2 = picked } else { color1 = picked }
+    }
+
+    // MARK: Measure
+
+    func measure(from start: Point2D, to end: Point2D) {
+        func pixel(_ point: Point2D) -> IntPoint { IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))) }
+        measurement = Measurement(start: pixel(start), end: pixel(end))
+        onRender()
     }
 
     // MARK: Shapes

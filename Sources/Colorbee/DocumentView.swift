@@ -121,6 +121,9 @@ private struct ToolOptions: View {
         case .eyedropper:
             Text("Click: Color 1 · Right-click: Color 2 · Option: all layers")
                 .foregroundStyle(.secondary)
+        case .measure:
+            Text("Drag between two points · the status bar shows the distance")
+                .foregroundStyle(.secondary)
         case .magicWand:
             Text("Tolerance")
             Slider(value: $editor.wandTolerance, in: 0...1)
@@ -204,6 +207,7 @@ private extension Tool {
         case .eraser: "Eraser (E)"
         case .fill: "Fill (G)"
         case .eyedropper: "Eyedropper (I)"
+        case .measure: "Measure (R)"
         case .shape: "Shapes (U)"
         case .text: "Text (T)"
         case .rectangleSelect: "Rectangle Select (M)"
@@ -220,6 +224,7 @@ private extension Tool {
         case .eraser: "eraser"
         case .fill: "drop.fill"
         case .eyedropper: "eyedropper"
+        case .measure: "ruler"
         case .shape: "square.on.circle"
         case .text: "textformat"
         case .rectangleSelect: "rectangle.dashed"
@@ -289,7 +294,19 @@ private struct StatusBar: View {
             Label(selectionText, systemImage: "rectangle.dashed")
                 .frame(width: 170, alignment: .leading)
             Label("\(editor.canvasSize.width) × \(editor.canvasSize.height) px", systemImage: "photo")
+            if let measurement = editor.measurement {
+                Label(String(format: "%.1f px · ΔX %d · ΔY %d · %.1f°", measurement.distance, measurement.dx, measurement.dy, measurement.angle),
+                      systemImage: "ruler")
+            }
             Spacer()
+            Picker(selection: $editor.symmetry) {
+                ForEach(SymmetryMode.allCases, id: \.self) { Text($0.title).tag($0) }
+            } label: {
+                Label("Symmetry", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right")
+            }
+            .fixedSize()
+            .controlSize(.small)
+            .help("Mirror Pencil, Brush and Eraser strokes")
             Toggle("Pixel Grid", systemImage: "grid", isOn: $editor.showsPixelGrid)
                 .toggleStyle(.button)
                 .controlSize(.small)

@@ -126,6 +126,14 @@ enum MainMenu {
         }
         menu.addItem(submenu(rotate))
         menu.addItem(submenu(flip))
+        menu.addItem(.separator())
+        let symmetry = NSMenu(title: "Symmetry")
+        for (index, mode) in ["Off", "Vertical", "Horizontal", "Both"].enumerated() {
+            let modeItem = item(mode, "setSymmetry:")
+            modeItem.tag = index
+            symmetry.addItem(modeItem)
+        }
+        menu.addItem(submenu(symmetry))
         return menu
     }
 

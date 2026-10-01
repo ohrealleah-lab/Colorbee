@@ -30,6 +30,8 @@ struct RenderScene {
     let handlePoints: [Point2D]
     let showsPixelGrid: Bool
     let antsPhase: Float
+    /// Guide and measuring lines in image coordinates, drawn on top at a fixed on-screen width.
+    let lines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)]
     /// Auto-Redact matches to outline: orange when they'll be redacted, gray when kept visible.
     let highlights: [(rect: IntRect, active: Bool)]
     /// Before/After: the earlier image and how to show it.
@@ -49,6 +51,7 @@ final class Renderer {
     private let antsPipeline: MTLRenderPipelineState
     private let gridPipeline: MTLRenderPipelineState
     private let solidPipeline: MTLRenderPipelineState
+    private let linePipeline: MTLRenderPipelineState
     private let nearestSampler: MTLSamplerState
     private let linearSampler: MTLSamplerState
     private let maskSampler: MTLSamplerState
@@ -70,9 +73,9 @@ final class Renderer {
         self.device = device
         self.queue = queue
 
-        func pipeline(fragment: String, blended: Bool = true) -> MTLRenderPipelineState {
+        func pipeline(fragment: String, vertex: String = "quad_vertex", blended: Bool = true) -> MTLRenderPipelineState {
             let descriptor = MTLRenderPipelineDescriptor()
-            descriptor.vertexFunction = library.makeFunction(name: "quad_vertex")
+            descriptor.vertexFunction = library.makeFunction(name: vertex)
             descriptor.fragmentFunction = library.makeFunction(name: fragment)
             let attachment = descriptor.colorAttachments[0]!
             attachment.pixelFormat = .bgra8Unorm
@@ -94,6 +97,7 @@ final class Renderer {
         antsPipeline = pipeline(fragment: "ants_fragment")
         gridPipeline = pipeline(fragment: "grid_fragment", blended: false)
         solidPipeline = pipeline(fragment: "solid_fragment")
+        linePipeline = pipeline(fragment: "solid_fragment", vertex: "line_vertex")
 
         func sampler(_ filter: MTLSamplerMinMagFilter, address: MTLSamplerAddressMode = .clampToEdge) -> MTLSamplerState {
             let descriptor = MTLSamplerDescriptor()
@@ -242,6 +246,17 @@ final class Renderer {
             uniforms.rect = deviceRect(canvas.bounds)
             draw(gridPipeline)
         }
+
+        for line in scene.lines {
+            uniforms.rect = SIMD4(
+                Float(originX + line.from.x * zoom * scale), Float(originY + line.from.y * zoom * scale),
+                Float(originX + line.to.x * zoom * scale), Float(originY + line.to.y * zoom * scale)
+            )
+            uniforms.pixelSize = Float(1.5 * scale)
+            uniforms.keyColor = line.color
+            draw(linePipeline)
+        }
+        uniforms.pixelSize = Float(zoom * scale)
 
         for highlight in scene.highlights {
             let rect = deviceRect(highlight.rect)

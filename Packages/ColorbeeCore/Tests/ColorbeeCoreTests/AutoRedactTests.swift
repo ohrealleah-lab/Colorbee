@@ -106,4 +106,27 @@ struct AutoRedactRecognitionTests {
         let plainRect = try #require(plain.matches(for: RedactionPattern.builtIns).first?.rect)
         #expect(shiftedRect == plainRect.offsetBy(dx: 500, dy: 300))
     }
+
+    @Test(arguments: [24.0, 32, 48])
+    func findsALongMixedTokenAtCommonSizes(size: Double) async throws {
+        let canvas = Canvas(size: IntSize(width: 1400, height: 200), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let edit = History(byteBudget: .max).beginEdit("Text", on: canvas)
+        let spec = TextSpec(text: "a9F3kQ7zLp2Xv8Rt4Wm6Ny1Bc5Hd0Jg3", origin: Point2D(x: 40, y: 60), fontFamily: "Helvetica Neue", fontSize: size, color: .black)
+        let rendered = try #require(TextRenderer.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds))
+        Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.activeLayer, edit: edit)
+        let scan = try await TextScan.read(try ImageCodec.makeCGImage(canvas.flattened(), colorSpace: canvas.colorSpace))
+        #expect(scan.matches(for: RedactionPattern.builtIns).map(\.patternName) == ["API key"], "read as \(scan.text)")
+    }
+}
+
+struct LookalikeTests {
+    @Test func cyrillicLookalikesFoldToLatin() {
+        #expect(AutoRedact.foldingLookalikes("а9F3kХv8ВcА") == "a9F3kXv8BcA")
+        #expect(AutoRedact.foldingLookalikes("plain text") == "plain text")
+    }
+
+    @Test func foldedKeysMatch() {
+        let mixed = "key sk_livе_51Hx9TqL2vR8mZ3kP0aYw"
+        #expect(AutoRedact.matches(in: AutoRedact.foldingLookalikes(mixed), patterns: RedactionPattern.builtIns).map(\.name) == ["API key"])
+    }
 }

@@ -120,6 +120,8 @@ public final class TextScan: @unchecked Sendable {
             request.recognitionLevel = .accurate
             // Correction would "fix" tokens and keys into words, hiding exactly what needs redacting.
             request.usesLanguageCorrection = false
+            // Without a language, Vision sometimes reads Latin letters in keys as Cyrillic look-alikes.
+            request.recognitionLanguages = ["en-US"]
             try VNImageRequestHandler(cgImage: image).perform([request])
             let lines = (request.results ?? []).compactMap { observation -> Line? in
                 guard let candidate = observation.topCandidates(1).first else { return nil }
@@ -133,9 +135,15 @@ public final class TextScan: @unchecked Sendable {
     public func matches(for patterns: [RedactionPattern]) -> [RedactionMatch] {
         var results: [RedactionMatch] = []
         for line in lines {
-            for found in AutoRedact.matches(in: line.string, patterns: patterns) {
-                guard let rect = rect(for: found.range, in: line) else { continue }
-                results.append(RedactionMatch(patternName: found.name, text: String(line.string[found.range]), rect: rect))
+            // Match on Latin-folded text; folding is one character for one, so positions carry over.
+            let folded = AutoRedact.foldingLookalikes(line.string)
+            for found in AutoRedact.matches(in: folded, patterns: patterns) {
+                let start = folded.distance(from: folded.startIndex, to: found.range.lowerBound)
+                let length = folded.distance(from: found.range.lowerBound, to: found.range.upperBound)
+                let lower = line.string.index(line.string.startIndex, offsetBy: start)
+                let range = lower..<line.string.index(lower, offsetBy: length)
+                guard let rect = rect(for: range, in: line) else { continue }
+                results.append(RedactionMatch(patternName: found.name, text: String(folded[found.range]), rect: rect))
             }
         }
         return results
@@ -168,6 +176,27 @@ public enum AutoRedact {
         }
         return found.sorted { $0.range.lowerBound < $1.range.lowerBound }
     }
+
+    /// Replaces Cyrillic and Greek letters that look like Latin ones, character for character.
+    public static func foldingLookalikes(_ text: String) -> String {
+        String(text.map { lookalikes[$0] ?? $0 })
+    }
+
+    private static let lookalikes: [Character: Character] = {
+        let pairs: [(String, String)] = [
+            // Cyrillic
+            ("АВЕКМНОРСТХУЅІЈ", "ABEKMHOPCTXYSIJ"),
+            ("аеорсухѕіјԁһԛԝ", "aeopcyxsijdhqw"),
+            // Greek
+            ("ΑΒΕΖΗΙΚΜΝΟΡΤΥΧ", "ABEZHIKMNOPTYX"),
+            ("οινκρτυχ", "oivkptux"),
+        ]
+        var map: [Character: Character] = [:]
+        for (from, to) in pairs {
+            for (a, b) in zip(from, to) { map[a] = b }
+        }
+        return map
+    }()
 
     /// The checksum every real card number passes, which filters out most other long digit runs.
     static func passesLuhnCheck(_ candidate: String) -> Bool {

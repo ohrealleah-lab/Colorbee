@@ -104,11 +104,7 @@ _Last updated: 2026-10-01 · 44 commits · 161 core tests passing_
 
 ## Not yet checked by hand
 
-These are covered by automated tests but haven't been tried in the app. Ask Leah to check them, or check with computer-use when the app can come to the front:
-- Crop, resize handles, Before/After, Export As output sizes.
-- All of stage 5a: shape gallery, polygon and curve placement, rotate handle, gradient modes, rotate/flip, symmetry, measure, adjustment dialogs.
-- The Auto-Redact apply step (Leah confirmed detection works).
-- Blur responsiveness after the Release-build fix.
+Nothing outstanding. Leah tested everything through stage 5a by hand on 2026-10-01: practice images, crop, resize handles, Auto-Redact apply and undo, Before/After, Export As sizes, the text box, and the swap-colors crash fix.
 
 ## Practical notes for the next session
 

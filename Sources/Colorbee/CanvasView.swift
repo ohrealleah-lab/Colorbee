@@ -536,6 +536,8 @@ final class CanvasView: NSView {
                 if drag == nil { NSCursor.openHand.set() }
             case ("x", true):
                 editor.swapColors()
+            case ("d", true):
+                editor.resetColors()
             case ("p", true): editor.selectTool(.pencil)
             case ("b", true): editor.selectTool(.brush)
             case ("e", true): editor.selectTool(.eraser)

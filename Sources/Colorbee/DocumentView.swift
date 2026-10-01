@@ -238,13 +238,17 @@ private struct EffectSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(kind.title).font(.headline)
-            HStack {
-                Text(kind.valueLabel)
-                Slider(value: $editor.effectValue, in: kind.range, step: 1)
-                    .frame(width: 220)
-                Text("\(Int(editor.effectValue)) px")
-                    .monospacedDigit()
-                    .frame(width: 50, alignment: .trailing)
+            Grid(alignment: .leading, verticalSpacing: 10) {
+                ForEach(Array(kind.parameters.enumerated()), id: \.offset) { index, parameter in
+                    GridRow {
+                        Text(parameter.label)
+                        Slider(value: value(at: index), in: parameter.range, step: 1)
+                            .frame(width: 240)
+                        Text("\(Int(editor.effectValues[safe: index] ?? 0))\(parameter.unit)")
+                            .monospacedDigit()
+                            .frame(width: 50, alignment: .trailing)
+                    }
+                }
             }
             Text(editor.hasSelection ? "Applies to the selection." : "Applies to the whole layer.")
                 .font(.callout)
@@ -258,7 +262,20 @@ private struct EffectSheet: View {
             }
         }
         .padding(20)
-        .onChange(of: editor.effectValue) { editor.previewEffect() }
+        .onChange(of: editor.effectValues) { editor.previewEffect() }
+    }
+
+    private func value(at index: Int) -> Binding<Double> {
+        Binding(
+            get: { editor.effectValues[safe: index] ?? 0 },
+            set: { if editor.effectValues.indices.contains(index) { editor.effectValues[index] = $0 } }
+        )
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 

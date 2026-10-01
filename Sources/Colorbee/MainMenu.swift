@@ -10,6 +10,7 @@ enum MainMenu {
         main.addItem(submenu(editMenu()))
         main.addItem(submenu(viewMenu()))
         main.addItem(submenu(imageMenu()))
+        main.addItem(submenu(adjustmentsMenu()))
         main.addItem(submenu(effectsMenu()))
 
         let window = windowMenu()
@@ -115,6 +116,25 @@ enum MainMenu {
     private static func imageMenu() -> NSMenu {
         let menu = NSMenu(title: "Image")
         menu.addItem(item("Crop to Selection", "cropToSelection:", "x", [.command, .shift]))
+        menu.addItem(.separator())
+        let rotate = NSMenu(title: "Rotate")
+        let flip = NSMenu(title: "Flip")
+        for (index, orientation) in Orientation.allCases.enumerated() {
+            let orientationItem = item(orientation.name.replacingOccurrences(of: "Rotate ", with: "").replacingOccurrences(of: "Flip ", with: ""), "applyOrientation:")
+            orientationItem.tag = index
+            (orientation == .flipHorizontal || orientation == .flipVertical ? flip : rotate).addItem(orientationItem)
+        }
+        menu.addItem(submenu(rotate))
+        menu.addItem(submenu(flip))
+        return menu
+    }
+
+    private static func adjustmentsMenu() -> NSMenu {
+        let menu = NSMenu(title: "Adjustments")
+        menu.addItem(item("Invert Colors", "invertColors:", "i"))
+        menu.addItem(item("Brightness/Contrast…", "showBrightnessContrast:"))
+        menu.addItem(item("Hue/Saturation…", "showHueSaturation:"))
+        menu.addItem(item("Desaturate", "desaturate:", "u", [.command, .shift]))
         return menu
     }
 
@@ -122,6 +142,7 @@ enum MainMenu {
         let menu = NSMenu(title: "Effects")
         menu.addItem(item("Gaussian Blur…", "showGaussianBlur:"))
         menu.addItem(item("Pixelate…", "showPixelate:"))
+        menu.addItem(item("Sharpen…", "showSharpen:"))
         menu.addItem(.separator())
         let batch = NSMenu(title: "Batch Redact")
         batch.addItem(item("Blur…", "showGaussianBlur:"))

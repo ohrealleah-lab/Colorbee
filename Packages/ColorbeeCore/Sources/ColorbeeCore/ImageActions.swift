@@ -20,6 +20,21 @@ public enum ImageActions {
         return history.commit(edit)
     }
 
+    /// Rotates or flips every layer. Any floating selection is placed first and the selection is cleared.
+    @discardableResult
+    public static func transform(_ orientation: Orientation, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
+        let edit = history.beginEdit(orientation.name, on: canvas)
+        edit.willChangeGeometry()
+        var buffers: [LayerID: PixelBuffer] = [:]
+        for layer in canvas.layers {
+            buffers[layer.id] = layer.buffer.transformed(orientation)
+        }
+        canvas.replaceContents(size: orientation.transformedSize(canvas.size), buffers: buffers)
+        canvas.selection = .none
+        return history.commit(edit)
+    }
+
     /// Crops to the selection's bounding box.
     @discardableResult
     public static func cropToSelection(canvas: Canvas, history: History, context: SelectionContext) -> Bool {

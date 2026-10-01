@@ -42,42 +42,55 @@ enum BrushKind: CaseIterable {
     case marker
 }
 
+/// An effect with a dialog, and the sliders it shows.
 enum EffectKind {
     case gaussianBlur
     case pixelate
+    case sharpen
+    case brightnessContrast
+    case hueSaturation
+
+    struct Parameter {
+        let label: String
+        let range: ClosedRange<Double>
+        let defaultValue: Double
+        let unit: String
+    }
 
     var title: String {
         switch self {
         case .gaussianBlur: "Gaussian Blur"
         case .pixelate: "Pixelate"
+        case .sharpen: "Sharpen"
+        case .brightnessContrast: "Brightness/Contrast"
+        case .hueSaturation: "Hue/Saturation"
         }
     }
 
-    var valueLabel: String {
+    var parameters: [Parameter] {
         switch self {
-        case .gaussianBlur: "Radius"
-        case .pixelate: "Cell size"
+        case .gaussianBlur: [Parameter(label: "Radius", range: 1...100, defaultValue: 8, unit: "px")]
+        case .pixelate: [Parameter(label: "Cell size", range: 2...100, defaultValue: 12, unit: "px")]
+        case .sharpen: [Parameter(label: "Amount", range: 0...200, defaultValue: 60, unit: "%")]
+        case .brightnessContrast: [
+            Parameter(label: "Brightness", range: -100...100, defaultValue: 0, unit: ""),
+            Parameter(label: "Contrast", range: -100...100, defaultValue: 0, unit: ""),
+        ]
+        case .hueSaturation: [
+            Parameter(label: "Hue", range: -180...180, defaultValue: 0, unit: "°"),
+            Parameter(label: "Saturation", range: -100...100, defaultValue: 0, unit: ""),
+            Parameter(label: "Lightness", range: -100...100, defaultValue: 0, unit: ""),
+        ]
         }
     }
 
-    var range: ClosedRange<Double> {
+    func effect(_ values: [Double]) -> Effect {
         switch self {
-        case .gaussianBlur: 1...100
-        case .pixelate: 2...100
-        }
-    }
-
-    var defaultValue: Double {
-        switch self {
-        case .gaussianBlur: 8
-        case .pixelate: 12
-        }
-    }
-
-    func effect(_ value: Double) -> Effect {
-        switch self {
-        case .gaussianBlur: .gaussianBlur(radius: value)
-        case .pixelate: .pixelate(cellSize: Int(value.rounded()))
+        case .gaussianBlur: .gaussianBlur(radius: values[0])
+        case .pixelate: .pixelate(cellSize: Int(values[0].rounded()))
+        case .sharpen: .sharpen(amount: values[0])
+        case .brightnessContrast: .brightnessContrast(brightness: values[0], contrast: values[1])
+        case .hueSaturation: .hueSaturation(hue: values[0], saturation: values[1], lightness: values[2])
         }
     }
 }
@@ -248,7 +261,7 @@ final class Editor {
     static let comparisonGap = 40
     /// The effect whose dialog is open, if any.
     private(set) var activeEffect: EffectKind?
-    var effectValue = 8.0
+    var effectValues: [Double] = []
 
     @ObservationIgnored var onRender: () -> Void = {}
     @ObservationIgnored var onDocumentChange: (DocumentChange) -> Void = { _ in }
@@ -333,6 +346,14 @@ final class Editor {
     private func placeFloatingSelection() {
         guard canvas.selection.floating != nil else { return }
         recordingChanges { SelectionActions.placeFloating(canvas: canvas, history: history, context: selectionContext) }
+        selectionDidChange()
+    }
+
+    /// Places a floating selection but keeps its outline selected, so effects still apply to just that area.
+    private func placeFloatingKeepingOutline() {
+        guard let outline = canvas.selection.outline, canvas.selection.floating != nil else { return }
+        placeFloatingSelection()
+        canvas.selection = .marquee(outline)
         selectionDidChange()
     }
 
@@ -861,8 +882,8 @@ final class Editor {
     /// Opens an effect's dialog and shows its preview. It applies to the selection, or the whole layer.
     func beginEffect(_ kind: EffectKind) {
         finishInteractions()
-        placeFloatingSelection()
-        effectValue = kind.defaultValue
+        placeFloatingKeepingOutline()
+        effectValues = kind.parameters.map(\.defaultValue)
         effectEdit = history.beginEdit(kind.title, on: canvas)
         effectRegions = canvas.selection.marquee?.connectedRegions()
         activeEffect = kind
@@ -881,7 +902,7 @@ final class Editor {
         effectPreviewScheduled = false
         guard let kind = activeEffect, let edit = effectEdit else { return }
         edit.restoreOriginals()
-        let effect = kind.effect(effectValue)
+        let effect = kind.effect(effectValues)
         if let regions = effectRegions {
             Effects.apply(effect, to: canvas.activeLayer, regions: regions, edit: edit)
         } else {
@@ -890,10 +911,39 @@ final class Editor {
         onRender()
     }
 
+    /// An adjustment with no settings (Invert, Desaturate), applied to the selection or the whole layer.
+    func applyAdjustment(_ effect: Effect) {
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        let edit = history.beginEdit(effect.name, on: canvas)
+        Effects.apply(effect, to: canvas.activeLayer, selection: canvas.selection.marquee, edit: edit)
+        recordingChanges { history.commit(edit) }
+        onRender()
+    }
+
+    /// Rotates or flips the selection, or the whole image when nothing is selected.
+    func apply(_ orientation: Orientation) {
+        finishInteractions()
+        recordingChanges {
+            if canvas.selection.isEmpty {
+                ImageActions.transform(orientation, canvas: canvas, history: history, context: selectionContext)
+            } else {
+                SelectionActions.transformSelection(orientation, canvas: canvas, history: history, context: selectionContext)
+            }
+        }
+        selectionDidChange()
+    }
+
+    /// The D key: Color 1 black, Color 2 white.
+    func resetColors() {
+        color1 = .black
+        color2 = .white
+    }
+
     /// Batch redaction with a solid color: every selected region becomes Color 1 in one step (FR-9.4).
     func applySolidFill() {
         finishInteractions()
-        placeFloatingSelection()
+        placeFloatingKeepingOutline()
         guard let selection = canvas.selection.marquee else { return }
         let edit = history.beginEdit("Solid Fill", on: canvas)
         Effects.apply(.solidFill(color1), to: canvas.activeLayer, selection: selection, edit: edit)
@@ -981,7 +1031,7 @@ final class Editor {
     /// Reads the text in the selection (or the whole image) on this Mac and opens the review.
     func beginAutoRedact() {
         finishInteractions()
-        placeFloatingSelection()
+        placeFloatingKeepingOutline()
         let region = canvas.selection.marquee
         let area = region?.bounds ?? canvas.bounds
         let image = canvas.flattened()

@@ -7,12 +7,57 @@ public enum Effect: Sendable, Equatable {
     case pixelate(cellSize: Int)
     /// Every selected pixel becomes this color (redaction).
     case solidFill(Pixel)
+    case invert
+    /// Grayscale by luminance.
+    case desaturate
+    /// Brightness and contrast, each -100...100.
+    case brightnessContrast(brightness: Double, contrast: Double)
+    /// Hue shift in degrees (-180...180); saturation and lightness -100...100.
+    case hueSaturation(hue: Double, saturation: Double, lightness: Double)
+    /// Unsharp mask; `amount` 0...200 percent.
+    case sharpen(amount: Double)
 
     public var name: String {
         switch self {
         case .gaussianBlur: "Gaussian Blur"
         case .pixelate: "Pixelate"
         case .solidFill: "Solid Fill"
+        case .invert: "Invert Colors"
+        case .desaturate: "Desaturate"
+        case .brightnessContrast: "Brightness/Contrast"
+        case .hueSaturation: "Hue/Saturation"
+        case .sharpen: "Sharpen"
+        }
+    }
+
+    /// The per-pixel function for effects that don't look at neighbors.
+    var pointwise: ((Pixel) -> Pixel)? {
+        switch self {
+        case .solidFill(let color):
+            return { _ in color }
+        case .invert:
+            return { Pixel(r: 255 - $0.r, g: 255 - $0.g, b: 255 - $0.b, a: $0.a) }
+        case .desaturate:
+            return { pixel in
+                let red = 0.2126 * Double(pixel.r)
+                let green = 0.7152 * Double(pixel.g)
+                let blue = 0.0722 * Double(pixel.b)
+                let luminance = UInt8((red + green + blue).rounded())
+                return Pixel(r: luminance, g: luminance, b: luminance, a: pixel.a)
+            }
+        case .brightnessContrast(let brightness, let contrast):
+            let factor = 1 + contrast / 100
+            let offset = brightness * 2.55
+            return { pixel in
+                func adjust(_ value: UInt8) -> UInt8 {
+                    UInt8(min(255, max(0, ((Double(value) - 128) * factor + 128 + offset).rounded())))
+                }
+                return Pixel(r: adjust(pixel.r), g: adjust(pixel.g), b: adjust(pixel.b), a: pixel.a)
+            }
+        case .hueSaturation(let hue, let saturation, let lightness):
+            return { pixel in HSL(pixel).adjusted(hue: hue, saturation: saturation, lightness: lightness).pixel(alpha: pixel.a) }
+        case .gaussianBlur, .pixelate, .sharpen:
+            return nil
         }
     }
 }
@@ -38,12 +83,12 @@ public enum Effects {
     private static func applyToRegion(_ effect: Effect, layer: Layer, selection: SelectionMask?, edit: Edit) -> IntRect {
         let region = (selection?.bounds ?? layer.buffer.bounds).intersection(layer.buffer.bounds)
         guard !region.isEmpty else { return .zero }
-        if case .solidFill(let color) = effect {
+        if let transform = effect.pointwise {
             edit.willModify(region, in: layer)
             for y in region.minY..<region.maxY {
                 let row = layer.buffer.row(y)
                 for x in region.minX..<region.maxX where isSelected(selection, x, y) {
-                    row[x] = color
+                    row[x] = transform(row[x])
                 }
             }
             return region
@@ -55,7 +100,9 @@ public enum Effects {
             (result, origin) = blurred(layer.buffer, region: region, sigma: radius, selection: selection)
         case .pixelate(let cellSize):
             (result, origin) = pixelated(layer.buffer, region: region, cellSize: max(2, cellSize), selection: selection)
-        case .solidFill:
+        case .sharpen(let amount):
+            (result, origin) = sharpened(layer.buffer, region: region, amount: amount / 100, selection: selection)
+        case .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation:
             return .zero
         }
         edit.willModify(region, in: layer)
@@ -107,6 +154,25 @@ public enum Effects {
             }
         }
         return (result, IntPoint(x: work.minX, y: work.minY))
+    }
+
+    /// Unsharp mask: push each pixel away from a slightly blurred copy of itself.
+    private static func sharpened(_ buffer: PixelBuffer, region: IntRect, amount: Double, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
+        let (blurred, origin) = blurred(buffer, region: region, sigma: 1, selection: selection)
+        let result = PixelBuffer(width: blurred.width, height: blurred.height)
+        for y in 0..<blurred.height {
+            let sourceRow = buffer.row(y + origin.y)
+            let softRow = blurred.row(y)
+            let destination = result.row(y)
+            for x in 0..<blurred.width {
+                let original = sourceRow[x + origin.x], soft = softRow[x]
+                func boost(_ value: UInt8, _ blurredValue: UInt8) -> UInt8 {
+                    UInt8(min(255, max(0, (Double(value) + amount * (Double(value) - Double(blurredValue))).rounded())))
+                }
+                destination[x] = Pixel(r: boost(original.r, soft.r), g: boost(original.g, soft.g), b: boost(original.b, soft.b), a: original.a)
+            }
+        }
+        return (result, origin)
     }
 
     /// Three passes of a premultiplied box blur.
@@ -175,5 +241,59 @@ public enum Effects {
             b: UInt8((blue / alpha).rounded()),
             a: UInt8((alpha / count).rounded())
         )
+    }
+}
+
+/// Hue (0...360), saturation and lightness (0...1).
+struct HSL {
+    var hue: Double
+    var saturation: Double
+    var lightness: Double
+
+    init(_ pixel: Pixel) {
+        let r = Double(pixel.r) / 255, g = Double(pixel.g) / 255, b = Double(pixel.b) / 255
+        let high = max(r, g, b), low = min(r, g, b)
+        lightness = (high + low) / 2
+        let chroma = high - low
+        guard chroma > 0 else {
+            hue = 0
+            saturation = 0
+            return
+        }
+        saturation = chroma / (1 - abs(2 * lightness - 1))
+        switch high {
+        case r: hue = 60 * ((g - b) / chroma).truncatingRemainder(dividingBy: 6)
+        case g: hue = 60 * ((b - r) / chroma + 2)
+        default: hue = 60 * ((r - g) / chroma + 4)
+        }
+        if hue < 0 { hue += 360 }
+    }
+
+    /// Hue shifts by degrees; saturation and lightness move toward their limits by percent.
+    func adjusted(hue shift: Double, saturation saturationChange: Double, lightness lightnessChange: Double) -> HSL {
+        var result = self
+        result.hue = (hue + shift).truncatingRemainder(dividingBy: 360)
+        if result.hue < 0 { result.hue += 360 }
+        let s = saturationChange / 100, l = lightnessChange / 100
+        result.saturation = s >= 0 ? saturation + (1 - saturation) * s : saturation * (1 + s)
+        result.lightness = l >= 0 ? lightness + (1 - lightness) * l : lightness * (1 + l)
+        return result
+    }
+
+    func pixel(alpha: UInt8) -> Pixel {
+        let chroma = (1 - abs(2 * lightness - 1)) * saturation
+        let section = hue / 60
+        let second = chroma * (1 - abs(section.truncatingRemainder(dividingBy: 2) - 1))
+        let (r, g, b): (Double, Double, Double) = switch section {
+        case ..<1: (chroma, second, 0)
+        case ..<2: (second, chroma, 0)
+        case ..<3: (0, chroma, second)
+        case ..<4: (0, second, chroma)
+        case ..<5: (second, 0, chroma)
+        default: (chroma, 0, second)
+        }
+        let match = lightness - chroma / 2
+        func byte(_ value: Double) -> UInt8 { UInt8(min(255, max(0, ((value + match) * 255).rounded()))) }
+        return Pixel(r: byte(r), g: byte(g), b: byte(b), a: alpha)
     }
 }

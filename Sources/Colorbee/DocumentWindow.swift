@@ -69,6 +69,17 @@ final class DocumentWindow: NSWindow {
         editor?.beginEffect(.pixelate)
     }
 
+    @objc func showSharpen(_ sender: Any?) { editor?.beginEffect(.sharpen) }
+    @objc func showBrightnessContrast(_ sender: Any?) { editor?.beginEffect(.brightnessContrast) }
+    @objc func showHueSaturation(_ sender: Any?) { editor?.beginEffect(.hueSaturation) }
+    @objc func invertColors(_ sender: Any?) { editor?.applyAdjustment(.invert) }
+    @objc func desaturate(_ sender: Any?) { editor?.applyAdjustment(.desaturate) }
+
+    @objc func applyOrientation(_ sender: Any?) {
+        guard let tag = (sender as? NSMenuItem)?.tag, Orientation.allCases.indices.contains(tag) else { return }
+        editor?.apply(Orientation.allCases[tag])
+    }
+
     @objc func showAutoRedact(_ sender: Any?) {
         editor?.beginAutoRedact()
     }
@@ -121,7 +132,9 @@ final class DocumentWindow: NSWindow {
              #selector(applySolidFill(_:)):
             return editor.hasSelection
         case #selector(selectAll(_:)), #selector(invertSelection(_:)),
-             #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showAutoRedact(_:)):
+             #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showAutoRedact(_:)),
+             #selector(showSharpen(_:)), #selector(showBrightnessContrast(_:)), #selector(showHueSaturation(_:)),
+             #selector(invertColors(_:)), #selector(desaturate(_:)), #selector(applyOrientation(_:)):
             return true
         case #selector(toggleBeforeAfter(_:)):
             menuItem.state = editor.comparison != nil ? .on : .off

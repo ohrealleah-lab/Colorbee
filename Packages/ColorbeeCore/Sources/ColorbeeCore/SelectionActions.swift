@@ -1,3 +1,5 @@
+import Foundation
+
 /// Settings that affect selection operations.
 public struct SelectionContext: Sendable {
     public var color2: Pixel
@@ -137,6 +139,25 @@ public enum SelectionActions {
         if let stretched = mask.stretched(to: target), let clipped = SelectionMask.combine(stretched, with: .rectangle(canvas.bounds, clippedTo: canvas.bounds), mode: .intersect) {
             canvas.selection = .marquee(clipped)
         }
+    }
+
+    /// Rotates or flips the selected pixels in place, around the selection's center. A marquee is lifted first.
+    @discardableResult
+    public static func transformSelection(_ orientation: Orientation, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        guard let edit = beginMove(duplicate: false, named: orientation.name.replacingOccurrences(of: "Rotate", with: "Rotate Selection").replacingOccurrences(of: "Flip", with: "Flip Selection"), canvas: canvas, history: history, context: context),
+              let floating = canvas.selection.floating else { return false }
+        // Bake any stretching in first so the transform applies to what's on screen.
+        let pixels = floating.pixels.resampled(to: floating.destination.size, using: context.resampling).transformed(orientation)
+        let mask = (floating.mask.stretched(to: IntRect(size: floating.destination.size)) ?? floating.mask).transformed(orientation)
+        let old = floating.destination
+        let size = orientation.transformedSize(old.size)
+        let destination = IntRect(
+            x: old.minX + (old.width - size.width) / 2,
+            y: old.minY + (old.height - size.height) / 2,
+            width: size.width, height: size.height
+        )
+        canvas.selection = .floating(FloatingSelection(pixels: pixels, mask: mask, destination: destination, layerID: floating.layerID, id: floating.id))
+        return history.commit(edit)
     }
 
     /// Moves the selected pixels by a few pixels as one step.

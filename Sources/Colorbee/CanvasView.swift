@@ -271,7 +271,7 @@ final class CanvasView: NSView {
 
     private func currentCursor(at point: Point2D?) -> NSCursor {
         if spaceHeld { return .openHand }
-        if editor.tool.selectionShape != nil, let point, editor.selectionContains(point) { return .openHand }
+        if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
         return .crosshair
     }
 
@@ -287,12 +287,17 @@ final class CanvasView: NSView {
             return
         }
         let point = imagePoint(event)
-        if editor.tool.selectionShape != nil {
+        switch editor.tool {
+        case let tool where tool.isSelectionTool:
             guard !secondary else { return }
             drag = .select(last: point)
             editor.beginSelectionDrag(at: point, modifiers: dragModifiers(event))
             if editor.selectionContains(point) { NSCursor.closedHand.set() }
-        } else {
+        case .fill:
+            editor.fill(at: point, secondary: secondary)
+        case .eyedropper:
+            editor.pickColor(at: point, secondary: secondary, allLayers: event.modifierFlags.contains(.option))
+        default:
             drag = secondary ? .secondary : .primary
             noteInput(event)
             editor.beginStroke(at: point, secondary: secondary)
@@ -313,7 +318,7 @@ final class CanvasView: NSView {
             updatePointer(event)
         case .primary, .secondary:
             noteInput(event)
-            editor.continueStroke(to: imagePoint(event))
+            editor.continueStroke(to: imagePoint(event), constrain: event.modifierFlags.contains(.shift))
             updatePointer(event)
         case nil:
             break
@@ -397,10 +402,15 @@ final class CanvasView: NSView {
                 if drag == nil { NSCursor.openHand.set() }
             case ("x", true):
                 editor.swapColors()
-            case ("b", true):
-                editor.selectTool(.brush)
-            case ("m", true):
-                editor.selectTool(.rectangleSelect)
+            case ("p", true): editor.selectTool(.pencil)
+            case ("b", true): editor.selectTool(.brush)
+            case ("e", true): editor.selectTool(.eraser)
+            case ("g", true): editor.selectTool(.fill)
+            case ("i", true): editor.selectTool(.eyedropper)
+            case ("m", true): editor.selectTool(.rectangleSelect)
+            case ("l", true): editor.selectTool(.lassoSelect)
+            case ("[", true): editor.adjustToolSize(larger: false)
+            case ("]", true): editor.adjustToolSize(larger: true)
             default:
                 super.keyDown(with: event)
             }

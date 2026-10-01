@@ -8,6 +8,7 @@ enum MainMenu {
         main.addItem(submenu(fileMenu()))
         main.addItem(submenu(editMenu()))
         main.addItem(submenu(viewMenu()))
+        main.addItem(submenu(effectsMenu()))
 
         let window = windowMenu()
         main.addItem(submenu(window))
@@ -97,6 +98,13 @@ enum MainMenu {
         menu.addItem(item("Pixel Grid", "togglePixelGrid:", "'"))
         menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", "toggleFullScreen:", "f", [.command, .control]))
+        return menu
+    }
+
+    private static func effectsMenu() -> NSMenu {
+        let menu = NSMenu(title: "Effects")
+        menu.addItem(item("Gaussian Blur…", "showGaussianBlur:"))
+        menu.addItem(item("Pixelate…", "showPixelate:"))
         return menu
     }
 

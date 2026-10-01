@@ -52,6 +52,14 @@ final class DocumentWindow: NSWindow {
         editor?.invertSelection()
     }
 
+    @objc func showGaussianBlur(_ sender: Any?) {
+        editor?.beginEffect(.gaussianBlur)
+    }
+
+    @objc func showPixelate(_ sender: Any?) {
+        editor?.beginEffect(.pixelate)
+    }
+
     @objc func togglePixelGrid(_ sender: Any?) {
         editor?.showsPixelGrid.toggle()
     }
@@ -84,7 +92,8 @@ final class DocumentWindow: NSWindow {
             return Self.imageDataOnPasteboard() != nil
         case #selector(cut(_:)), #selector(delete(_:)), #selector(deselect(_:)):
             return editor.hasSelection
-        case #selector(selectAll(_:)), #selector(invertSelection(_:)):
+        case #selector(selectAll(_:)), #selector(invertSelection(_:)),
+             #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)):
             return true
         case #selector(togglePixelGrid(_:)):
             menuItem.state = editor.showsPixelGrid ? .on : .off

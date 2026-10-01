@@ -1,5 +1,6 @@
 import AppKit
 import ColorbeeCore
+import SwiftUI
 import UniformTypeIdentifiers
 
 final class ImageDocument: NSDocument {
@@ -44,22 +45,71 @@ final class ImageDocument: NSDocument {
     }
 
     override func data(ofType typeName: String) throws -> Data {
-        guard let editor else { throw CocoaError(.fileWriteUnknown) }
-        return try editor.flattenedPNG()
+        guard let editor, let format = UTType(typeName).flatMap(ImageFileFormat.init(type:)) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        return try editor.encoded(as: format)
     }
+
+    // MARK: Export
 
     @IBAction func exportDocument(_ sender: Any?) {
         guard let editor, let window = windowForSheet else { return }
+        let options = ExportOptions()
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = (displayName as NSString).deletingPathExtension + ".png"
+        panel.allowedContentTypes = [options.format.type]
+        panel.nameFieldStringValue = (displayName as NSString).deletingPathExtension
+        panel.accessoryView = NSHostingView(rootView: ExportAccessory(options: options) { format in
+            panel.allowedContentTypes = [format.type]
+        })
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             do {
-                try editor.flattenedPNG().write(to: url, options: .atomic)
+                try editor.encoded(as: options.format, quality: options.quality).write(to: url, options: .atomic)
             } catch {
                 self?.presentError(error)
             }
         }
+    }
+}
+
+@MainActor
+@Observable
+private final class ExportOptions {
+    var format: ImageFileFormat = .png
+    var quality = 0.9
+}
+
+private struct ExportAccessory: View {
+    @Bindable var options: ExportOptions
+    let formatChanged: (ImageFileFormat) -> Void
+
+    var body: some View {
+        Form {
+            Picker("Format", selection: $options.format) {
+                ForEach(ImageFileFormat.allCases.filter(\.canWrite), id: \.self) { format in
+                    Text(format.name).tag(format)
+                }
+            }
+            if options.format.isLossy {
+                LabeledContent("Quality") {
+                    HStack {
+                        Slider(value: $options.quality, in: 0.01...1)
+                            .frame(width: 180)
+                        Text("\(Int((options.quality * 100).rounded()))")
+                            .monospacedDigit()
+                            .frame(width: 30, alignment: .trailing)
+                    }
+                }
+            }
+            if !options.format.supportsTransparency {
+                Text("Transparent areas are filled with Color 2.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .frame(width: 360)
+        .onChange(of: options.format) { formatChanged(options.format) }
     }
 }

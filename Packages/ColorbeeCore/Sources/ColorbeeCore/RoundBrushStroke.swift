@@ -87,13 +87,20 @@ public final class EraserStroke: Stroke {
         painter = CoveragePainter(layer: layer, edit: edit, effect: effect)
     }
 
+    /// The square of pixels the eraser covers with the pointer at `point`.
+    public static func footprint(at point: Point2D, size: Int) -> IntRect {
+        let size = max(1, size)
+        let x = Int(point.x.rounded(.down)), y = Int(point.y.rounded(.down))
+        return IntRect(x: x - size / 2, y: y - size / 2, width: size, height: size)
+    }
+
     @discardableResult
     public func move(to point: Point2D) -> IntRect {
         let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         defer { lastPixel = pixel }
         var changed = IntRect.zero
         for center in Line.pixels(from: lastPixel ?? pixel, to: pixel) {
-            let square = IntRect(x: center.x - size / 2, y: center.y - size / 2, width: size, height: size)
+            let square = Self.footprint(at: Point2D(x: Double(center.x), y: Double(center.y)), size: size)
             changed = changed.union(painter.paint(square) { _, _ in 255 })
         }
         return changed

@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-02 · 45 commits · 164 core tests passing_
+_Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 
 ---
 
@@ -49,7 +49,7 @@ _Last updated: 2026-10-02 · 45 commits · 164 core tests passing_
 - Rendering pauses while the window is hidden.
 
 **Tools** (key)
-- Pencil P · Brush B (Round, Marker) · Eraser E (right-drag = Color Eraser) · Fill G (tolerance) · Eyedropper I (Option = all layers)
+- Pencil P · Brush B (Round, Marker) · Eraser E (square outline pointer; right-drag = Color Eraser) · Fill G (tolerance) · Eyedropper I (Option = all layers)
 - Shapes U: all 23 FR-5.1 shapes plus Arrow (gallery menu). Editable until placed: move, handles, rotate handle (box shapes, Shift snaps 15°), outline and fill solid or none. Polygon: click corners, close on the first one or double-click. Curve: line, then two bends.
 - Gradient: linear, radial, reflected, diamond, conical; right-drag reverses; fades to transparent cleanly.
 - Measure R: distance, ΔX/ΔY, angle in the status bar.
@@ -104,7 +104,7 @@ _Last updated: 2026-10-02 · 45 commits · 164 core tests passing_
 
 ## Not yet checked by hand
 
-Leah tested everything through stage 5a by hand on 2026-10-01. Still to try: Shift-drag with the Pencil stays on one line when wiggled back and forth (fixed 2026-10-02).
+Leah tested everything through stage 5a by hand on 2026-10-01. Still to try (2026-10-02): Shift-drag with the Pencil stays on one line when wiggled back and forth; the Eraser shows a square outline of its size.
 
 ## Practical notes for the next session
 

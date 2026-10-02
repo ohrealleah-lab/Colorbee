@@ -35,6 +35,8 @@ final class CanvasView: NSView {
     private var hasPresented = false
     private var drag: Drag?
     private var spaceHeld = false
+    /// Where the pointer is over the view, in image coordinates, for the eraser's outline.
+    private var hoverPoint: Point2D?
     private var surroundColor = MTLClearColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1)
 
     private var metalLayer: CAMetalLayer {
@@ -239,9 +241,9 @@ final class CanvasView: NSView {
             lines.append((Point2D(x: 0, y: height / 2), Point2D(x: width, y: height / 2), guide))
         }
         let frameColor = SIMD4<Float>(0.2, 0.45, 0.95, 0.9)
-        func frame(_ minX: Double, _ minY: Double, _ maxX: Double, _ maxY: Double) {
+        func frame(_ minX: Double, _ minY: Double, _ maxX: Double, _ maxY: Double, color: SIMD4<Float>? = nil) {
             let corners = [Point2D(x: minX, y: minY), Point2D(x: maxX, y: minY), Point2D(x: maxX, y: maxY), Point2D(x: minX, y: maxY)]
-            for index in 0..<4 { lines.append((corners[index], corners[(index + 1) % 4], frameColor)) }
+            for index in 0..<4 { lines.append((corners[index], corners[(index + 1) % 4], color ?? frameColor)) }
         }
         if let drag = editor.textDragFrame {
             frame(min(drag.start.x, drag.end.x), min(drag.start.y, drag.end.y), max(drag.start.x, drag.end.x), max(drag.start.y, drag.end.y))
@@ -253,6 +255,13 @@ final class CanvasView: NSView {
         }
         for guide in editor.pendingShapeGuides {
             lines.append((guide.0, guide.1, SIMD4(0.2, 0.45, 0.95, 0.9)))
+        }
+        if showsEraserOutline, let hoverPoint {
+            // Black on the eraser's edge and white just inside it, so it shows on any colors.
+            let square = EraserStroke.footprint(at: hoverPoint, size: editor.eraserSize)
+            let inset = 1.5 / editor.viewport.zoom
+            frame(Double(square.minX), Double(square.minY), Double(square.maxX), Double(square.maxY), color: SIMD4(0, 0, 0, 1))
+            frame(Double(square.minX) + inset, Double(square.minY) + inset, Double(square.maxX) - inset, Double(square.maxY) - inset, color: SIMD4(1, 1, 1, 1))
         }
         if let measurement = editor.measurement {
             let center = { (p: IntPoint) in Point2D(x: Double(p.x) + 0.5, y: Double(p.y) + 0.5) }
@@ -371,6 +380,8 @@ final class CanvasView: NSView {
         let point = imagePoint(event)
         let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         editor.pointer = editor.canvas.bounds.contains(pixel) ? pixel : nil
+        hoverPoint = point
+        if editor.tool == .eraser { setNeedsRender() }
         if drag == nil { currentCursor(at: point).set() }
     }
 
@@ -390,6 +401,15 @@ final class CanvasView: NSView {
         return NSCursor(image: image, hotSpot: NSPoint(x: size.width / 2, y: size.height / 2))
     }()
 
+    /// Stands in for the pointer while the eraser's square outline shows where it is.
+    private static let hiddenCursor = NSCursor(image: NSImage(size: NSSize(width: 1, height: 1)), hotSpot: .zero)
+
+    /// The eraser outline is drawn only when it's big enough on screen to aim with; otherwise the crosshair stays.
+    private var showsEraserOutline: Bool {
+        editor.tool == .eraser && !spaceHeld && editor.comparison == nil
+            && Double(editor.eraserSize) * editor.viewport.zoom >= 6
+    }
+
     private func currentCursor(at point: Point2D?) -> NSCursor {
         if spaceHeld { return .openHand }
         if let point {
@@ -406,6 +426,7 @@ final class CanvasView: NSView {
         }
         if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
         if editor.tool == .text { return .iBeam }
+        if showsEraserOutline { return Self.hiddenCursor }
         return .crosshair
     }
 
@@ -546,7 +567,11 @@ final class CanvasView: NSView {
     override func rightMouseUp(with event: NSEvent) { endDrag(event) }
 
     override func mouseMoved(with event: NSEvent) { updatePointer(event) }
-    override func mouseExited(with event: NSEvent) { editor.pointer = nil }
+    override func mouseExited(with event: NSEvent) {
+        editor.pointer = nil
+        hoverPoint = nil
+        setNeedsRender()
+    }
 
     override func cursorUpdate(with event: NSEvent) {
         currentCursor(at: imagePoint(event)).set()
@@ -573,6 +598,15 @@ final class CanvasView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
+        handleKey(event)
+        // Tool and size keys change the pointer and the eraser outline without the mouse moving.
+        if drag == nil, let hoverPoint {
+            currentCursor(at: hoverPoint).set()
+            setNeedsRender()
+        }
+    }
+
+    private func handleKey(_ event: NSEvent) {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
         let plain = modifiers.isEmpty
         let step = modifiers == .shift ? 10 : 1
@@ -648,7 +682,8 @@ final class CanvasView: NSView {
     override func keyUp(with event: NSEvent) {
         if event.charactersIgnoringModifiers == " " {
             spaceHeld = false
-            if drag == nil { NSCursor.crosshair.set() }
+            if drag == nil { currentCursor(at: hoverPoint).set() }
+            setNeedsRender()
         } else {
             super.keyUp(with: event)
         }

@@ -129,3 +129,19 @@ struct ToolStrokeTests {
         #expect(canvas.activeLayer.buffer[1999, 1999] == red)
     }
 }
+
+struct EraserFootprintTests {
+    @Test func coversTheSquareTheEraserClears() {
+        #expect(EraserStroke.footprint(at: Point2D(x: 10.7, y: 20.2), size: 8) == IntRect(x: 6, y: 16, width: 8, height: 8))
+        #expect(EraserStroke.footprint(at: Point2D(x: 3, y: 3), size: 5) == IntRect(x: 1, y: 1, width: 5, height: 5))
+    }
+
+    @Test func matchesThePixelsAStrokeErases() {
+        let canvas = Canvas(size: IntSize(width: 20, height: 20), colorSpace: Canvas.defaultColorSpace, background: .black)
+        let history = History(byteBudget: .max)
+        let edit = history.beginEdit("Erase", on: canvas)
+        let stroke = EraserStroke(size: 5, effect: .replace(.white), layer: canvas.activeLayer, edit: edit)
+        let point = Point2D(x: 9.6, y: 4.1)
+        #expect(stroke.move(to: point) == EraserStroke.footprint(at: point, size: 5))
+    }
+}

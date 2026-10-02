@@ -249,7 +249,10 @@ final class Editor {
         didSet { renderSoon() }
     }
     var brushDiameter: Double = 5
-    var eraserSize = 8
+    /// The eraser's square outline follows the pointer, so it redraws when the size changes.
+    var eraserSize = 8 {
+        didSet { renderSoon() }
+    }
     /// Fill bucket tolerance, 0...1.
     var fillTolerance = 0.0
     /// Magic Wand tolerance, 0...1.

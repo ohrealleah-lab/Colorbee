@@ -258,10 +258,15 @@ final class CanvasView: NSView {
         }
         if showsEraserOutline, let hoverPoint {
             // Black on the eraser's edge and white just inside it, so it shows on any colors.
+            // Zoomed out, a small eraser is drawn at least 8 points wide so it can still be seen.
             let square = EraserStroke.footprint(at: hoverPoint, size: editor.eraserSize)
-            let inset = 1.5 / editor.viewport.zoom
-            frame(Double(square.minX), Double(square.minY), Double(square.maxX), Double(square.maxY), color: SIMD4(0, 0, 0, 1))
-            frame(Double(square.minX) + inset, Double(square.minY) + inset, Double(square.maxX) - inset, Double(square.maxY) - inset, color: SIMD4(1, 1, 1, 1))
+            let zoom = editor.viewport.zoom
+            let grow = max(0, 8 / zoom - Double(square.width)) / 2
+            let minX = Double(square.minX) - grow, minY = Double(square.minY) - grow
+            let maxX = Double(square.maxX) + grow, maxY = Double(square.maxY) + grow
+            let inset = 1.5 / zoom
+            frame(minX, minY, maxX, maxY, color: SIMD4(0, 0, 0, 1))
+            frame(minX + inset, minY + inset, maxX - inset, maxY - inset, color: SIMD4(1, 1, 1, 1))
         }
         if let measurement = editor.measurement {
             let center = { (p: IntPoint) in Point2D(x: Double(p.x) + 0.5, y: Double(p.y) + 0.5) }
@@ -404,10 +409,8 @@ final class CanvasView: NSView {
     /// Stands in for the pointer while the eraser's square outline shows where it is.
     private static let hiddenCursor = NSCursor(image: NSImage(size: NSSize(width: 1, height: 1)), hotSpot: .zero)
 
-    /// The eraser outline is drawn only when it's big enough on screen to aim with; otherwise the crosshair stays.
     private var showsEraserOutline: Bool {
         editor.tool == .eraser && !spaceHeld && editor.comparison == nil
-            && Double(editor.eraserSize) * editor.viewport.zoom >= 6
     }
 
     private func currentCursor(at point: Point2D?) -> NSCursor {

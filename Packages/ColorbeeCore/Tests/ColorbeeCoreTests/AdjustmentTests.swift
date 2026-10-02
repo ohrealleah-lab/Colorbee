@@ -80,6 +80,15 @@ struct OrientationTests {
         #expect(result[expected.0, expected.1] == red)
     }
 
+    /// Leah's hand test: flipping both ways is a half turn, but a single vertical flip is not.
+    @Test func bothFlipsEqualAHalfTurn() {
+        let buffer = PixelBuffer(width: 4, height: 3)
+        for y in 0..<3 { for x in 0..<4 { buffer[x, y] = Pixel(r: UInt8(x * 60), g: UInt8(y * 80), b: 7) } }
+        let bothFlips = buffer.transformed(.flipVertical).transformed(.flipHorizontal)
+        #expect(bothFlips.contentHash() == buffer.transformed(.rotate180).contentHash())
+        #expect(buffer.transformed(.flipVertical).contentHash() != buffer.transformed(.rotate180).contentHash())
+    }
+
     @Test func flippingASelectionStaysInPlace() {
         let (canvas, history) = makeCanvas()
         let context = SelectionContext(color2: .white)

@@ -115,7 +115,7 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 
 ## Not yet checked by hand
 
-Leah tested everything through stage 5a by hand on 2026-10-01. Still to try (2026-10-02): Shift-drag with the Pencil stays on one line when wiggled back and forth; the Eraser shows a square outline of its size.
+Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. Nothing outstanding.
 
 ## Practical notes for the next session
 

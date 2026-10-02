@@ -367,7 +367,7 @@ final class Editor {
         let edit: Edit
         /// One stroke per mirror image when Symmetry is on.
         let strokes: [Stroke]
-        let start: Point2D
+        var axisLock: AxisLock
     }
 
     private enum SelectionDrag {
@@ -488,7 +488,7 @@ final class Editor {
         }
         let edit = history.beginEdit(name, on: canvas)
         let strokes = mirrors.map { _ in makeStroke(edit) }
-        activeStroke = ActiveStroke(edit: edit, strokes: strokes, start: point)
+        activeStroke = ActiveStroke(edit: edit, strokes: strokes, axisLock: AxisLock(start: point))
         moveStrokes(strokes, to: point)
     }
 
@@ -513,16 +513,13 @@ final class Editor {
         if changed { onRender() }
     }
 
-    /// With `constrain`, the pencil only draws horizontally or vertically from where it started.
+    /// With `constrain`, the pencil stays on one horizontal or vertical line from where it started (`AxisLock`).
     func continueStroke(to point: Point2D, constrain: Bool) {
-        guard let active = activeStroke else { return }
+        guard var active = activeStroke else { return }
         var target = point
         if constrain, tool == .pencil {
-            if abs(point.x - active.start.x) >= abs(point.y - active.start.y) {
-                target.y = active.start.y
-            } else {
-                target.x = active.start.x
-            }
+            target = active.axisLock.constrain(point)
+            activeStroke = active
         }
         moveStrokes(active.strokes, to: target)
     }

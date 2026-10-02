@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-01 · 44 commits · 161 core tests passing_
+_Last updated: 2026-10-02 · 45 commits · 164 core tests passing_
 
 ---
 
@@ -104,7 +104,7 @@ _Last updated: 2026-10-01 · 44 commits · 161 core tests passing_
 
 ## Not yet checked by hand
 
-Nothing outstanding. Leah tested everything through stage 5a by hand on 2026-10-01: practice images, crop, resize handles, Auto-Redact apply and undo, Before/After, Export As sizes, the text box, and the swap-colors crash fix.
+Leah tested everything through stage 5a by hand on 2026-10-01. Still to try: Shift-drag with the Pencil stays on one line when wiggled back and forth (fixed 2026-10-02).
 
 ## Practical notes for the next session
 

@@ -440,7 +440,7 @@ final class Editor {
         commitPendingShape()
         commitPendingText()
         endStroke()
-        if selectionDrag != nil { endSelectionDrag(at: nil) }
+        cancelOrEndSelectionDrag()
         if activeEffect != nil { cancelEffect() }
     }
 
@@ -1074,6 +1074,21 @@ final class Editor {
             if let edit { recordingChanges { history.commit(edit) } }
         }
         selectionDidChange()
+    }
+
+    /// Interrupted mid-drag (say, by a tool key): a marquee or lasso still being drawn is dropped and the
+    /// earlier selection stays, while a move or resize keeps what's already been done.
+    private func cancelOrEndSelectionDrag() {
+        switch selectionDrag {
+        case .marquee, .lasso:
+            selectionDrag = nil
+            marqueePreview = nil
+            selectionDidChange()
+        case .move, .resize:
+            endSelectionDrag(at: nil)
+        case nil:
+            break
+        }
     }
 
     private func commitSelectionPreview(deselecting: Bool) {

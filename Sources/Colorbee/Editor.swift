@@ -1350,7 +1350,11 @@ final class Editor {
     }
 
     func zoomToActualSize() {
-        updateViewport { $0.setZoom(1, anchor: viewCenter) }
+        zoom(to: 1)
+    }
+
+    func zoom(to scale: Double) {
+        updateViewport { $0.setZoom(scale, anchor: viewCenter) }
     }
 
     func zoomToFit() {

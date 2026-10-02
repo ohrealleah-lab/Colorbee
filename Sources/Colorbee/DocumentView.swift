@@ -348,10 +348,7 @@ private struct StatusBar: View {
                 .controlSize(.small)
                 .disabled(editor.viewport.zoom < Renderer.pixelGridMinimumZoom)
                 .help("Pixel grid (⌘') — shown at 400% and above")
-            Text("\(Int((editor.viewport.zoom * 100).rounded()))%")
-                .frame(width: 60, alignment: .trailing)
-            Button("100%") { editor.zoomToActualSize() }
-                .controlSize(.small)
+            ZoomControl(editor: editor)
         }
         .font(.callout)
         .monospacedDigit()
@@ -487,5 +484,36 @@ private struct CompareBar: View {
 
     private var layout: Binding<Comparison.Layout> {
         Binding(get: { editor.comparison?.layout ?? .split }, set: { editor.comparison?.layout = $0 })
+    }
+}
+
+/// − and + step through the zoom levels; the percentage opens a list of common ones.
+private struct ZoomControl: View {
+    let editor: Editor
+
+    private static let presets = [0.25, 0.5, 0.75, 1.0]
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button("Zoom Out", systemImage: "minus") { editor.zoomOut() }
+                .labelStyle(.iconOnly)
+                .disabled(editor.viewport.zoom <= Viewport.minZoom)
+                .help("Zoom out (⌘-)")
+            Menu("\(Int((editor.viewport.zoom * 100).rounded()))%") {
+                ForEach(Self.presets, id: \.self) { scale in
+                    Button("\(Int(scale * 100))%") { editor.zoom(to: scale) }
+                }
+            }
+            .menuStyle(.button)
+            .menuIndicator(.visible)
+            .frame(width: 70)
+            .help("Choose a zoom level")
+            Button("Zoom In", systemImage: "plus") { editor.zoomIn() }
+                .labelStyle(.iconOnly)
+                .disabled(editor.viewport.zoom >= Viewport.maxZoom)
+                .help("Zoom in (⌘=)")
+        }
+        .buttonStyle(.borderless)
+        .controlSize(.small)
     }
 }

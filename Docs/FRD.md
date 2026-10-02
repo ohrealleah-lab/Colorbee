@@ -103,7 +103,7 @@ One collapsible sidebar holds these panels. Each panel can be shown or hidden on
 - Canvas size as `W × H px`.
 - **Pixel Grid switch:** turns the grid on or off. Available at 400% zoom and above; dimmed below that.
 - **Symmetry switch:** shows the current mode (Off, Vertical, Horizontal, Both). Click it to choose a mode.
-- Zoom slider, percentage, and a reset-to-100% button.
+- Zoom slider, plus − and + buttons around the percentage; clicking the percentage lists 25%, 50%, 75% and 100%.
 
 ---
 
@@ -593,6 +593,7 @@ None right now.
 | 2026-09-30 | Withdrew Cmd+Opt+H for the History panel: it's the system Hide Others shortcut. Replaced with Cmd+Y. |
 | 2026-09-30 | The repo stays local only; no remote for now. |
 | 2026-09-30 | Added drag-to-resize for selections and pasted images. **Exception to macOS conventions:** free stretch by default, Shift keeps proportions (Windows Paint behavior). |
+| 2026-10-02 | Status-bar zoom (Leah): − and + around the percentage step through the same zoom levels as ⌘- and ⌘=; clicking the percentage lists 25%, 50%, 75% and 100% (this replaces the separate 100% button). |
 | 2026-10-02 | Eraser sizes widened (Leah): every 2px from 2 to 20px, plus 30 and 40px (was 4, 6, 8, 10). |
 | 2026-10-02 | Eraser pointer (veto any): over the canvas the eraser shows as a square outline of exactly the pixels it will erase, black on the edge and white just inside so it shows on any colors, and the normal pointer is hidden. Zoomed out, a small eraser's square is drawn at least 8 points wide so it stays visible (changed 2026-10-02: showing the crosshair below 6 points meant the default eraser never showed a square at fit-to-window zoom). |
 | 2026-10-02 | Shift with the Pencil (veto any): the first clear movement (one pixel) picks horizontal or vertical, and that axis stays locked until the mouse is released, as in MS Paint. Moving back and forth slides along the same line instead of starting new ones. |

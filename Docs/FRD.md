@@ -1,9 +1,9 @@
 # Colorbee — Functional Requirements Document
 
-**Version:** 2.1.0 · **Date:** 2026-09-30 · **Owner:** Leah (PM)  
+**Version:** 2.2.0 · **Date:** 2026-10-02 · **Owner:** Leah (PM)  
 **Platform:** macOS 26 or later, Apple Silicon  
 **Audience:** Personal tool, with one user (Leah). No App Store, no public distribution.  
-**Scope:** Everything in this document ships. The build order in §17 is a sequence, not a list of cuts.
+**Scope:** Everything in this document ships. The build order in §20 is a sequence, not a list of cuts.
 
 This document is the single source of truth for *what* Colorbee does. Engineering rules for *how* it's built live in [`CLAUDE.md`](../CLAUDE.md). The original v1 spec is kept at [`reference/paint_osx_prd_frd_v1.md`](reference/paint_osx_prd_frd_v1.md).
 
@@ -33,6 +33,8 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 | **Pixel art and icons** | 1px pencil, nearest-neighbor zoom up to 3200%, pixel grid, color eraser, symmetry, custom palettes |
 | **Casual drawing and memes** | Brushes, fill bucket, airbrush, shapes, Shift-drag smear |
 | **Light compositing** | Magic wand cutout, alpha, gradients, layers, blend modes, adjustment layers |
+| **Minor photo editing** | Levels and Curves, white balance, vibrance, crop, vignette, quick fixes for dark or washed-out photos |
+| **Polished screenshots** | Drop shadow, border, spotlight on one area |
 
 ---
 
@@ -334,6 +336,29 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - Each region is redacted on its own. Blur doesn't bleed between regions.
 - One undo step.
 
+### FR-9.5 Photo editing and presentation (stage 9)
+Minor photo editing: quick fixes, not a replacement for a full photo editor. Like the rest of FR-9, each one applies to the selection if there is one, otherwise to the active layer, shows a live preview in the docked settings bar, and is one undo step.
+
+**Adjustments menu**
+- **Levels:** black point, white point and midtones (gamma), with a histogram. An **Auto** button sets the black and white points from the image.
+- **Auto Contrast:** one step, no settings. Stretches the darkest and lightest pixels to full black and white.
+- **Curves:** a tone curve with draggable points, for the combined RGB and for each channel.
+- **White Balance:** Temperature (cooler to warmer) and Tint (green to magenta) sliders.
+- **Vibrance:** boosts muted colors more than already-vivid ones, so skin tones don't go orange.
+- **Sepia:** a warm brown-tone version of the image, with an amount slider.
+- **Posterize:** reduces each channel to 2–32 levels.
+
+**Effects menu**
+- **Add Noise:** amount, and monochrome or color noise.
+- **Motion Blur:** angle and distance.
+- **Emboss:** angle and depth; the image becomes a gray relief.
+- **Vignette:** darkens (or lightens) toward the edges, with amount and size.
+- **Drop Shadow:** a soft shadow behind the image or the selected object, with offset, blur, color and opacity. The canvas grows to fit it.
+- **Border:** a solid outline around the image, with width and color (Color 1 by default). The canvas grows to fit it.
+- **Spotlight:** keeps the selection as it is and dims, blurs or desaturates everything else. Needs a selection.
+
+Open questions for these are in §22 and get answered before stage 9 starts.
+
 ---
 
 ## 13. FR-10 — Clipboard
@@ -523,6 +548,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 6. **Layers:** layers panel, blend modes, opacity, adjustment layers, per-layer undo, .colorproj.
 7. **Integration:** Clipboard History, History panel, palettes, text styles, shortcut editor, Finder, screenshot capture, share, print, desktop picture.
 8. **Hardening:** performance, 8000×8000 soak tests, polish.
+9. **Photo editing and presentation (later phase):** the FR-9.5 adjustments and effects, with their own performance and soak checks.
 
 ---
 
@@ -562,12 +588,18 @@ Everything ships. This is only the order work happens in, and each stage builds 
 - [ ] AC-28 The shortcut editor changes a command's shortcut, and the menus update immediately.
 - [ ] AC-29 The shortcut editor blocks every macOS-owned shortcut (including ones customized in System Settings) and names the owner.
 - [ ] AC-30 Assigning a shortcut already used in Colorbee offers Reassign or Cancel. Reset All brings back the defaults.
+- [ ] AC-31 Auto Contrast (and Levels → Auto) makes the darkest pixel black and the lightest white, per the image, in one undo step.
+- [ ] AC-32 Every FR-9.5 adjustment and effect previews live, applies only inside a selection when there is one, and undoes exactly.
+- [ ] AC-33 Drop Shadow and Border grow the canvas to fit, and undo restores the original size.
 
 ---
 
 ## 22. Open questions (for Leah)
 
-None right now.
+To settle before stage 9 (FR-9.5):
+1. Should the new photo adjustments (Levels, Curves, White Balance, Vibrance and so on) also come as adjustment layers, like the six in FR-8.4?
+2. Drop Shadow and Border on a transparent image or selection: do they follow the shape of the opaque pixels, or the rectangle?
+3. Is a **Straighten** tool (rotate by any angle to level a horizon) wanted alongside the 90° rotations?
 
 ---
 
@@ -575,6 +607,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-02 | Scope widened to minor photo editing (Leah). New FR-9.5 for a later stage 9: Levels, Auto Contrast, Curves, White Balance, Vibrance, Sepia, Posterize, Add Noise, Motion Blur, Emboss, Vignette, plus Drop Shadow, Border and Spotlight for polished screenshots. Menu placement and the settings listed are Claude's proposal (veto any); open questions are in §22. |
 | 2026-09-30 | Minimum macOS 26. Personal use only, no distribution. |
 | 2026-09-30 | Full feature scope. Build time is not a constraint. |
 | 2026-09-30 | Resize/Skew = Cmd+E. Canvas Properties = Cmd+Opt+E. History panel = Cmd+Opt+H (Cmd+H stays the system Hide shortcut). |

@@ -34,6 +34,7 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 | 6. Layers | Planned | **Opus · high** |
 | 7. Integration | Planned | Mostly medium; shortcut editor high |
 | 8. Hardening | Planned | Medium |
+| 9. Photo editing (later phase) | Planned | Mostly medium; Curves high. Answer the FRD §22 questions first |
 
 ## What's built
 
@@ -101,6 +102,11 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 
 **8 Hardening**
 - 8000×8000 soak tests (AC-27), performance baselines, polish, accessibility labels.
+
+**9 Photo editing and presentation (later phase, FR-9.5)**
+- Adjustments: Levels (with Auto), Auto Contrast, Curves, White Balance, Vibrance, Sepia, Posterize.
+- Effects: Add Noise, Motion Blur, Emboss, Vignette, Drop Shadow, Border, Spotlight.
+- Three open questions in FRD §22 to settle with Leah first.
 
 ## Not yet checked by hand
 

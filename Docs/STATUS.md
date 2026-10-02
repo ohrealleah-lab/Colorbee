@@ -34,7 +34,7 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 | 6. Layers | Planned | **Opus · high** |
 | 7. Integration | Planned | Mostly medium; shortcut editor high |
 | 8. Hardening | Planned | Medium |
-| 9. Photo editing (later phase) | Planned | Mostly medium; Curves high. Answer the FRD §22 questions first |
+| 9. Photo editing (later phase) | Planned | Mostly medium; Curves and Straighten high |
 
 ## What's built
 
@@ -105,8 +105,9 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 
 **9 Photo editing and presentation (later phase, FR-9.5)**
 - Adjustments: Levels (with Auto), Auto Contrast, Curves, White Balance, Vibrance, Sepia, Posterize.
-- Effects: Add Noise, Motion Blur, Emboss, Vignette, Drop Shadow, Border, Spotlight.
-- Three open questions in FRD §22 to settle with Leah first.
+- Effects: Add Noise, Motion Blur, Emboss, Vignette, Drop Shadow, Border, Spotlight (shadow and border follow the object's shape).
+- Image ▸ Straighten… (any angle, or draw along the horizon; Crop to Fit).
+- The photo adjustments also come as adjustment layers.
 
 ## Not yet checked by hand
 

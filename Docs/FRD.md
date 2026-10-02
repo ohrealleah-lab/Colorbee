@@ -298,6 +298,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 
 ### FR-8.4 Adjustment layers (non-destructive)
 - Types: Brightness/Contrast, Hue/Saturation/Lightness, Desaturate, Invert, Gaussian Blur, Sharpen.
+- Stage 9 adds Levels, Curves, White Balance, Vibrance, Sepia and Posterize (FR-9.5). Auto Contrast as an adjustment layer is a Levels layer with its points set automatically.
 - An adjustment layer changes how the layers below it look, without changing their pixels.
 - Its settings stay editable in the Adjustments panel. It can be hidden, reordered, deleted, or have its opacity changed like any layer.
 - **Apply Adjustment** turns it into pixels on the layer below.
@@ -347,6 +348,7 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - **Vibrance:** boosts muted colors more than already-vivid ones, so skin tones don't go orange.
 - **Sepia:** a warm brown-tone version of the image, with an amount slider.
 - **Posterize:** reduces each channel to 2–32 levels.
+- Each of these also comes as an adjustment layer (FR-8.4), from "as Adjustment Layer" versions of the menu items.
 
 **Effects menu**
 - **Add Noise:** amount, and monochrome or color noise.
@@ -354,10 +356,16 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - **Emboss:** angle and depth; the image becomes a gray relief.
 - **Vignette:** darkens (or lightens) toward the edges, with amount and size.
 - **Drop Shadow:** a soft shadow behind the image or the selected object, with offset, blur, color and opacity. The canvas grows to fit it.
-- **Border:** a solid outline around the image, with width and color (Color 1 by default). The canvas grows to fit it.
+- **Border:** a solid outline around the image or the selected object, with width and color (Color 1 by default). The canvas grows to fit it.
+- Drop Shadow and Border **follow the object's shape**: the outline of its opaque pixels (partly transparent edges cast a lighter shadow), or the selection's outline when there is one. An ordinary opaque screenshot is a rectangle, so it gets a rectangular shadow and border.
 - **Spotlight:** keeps the selection as it is and dims, blurs or desaturates everything else. Needs a selection.
 
-Open questions for these are in §22 and get answered before stage 9 starts.
+**Image menu**
+- **Straighten…** (Image menu, next to Rotate): rotates the image by any angle to level a tilted horizon or a crooked scan.
+  - An angle slider from −45° to +45° in 0.1° steps, with a live preview and a grid laid over the canvas to line things up against.
+  - Or draw a line along something that should be level (or upright), and Colorbee works out the angle.
+  - **Crop to fit** (on by default) trims the corners that rotating leaves empty. With it off, the canvas grows and the corners are filled with Color 2, or left transparent on a transparent image.
+  - Smooth resampling. Applies to the whole image (every layer) as one undo step.
 
 ---
 
@@ -590,16 +598,14 @@ Everything ships. This is only the order work happens in, and each stage builds 
 - [ ] AC-30 Assigning a shortcut already used in Colorbee offers Reassign or Cancel. Reset All brings back the defaults.
 - [ ] AC-31 Auto Contrast (and Levels → Auto) makes the darkest pixel black and the lightest white, per the image, in one undo step.
 - [ ] AC-32 Every FR-9.5 adjustment and effect previews live, applies only inside a selection when there is one, and undoes exactly.
-- [ ] AC-33 Drop Shadow and Border grow the canvas to fit, and undo restores the original size.
+- [ ] AC-33 Drop Shadow and Border grow the canvas to fit, follow a cutout's shape, and undo restores the original size.
+- [ ] AC-34 Straighten levels a line drawn along a tilted horizon. With Crop to Fit on, no empty corners remain.
 
 ---
 
 ## 22. Open questions (for Leah)
 
-To settle before stage 9 (FR-9.5):
-1. Should the new photo adjustments (Levels, Curves, White Balance, Vibrance and so on) also come as adjustment layers, like the six in FR-8.4?
-2. Drop Shadow and Border on a transparent image or selection: do they follow the shape of the opaque pixels, or the rectangle?
-3. Is a **Straighten** tool (rotate by any angle to level a horizon) wanted alongside the 90° rotations?
+None right now.
 
 ---
 
@@ -607,6 +613,7 @@ To settle before stage 9 (FR-9.5):
 
 | Date | Decision |
 |---|---|
+| 2026-10-02 | Stage 9 answers (Leah): the photo adjustments also come as adjustment layers; Drop Shadow and Border follow the object's shape (opaque pixels, or the selection's outline); add Straighten. Straighten details are Claude's proposal (veto any): ±45° in 0.1° steps with a grid, or draw a line along the horizon; Crop to Fit on by default; whole image only. |
 | 2026-10-02 | Scope widened to minor photo editing (Leah). New FR-9.5 for a later stage 9: Levels, Auto Contrast, Curves, White Balance, Vibrance, Sepia, Posterize, Add Noise, Motion Blur, Emboss, Vignette, plus Drop Shadow, Border and Spotlight for polished screenshots. Menu placement and the settings listed are Claude's proposal (veto any); open questions are in §22. |
 | 2026-09-30 | Minimum macOS 26. Personal use only, no distribution. |
 | 2026-09-30 | Full feature scope. Build time is not a constraint. |

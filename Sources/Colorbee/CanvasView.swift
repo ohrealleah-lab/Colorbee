@@ -445,7 +445,8 @@ final class CanvasView: NSView {
             moveDivider(event)
             return
         }
-        if spaceHeld {
+        // While an effect's bar is open the canvas is view-only, so any drag pans.
+        if spaceHeld || editor.activeEffect != nil {
             drag = .pan(last: convert(event.locationInWindow, from: nil))
             NSCursor.closedHand.set()
             return
@@ -612,6 +613,15 @@ final class CanvasView: NSView {
     private func handleKey(_ event: NSEvent) {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
         let plain = modifiers.isEmpty
+        if editor.activeEffect != nil {
+            switch (event.specialKey, event.charactersIgnoringModifiers) {
+            case (.carriageReturn?, _), (.enter?, _): editor.applyEffect()
+            case (_, "\u{1b}"?): editor.cancelEffect()
+            case (_, " "?): spaceHeld = true
+            default: super.keyDown(with: event)
+            }
+            return
+        }
         let step = modifiers == .shift ? 10 : 1
 
         let resizeStep = modifiers == [.command, .shift] ? 10 : 1

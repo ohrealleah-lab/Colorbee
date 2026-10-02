@@ -1505,13 +1505,24 @@ final class Editor {
     /// The image as it looks, including any floating selection, encoded in `format`.
     /// Formats without transparency are flattened over Color 2.
     func encoded(as format: ImageFileFormat, quality: Double = 0.9) throws -> Data {
-        try ImageCodec.encode(
-            canvas.flattened(transparentKey: selectionContext.transparentKey),
-            colorSpace: canvas.colorSpace,
-            as: format,
-            quality: quality,
-            matte: color2
-        )
+        try withoutEffectPreview {
+            try ImageCodec.encode(
+                canvas.flattened(transparentKey: selectionContext.transparentKey),
+                colorSpace: canvas.colorSpace,
+                as: format,
+                quality: quality,
+                matte: color2
+            )
+        }
+    }
+
+    /// An effect's live preview is drawn into the layer before it's applied; an autosave in the
+    /// meantime must write the image without it, in case the effect is cancelled.
+    private func withoutEffectPreview<T>(_ body: () throws -> T) rethrows -> T {
+        guard let edit = effectEdit else { return try body() }
+        edit.restoreOriginals()
+        defer { renderEffectPreview() }
+        return try body()
     }
 
     /// A PNG scaled by an export preset, using the sharpness that suits the image's size.

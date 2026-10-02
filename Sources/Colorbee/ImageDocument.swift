@@ -57,6 +57,12 @@ final class ImageDocument: NSDocument {
         }
     }
 
+    /// Saving and exporting wait until an open effect is applied or cancelled.
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if editor?.activeEffect != nil { return false }
+        return super.validateUserInterfaceItem(item)
+    }
+
     override func data(ofType typeName: String) throws -> Data {
         guard let editor, let format = UTType(typeName).flatMap(ImageFileFormat.init(type:)) else {
             throw CocoaError(.fileWriteUnknown)

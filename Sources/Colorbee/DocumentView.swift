@@ -9,7 +9,13 @@ struct DocumentView: View {
     var body: some View {
         VStack(spacing: 0) {
             ToolStrip(editor: editor)
+                .disabled(editor.activeEffect != nil)
             Divider()
+            // Docked rather than a sheet, so the image stays fully visible while the preview updates.
+            if let kind = editor.activeEffect {
+                EffectBar(editor: editor, kind: kind)
+                Divider()
+            }
             if editor.comparison != nil {
                 CompareBar(editor: editor)
                 Divider()
@@ -21,9 +27,6 @@ struct DocumentView: View {
             Divider()
             StatusBar(editor: editor)
         }
-        .sheet(item: effectBinding) { kind in
-            EffectSheet(editor: editor, kind: kind)
-        }
     }
 }
 
@@ -31,14 +34,6 @@ extension DocumentView {
     fileprivate var autoRedactBinding: Binding<Bool> {
         Binding(get: { editor.autoRedact != nil }, set: { if !$0, editor.autoRedact != nil { editor.cancelAutoRedact() } })
     }
-
-    fileprivate var effectBinding: Binding<EffectKind?> {
-        Binding(get: { editor.activeEffect }, set: { if $0 == nil, editor.activeEffect != nil { editor.cancelEffect() } })
-    }
-}
-
-extension EffectKind: Identifiable {
-    var id: Self { self }
 }
 
 private struct CanvasHost: NSViewRepresentable {
@@ -272,37 +267,35 @@ private extension Tool {
 }
 
 /// The dialog for an effect, with a live preview on the canvas.
-private struct EffectSheet: View {
+private struct EffectBar: View {
     @Bindable var editor: Editor
     let kind: EffectKind
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        HStack(spacing: 14) {
             Text(kind.title).font(.headline)
-            Grid(alignment: .leading, verticalSpacing: 10) {
-                ForEach(Array(kind.parameters.enumerated()), id: \.offset) { index, parameter in
-                    GridRow {
-                        Text(parameter.label)
-                        Slider(value: value(at: index), in: parameter.range, step: 1)
-                            .frame(width: 240)
-                        Text("\(Int(editor.effectValues[safe: index] ?? 0))\(parameter.unit)")
-                            .monospacedDigit()
-                            .frame(width: 50, alignment: .trailing)
-                    }
+            ForEach(Array(kind.parameters.enumerated()), id: \.offset) { index, parameter in
+                HStack(spacing: 6) {
+                    Text(parameter.label)
+                    Slider(value: value(at: index), in: parameter.range, step: 1)
+                        .frame(minWidth: 90, maxWidth: 180)
+                    Text("\(Int(editor.effectValues[safe: index] ?? 0))\(parameter.unit)")
+                        .monospacedDigit()
+                        .frame(width: 44, alignment: .trailing)
                 }
             }
-            Text(editor.hasSelection ? "Applies to the selection." : "Applies to the whole layer.")
-                .font(.callout)
+            Spacer(minLength: 0)
+            Text(editor.hasSelection ? "Applies to the selection" : "Applies to the whole layer")
                 .foregroundStyle(.secondary)
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) { editor.cancelEffect() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Apply") { editor.applyEffect() }
-                    .keyboardShortcut(.defaultAction)
-            }
+                .fixedSize()
+            Button("Cancel", role: .cancel) { editor.cancelEffect() }
+                .keyboardShortcut(.cancelAction)
+            Button("Apply") { editor.applyEffect() }
+                .keyboardShortcut(.defaultAction)
         }
-        .padding(20)
+        .controlSize(.small)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
         .onChange(of: editor.effectValues) { editor.previewEffect() }
     }
 

@@ -118,6 +118,11 @@ final class DocumentWindow: NSWindow {
 
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let editor else { return super.validateMenuItem(menuItem) }
+        // While an effect's bar is open, only viewing commands work; Apply or Cancel comes first.
+        if editor.activeEffect != nil {
+            return [#selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)),
+                    #selector(zoomToFit(_:)), #selector(togglePixelGrid(_:))].contains(menuItem.action)
+        }
         switch menuItem.action {
         case #selector(undo(_:)) where textUndoManager != nil:
             menuItem.title = textUndoManager!.undoMenuItemTitle

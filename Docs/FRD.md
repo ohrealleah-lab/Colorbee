@@ -94,7 +94,7 @@ One collapsible sidebar holds these panels. Each panel can be shown or hidden on
 - Centered on a neutral gray surround that adapts to Light/Dark mode.
 - Three resize handles: right edge, bottom edge, bottom-right corner. New area is filled with Color 2, or left transparent if the canvas has a transparent background.
 - **Pan:** two-finger trackpad scroll, or hold Space and drag.
-- **Zoom:** 12.5% to 3200%, centered on the pointer. Use pinch, Cmd+= / Cmd+-, Cmd+0 for 100%, or the status-bar slider.
+- **Zoom:** 12.5% to 3200%, centered on the pointer. Use pinch, ⌘-scroll, Cmd+= / Cmd+-, Cmd+0 for 100%, or the status-bar slider.
 - **Rulers:** optional, in pixels (Cmd+R).
 - **Pixel grid:** optional at 400% zoom and above (Cmd+'), drawn in a color that contrasts with the pixels underneath.
 
@@ -613,6 +613,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-02 | Mid-stroke changes (Leah): a stroke keeps the color and size it started with; changes apply to the next stroke, and the eraser outline shows the size in use until release. Selections stay outlined after switching to a drawing tool (unchanged). ⌘-scroll zooms around the pointer. |
 | 2026-10-02 | Interrupting a selection drag (Leah): switching tools (or any other command) while a marquee or lasso is still being drawn cancels it, and any selection from before the drag stays. A move or resize already under way keeps what's been done. |
 | 2026-10-02 | The mockup interface moves up from stage 7 to a new stage 5c, right after 5b (Leah): toolbar, palette bar and status bar. The sidebar comes with Layers in stage 6, since none of its panels exist before then. |
 | 2026-10-02 | Stage 9 answers (Leah): the photo adjustments also come as adjustment layers; Drop Shadow and Border follow the object's shape (opaque pixels, or the selection's outline); add Straighten. Straighten details are Claude's proposal (veto any): ±45° in 0.1° steps with a grid, or draw a line along the horizon; Crop to Fit on by default; whole image only. |

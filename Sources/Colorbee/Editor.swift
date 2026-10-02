@@ -527,6 +527,11 @@ final class Editor {
         moveStrokes(active.strokes, to: target)
     }
 
+    /// The size of the eraser stroke under way. Size changes apply from the next stroke, so the outline shows this one.
+    var strokeEraserSize: Int? {
+        (activeStroke?.strokes.first as? EraserStroke)?.size
+    }
+
     func endStroke() {
         guard let edit = activeStroke?.edit else { return }
         activeStroke = nil

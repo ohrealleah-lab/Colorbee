@@ -259,7 +259,7 @@ final class CanvasView: NSView {
         if showsEraserOutline, let hoverPoint {
             // Black on the eraser's edge and white just inside it, so it shows on any colors.
             // Zoomed out, a small eraser is drawn at least 8 points wide so it can still be seen.
-            let square = EraserStroke.footprint(at: hoverPoint, size: editor.eraserSize)
+            let square = EraserStroke.footprint(at: hoverPoint, size: editor.strokeEraserSize ?? editor.eraserSize)
             let zoom = editor.viewport.zoom
             let grow = max(0, 8 / zoom - Double(square.width)) / 2
             let minX = Double(square.minX) - grow, minY = Double(square.minY) - grow
@@ -590,6 +590,13 @@ final class CanvasView: NSView {
     }
 
     override func scrollWheel(with event: NSEvent) {
+        // ⌘-scroll zooms around the pointer, for mice that can't pinch.
+        if event.modifierFlags.contains(.command) {
+            let anchor = viewPoint(event)
+            let step = event.hasPreciseScrollingDeltas ? 0.01 : 0.1
+            editor.updateViewport { $0.setZoom($0.zoom * exp(event.scrollingDeltaY * step), anchor: anchor) }
+            return
+        }
         let multiplier = event.hasPreciseScrollingDeltas ? 1.0 : 10.0
         editor.updateViewport {
             $0.pan(byViewDeltaX: event.scrollingDeltaX * multiplier, y: event.scrollingDeltaY * multiplier)

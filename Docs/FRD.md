@@ -552,7 +552,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 2. **Core model:** document and layers (starting with 1 layer), history, selection and floating selection, zoom/pan/grid.
 3. **Everyday editing:** Pencil, Round brush, Marker, Eraser/Color Eraser, Fill, Eyedropper, Rectangle/Ellipse/Lasso select, drag-to-resize selections, crop, blur, pixelate, basic shapes (line, arrow, rectangle, rounded rectangle, ellipse), text, copy, export in all formats.
 4. **Redaction:** Magic Wand, combined selections, batch redaction, Auto-Redact, Before/After, export presets.
-5. **Full toolset:** the other 6 brushes, pressure, all 23 shapes with every style, gradients, resize/skew/rotate/flip, symmetry, measure, sharpen and adjustments.
+5. **Full toolset:** the other 6 brushes, pressure, all 23 shapes with every style, gradients, resize/skew/rotate/flip, symmetry, measure, sharpen and adjustments. Built in two parts (5a routine, 5b hard), then **5c Interface:** the mockup look for the toolbar (FR-1.1, including the Magnifier), the palette bar with custom colors, Alpha and Edit Colors (FR-1.2), and the status bar with the zoom slider (FR-1.5). The right sidebar (FR-1.3) arrives in stage 6 with the Layers panel; palette management (FR-15.1) stays in stage 7.
 6. **Layers:** layers panel, blend modes, opacity, adjustment layers, per-layer undo, .colorproj.
 7. **Integration:** Clipboard History, History panel, palettes, text styles, shortcut editor, Finder, screenshot capture, share, print, desktop picture.
 8. **Hardening:** performance, 8000×8000 soak tests, polish.
@@ -613,6 +613,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-02 | The mockup interface moves up from stage 7 to a new stage 5c, right after 5b (Leah): toolbar, palette bar and status bar. The sidebar comes with Layers in stage 6, since none of its panels exist before then. |
 | 2026-10-02 | Stage 9 answers (Leah): the photo adjustments also come as adjustment layers; Drop Shadow and Border follow the object's shape (opaque pixels, or the selection's outline); add Straighten. Straighten details are Claude's proposal (veto any): ±45° in 0.1° steps with a grid, or draw a line along the horizon; Crop to Fit on by default; whole image only. |
 | 2026-10-02 | Scope widened to minor photo editing (Leah). New FR-9.5 for a later stage 9: Levels, Auto Contrast, Curves, White Balance, Vibrance, Sepia, Posterize, Add Noise, Motion Blur, Emboss, Vignette, plus Drop Shadow, Border and Spotlight for polished screenshots. Menu placement and the settings listed are Claude's proposal (veto any); open questions are in §22. |
 | 2026-09-30 | Minimum macOS 26. Personal use only, no distribution. |

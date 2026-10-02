@@ -31,7 +31,8 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 | 4. Redaction | ✅ Done | Magic wand, batch redact, Auto-Redact, Before/After, export presets |
 | 5a. Full toolset (routine) | ✅ Done | All 23 shapes plus rotation, gradient, rotate/flip, symmetry, measure, adjustments, sharpen, D key |
 | **5b. Full toolset (hard)** | ⏭ **Next** | **Opus · high** |
-| 6. Layers | Planned | **Opus · high** |
+| 5c. Interface (mockup look) | Planned | **Opus · high** · toolbar, palette bar, status bar |
+| 6. Layers | Planned | **Opus · high** · includes the right sidebar |
 | 7. Integration | Planned | Mostly medium; shortcut editor high |
 | 8. Hardening | Planned | Medium |
 | 9. Photo editing (later phase) | Planned | Mostly medium; Curves and Straighten high |
@@ -86,14 +87,17 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 - Pressure sensitivity.
 - Resize/Skew dialog (⌘E).
 
+**5c Interface (high)** (moved up from stage 7 on 2026-10-02)
+- Mockup look: unified Liquid Glass toolbar with the Magnifier, 28-swatch palette bar with 12 custom slots, an Alpha slider and Edit Colors… (today's toolbar uses plain color pickers), and a status-bar zoom slider. Biggest visual gap versus the mockups.
+
 **6 Layers (high)**
+- The right sidebar (FR-1.3), starting with the Layers panel.
 - Model supports layers; there's no UI yet. Layers panel, add/duplicate/delete, merge down/visible, flatten, lock, hide, opacity.
 - 17 blend modes.
 - Adjustment layers. Undo on Active Layer (⌘⌥Z), Revert Layer.
 - `.colorproj` format.
 
 **7 Integration**
-- **Mockup UI shell:** unified Liquid Glass toolbar, 28-swatch palette bar with 12 custom slots and an Alpha slider (today's toolbar uses plain color pickers), right sidebar panels, status-bar zoom slider. Biggest visual gap versus the mockups.
 - Canvas Properties (⌘⌥E: size, transparent background). Paste into New Image (⇧⌘V). Offer to enlarge the canvas for large pastes.
 - Clipboard History, History panel (⌘Y), palettes, text styles.
 - Settings window: shortcut editor (FR-15.3), editing export presets, screenshot watcher setting.

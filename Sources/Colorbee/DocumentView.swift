@@ -159,7 +159,7 @@ private struct ToolOptions: View {
                   : editor.shapeKind == .curve ? "Drag a line, then drag twice to bend it" : "Shift keeps proportions")
             HStack {
                 Text("Width").fixedSize()
-                Slider(value: $editor.shapeLineWidth, in: 1...50, step: 1)
+                Slider(value: wholeNumber($editor.shapeLineWidth), in: 1...50)
                     .frame(width: 100)
                 Text("\(Int(editor.shapeLineWidth)) px")
                     .monospacedDigit()
@@ -201,7 +201,7 @@ private struct ToolOptions: View {
     private var sizeSlider: some View {
         HStack {
             Text("Size")
-            Slider(value: $editor.brushDiameter, in: 1...50, step: 1)
+            Slider(value: wholeNumber($editor.brushDiameter), in: 1...50)
                 .frame(width: 140)
             Text("\(Int(editor.brushDiameter)) px")
                 .monospacedDigit()
@@ -299,7 +299,6 @@ private struct EffectBar: View {
         .onChange(of: editor.effectValues) { editor.previewEffect() }
     }
 
-    /// Whole values, rounded here rather than with a stepped Slider, which draws a tick mark for every step.
     private func value(at index: Int) -> Binding<Double> {
         Binding(
             get: { editor.effectValues[safe: index] ?? 0 },
@@ -510,4 +509,9 @@ private struct ZoomControl: View {
         .buttonStyle(.borderless)
         .controlSize(.small)
     }
+}
+
+/// Rounds a slider's value to whole numbers. A stepped Slider would do this too, but draws a tick mark for every step.
+private func wholeNumber(_ value: Binding<Double>) -> Binding<Double> {
+    Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0.rounded() })
 }

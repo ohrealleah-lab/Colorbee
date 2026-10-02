@@ -232,7 +232,7 @@ struct DragModifiers {
 @MainActor
 @Observable
 final class Editor {
-    static let eraserSizes = [4, 6, 8, 10]
+    static let eraserSizes = Array(stride(from: 2, through: 20, by: 2)) + [30, 40]
     /// The marker paints at half the chosen color's opacity.
     static let markerOpacity = 0.5
 

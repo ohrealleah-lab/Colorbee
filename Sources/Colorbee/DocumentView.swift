@@ -277,7 +277,7 @@ private struct EffectBar: View {
             ForEach(Array(kind.parameters.enumerated()), id: \.offset) { index, parameter in
                 HStack(spacing: 6) {
                     Text(parameter.label)
-                    Slider(value: value(at: index), in: parameter.range, step: 1)
+                    Slider(value: value(at: index), in: parameter.range)
                         .frame(minWidth: 90, maxWidth: 180)
                     Text("\(Int(editor.effectValues[safe: index] ?? 0))\(parameter.unit)")
                         .monospacedDigit()
@@ -299,10 +299,11 @@ private struct EffectBar: View {
         .onChange(of: editor.effectValues) { editor.previewEffect() }
     }
 
+    /// Whole values, rounded here rather than with a stepped Slider, which draws a tick mark for every step.
     private func value(at index: Int) -> Binding<Double> {
         Binding(
             get: { editor.effectValues[safe: index] ?? 0 },
-            set: { if editor.effectValues.indices.contains(index) { editor.effectValues[index] = $0 } }
+            set: { if editor.effectValues.indices.contains(index) { editor.effectValues[index] = $0.rounded() } }
         )
     }
 }

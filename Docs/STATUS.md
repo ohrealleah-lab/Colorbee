@@ -18,7 +18,7 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 - **Say the recommended model and effort before each stage** (Opus throughout; high for design-heavy work, medium for routine UI).
 - Log any behavior choices Claude makes on its own in FRD §23, phrased "veto any".
 - Prefer plain explanations. Leah tests features by hand and reports back; give her a short "please try" list after each stage.
-- Work locally (no cloud sessions: the build needs macOS and Xcode). The repo is local only, with no remote.
+- Work locally (no cloud sessions: the build needs macOS and Xcode). The repo is public on GitHub at github.com/ohrealleah-lab/Colorbee so employers can see it: keep commits and docs presentable, never commit secrets or personal data, and push after each commit.
 
 ## Build order progress (FRD §20)
 

@@ -74,9 +74,16 @@ final class ImageDocument: NSDocument {
     override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,
                        completionHandler: @escaping (Error?) -> Void) {
         let explicit = saveOperation == .saveOperation || saveOperation == .saveAsOperation
+        // The copy is taken here, on the main thread, so the encoding can run in the background (NFR-6).
+        let snapshot = MainActor.assumeIsolated { editor?.saveSnapshot() }
+        snapshotLock.withLock { pendingSnapshot = snapshot }
         super.save(to: url, ofType: typeName, for: saveOperation) { [weak self] error in
-            if error == nil, explicit {
-                Task { @MainActor in self?.editor?.markSaved() }
+            // Let the copy go once its save is done, unless a newer save has replaced it.
+            self?.snapshotLock.withLock {
+                if self?.pendingSnapshot?.canvas === snapshot?.canvas { self?.pendingSnapshot = nil }
+            }
+            if error == nil, explicit, let snapshot {
+                Task { @MainActor in self?.editor?.markSaved(snapshot) }
             }
             completionHandler(error)
         }
@@ -114,15 +121,29 @@ final class ImageDocument: NSDocument {
         return super.writableTypes(for: saveOperation)
     }
 
-    override func data(ofType typeName: String) throws -> Data {
-        if UTType(typeName)?.conforms(to: .colorbeeProject) == true {
-            guard let editor else { throw CocoaError(.fileWriteUnknown) }
-            return try editor.encodedProject()
+    /// The copy being saved. A newer save replaces it, which is fine since it's newer content.
+    nonisolated private let snapshotLock = NSLock()
+    nonisolated(unsafe) private var pendingSnapshot: SaveSnapshot?
+
+    nonisolated override func canAsynchronouslyWrite(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType) -> Bool {
+        true
+    }
+
+    /// Called on a background thread for saves (see `canAsynchronouslyWrite`), so it touches only the snapshot.
+    nonisolated override func data(ofType typeName: String) throws -> Data {
+        var snapshot = snapshotLock.withLock { pendingSnapshot }
+        if snapshot == nil, Thread.isMainThread {
+            snapshot = MainActor.assumeIsolated { editor?.saveSnapshot() }
         }
-        guard let editor, let format = UTType(typeName).flatMap(ImageFileFormat.init(type:)) else {
+        guard let snapshot else { throw CocoaError(.fileWriteUnknown) }
+        unblockUserInteraction()
+        if UTType(typeName)?.conforms(to: .colorbeeProject) == true {
+            return try snapshot.encodedProject()
+        }
+        guard let format = UTType(typeName).flatMap(ImageFileFormat.init(type:)) else {
             throw CocoaError(.fileWriteUnknown)
         }
-        return try editor.encoded(as: format)
+        return try snapshot.encoded(as: format)
     }
 
     // MARK: Share, desktop picture, print (FR-11.5)
@@ -186,11 +207,7 @@ final class ImageDocument: NSDocument {
         panel.nameFieldStringValue = "\(base) \(size.width)x\(size.height).png"
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
-            do {
-                try editor.encoded(using: preset).write(to: url, options: .atomic)
-            } catch {
-                self?.presentError(error)
-            }
+            self?.export(editor.saveSnapshot(), to: url) { try $0.encoded(using: preset) }
         }
     }
 
@@ -205,10 +222,18 @@ final class ImageDocument: NSDocument {
         })
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
+            let format = options.format, quality = options.quality
+            self?.export(editor.saveSnapshot(), to: url) { try $0.encoded(as: format, quality: quality) }
+        }
+    }
+
+    /// Encodes and writes in the background, so a large image doesn't stall the window (NFR-6).
+    private func export(_ snapshot: SaveSnapshot, to url: URL, encode: @escaping @Sendable (SaveSnapshot) throws -> Data) {
+        Task.detached(priority: .userInitiated) {
             do {
-                try editor.encoded(as: options.format, quality: options.quality).write(to: url, options: .atomic)
+                try encode(snapshot).write(to: url, options: .atomic)
             } catch {
-                self?.presentError(error)
+                await MainActor.run { [weak self] in _ = self?.presentError(error) }
             }
         }
     }

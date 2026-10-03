@@ -238,12 +238,12 @@ private struct CompareBar: View {
             Picker("Baseline", selection: baseline) {
                 Text("As Opened").tag(Comparison.Baseline.asOpened)
                 Text("Last Saved").tag(Comparison.Baseline.lastSaved)
-                    .selectionDisabled(editor.lastSaved == nil)
+                    .selectionDisabled(!editor.hasLastSaved)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
-            .help(editor.lastSaved == nil ? "Last Saved is available after you save with ⌘S" : "")
+            .help(!editor.hasLastSaved ? "Last Saved is available after you save with ⌘S" : "")
             Spacer()
             Picker("Layout", selection: layout) {
                 Label("Side by side", systemImage: "rectangle.split.2x1").tag(Comparison.Layout.sideBySide)

@@ -335,8 +335,17 @@ final class Editor {
     }
     /// The image when the document was opened or created.
     @ObservationIgnored let asOpened: PixelBuffer
-    /// The image at the last explicit save.
-    private(set) var lastSaved: PixelBuffer?
+    /// The document at the last explicit save, as it was written.
+    private(set) var lastSavedSnapshot: SaveSnapshot?
+    @ObservationIgnored private var lastSavedImage: PixelBuffer?
+    var hasLastSaved: Bool { lastSavedSnapshot != nil }
+    /// The image at the last explicit save, flattened the first time Before/After needs it.
+    var lastSaved: PixelBuffer? {
+        if lastSavedImage == nil, let snapshot = lastSavedSnapshot {
+            lastSavedImage = snapshot.canvas.flattened(transparentKey: snapshot.transparentKey)
+        }
+        return lastSavedImage
+    }
     private(set) var autoRedact: AutoRedactSession?
     var redactionPatterns = Editor.loadRedactionPatterns() {
         didSet {
@@ -2086,9 +2095,12 @@ final class Editor {
     }
 
     /// Records the image as of an explicit save, for "Last Saved".
-    func markSaved() {
-        lastSaved = canvas.flattened(transparentKey: selectionContext.transparentKey)
-        rememberLayersAsSaved()
+    /// `snapshot` is the copy that was written; nothing else changes it, so its buffers are kept as they are.
+    func markSaved(_ snapshot: SaveSnapshot) {
+        lastSavedSnapshot = snapshot
+        lastSavedImage = nil
+        savedSize = snapshot.canvas.size
+        savedLayers = Dictionary(uniqueKeysWithValues: snapshot.canvas.layers.filter { $0.adjustment == nil }.map { ($0.id, $0.buffer) })
     }
 
     // MARK: Files
@@ -2096,22 +2108,21 @@ final class Editor {
     /// The image as it looks, including any floating selection, encoded in `format`.
     /// Formats without transparency are flattened over Color 2.
     func encoded(as format: ImageFileFormat, quality: Double = 0.9) throws -> Data {
-        try withoutEffectPreview {
-            try ImageCodec.encode(
-                canvas.flattened(transparentKey: selectionContext.transparentKey),
-                colorSpace: canvas.colorSpace,
-                as: format,
-                quality: quality,
-                matte: color2
-            )
-        }
+        try withoutEffectPreview { try snapshot(of: canvas).encoded(as: format, quality: quality) }
     }
 
     /// The whole document as a .colorproj (FR-8.5), without any live effect preview.
     func encodedProject() throws -> Data {
-        try withoutEffectPreview {
-            try ProjectFile.encode(canvas, transparentKey: selectionContext.transparentKey)
-        }
+        try withoutEffectPreview { try snapshot(of: canvas).encodedProject() }
+    }
+
+    /// A copy of the document to save or export in the background, without any live effect preview.
+    func saveSnapshot() -> SaveSnapshot {
+        withoutEffectPreview { snapshot(of: canvas.copy()) }
+    }
+
+    private func snapshot(of canvas: ColorbeeCore.Canvas) -> SaveSnapshot {
+        SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, matte: color2)
     }
 
     /// More than one layer, or an adjustment layer: something only a project file can keep.
@@ -2126,13 +2137,6 @@ final class Editor {
         edit.restoreOriginals()
         defer { renderEffectPreview() }
         return try body()
-    }
-
-    /// A PNG scaled by an export preset, using the sharpness that suits the image's size.
-    func encoded(using preset: ExportPreset) throws -> Data {
-        let image = canvas.flattened(transparentKey: selectionContext.transparentKey)
-        let scaled = image.resampled(to: preset.targetSize(for: image.size), using: ExportPreset.resampling(for: image.size))
-        return try ImageCodec.encode(scaled, colorSpace: canvas.colorSpace, as: .png)
     }
 
     func flattenedPNG() throws -> Data {

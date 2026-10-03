@@ -1,6 +1,7 @@
 import AppKit
 import ColorbeeCore
 import QuartzCore
+import UniformTypeIdentifiers
 
 /// Scripted performance run, enabled with `-ColorbeeBenchmark YES`.
 /// Optional: `-BenchmarkCanvas <side px>` for a square canvas, `-BenchmarkBrush <diameter px>`.
@@ -11,9 +12,22 @@ enum Benchmark {
 
     static var isEnabled: Bool { defaults.bool(forKey: "ColorbeeBenchmark") }
 
+    /// `-ColorbeeSaveCheck YES`: only the save measurement. It doesn't need the window on screen.
+    static var isSaveCheckEnabled: Bool { defaults.bool(forKey: "ColorbeeSaveCheck") }
+
     static var canvasSize: IntSize? {
         let side = defaults.integer(forKey: "BenchmarkCanvas")
-        return isEnabled && side > 0 ? IntSize(width: side, height: side) : nil
+        return (isEnabled || isSaveCheckEnabled) && side > 0 ? IntSize(width: side, height: side) : nil
+    }
+
+    static func startSaveCheckIfRequested(window: NSWindow, editor: Editor) {
+        guard isSaveCheckEnabled, !hasStarted else { return }
+        hasStarted = true
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            await measureSave(window: window, editor: editor)
+            exit(0)
+        }
     }
 
     private static var brushDiameter: Double {
@@ -64,6 +78,37 @@ enum Benchmark {
         let redoTime = clock.measure { editor.redo() }
         Diagnostics.report("Undo: \(format(undoTime)) · Redo: \(format(redoTime))")
         Diagnostics.report("Memory after stroke: \(Diagnostics.megabytes(Diagnostics.physicalFootprint()))")
+        await measureSave(window: window, editor: editor)
+    }
+
+    /// Saves a PNG and reports how long the whole save took and the longest the main thread went
+    /// without running (NFR-6: never more than a frame or so; AC-27: never over a second).
+    private static func measureSave(window: NSWindow, editor: Editor) async {
+        guard let document = window.windowController?.document as? ImageDocument else { return }
+        let url = FileManager.default.temporaryDirectory.appending(path: "Colorbee Benchmark \(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let clock = ContinuousClock()
+        let start = clock.now
+        var longestGap = Duration.zero
+        var saved = false
+        var failure: Error?
+        document.save(to: url, ofType: UTType.png.identifier, for: .saveAsOperation) { error in
+            failure = error
+            saved = true
+        }
+        var last = clock.now
+        longestGap = last - start
+        while !saved {
+            try? await Task.sleep(for: .milliseconds(2))
+            let now = clock.now
+            longestGap = max(longestGap, now - last)
+            last = now
+        }
+        let total = clock.now - start
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+        let decoded = (try? Data(contentsOf: url)).flatMap { try? ImageCodec.decode($0) }
+        let matches = decoded?.buffer.size == editor.canvas.size
+        Diagnostics.report("Save PNG: \(format(total)) total, main thread blocked at most \(format(longestGap)), \(size / 1024) KB, \(failure.map { "failed: \($0)" } ?? (matches ? "reads back at the right size" : "DOES NOT read back"))")
     }
 
     /// A zigzag across the visible part of the canvas, in view coordinates.

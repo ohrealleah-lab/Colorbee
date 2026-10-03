@@ -28,6 +28,7 @@ final class DocumentWindowController: NSWindowController {
         window.makeFirstResponder(canvasView)
         // Not tied to the first frame: a snapshot window may open hidden behind others, where nothing draws.
         Snapshot.startIfRequested(window: window, editor: editor)
+        Benchmark.startSaveCheckIfRequested(window: window, editor: editor)
         canvasView.onFirstFrame = { [weak window, weak canvasView, weak editor] in
             guard let window, let canvasView, let editor else { return }
             Benchmark.startIfRequested(window: window, canvasView: canvasView, editor: editor)

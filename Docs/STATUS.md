@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-03 · 222 core tests passing_
+_Last updated: 2026-10-03 · 241 core tests passing_
 
 ---
 
@@ -32,9 +32,9 @@ _Last updated: 2026-10-03 · 222 core tests passing_
 | 5a. Full toolset (routine) | ✅ Done | All 23 shapes plus rotation, gradient, rotate/flip, symmetry, measure, adjustments, sharpen, D key |
 | 5b. Full toolset (hard) | ✅ Done | 6 brushes, pressure, textured shape styles, Resize/Skew |
 | 5c. Interface (mockup look) | ✅ Done | Glass toolbar, palette bar with wells and custom colors, status bar with zoom slider, Magnifier |
-| **6a. Layers** | ✅ Built, awaiting hand test | Layers panel, Layer menu, 17 blend modes, lock, opacity, merges, Copy Merged |
-| 6b. Adjustment layers, per-layer undo, .colorproj | Planned | **Opus · high** |
-| 7. Integration | Planned | Mostly medium; shortcut editor high |
+| 6a. Layers | ✅ Done | Layers panel, Layer menu, 17 blend modes, lock, opacity, merges, Copy Merged |
+| **6b. Adjustment layers, per-layer undo, .colorproj** | ✅ Built, awaiting hand test | Adjustments panel, Undo on Active Layer, Revert Layer, .colorproj |
+| **7. Integration** | ⏭ Next | Mostly medium; shortcut editor high |
 | 8. Hardening | Planned | Medium |
 | 9. Photo editing (later phase) | Planned | Mostly medium; Curves and Straighten high |
 
@@ -56,6 +56,9 @@ _Last updated: 2026-10-03 · 222 core tests passing_
 - Layer menu: New ⇧⌘N, Duplicate ⌘J, Delete ⌘⌫, Merge Down ⇧⌘E, Merge Visible ⌥⇧⌘E, Flatten, Hide/Show, Lock/Unlock, Layer Properties…. Edit ▸ Copy Merged ⇧⌘C.
 - 17 blend modes (W3C math in `BlendMode.swift`, mirrored in `Shaders.metal`); layers composite off screen in half floats. Exports use the same math.
 - Locked layers refuse pixel changes (beep, 'not allowed' pointer). All layer changes are undo steps (whole-stack snapshots, buffers swapped not copied).
+- Adjustment layers (stage 6b): Brightness/Contrast, Hue/Saturation, Desaturate, Invert, Gaussian Blur, Sharpen; edited in the Adjustments panel; Apply Adjustment. Display: point adjustments in the blend shader, Blur/Sharpen via MPS mid-pass with edge renormalization.
+- Undo on Active Layer ⌥⌘Z (`History.undoOnLayer`), Revert Layer (pixel copies kept at each explicit save).
+- `.colorproj` (`ProjectFile`): JSON manifest + LZ4 exact pixels + ICC. Layered images save as projects; Save As offers only .colorproj for them; Export makes flat copies.
 
 **Interface** (mockup look, stage 5c)
 - Window toolbar in Liquid Glass capsules: selection tools + Transparent Selection; Pencil, Fill, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure; Brushes ▾ and Shapes ▾ galleries; Size (5 presets + px field); Outline/Fill.
@@ -94,12 +97,6 @@ _Last updated: 2026-10-03 · 222 core tests passing_
 
 ## Not built yet (by stage)
 
-**6b (high)**
-- Adjustment layers (FR-8.4) with the Adjustments panel and Apply Adjustment; New Adjustment Layer ▸ menu.
-- Undo on Active Layer (⌘⌥Z), Revert Layer.
-- `.colorproj` format (layers, blend modes, adjustment layers).
-- The sidebar's panel switcher and Sidebar toolbar button, once there's a second panel.
-
 **7 Integration**
 - Canvas Properties (⌘⌥E: size, transparent background). Paste into New Image (⇧⌘V). Offer to enlarge the canvas for large pastes.
 - Clipboard History, History panel (⌘Y), palettes, text styles.
@@ -119,7 +116,7 @@ _Last updated: 2026-10-03 · 222 core tests passing_
 ## Not yet checked by hand
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
-Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a (built 2026-10-03) awaits a hand test with `TestImages/Stage 6a Practice.png`; the Liquid Glass sidebar and eye/lock icons can't be seen in snapshots. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight). Nothing outstanding.
+Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b (built 2026-10-03) awaits a hand test with `TestImages/Stage 6b Practice.colorproj`: adjustment layers on screen (GPU) vs. exported, Undo on Active Layer, Revert Layer, saving a layered PNG as a project. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight). Nothing outstanding.
 
 ## Practical notes for the next session
 

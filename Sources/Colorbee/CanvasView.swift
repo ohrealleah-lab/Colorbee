@@ -37,6 +37,7 @@ final class CanvasView: NSView {
     private var spaceHeld = false
     /// Where the pointer is over the view, in image coordinates, for the eraser's outline.
     private var hoverPoint: Point2D?
+    private var sprayTimer: Timer?
     private var surroundColor = MTLClearColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1)
 
     private var metalLayer: CAMetalLayer {
@@ -49,6 +50,8 @@ final class CanvasView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layerContentsRedrawPolicy = .duringViewResize
+        // Continuous pressure for brushes, without a Force Click stage.
+        pressureConfiguration = NSPressureConfiguration(pressureBehavior: .primaryGeneric)
         editor.onRender = { [weak self] in
             self?.setNeedsRender()
             self?.syncTextEditor()
@@ -485,7 +488,8 @@ final class CanvasView: NSView {
         default:
             drag = secondary ? .secondary : .primary
             noteInput(event)
-            editor.beginStroke(at: point, secondary: secondary)
+            editor.beginStroke(at: point, secondary: secondary, pressure: pressure(event))
+            if editor.strokeSpraysWhileHeld { startSpraying() }
         }
         updatePointer(event)
     }
@@ -517,7 +521,7 @@ final class CanvasView: NSView {
             updatePointer(event)
         case .primary, .secondary:
             noteInput(event)
-            editor.continueStroke(to: imagePoint(event), constrain: event.modifierFlags.contains(.shift))
+            editor.continueStroke(to: imagePoint(event), constrain: event.modifierFlags.contains(.shift), pressure: pressure(event))
             updatePointer(event)
         case nil:
             break
@@ -549,12 +553,39 @@ final class CanvasView: NSView {
         case .select:
             editor.endSelectionDrag(at: imagePoint(event))
         case .primary, .secondary:
+            stopSpraying()
             editor.endStroke()
         case nil:
             return
         }
         drag = nil
         currentCursor(at: imagePoint(event)).set()
+    }
+
+    /// Pressure from a Force Touch trackpad or a pen, 0...1. A mouse, or a tap on the trackpad, reports none,
+    /// and draws at full size.
+    private func pressure(_ event: NSEvent) -> Double {
+        let pressure = Double(event.pressure)
+        return editor.usesPressure && pressure > 0 ? pressure : 1
+    }
+
+    /// The airbrush sprays on a timer, so holding still builds up paint (FR-4.2).
+    private func startSpraying() {
+        sprayTimer?.invalidate()
+        sprayTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.editor.strokeSpraysWhileHeld else {
+                    self?.stopSpraying()
+                    return
+                }
+                self.editor.holdStroke()
+            }
+        }
+    }
+
+    private func stopSpraying() {
+        sprayTimer?.invalidate()
+        sprayTimer = nil
     }
 
     private func moveDivider(_ event: NSEvent) {

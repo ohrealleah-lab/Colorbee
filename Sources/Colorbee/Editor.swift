@@ -40,11 +40,6 @@ enum Tool: CaseIterable {
     }
 }
 
-enum BrushKind: CaseIterable {
-    case round
-    case marker
-}
-
 /// Mirror drawing across the canvas's center lines (FR-7.3).
 enum SymmetryMode: CaseIterable {
     case off
@@ -233,14 +228,14 @@ struct DragModifiers {
 @Observable
 final class Editor {
     static let eraserSizes = Array(stride(from: 2, through: 20, by: 2)) + [30, 40]
-    /// The marker paints at half the chosen color's opacity.
-    static let markerOpacity = 0.5
 
     let canvas: Canvas
     @ObservationIgnored let history: History
 
     private(set) var tool: Tool = .pencil
-    var brushKind: BrushKind = .round
+    var brush: Brush = .round
+    /// Brushes respond to trackpad and pen pressure (FR-4.2). Off, every brush draws at full size.
+    var usesPressure = true
     // Colors show live in pending shapes and transparent selections.
     var color1: Pixel = .black {
         didSet { renderSoon() }
@@ -371,6 +366,8 @@ final class Editor {
         /// One stroke per mirror image when Symmetry is on.
         let strokes: [Stroke]
         var axisLock: AxisLock
+        /// The lightest and firmest pressure seen, logged when the stroke ends to tune pressure response.
+        var pressureRange: ClosedRange<Double>
     }
 
     private enum SelectionDrag {
@@ -460,39 +457,42 @@ final class Editor {
 
     // MARK: Painting
 
-    func beginStroke(at point: Point2D, secondary: Bool) {
+    func beginStroke(at point: Point2D, secondary: Bool, pressure: Double = 1) {
         finishInteractions()
         placeFloatingSelection()
         let layer = canvas.activeLayer
         let color = secondary ? color2 : color1
         let name: String
-        let makeStroke: (Edit) -> Stroke
+        // The flag says whether this copy is mirrored across one axis only, which turns a `/` nib into `\`.
+        let makeStroke: (Edit, Bool) -> Stroke
         switch tool {
         case .pencil:
             name = "Pencil"
-            makeStroke = { PencilStroke(color: color, layer: layer, edit: $0) }
-        case .brush where brushKind == .marker:
-            name = "Marker"
-            var translucent = color
-            translucent.a = UInt8((Double(color.a) * Self.markerOpacity).rounded())
-            makeStroke = { [brushDiameter] in RoundBrushStroke(diameter: brushDiameter, color: translucent, layer: layer, edit: $0) }
+            makeStroke = { edit, _ in PencilStroke(color: color, layer: layer, edit: edit) }
         case .brush:
-            name = "Brush Stroke"
-            makeStroke = { [brushDiameter] in RoundBrushStroke(diameter: brushDiameter, color: color, layer: layer, edit: $0) }
+            name = brush == .round ? "Brush Stroke" : brush.name
+            makeStroke = { [brush, brushDiameter] edit, mirrored in
+                (mirrored ? brush.mirrored : brush).makeStroke(diameter: brushDiameter, color: color, layer: layer, edit: edit)
+            }
         case .eraser:
             // Right-drag is the Color Eraser: only Color 1 pixels become Color 2.
             let effect: StrokeEffect = secondary
                 ? .replaceMatching(target: color1, tolerance: 0, with: color2)
                 : .replace(canvas.vacatedFill(for: layer, color2: color2))
             name = secondary ? "Color Erase" : "Erase"
-            makeStroke = { [eraserSize] in EraserStroke(size: eraserSize, effect: effect, layer: layer, edit: $0) }
+            makeStroke = { [eraserSize] edit, _ in EraserStroke(size: eraserSize, effect: effect, layer: layer, edit: edit) }
         default:
             return
         }
         let edit = history.beginEdit(name, on: canvas)
-        let strokes = mirrors.map { _ in makeStroke(edit) }
-        activeStroke = ActiveStroke(edit: edit, strokes: strokes, axisLock: AxisLock(start: point))
-        moveStrokes(strokes, to: point)
+        let mirroredOnce: [Bool] = switch symmetry {
+        case .off: [false]
+        case .vertical, .horizontal: [false, true]
+        case .both: [false, true, true, false]
+        }
+        let strokes = mirroredOnce.map { makeStroke(edit, $0) }
+        activeStroke = ActiveStroke(edit: edit, strokes: strokes, axisLock: AxisLock(start: point), pressureRange: pressure...pressure)
+        moveStrokes(strokes, to: point, pressure: pressure)
     }
 
     /// How a point is reflected for each active mirror; the first is always the point itself.
@@ -508,23 +508,36 @@ final class Editor {
         }
     }
 
-    private func moveStrokes(_ strokes: [Stroke], to point: Point2D) {
+    private func moveStrokes(_ strokes: [Stroke], to point: Point2D, pressure: Double) {
         var changed = false
-        for (stroke, mirror) in zip(strokes, mirrors) where !stroke.move(to: mirror(point)).isEmpty {
+        for (stroke, mirror) in zip(strokes, mirrors) where !stroke.move(to: mirror(point), pressure: pressure).isEmpty {
             changed = true
         }
         if changed { onRender() }
     }
 
+    /// Whether the stroke under way should keep being fed `holdStroke()` while the pointer is still (the airbrush).
+    var strokeSpraysWhileHeld: Bool {
+        activeStroke != nil && tool == .brush && brush == .airbrush
+    }
+
+    func holdStroke() {
+        guard let strokes = activeStroke?.strokes else { return }
+        var changed = false
+        for stroke in strokes where !stroke.hold().isEmpty { changed = true }
+        if changed { onRender() }
+    }
+
     /// With `constrain`, the pencil stays on one horizontal or vertical line from where it started (`AxisLock`).
-    func continueStroke(to point: Point2D, constrain: Bool) {
+    func continueStroke(to point: Point2D, constrain: Bool, pressure: Double = 1) {
         guard var active = activeStroke else { return }
         var target = point
         if constrain, tool == .pencil {
             target = active.axisLock.constrain(point)
-            activeStroke = active
         }
-        moveStrokes(active.strokes, to: target)
+        active.pressureRange = min(active.pressureRange.lowerBound, pressure)...max(active.pressureRange.upperBound, pressure)
+        activeStroke = active
+        moveStrokes(active.strokes, to: target, pressure: pressure)
     }
 
     /// The size of the eraser stroke under way. Size changes apply from the next stroke, so the outline shows this one.
@@ -533,9 +546,14 @@ final class Editor {
     }
 
     func endStroke() {
-        guard let edit = activeStroke?.edit else { return }
+        guard let active = activeStroke else { return }
         activeStroke = nil
-        recordingChanges { history.commit(edit) }
+        if active.strokes.contains(where: { !$0.finish().isEmpty }) { onRender() }
+        if tool == .brush {
+            let range = active.pressureRange
+            Diagnostics.logger.info("Brush pressure \(range.lowerBound, format: .fixed(precision: 2))–\(range.upperBound, format: .fixed(precision: 2))")
+        }
+        recordingChanges { history.commit(active.edit) }
     }
 
     func fill(at point: Point2D, secondary: Bool) {

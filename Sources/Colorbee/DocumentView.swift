@@ -98,12 +98,13 @@ private struct ToolOptions: View {
     var body: some View {
         switch editor.tool {
         case .brush:
-            Picker("Brush", selection: $editor.brushKind) {
-                Text("Round").tag(BrushKind.round)
-                Text("Marker").tag(BrushKind.marker)
+            Picker("Brush", selection: $editor.brush) {
+                ForEach(Brush.allCases, id: \.self) { Text($0.name).tag($0) }
             }
             .fixedSize()
             sizeSlider
+            Toggle("Pressure", isOn: $editor.usesPressure)
+                .help("Press harder on a Force Touch trackpad or pen tablet for a bigger stroke")
         case .eraser:
             Picker("Eraser size", selection: $editor.eraserSize) {
                 ForEach(Editor.eraserSizes, id: \.self) { Text("\($0) px").tag($0) }

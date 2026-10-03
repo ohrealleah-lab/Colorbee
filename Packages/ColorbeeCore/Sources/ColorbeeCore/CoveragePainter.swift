@@ -10,9 +10,29 @@ public enum StrokeEffect: Sendable {
 
 /// A stroke that grows as the pointer moves.
 public protocol Stroke: AnyObject {
-    /// Extends the stroke to `point` and returns the region repainted.
+    /// Extends the stroke to `point` and returns the region repainted. `pressure` is 0...1; devices
+    /// without pressure report 1. Strokes that ignore pressure (pencil, eraser) disregard it.
     @discardableResult
-    func move(to point: Point2D) -> IntRect
+    func move(to point: Point2D, pressure: Double) -> IntRect
+
+    /// Called repeatedly while the pointer holds still mid-stroke (the airbrush keeps spraying).
+    @discardableResult
+    func hold() -> IntRect
+
+    /// Called once when the stroke ends (the oil brush tapers its tail).
+    @discardableResult
+    func finish() -> IntRect
+}
+
+extension Stroke {
+    @discardableResult
+    public func move(to point: Point2D) -> IntRect { move(to: point, pressure: 1) }
+
+    @discardableResult
+    public func hold() -> IntRect { .zero }
+
+    @discardableResult
+    public func finish() -> IntRect { .zero }
 }
 
 /// Paints one stroke into a layer. Each pixel keeps the strongest coverage it has received and is
@@ -21,13 +41,39 @@ final class CoveragePainter {
     let layer: Layer
     let edit: Edit
     let effect: StrokeEffect
+    /// Maps each pixel's strongest value to the coverage actually painted. Watercolor uses it to make
+    /// the rim of a stroke darker than its middle, which max-coverage alone can't do.
+    let transfer: [UInt8]?
     private(set) var dirtyRect: IntRect = .zero
     private var coverage: [TileKey: TileCoverage] = [:]
 
-    init(layer: Layer, edit: Edit, effect: StrokeEffect) {
+    init(layer: Layer, edit: Edit, effect: StrokeEffect, transfer: [UInt8]? = nil) {
+        precondition(transfer == nil || transfer?.count == 256)
         self.layer = layer
         self.edit = edit
         self.effect = effect
+        self.transfer = transfer
+    }
+
+    /// Puts `area` back to its pre-stroke pixels and forgets its coverage, so it can be painted again
+    /// with different dabs (the oil brush's tapered tail).
+    func clear(_ area: IntRect) {
+        let area = area.intersection(layer.buffer.bounds)
+        guard !area.isEmpty else { return }
+        for cell in TileGrid.cells(covering: area) {
+            let key = TileKey(layer: layer.id, column: cell.column, row: cell.row)
+            guard let original = edit.originalTile(key), let tileCoverage = coverage[key] else { continue }
+            let tile = original.rect
+            let region = area.intersection(tile)
+            for y in region.minY..<region.maxY {
+                let row = layer.buffer.row(y)
+                let rowStart = (y - tile.minY) * tile.width - tile.minX
+                for x in region.minX..<region.maxX {
+                    tileCoverage.values[rowStart + x] = 0
+                    row[x] = original.pixels[rowStart + x]
+                }
+            }
+        }
     }
 
     /// Paints `area` with per-pixel coverage (0...255) from `amount`. Returns the clipped area.
@@ -54,7 +100,7 @@ final class CoveragePainter {
                     let index = rowStart + x
                     guard value > tileCoverage.values[index] else { continue }
                     tileCoverage.values[index] = value
-                    row[x] = apply(to: original.pixels[index], coverage: value)
+                    row[x] = apply(to: original.pixels[index], coverage: transfer?[Int(value)] ?? value)
                 }
             }
         }

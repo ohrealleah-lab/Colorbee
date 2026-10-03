@@ -1,11 +1,11 @@
 /// One anti-aliased round-brush stroke (also used for the marker, with a translucent color).
+/// Pressure scales the size.
 public final class RoundBrushStroke: Stroke {
     public let diameter: Double
     public let color: Pixel
 
     private let painter: CoveragePainter
-    private var lastPoint: Point2D?
-    private var distanceToNextDab: Double = 0
+    private var walker = DabWalker()
 
     public init(diameter: Double, color: Pixel, layer: Layer, edit: Edit) {
         self.diameter = max(1, diameter)
@@ -15,33 +15,22 @@ public final class RoundBrushStroke: Stroke {
 
     public var dirtyRect: IntRect { painter.dirtyRect }
 
-    private var spacing: Double { max(0.25, diameter * 0.1) }
+    private func size(_ pressure: Double) -> Double {
+        diameter * Brush.sizeFactor(pressure: pressure)
+    }
 
     @discardableResult
-    public func move(to point: Point2D) -> IntRect {
-        guard let last = lastPoint else {
-            lastPoint = point
-            distanceToNextDab = spacing
-            return dab(at: point)
-        }
-        let dx = point.x - last.x
-        let dy = point.y - last.y
-        let distance = (dx * dx + dy * dy).squareRoot()
+    public func move(to point: Point2D, pressure: Double) -> IntRect {
         var changed = IntRect.zero
-        var travelled = distanceToNextDab
-        while travelled <= distance {
-            let fraction = travelled / distance
-            changed = changed.union(dab(at: Point2D(x: last.x + dx * fraction, y: last.y + dy * fraction)))
-            travelled += spacing
+        for dab in walker.walk(to: point, pressure: pressure, spacing: { max(0.25, self.size($0) * 0.1) }) {
+            changed = changed.union(self.dab(at: dab.center, size: size(dab.pressure)))
         }
-        distanceToNextDab = travelled - distance
-        lastPoint = point
         return changed
     }
 
-    private func dab(at center: Point2D) -> IntRect {
+    private func dab(at center: Point2D, size: Double) -> IntRect {
         guard color.a > 0 else { return .zero }
-        let radius = diameter / 2
+        let radius = max(0.5, size / 2)
         let area = IntRect(
             enclosingMinX: center.x - radius - 1, minY: center.y - radius - 1,
             maxX: center.x + radius + 1, maxY: center.y + radius + 1
@@ -65,7 +54,7 @@ public final class PencilStroke: Stroke {
     }
 
     @discardableResult
-    public func move(to point: Point2D) -> IntRect {
+    public func move(to point: Point2D, pressure: Double) -> IntRect {
         let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         defer { lastPixel = pixel }
         var changed = IntRect.zero
@@ -95,7 +84,7 @@ public final class EraserStroke: Stroke {
     }
 
     @discardableResult
-    public func move(to point: Point2D) -> IntRect {
+    public func move(to point: Point2D, pressure: Double) -> IntRect {
         let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         defer { lastPixel = pixel }
         var changed = IntRect.zero

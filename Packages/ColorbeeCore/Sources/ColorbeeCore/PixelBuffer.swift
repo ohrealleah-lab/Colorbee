@@ -53,13 +53,24 @@ public final class PixelBuffer {
         return pages.allSatisfy { $0 & ~anonymous == 0 }
     }
 
-    /// Frees the memory, leaving the buffer reading as all clear. History uses this for layers it has
-    /// written to its spill file, and writes the pixels back before anything reads them.
+    /// Hands the memory back to the system, the same way the system allocator returns freed memory; the
+    /// contents are undefined until `reuseContents()`. History uses this for layers it has written to its
+    /// spill file, and writes every pixel back before anything reads them.
     func discardContents() {
+        guard !isDiscarded else { return }
         generation += 1
-        let mapped = mmap(baseAddress, byteCount, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0)
-        precondition(mapped == baseAddress, "Couldn't free the pixel memory")
+        madvise(baseAddress, byteCount, MADV_FREE_REUSABLE)
+        isDiscarded = true
     }
+
+    /// Takes discarded memory back for writing. The caller then writes every pixel.
+    func reuseContents() {
+        guard isDiscarded else { return }
+        madvise(baseAddress, byteCount, MADV_FREE_REUSE)
+        isDiscarded = false
+    }
+
+    private(set) var isDiscarded = false
 
     public var size: IntSize { IntSize(width: width, height: height) }
     public var bounds: IntRect { IntRect(size: size) }

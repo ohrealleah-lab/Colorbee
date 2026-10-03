@@ -518,6 +518,7 @@ public final class History {
             guard let compressed = try? store.readCompressed(location) else { return false }
             data.append(compressed)
         }
+        buffer.reuseContents()
         let decoded = ParallelRows.map(bands.count) { index -> Bool in
             guard let pixels = try? SpillStore.decompress(data[index], count: bands[index].area) else { return false }
             // Each band writes only its own rows.

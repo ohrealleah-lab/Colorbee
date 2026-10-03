@@ -74,6 +74,38 @@ struct PerformanceTests {
         #expect(encode < .milliseconds(800), "encode took \(encode)")
     }
 
+    /// NFR-6: at 1920 × 1080, blur, pixelate and fill finish in under 100 ms, and so does any undo or redo.
+    @Test func everydayEditsAt1080pStayUnder100ms() {
+        let canvas = Canvas(size: IntSize(width: 1920, height: 1080), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let buffer = canvas.layers[0].buffer
+        for y in 0..<1080 {
+            let row = buffer.row(y)
+            for x in 0..<1920 { row[x] = Pixel(r: UInt8((x / 7) & 255), g: UInt8((y / 5) & 255), b: UInt8(((x ^ y) / 9) & 255)) }
+        }
+        let history = History(byteBudget: 512 << 20)
+        let limit = Duration.milliseconds(100)
+        func step(_ name: String, _ body: (Edit) -> Void) {
+            let time = fastest {
+                let edit = history.beginEdit(name, on: canvas)
+                body(edit)
+                history.commit(edit)
+                history.undo(on: canvas)
+            }
+            #expect(time < limit * 2, "\(name) and its undo took \(time)")
+        }
+        step("Blur") { Effects.apply(.gaussianBlur(radius: 8), to: canvas.activeLayer, selection: nil, edit: $0) }
+        step("Pixelate") { Effects.apply(.pixelate(cellSize: 12), to: canvas.activeLayer, selection: nil, edit: $0) }
+        step("Fill") { FloodFill.fill(layer: canvas.activeLayer, at: IntPoint(x: 3, y: 3), with: .black, tolerance: 1, selection: nil, edit: $0) }
+        let edit = history.beginEdit("Invert", on: canvas)
+        Effects.apply(.invert, to: canvas.activeLayer, selection: nil, edit: edit)
+        history.commit(edit)
+        let undo = fastest {
+            history.undo(on: canvas)
+            history.redo(on: canvas)
+        }
+        #expect(undo < limit * 2, "undo and redo took \(undo)")
+    }
+
     @Test func undoAndRedoAWholeImageStepPastTheBudget() {
         let canvas = PerformanceFixture.photo(side: Self.side)
         // Small enough that every older whole-image step spills to disk, the slow path.

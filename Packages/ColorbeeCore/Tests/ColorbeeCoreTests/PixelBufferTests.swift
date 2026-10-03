@@ -56,10 +56,15 @@ struct PixelBufferMemoryTests {
         #expect(!buffer.isUntouched)
     }
 
-    @Test func discardingFreesTheMemoryAndReadsClear() {
+    @Test func discardedMemoryCanBeTakenBackAndWritten() {
         let buffer = PixelBuffer(width: 300, height: 200, fill: .white)
+        let generation = buffer.generation
         buffer.discardContents()
-        #expect(buffer.isUntouched)
-        #expect(buffer[150, 100] == .clear)
+        #expect(buffer.isDiscarded)
+        #expect(buffer.generation != generation)
+        buffer.reuseContents()
+        buffer.fill(.black)
+        #expect(!buffer.isDiscarded)
+        #expect(buffer[150, 100] == .black)
     }
 }

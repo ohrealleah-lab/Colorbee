@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-03 · 257 core tests passing_
+_Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 
 ---
 
@@ -108,14 +108,25 @@ _Last updated: 2026-10-03 · 257 core tests passing_
 - Before/After: As Opened or Last Saved, split or side by side.
 
 **History**
-- Unlimited undo with tile deltas and a byte budget; older steps compressed to disk.
-- Restores the selection with the pixels; geometry changes swap whole buffers.
+- Unlimited undo with tile deltas and a byte budget; older steps compressed to disk on all cores.
+- Restores the selection with the pixels; geometry changes swap whole buffers; rotations and flips undo by turning back.
+- Layers only history holds (merged, flattened, deleted) count against the budget and are written to disk, then read back into the same buffer objects (`PixelBuffer.discardContents`, `generation`).
+
+**Hardening** (stage 8)
+- Whole-image work on all cores (`ParallelRows`): compositing, adjustment layers, point effects, pixelate, spill compression; vImage for rotate and flip; word-skipping scanline fill.
+- Save and Export encode a `SaveSnapshot` in the background (`ImageDocument.canAsynchronouslyWrite`).
+- `make perf`: Release-only time limits at 1080p (NFR-6) and 8000 × 8000, and the soak test (AC-27; `COLORBEE_SOAK_MINUTES=30` for NFR-7).
+- `-ColorbeeSaveCheck YES [-BenchmarkCanvas N]`: background launch that saves a PNG and reports time, the longest main-thread pause and memory.
+- VoiceOver labels for the canvas, color wells, swatch grid and icon buttons.
+- `make beta` (`Scripts/make-beta.sh`): Developer ID signing, hardened runtime, notarization, stapling, zip with `Docs/Beta/Start Here.txt`. Version 0.9.0.
 
 ## Not built yet (by stage)
 
 **8 Hardening**
-- 8000×8000 soak tests (AC-27), performance baselines, polish, accessibility labels.
-- Beta packaging: Developer ID signing and notarization with Leah's Apple Developer account (signing details kept out of the repo), plus a start-here note for the tester.
+- Leah's hand test of stage 8.
+- The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
+- First `make beta` run: Leah creates the `colorbee-notary` keychain profile once (she types the app-specific password), then the beta is built and checked on a clean first launch.
+- Later polish: ⌘C of a very large image still pauses about a second.
 
 **9 Photo editing and presentation (later phase, FR-9.5)**
 - Adjustments: Levels (with Auto), Auto Contrast, Curves, Sepia, Posterize.
@@ -138,6 +149,7 @@ Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tes
 - A Colorbee launched from Xcode (DerivedData) shares the bundle ID with ours, so the computer-use tool may attach to that copy. Never kill Leah's copy.
 - Launch test copies with `-ApplePersistenceIgnoreState YES` so they don't restore old windows.
 - To check layout without taking over the screen: `open -g -n -W -a "$PWD/build/Build/Products/Release/Colorbee.app" --args -ApplePersistenceIgnoreState YES -ColorbeeSnapshot /path/out.png` (options: `-ColorbeeSnapshotDark YES`, `-ColorbeeSnapshotTool shape`, `-ColorbeeSnapshotEdited YES`). It can't draw Liquid Glass or the Metal canvas, so ask Leah for screenshots of those. Screen capture of other windows needs Screen Recording permission; don't ask for it.
-- Commit only after `make test` and the Release build both succeed.
+- Commit only after `make test` and the Release build both succeed. Run `make perf` after touching pixel loops, history or effects.
+- `make beta` uses Leah's signing key and notary profile: ask her before running it (macOS may ask for her keychain password).
 - Xcode 26 needs the Metal Toolchain component (already installed on this Mac).
 - Trackpad pressure arrives only in `pressureChange` events (drag events always say 1.0), and only when System Settings ▸ Trackpad ▸ Force Click and haptic feedback is on. Leah turned it on 2026-10-02. Each brush stroke logs its pressure range: `/usr/bin/log show --last 10m --predicate 'subsystem == "com.leah.Colorbee"' | grep pressure` (plain `log` is a zsh builtin).

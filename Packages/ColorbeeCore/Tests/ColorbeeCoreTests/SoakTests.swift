@@ -20,13 +20,27 @@ struct SoakTests {
     static let maxLayers = 5
     let context = SelectionContext(color2: .white)
 
+    /// One round by default. NFR-7's 30-minute session: `COLORBEE_SOAK_MINUTES=30 make perf`.
     @Test func randomEditsAt8000UndoBackWithNoStall() {
+        let minutes = Double(ProcessInfo.processInfo.environment["COLORBEE_SOAK_MINUTES"] ?? "") ?? 0
+        let deadline = ContinuousClock.now + .seconds(minutes * 60)
         let canvas = PerformanceFixture.photo(side: Self.side)
+        var round: UInt64 = 0
+        repeat {
+            soakRound(canvas: canvas, seed: 0x50AC + round)
+            round += 1
+        } while ContinuousClock.now < deadline
+        print("Soak: \(round) round(s)")
+    }
+
+    /// 60 random steps, then undo them all and redo them all, checking the image each way.
+    private func soakRound(canvas: Canvas, seed: UInt64) {
         // The app's budget, so old steps spill to disk as they would in use.
         let history = History(byteBudget: 512 << 20)
         history.makeThumbnail = { $0.thumbnail(maxSide: 64) }
         let original = canvas.flattened().contentHash()
-        var random = SplitMix64(seed: 0x50AC)
+        let originalLayers = canvas.layers.count
+        var random = SplitMix64(seed: seed)
         var slowest: (name: String, time: Duration) = ("", .zero)
 
         func timed(_ name: String, _ body: () -> Void) {
@@ -99,7 +113,7 @@ struct SoakTests {
         let final = canvas.flattened().contentHash()
 
         while history.canUndo { timed("Undo") { history.undo(on: canvas) } }
-        #expect(canvas.layers.count == 1)
+        #expect(canvas.layers.count == originalLayers)
         #expect(canvas.flattened().contentHash() == original)
 
         while history.canRedo { timed("Redo") { history.redo(on: canvas) } }

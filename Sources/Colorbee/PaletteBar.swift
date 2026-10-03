@@ -102,6 +102,9 @@ final class SwatchGridView: NSView {
     init(editor: Editor) {
         self.editor = editor
         super.init(frame: NSRect(origin: .zero, size: Self.size))
+        for index in 0..<CustomColors.slotCount {
+            addToolTip(rect(.custom(index)), owner: self, userData: nil)
+        }
     }
 
     @available(*, unavailable)
@@ -199,6 +202,14 @@ final class SwatchGridView: NSView {
 
     @objc private func removeCustom(_ sender: NSMenuItem) {
         CustomColors.shared.remove(at: sender.tag)
+    }
+
+    /// Hover text for the custom slots, which depends on whether the slot holds a color.
+    override func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
+        guard case .custom(let index)? = slot(at: point) else { return "" }
+        return color(of: .custom(index)) == nil
+            ? "Double-click to pick a custom color"
+            : "Control-click to remove custom color"
     }
 }
 

@@ -35,6 +35,33 @@ public enum ImageActions {
         return history.commit(edit)
     }
 
+    /// Resizes and skews every layer (FR-7.2). Corners the skew exposes get the same fill as erased
+    /// pixels: Color 2 on a solid background, transparent otherwise.
+    @discardableResult
+    public static func resizeAndSkew(_ settings: ResizeSkew, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        guard settings.fits, settings.changes(canvas.size) else { return false }
+        SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
+        let edit = history.beginEdit(settings.actionName(from: canvas.size), on: canvas)
+        edit.willChangeGeometry()
+        var buffers: [LayerID: PixelBuffer] = [:]
+        for layer in canvas.layers {
+            let result = layer.buffer.resizedAndSkewed(settings)
+            let fill = canvas.vacatedFill(for: layer, color2: context.color2)
+            if fill.a > 0, settings.horizontalSkew != 0 || settings.verticalSkew != 0 {
+                for y in 0..<result.height {
+                    let row = result.row(y)
+                    for x in 0..<result.width where row[x].a < 255 {
+                        row[x] = Compositing.over(fill, row[x])
+                    }
+                }
+            }
+            buffers[layer.id] = result
+        }
+        canvas.replaceContents(size: settings.resultSize, buffers: buffers)
+        canvas.selection = .none
+        return history.commit(edit)
+    }
+
     /// Crops to the selection's bounding box.
     @discardableResult
     public static func cropToSelection(canvas: Canvas, history: History, context: SelectionContext) -> Bool {

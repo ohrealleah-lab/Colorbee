@@ -58,6 +58,7 @@ enum MainMenu {
         "toggleFullScreen:": "Fill the screen with this window.",
         "cropToSelection:": "Trim the image to the selection's edges.",
         "applyOrientation:": "Turn or mirror the selection, or the whole image if nothing is selected.",
+        "showResizeSkew:": "Change the size of the selection (or whole image) by percent or pixels, or slant it.",
         "setSymmetry:": "Mirror pencil, brush and eraser strokes across the image's center lines.",
         "invertColors:": "Turn colors into their opposites (black becomes white).",
         "showBrightnessContrast:": "Make the selection or image lighter, darker, or more or less contrasty.",
@@ -167,6 +168,7 @@ enum MainMenu {
     private static func imageMenu() -> NSMenu {
         let menu = NSMenu(title: "Image")
         menu.addItem(item("Crop to Selection", "cropToSelection:", "x", [.command, .shift]))
+        menu.addItem(item("Resize and Skew…", "showResizeSkew:", "e"))
         menu.addItem(.separator())
         let rotate = NSMenu(title: "Rotate")
         let flip = NSMenu(title: "Flip")

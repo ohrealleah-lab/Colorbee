@@ -160,6 +160,26 @@ public enum SelectionActions {
         return history.commit(edit)
     }
 
+    /// Resizes and skews the selected pixels around the selection's center (FR-7.2). `settings.size`
+    /// is the new size of the selection as it appears now. A marquee is lifted first.
+    @discardableResult
+    public static func resizeAndSkewSelection(_ settings: ResizeSkew, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        guard settings.fits, let current = canvas.selection.bounds, settings.changes(current.size),
+              let edit = beginMove(duplicate: false, named: settings.actionName(from: current.size) + " Selection", canvas: canvas, history: history, context: context),
+              let floating = canvas.selection.floating else { return false }
+        // Bake any stretching in first so the change applies to what's on screen.
+        let pixels = floating.pixels.resampled(to: floating.destination.size, using: context.resampling).resizedAndSkewed(settings)
+        let mask = (floating.mask.stretched(to: IntRect(size: floating.destination.size)) ?? floating.mask).resizedAndSkewed(settings)
+        let old = floating.destination
+        let destination = IntRect(
+            x: old.minX + (old.width - pixels.width) / 2,
+            y: old.minY + (old.height - pixels.height) / 2,
+            width: pixels.width, height: pixels.height
+        )
+        canvas.selection = .floating(FloatingSelection(pixels: pixels, mask: mask, destination: destination, layerID: floating.layerID, id: floating.id))
+        return history.commit(edit)
+    }
+
     /// Moves the selected pixels by a few pixels as one step.
     public static func nudge(dx: Int, dy: Int, canvas: Canvas, history: History, context: SelectionContext) {
         guard let edit = beginMove(duplicate: false, canvas: canvas, history: history, context: context),

@@ -1291,6 +1291,33 @@ final class Editor {
         onRender()
     }
 
+    /// Whether the Resize and Skew dialog (⌘E) is open.
+    var isResizeSkewOpen = false
+
+    /// What Resize and Skew starts from: the selection as it appears now, or the whole image.
+    var resizeSkewBaseSize: IntSize {
+        canvas.selection.bounds?.size ?? canvas.size
+    }
+
+    func showResizeSkew() {
+        finishInteractions()
+        isResizeSkewOpen = true
+    }
+
+    /// Resizes and skews the selection, or the whole image when nothing is selected (FR-7.2).
+    func apply(_ settings: ResizeSkew) {
+        isResizeSkewOpen = false
+        finishInteractions()
+        recordingChanges {
+            if canvas.selection.isEmpty {
+                ImageActions.resizeAndSkew(settings, canvas: canvas, history: history, context: selectionContext)
+            } else {
+                SelectionActions.resizeAndSkewSelection(settings, canvas: canvas, history: history, context: selectionContext)
+            }
+        }
+        selectionDidChange()
+    }
+
     /// Rotates or flips the selection, or the whole image when nothing is selected.
     func apply(_ orientation: Orientation) {
         finishInteractions()

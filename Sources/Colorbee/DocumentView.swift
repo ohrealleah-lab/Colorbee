@@ -27,6 +27,9 @@ struct DocumentView: View {
             Divider()
             StatusBar(editor: editor)
         }
+        .sheet(isPresented: $editor.isResizeSkewOpen) {
+            ResizeSkewSheet(editor: editor, base: editor.resizeSkewBaseSize, appliesToSelection: editor.hasSelection)
+        }
     }
 }
 

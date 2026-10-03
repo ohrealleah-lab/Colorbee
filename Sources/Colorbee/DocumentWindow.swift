@@ -80,6 +80,10 @@ final class DocumentWindow: NSWindow {
         editor?.symmetry = SymmetryMode.allCases[tag]
     }
 
+    @objc func showResizeSkew(_ sender: Any?) {
+        editor?.showResizeSkew()
+    }
+
     @objc func applyOrientation(_ sender: Any?) {
         guard let tag = (sender as? NSMenuItem)?.tag, Orientation.allCases.indices.contains(tag) else { return }
         editor?.apply(Orientation.allCases[tag])
@@ -144,7 +148,7 @@ final class DocumentWindow: NSWindow {
         case #selector(selectAll(_:)), #selector(invertSelection(_:)),
              #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showAutoRedact(_:)),
              #selector(showSharpen(_:)), #selector(showBrightnessContrast(_:)), #selector(showHueSaturation(_:)),
-             #selector(invertColors(_:)), #selector(desaturate(_:)), #selector(applyOrientation(_:)):
+             #selector(invertColors(_:)), #selector(desaturate(_:)), #selector(applyOrientation(_:)), #selector(showResizeSkew(_:)):
             return true
         case #selector(setSymmetry(_:)):
             menuItem.state = SymmetryMode.allCases.indices.contains(menuItem.tag) && SymmetryMode.allCases[menuItem.tag] == editor.symmetry ? .on : .off

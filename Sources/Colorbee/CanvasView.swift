@@ -38,6 +38,8 @@ final class CanvasView: NSView {
     /// Where the pointer is over the view, in image coordinates, for the eraser's outline.
     private var hoverPoint: Point2D?
     private var sprayTimer: Timer?
+    /// The latest Force Touch trackpad pressure in this drag, if the trackpad has sent any.
+    private var trackpadPressure: Double?
     private var surroundColor = MTLClearColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1)
 
     private var metalLayer: CAMetalLayer {
@@ -562,11 +564,12 @@ final class CanvasView: NSView {
         currentCursor(at: imagePoint(event)).set()
     }
 
-    /// Pressure from a Force Touch trackpad or a pen, 0...1. A mouse, or a tap on the trackpad, reports none,
+    /// Pressure from a pen or a Force Touch trackpad, 0...1. A mouse, or a tap on the trackpad, reports none,
     /// and draws at full size.
     private func pressure(_ event: NSEvent) -> Double {
-        let pressure = Double(event.pressure)
-        return editor.usesPressure && pressure > 0 ? pressure : 1
+        guard editor.usesPressure else { return 1 }
+        if event.subtype == .tabletPoint, event.pressure > 0 { return Double(event.pressure) }
+        return trackpadPressure ?? 1
     }
 
     /// The airbrush sprays on a timer, so holding still builds up paint (FR-4.2).
@@ -593,11 +596,23 @@ final class CanvasView: NSView {
         editor.comparison?.divider = min(1, max(0, viewPoint(event).x / bounds.width))
     }
 
-    override func mouseDown(with event: NSEvent) { beginDrag(event, secondary: false) }
+    override func mouseDown(with event: NSEvent) {
+        trackpadPressure = nil
+        beginDrag(event, secondary: false)
+    }
     override func mouseDragged(with event: NSEvent) { continueDrag(event) }
+
+    /// A Force Touch trackpad reports pressure in these events, not in the drag events (which always say 1).
+    override func pressureChange(with event: NSEvent) {
+        trackpadPressure = Double(event.pressure)
+        super.pressureChange(with: event)
+    }
     override func mouseUp(with event: NSEvent) { endDrag(event) }
 
-    override func rightMouseDown(with event: NSEvent) { beginDrag(event, secondary: true) }
+    override func rightMouseDown(with event: NSEvent) {
+        trackpadPressure = nil
+        beginDrag(event, secondary: true)
+    }
     override func rightMouseDragged(with event: NSEvent) { continueDrag(event) }
     override func rightMouseUp(with event: NSEvent) { endDrag(event) }
 

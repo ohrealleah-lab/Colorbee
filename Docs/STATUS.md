@@ -30,7 +30,7 @@ _Last updated: 2026-10-02 · 203 core tests passing_
 | 3b. Editable objects | ✅ Done | Crop, resize handles, 5 shapes plus arrow, text tool |
 | 4. Redaction | ✅ Done | Magic wand, batch redact, Auto-Redact, Before/After, export presets |
 | 5a. Full toolset (routine) | ✅ Done | All 23 shapes plus rotation, gradient, rotate/flip, symmetry, measure, adjustments, sharpen, D key |
-| 5b. Full toolset (hard) | ✅ Done (awaiting hand test) | 6 brushes, pressure, textured shape styles, Resize/Skew |
+| 5b. Full toolset (hard) | ✅ Done | 6 brushes, pressure, textured shape styles, Resize/Skew |
 | **5c. Interface (mockup look)** | ⏭ **Next** | **Opus · high** · toolbar, palette bar, status bar |
 | 6. Layers | Planned | **Opus · high** · includes the right sidebar |
 | 7. Integration | Planned | Mostly medium; shortcut editor high |
@@ -111,7 +111,7 @@ _Last updated: 2026-10-02 · 203 core tests passing_
 ## Not yet checked by hand
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
-**Stage 5b (built 2026-10-02), not yet tried by hand:** the 7 new brushes, pressure on the trackpad (pressure range is logged: `log show --last 10m --predicate 'subsystem == "com.leah.Colorbee"' --info | grep pressure`), textured shape outlines and fills, Resize and Skew.
+Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Nothing outstanding.
 
 ## Practical notes for the next session
 
@@ -121,3 +121,4 @@ Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-0
 - A Colorbee launched from Xcode (DerivedData) shares the bundle ID with ours, so the computer-use tool may attach to that copy. Never kill Leah's copy.
 - Launch test copies with `-ApplePersistenceIgnoreState YES` so they don't restore old windows.
 - Xcode 26 needs the Metal Toolchain component (already installed on this Mac).
+- Trackpad pressure arrives only in `pressureChange` events (drag events always say 1.0), and only when System Settings ▸ Trackpad ▸ Force Click and haptic feedback is on. Leah turned it on 2026-10-02. Each brush stroke logs its pressure range: `/usr/bin/log show --last 10m --predicate 'subsystem == "com.leah.Colorbee"' | grep pressure` (plain `log` is a zsh builtin).

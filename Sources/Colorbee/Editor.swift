@@ -559,7 +559,7 @@ final class Editor {
         if active.strokes.contains(where: { !$0.finish().isEmpty }) { onRender() }
         if tool == .brush {
             let range = active.pressureRange
-            Diagnostics.logger.info("Brush pressure \(range.lowerBound, format: .fixed(precision: 2))–\(range.upperBound, format: .fixed(precision: 2))")
+            Diagnostics.logger.notice("Brush pressure \(range.lowerBound, format: .fixed(precision: 2))–\(range.upperBound, format: .fixed(precision: 2))")
         }
         recordingChanges { history.commit(active.edit) }
     }

@@ -95,6 +95,8 @@ public struct SelectionMask: Sendable {
 
     /// Each separate (8-connected) area of the selection as its own mask.
     public func connectedRegions() -> [SelectionMask] {
+        // A fully selected mask (a rectangle) is one region; labelling 64 megapixels one by one takes seconds.
+        if !values.contains(0) { return [self] }
         let width = bounds.width, height = bounds.height
         var labelled = [Bool](repeating: false, count: values.count)
         var regions: [SelectionMask] = []

@@ -205,18 +205,22 @@ public enum Effects {
 
     private static func pixelated(_ buffer: PixelBuffer, region: IntRect, cellSize: Int, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
         let result = PixelBuffer(width: region.width, height: region.height)
-        var cellY = region.minY / cellSize * cellSize
-        while cellY < region.maxY {
-            var cellX = region.minX / cellSize * cellSize
-            while cellX < region.maxX {
-                let cell = IntRect(x: cellX, y: cellY, width: cellSize, height: cellSize).intersection(region)
-                let average = averageColor(of: buffer, in: cell, selection: selection)
-                for y in cell.minY..<cell.maxY {
-                    (result.row(y - region.minY) + (cell.minX - region.minX)).update(repeating: average, count: cell.width)
+        let firstCellY = region.minY / cellSize * cellSize
+        let cellRows = (region.maxY - firstCellY + cellSize - 1) / cellSize
+        // Rows of cells are independent, so they run on all cores.
+        ParallelRows.forEach(0..<cellRows, minimumRows: 1) { band in
+            for cellRow in band {
+                let cellY = firstCellY + cellRow * cellSize
+                var cellX = region.minX / cellSize * cellSize
+                while cellX < region.maxX {
+                    let cell = IntRect(x: cellX, y: cellY, width: cellSize, height: cellSize).intersection(region)
+                    let average = averageColor(of: buffer, in: cell, selection: selection)
+                    for y in cell.minY..<cell.maxY {
+                        (result.row(y - region.minY) + (cell.minX - region.minX)).update(repeating: average, count: cell.width)
+                    }
+                    cellX += cellSize
                 }
-                cellX += cellSize
             }
-            cellY += cellSize
         }
         return (result, IntPoint(x: region.minX, y: region.minY))
     }

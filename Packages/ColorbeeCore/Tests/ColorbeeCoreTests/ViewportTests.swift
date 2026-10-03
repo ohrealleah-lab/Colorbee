@@ -2,6 +2,15 @@ import Testing
 @testable import ColorbeeCore
 
 struct ViewportTests {
+    @Test func zoomSliderIsLogarithmic() {
+        #expect(Viewport.sliderPosition(forZoom: Viewport.minZoom) == 0)
+        #expect(Viewport.sliderPosition(forZoom: Viewport.maxZoom) == 1)
+        // 12.5% to 3200% is 8 doublings, so 100% (3 doublings up) sits at 3/8.
+        #expect(abs(Viewport.sliderPosition(forZoom: 1) - 0.375) < 1e-9)
+        #expect(abs(Viewport.zoom(forSliderPosition: 0.375) - 1) < 1e-9)
+        #expect(Viewport.zoom(forSliderPosition: 2) == Viewport.maxZoom)
+    }
+
     private func isClose(_ a: Point2D, _ b: Point2D) -> Bool {
         abs(a.x - b.x) < 1e-9 && abs(a.y - b.y) < 1e-9
     }

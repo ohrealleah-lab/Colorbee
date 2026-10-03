@@ -1,3 +1,5 @@
+import Foundation
+
 /// Maps between view points and image pixels. `center` is the image position shown at the middle of the view.
 public struct Viewport: Equatable, Sendable {
     public static let minZoom = 0.125
@@ -51,6 +53,17 @@ public struct Viewport: Equatable, Sendable {
         let fitZoom = min(1, availableWidth / Double(imageSize.width), availableHeight / Double(imageSize.height))
         zoom = min(max(fitZoom, Self.minZoom), Self.maxZoom)
         center = Point2D(x: Double(imageSize.width) / 2, y: Double(imageSize.height) / 2)
+    }
+
+    /// Where `zoom` sits on the status-bar slider, 0...1. The slider is logarithmic, so doubling
+    /// the zoom always moves it the same distance.
+    public static func sliderPosition(forZoom zoom: Double) -> Double {
+        let clamped = min(max(zoom, minZoom), maxZoom)
+        return log(clamped / minZoom) / log(maxZoom / minZoom)
+    }
+
+    public static func zoom(forSliderPosition position: Double) -> Double {
+        minZoom * pow(maxZoom / minZoom, min(1, max(0, position)))
     }
 
     public func nextZoomStep(zoomingIn: Bool) -> Double {

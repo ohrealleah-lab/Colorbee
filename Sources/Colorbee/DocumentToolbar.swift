@@ -1,0 +1,310 @@
+import AppKit
+import ColorbeeCore
+import SwiftUI
+
+/// The window toolbar (FR-1.1). Each group sits in its own Liquid Glass capsule, as in the mockups.
+struct DocumentToolbar: ToolbarContent {
+    let editor: Editor
+
+    var body: some ToolbarContent {
+        // A toolbar builder takes at most ten entries, so the groups come in two halves.
+        SelectingGroups(editor: editor)
+        PaintingGroups(editor: editor)
+    }
+}
+
+/// Clipboard, selection tools and the other tools.
+private struct SelectingGroups: ToolbarContent {
+    let editor: Editor
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup {
+            CommandButton(title: "Paste", symbol: "doc.on.clipboard", action: "paste:", help: "Paste an image as a selection you can move (⌘V)")
+            CommandButton(title: "Cut", symbol: "scissors", action: "cut:", help: "Cut the selection (⌘X)")
+            CommandButton(title: "Copy", symbol: "doc.on.doc", action: "copy:", help: "Copy the selection, or the whole image (⌘C)")
+        }
+        ToolbarSpacer(.fixed)
+        ToolbarItemGroup {
+            ToolButton(tool: .rectangleSelect, editor: editor)
+            ToolButton(tool: .ellipseSelect, editor: editor)
+            ToolButton(tool: .lassoSelect, editor: editor)
+            ToolButton(tool: .magicWand, editor: editor)
+            TransparentSelectionButton(editor: editor)
+        }
+        ToolbarSpacer(.fixed)
+        ToolbarItemGroup {
+            ForEach([Tool.pencil, .fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure], id: \.self) {
+                ToolButton(tool: $0, editor: editor)
+            }
+        }
+        ToolbarSpacer(.fixed)
+    }
+}
+
+/// Brushes and shapes, size, outline and fill, and the colors.
+private struct PaintingGroups: ToolbarContent {
+    let editor: Editor
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup {
+            BrushGalleryButton(editor: editor)
+            ShapeGalleryButton(editor: editor)
+        }
+        ToolbarSpacer(.fixed)
+        ToolbarItem {
+            SizeControl(editor: editor)
+        }
+        ToolbarSpacer(.fixed)
+        ToolbarItem {
+            OutlineFillControl(editor: editor)
+        }
+        ToolbarSpacer(.fixed)
+        ToolbarItem {
+            ColorWells(editor: editor)
+        }
+        // Pushes the groups up against the title, leaving the right end for the stage 6 panel toggles.
+        ToolbarSpacer(.flexible)
+    }
+}
+
+/// The look of a toolbar button: tinted with the accent color while its tool is in use.
+struct ToolbarGlyph: View {
+    let symbol: String
+    var selected = false
+    var width: CGFloat = 30
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 15))
+            .frame(width: width, height: 28)
+            .foregroundStyle(selected ? Color.accentColor : Color.primary)
+            .background(selected ? Theme.accentSoft : .clear, in: Capsule())
+            .contentShape(Capsule())
+    }
+}
+
+private struct ToolButton: View {
+    let tool: Tool
+    let editor: Editor
+
+    var body: some View {
+        Button { editor.selectTool(tool) } label: {
+            ToolbarGlyph(symbol: tool.symbol, selected: editor.tool == tool)
+        }
+        .buttonStyle(.plain)
+        .help("\(tool.title): \(tool.summary)")
+        .accessibilityLabel(tool.title)
+    }
+}
+
+/// Sends a menu command (Paste, Cut, Copy) to the window, exactly as the Edit menu does.
+private struct CommandButton: View {
+    let title: String
+    let symbol: String
+    let action: String
+    let help: String
+
+    var body: some View {
+        Button { NSApp.sendAction(Selector(action), to: nil, from: nil) } label: {
+            ToolbarGlyph(symbol: symbol)
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(title)
+    }
+}
+
+private struct TransparentSelectionButton: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Rectangle().fill(Theme.separator).frame(width: 1, height: 16).padding(.horizontal, 3)
+            Button { editor.transparentSelection.toggle() } label: {
+                ToolbarGlyph(symbol: "checkerboard.rectangle", selected: editor.transparentSelection)
+            }
+            .buttonStyle(.plain)
+            .help("Transparent Selection: pixels matching Color 2 aren't placed when a selection is moved or pasted")
+            .accessibilityLabel("Transparent Selection")
+        }
+    }
+}
+
+// MARK: Size
+
+/// Five preset sizes and a field for any size, for the tool in use (FR-1.1). Tools without a size dim it.
+private struct SizeControl: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        let size = editor.toolSize
+        HStack(spacing: 1) {
+            ForEach(Array(editor.toolSizePresets.enumerated()), id: \.offset) { index, preset in
+                Button { editor.toolSize = preset } label: {
+                    RoundedRectangle(cornerRadius: 1)
+                        .frame(width: 13, height: CGFloat(index + 1))
+                        .frame(width: 22, height: 28)
+                        .foregroundStyle(size == preset ? Color.accentColor : Color.primary)
+                        .background(size == preset ? Theme.accentSoft : .clear, in: RoundedRectangle(cornerRadius: 9))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("\(preset) px")
+            }
+            HStack(spacing: 2) {
+                TextField("Size", value: Binding(get: { size ?? 1 }, set: { editor.toolSize = $0 }), format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 22)
+                Text("px").foregroundStyle(Theme.secondaryInk)
+            }
+            .font(.system(size: 12))
+            .monospacedDigit()
+            .padding(.horizontal, 7)
+            .frame(height: 22)
+            .background(Theme.field, in: RoundedRectangle(cornerRadius: 7))
+            .padding(.leading, 4)
+        }
+        .padding(.trailing, 2)
+        .disabled(size == nil)
+        .opacity(size == nil ? 0.4 : 1)
+        .help(size == nil ? "This tool has no size" : "Size of the \(editor.tool.title.components(separatedBy: " (").first ?? "tool"). [ and ] change it.")
+    }
+}
+
+// MARK: Outline and fill
+
+/// The shape outline and fill styles (FR-5.1). Only the Shapes tool uses them.
+private struct OutlineFillControl: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        let open = editor.shapeKind.isOpen
+        HStack(spacing: 0) {
+            Menu {
+                if !open {
+                    Button("None") { editor.shapeOutline = nil }
+                }
+                ForEach(PaintStyle.allCases, id: \.self) { style in
+                    Button(style.name) { editor.shapeOutline = style }
+                }
+            } label: {
+                StyleLabel(title: "Outline", value: open ? (editor.shapeOutline ?? .solid).name : editor.shapeOutline?.name ?? "None", filled: false)
+            }
+            .help("How shapes are outlined")
+            Rectangle().fill(Theme.separator).frame(width: 1, height: 16)
+            Menu {
+                Button("None") { editor.shapeFill = nil }
+                ForEach(PaintStyle.allCases, id: \.self) { style in
+                    Button(style.name) { editor.shapeFill = style }
+                }
+            } label: {
+                StyleLabel(title: "Fill", value: open ? "None" : editor.shapeFill?.name ?? "None", filled: true)
+            }
+            .disabled(open)
+            .help(open ? "Lines, arrows and curves have no fill" : "How shapes are filled (with Color 2)")
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .disabled(editor.tool != .shape)
+        .opacity(editor.tool == .shape ? 1 : 0.4)
+    }
+
+    private struct StyleLabel: View {
+        let title: String
+        let value: String
+        let filled: Bool
+
+        var body: some View {
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 2.5)
+                    .strokeBorder(lineWidth: 1.6)
+                    .background(filled ? AnyShapeStyle(Color.primary.opacity(0.35)) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 2.5))
+                    .frame(width: 12, height: 12)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title).font(.system(size: 9.5)).foregroundStyle(Theme.secondaryInk)
+                    Text(value).font(.system(size: 12))
+                }
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).opacity(0.6)
+            }
+            .padding(.leading, 8)
+            .padding(.trailing, 6)
+            .frame(height: 28)
+            .contentShape(Rectangle())
+        }
+    }
+}
+
+// MARK: Color wells
+
+/// Color 1 and Color 2 (FR-1.1). The ringed well is the one a swatch click sets; double-click a well
+/// to choose its color, and the arrows swap them (X).
+private struct ColorWells: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            well(editor.color2, active: editor.activeWell == .color2)
+                .offset(x: 15, y: 9)
+                .onTapGesture(count: 2) { open(.color2) }
+                .onTapGesture { editor.activeWell = .color2 }
+                .help("Color 2: right-click colors, fills and the eraser. Double-click to choose.")
+            well(editor.color1, active: editor.activeWell == .color1)
+                .offset(x: 2, y: 2)
+                .onTapGesture(count: 2) { open(.color1) }
+                .onTapGesture { editor.activeWell = .color1 }
+                .help("Color 1: left-click colors and outlines. Double-click to choose.")
+            Button { editor.swapColors() } label: {
+                Image(systemName: "arrow.trianglehead.swap")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Theme.secondaryInk)
+                    .frame(width: 12, height: 12)
+            }
+            .buttonStyle(.plain)
+            .offset(x: 34, y: -2)
+            .help("Swap Color 1 and Color 2 (X)")
+        }
+        .frame(width: 48, height: 30, alignment: .topLeading)
+        .padding(.horizontal, 6)
+    }
+
+    private func open(_ well: ColorWell) {
+        editor.activeWell = well
+        ColorPanelController.shared.open(for: editor)
+    }
+
+    private func well(_ color: Pixel, active: Bool) -> some View {
+        ZStack {
+            Checkerboard(square: 5)
+            Rectangle().fill(Color(nsColor: color.nsColor(in: editor.canvas.colorSpace)))
+        }
+        .frame(width: 20, height: 20)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.gray.opacity(0.6), lineWidth: 0.5))
+        .padding(2)
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(active ? Color.accentColor : .clear, lineWidth: 1.5))
+        .contentShape(Rectangle())
+    }
+}
+
+/// Light and mid gray squares, shown behind see-through colors.
+struct Checkerboard: View {
+    let square: CGFloat
+
+    var body: some View {
+        Canvas { context, size in
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.white))
+            var y: CGFloat = 0, row = 0
+            while y < size.height {
+                var x: CGFloat = row.isMultiple(of: 2) ? 0 : square
+                while x < size.width {
+                    context.fill(Path(CGRect(x: x, y: y, width: square, height: square)), with: .color(Color(white: 0.8)))
+                    x += square * 2
+                }
+                y += square
+                row += 1
+            }
+        }
+    }
+}

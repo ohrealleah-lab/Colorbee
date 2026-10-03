@@ -168,7 +168,7 @@ final class CanvasView: NSView {
         var color = NSColor.gray
         effectiveAppearance.performAsCurrentDrawingAppearance {
             let space = NSColorSpace(cgColorSpace: editor.canvas.colorSpace)
-            color = space.flatMap { NSColor.underPageBackgroundColor.usingColorSpace($0) } ?? .gray
+            color = space.flatMap { Theme.surround.usingColorSpace($0) } ?? .gray
         }
         surroundColor = MTLClearColor(
             red: color.redComponent, green: color.greenComponent, blue: color.blueComponent, alpha: 1
@@ -441,6 +441,7 @@ final class CanvasView: NSView {
             }
         }
         if showsEraserOutline { return Self.hiddenCursor }
+        if editor.tool == .magnifier { return NSEvent.modifierFlags.contains(.option) ? .zoomOut : .zoomIn }
         return .crosshair
     }
 
@@ -493,6 +494,9 @@ final class CanvasView: NSView {
             } else if !secondary {
                 drag = .text(start: point)
             }
+        case .magnifier:
+            // Right-click or Option-click zooms out.
+            editor.magnify(in: !secondary && !event.modifierFlags.contains(.option), atView: viewPoint(event))
         case .fill:
             editor.fill(at: point, secondary: secondary)
         case .eyedropper:
@@ -749,6 +753,7 @@ final class CanvasView: NSView {
             case ("t", true): editor.selectTool(.text)
             case ("w", true): editor.selectTool(.magicWand)
             case ("r", true): editor.selectTool(.measure)
+            case ("z", true): editor.selectTool(.magnifier)
             case ("[", true): editor.adjustToolSize(larger: false)
             case ("]", true): editor.adjustToolSize(larger: true)
             default:

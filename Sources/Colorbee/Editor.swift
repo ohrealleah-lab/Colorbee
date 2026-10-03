@@ -23,6 +23,7 @@ enum Tool: CaseIterable {
     case ellipseSelect
     case lassoSelect
     case magicWand
+    case magnifier
 
     var isSelectionTool: Bool {
         switch self {
@@ -38,6 +39,12 @@ enum Tool: CaseIterable {
         default: false
         }
     }
+}
+
+/// Which color well a swatch click (and the Alpha slider and Edit Colors…) changes (FR-1.1).
+enum ColorWell {
+    case color1
+    case color2
 }
 
 /// Mirror drawing across the canvas's center lines (FR-7.3).
@@ -420,6 +427,32 @@ final class Editor {
             placeFloatingKeepingOutline()
         }
         tool = newTool
+    }
+
+    /// What the toolbar's Size control edits (FR-1.1); nil for tools without a size.
+    var toolSize: Int? {
+        get {
+            switch tool {
+            case .brush: Int(brushDiameter.rounded())
+            case .shape: Int(shapeLineWidth.rounded())
+            case .eraser: eraserSize
+            default: nil
+            }
+        }
+        set {
+            guard let size = newValue else { return }
+            switch tool {
+            case .brush: brushDiameter = Double(min(50, max(1, size)))
+            case .shape: shapeLineWidth = Double(min(50, max(1, size)))
+            case .eraser: eraserSize = min(100, max(1, size))
+            default: break
+            }
+        }
+    }
+
+    /// The five sizes the Size control offers for the tool in use.
+    var toolSizePresets: [Int] {
+        tool == .eraser ? [4, 6, 8, 10, 20] : [1, 2, 3, 4, 5]
     }
 
     /// The `[` and `]` keys: resize whichever tool is active.
@@ -1516,6 +1549,21 @@ final class Editor {
 
     // MARK: Colors
 
+    /// The well a left-click on a swatch sets. Right-clicks always set Color 2.
+    var activeWell: ColorWell = .color1
+
+    var activeColor: Pixel {
+        get { activeWell == .color1 ? color1 : color2 }
+        set { if activeWell == .color1 { color1 = newValue } else { color2 = newValue } }
+    }
+
+    /// A swatch click. Swatches carry no alpha, so the well keeps its Alpha setting.
+    func applySwatch(_ swatch: Pixel, secondary: Bool) {
+        var color = swatch
+        color.a = secondary ? color2.a : activeColor.a
+        if secondary { color2 = color } else { activeColor = color }
+    }
+
     func swapColors() {
         // One at a time: swapping both in place holds both open while their observers run.
         let first = color1
@@ -1535,6 +1583,11 @@ final class Editor {
 
     private var viewCenter: Point2D {
         Point2D(x: viewport.viewSize.width / 2, y: viewport.viewSize.height / 2)
+    }
+
+    /// The Magnifier: one zoom step in or out, keeping the clicked point under the pointer (FR-7.1).
+    func magnify(in zoomingIn: Bool, atView anchor: Point2D) {
+        updateViewport { $0.setZoom($0.nextZoomStep(zoomingIn: zoomingIn), anchor: anchor) }
     }
 
     func zoomIn() {

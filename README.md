@@ -37,7 +37,7 @@ Colorbee is a personal tool, built as a product exercise. I'm the product manage
 - **Performance targets:** under 16 ms from input to frame, scanline fill and magic wand algorithms instead of recursion, whole-image work on all cores, and saving in the background. In the 8000 × 8000 soak test (up to five layers), no step takes a second.
 - **Tests:** 335 unit tests in Swift Testing, including exact pixel values on small images and property tests that run random edits, undo them all and check the image is unchanged. A separate Release-only suite (`make perf`) sets time limits and runs an 8000 × 8000 soak test.
 
-About 15,000 lines of Swift, plus 3,000 lines of tests.
+About 18,000 lines of Swift and Metal, plus 4,000 lines of tests.
 
 ## Status
 

@@ -22,16 +22,19 @@ final class DocumentWindow: NSWindow {
     /// Copies the selection, or the whole image when nothing is selected (FR-10.3).
     @objc func copy(_ sender: Any?) {
         guard let editor else { return }
-        do {
-            let png = try editor.selectedPixels().map {
-                try ImageCodec.encodePNG($0, colorSpace: editor.canvas.colorSpace)
-            } ?? editor.flattenedPNG()
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setData(png, forType: .png)
-            ClipboardHistory.shared.add(png)
-        } catch {
-            presentError(error)
+        copyToClipboard(selected: editor.selectedPixels(), editor: editor)
+    }
+
+    /// The selected pixels (made now, so they're the selection as it is), or the whole image from a
+    /// snapshot flattened in the background.
+    private func copyToClipboard(selected: PixelBuffer?, editor: Editor) {
+        let colorSpace = editor.canvas.colorSpace
+        if let selected {
+            let pixels = UnsafePixels(selected)
+            ClipboardImage.copy(colorSpace: colorSpace) { pixels.value }
+        } else {
+            let snapshot = editor.saveSnapshot()
+            ClipboardImage.copy(colorSpace: colorSpace) { snapshot.canvas.flattened(transparentKey: snapshot.transparentKey) }
         }
     }
 
@@ -122,15 +125,7 @@ final class DocumentWindow: NSWindow {
 
     @objc func copyMerged(_ sender: Any?) {
         guard let editor else { return }
-        do {
-            let png = try editor.selectedMergedPixels().map {
-                try ImageCodec.encodePNG($0, colorSpace: editor.canvas.colorSpace)
-            } ?? editor.flattenedPNG()
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setData(png, forType: .png)
-        } catch {
-            presentError(error)
-        }
+        copyToClipboard(selected: editor.selectedMergedPixels(), editor: editor)
     }
 
     @objc func toggleLayers(_ sender: Any?) { editor?.toggleLayersPanel() }
@@ -322,4 +317,10 @@ final class DocumentWindow: NSWindow {
     private static func imageDataOnPasteboard() -> Data? {
         PasteboardImages.imageData()
     }
+}
+
+/// A buffer made for the clipboard and handed to the encoder's thread; nothing else holds it.
+private struct UnsafePixels: @unchecked Sendable {
+    let value: PixelBuffer
+    init(_ value: PixelBuffer) { self.value = value }
 }

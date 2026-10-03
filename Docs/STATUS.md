@@ -125,7 +125,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 **8 Hardening**
 - The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
-- Later polish: ⌘C of a very large image still pauses about a second.
+- Polish done 2026-10-03: effect previews in the background (`EffectPreview`), Copy in the background (`ClipboardImage`). Leah's hand test pending.
 
 **9 Photo editing and presentation (FR-9.5)** — done; tested by hand 2026-10-03.
 - 9a tone adjustments and effects (`Levels`, `Curves`, `Histogram`, `ColorLookup`, `Effects+Texture`); 9b Adjust Photo, Auto and filters (`PhotoAdjustments`, `PhotoAuto`, `PhotoFilter`, `FilterStore`, `adjust_photo_fragment`); 9c Drop Shadow, Border, Spotlight (`Decorations`); 9d Straighten, Perspective Correction, Crop… (`Warp`, `CropBox`, `CropOptions`, canvas-tool drags in `CanvasView`); 9e Remove Background, Lift Subject, Select Subject (`Subjects`, Vision instance masks).

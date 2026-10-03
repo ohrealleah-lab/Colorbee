@@ -483,6 +483,15 @@ final class Editor {
     /// The selection's separate regions, worked out once per dialog; nil applies to the whole layer.
     @ObservationIgnored private var effectRegions: [SelectionMask]?
     @ObservationIgnored private var effectPreviewScheduled = false
+    /// The active layer's pixels as they were when the effect opened. Previews are worked out from this
+    /// copy in the background, so large images don't hold up the sliders (NFR-6).
+    @ObservationIgnored private var effectSource: PixelBuffer?
+    /// What the canvas shows now, so Apply knows whether the newest settings still need working out.
+    @ObservationIgnored private var shownEffect: Effect?
+    /// Bumped when the effect closes, so a background preview finishing late is ignored.
+    @ObservationIgnored private var previewGeneration = 0
+    @ObservationIgnored private var previewRunning = false
+    @ObservationIgnored private var previewWanted = false
     @ObservationIgnored private var shapeDrag: ShapeDrag?
     @ObservationIgnored private var gradientDrag: GradientDrag?
     @ObservationIgnored private var gradientRenderScheduled = false
@@ -1707,7 +1716,9 @@ final class Editor {
             effectRegions = canvas.selection.marquee?.connectedRegions()
         }
         activeEffect = kind
-        renderEffectPreview()
+        shownEffect = nil
+        effectSource = effectEdit == nil ? nil : canvas.activeLayer.buffer.copy()
+        if effectSource != nil { previewEffect() } else { renderEffectPreview() }
     }
 
     /// Whether a Drop Shadow, Border or Straighten preview step is in the history right now.
@@ -1953,9 +1964,41 @@ final class Editor {
     /// Called as the slider moves. Updates are merged, so only the latest value is ever computed
     /// and the slider never waits on a backlog.
     func previewEffect() {
+        if effectSource != nil, effectEdit != nil {
+            // One background render at a time; settings that change meanwhile are rendered next.
+            if previewRunning { previewWanted = true } else { startBackgroundPreview() }
+            return
+        }
         guard !effectPreviewScheduled else { return }
         effectPreviewScheduled = true
         Task { @MainActor [weak self] in self?.renderEffectPreview() }
+    }
+
+    /// Works out the current settings from the original pixels off the main thread, then shows them.
+    private func startBackgroundPreview() {
+        guard let kind = activeEffect, let source = effectSource else { return }
+        let effect = kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
+        guard effect != shownEffect else { return }
+        let regions = effectRegions, generation = previewGeneration
+        let original = UnsafeTransfer(source)
+        previewRunning = true
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let preview = EffectPreview.render(effect, from: original.value, regions: regions)
+            await MainActor.run { [weak self] in self?.showBackgroundPreview(preview, of: effect, generation: generation) }
+        }
+    }
+
+    private func showBackgroundPreview(_ preview: EffectPreview?, of effect: Effect, generation: Int) {
+        previewRunning = false
+        guard generation == previewGeneration, let edit = effectEdit else { return }
+        edit.restoreOriginals()
+        preview?.write(into: canvas.activeLayer, edit: edit)
+        shownEffect = effect
+        onRender()
+        if previewWanted {
+            previewWanted = false
+            startBackgroundPreview()
+        }
     }
 
     private func renderEffectPreview() {
@@ -1971,6 +2014,7 @@ final class Editor {
         } else {
             Effects.apply(effect, to: canvas.activeLayer, selection: nil, edit: edit)
         }
+        shownEffect = effect
         onRender()
     }
 
@@ -1991,16 +2035,16 @@ final class Editor {
 
     /// Adjust Photo's Auto: sets the sliders it balances from the original pixels and marks them (FR-9.5).
     func autoPhoto() {
-        guard activeEffect == .adjustPhoto, let edit = effectEdit else { return }
-        edit.restoreOriginals()
-        let auto = PhotoAdjustments.auto(for: canvas.activeLayer.buffer, selection: canvas.selection.marquee)
+        guard activeEffect == .adjustPhoto, let source = effectSource else { return }
+        // From the original pixels, not the preview on screen.
+        let auto = PhotoAdjustments.auto(for: source, selection: canvas.selection.marquee)
         var changed = photoEdit
         for slider in [PhotoAdjustments.Slider.exposure, .brilliance, .highlights, .shadows, .contrast, .warmth, .tint, .vibrance] {
             changed.adjustments[slider] = auto[slider]
         }
         photoEdit = changed
         photoAutoMoved = Set(auto.values.keys)
-        renderEffectPreview()
+        previewEffect()
     }
 
     /// Adjust Photo's "As Adjustment Layer": the settings become an adjustment layer instead of pixels.
@@ -2165,10 +2209,24 @@ final class Editor {
             decorationPreviewed = false
             return
         }
+        // Apply commits exactly the settings on screen: if the newest ones are still being worked out, do it now.
+        if let kind = activeEffect, effectEdit != nil, kind.effect(effectValues, curves: effectCurves, photo: photoEdit) != shownEffect {
+            renderEffectPreview()
+        }
         guard let edit = effectEdit else { return }
-        effectEdit = nil
+        endEffectSession()
         activeEffect = nil
         recordingChanges { history.commit(edit) }
+    }
+
+    /// Drops the background preview state; a render still running finds a newer generation and is ignored.
+    private func endEffectSession() {
+        effectEdit = nil
+        effectSource = nil
+        shownEffect = nil
+        previewGeneration += 1
+        previewRunning = false
+        previewWanted = false
     }
 
     func cancelEffect() {
@@ -2181,7 +2239,7 @@ final class Editor {
         decorationPreviewed = false
         subjectPick = nil
         effectEdit?.restoreOriginals()
-        effectEdit = nil
+        endEffectSession()
         activeEffect = nil
         onRender()
     }
@@ -2671,4 +2729,10 @@ final class Editor {
 private struct RenderedShape: @unchecked Sendable {
     let pixels: PixelBuffer
     let origin: IntPoint
+}
+
+/// Hands a pixel buffer to a background task that only reads it while nothing else writes to it.
+private struct UnsafeTransfer<Value>: @unchecked Sendable {
+    let value: Value
+    init(_ value: Value) { self.value = value }
 }

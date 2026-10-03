@@ -243,3 +243,29 @@ struct ToneAdjustmentLayerTests {
         }
     }
 }
+
+struct EffectPreviewTests {
+    @Test(arguments: [Effect.gaussianBlur(radius: 3), .motionBlur(angle: 30, distance: 9), .vignette(amount: 70, size: 20),
+                      .photo(PhotoEdit(adjustments: PhotoAdjustments([.sharpness: 60, .exposure: 20, .vignette: 40]))), .pixelate(cellSize: 5)])
+    func aBackgroundPreviewMatchesApplyingDirectly(effect: Effect) {
+        func photo() -> Canvas {
+            let canvas = Canvas(size: IntSize(width: 40, height: 30), colorSpace: Canvas.defaultColorSpace, background: .white)
+            for y in 0..<30 { for x in 0..<40 { canvas.activeLayer.buffer[x, y] = Pixel(r: UInt8(x * 6), g: UInt8(y * 8), b: UInt8((x ^ y) * 4)) } }
+            return canvas
+        }
+        let selection = SelectionMask.ellipse(in: IntRect(x: 5, y: 4, width: 26, height: 20), clippedTo: IntRect(x: 0, y: 0, width: 40, height: 30))!
+        for regions in [nil, selection.connectedRegions()] as [[SelectionMask]?] {
+            let direct = photo()
+            let directEdit = Edit(name: "Direct", canvas: direct)
+            if let regions { Effects.apply(effect, to: direct.activeLayer, regions: regions, edit: directEdit) } else { Effects.apply(effect, to: direct.activeLayer, selection: nil, edit: directEdit) }
+
+            let previewed = photo()
+            let source = previewed.activeLayer.buffer.copy()
+            let edit = Edit(name: "Preview", canvas: previewed)
+            EffectPreview.render(effect, from: source, regions: regions)?.write(into: previewed.activeLayer, edit: edit)
+            #expect(previewed.activeLayer.buffer.contentHash() == direct.activeLayer.buffer.contentHash())
+            edit.restoreOriginals()
+            #expect(previewed.activeLayer.buffer.contentHash() == source.contentHash())
+        }
+    }
+}

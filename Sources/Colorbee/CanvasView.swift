@@ -54,7 +54,7 @@ final class CanvasView: NSView {
     init(editor: Editor) {
         self.editor = editor
         super.init(frame: .zero)
-        registerForDraggedTypes([.fileURL, .png, .tiff])
+        registerForDraggedTypes([.fileURL, .png, .tiff] + NSImage.imageTypes.map { NSPasteboard.PasteboardType($0) })
         wantsLayer = true
         layerContentsRedrawPolicy = .duringViewResize
         // Continuous pressure for brushes, without a Force Click stage.
@@ -938,7 +938,6 @@ extension CanvasView {
         ])?.first as? URL {
             return try? Data(contentsOf: url)
         }
-        if let type = pasteboard.availableType(from: [.png, .tiff]) { return pasteboard.data(forType: type) }
-        return nil
+        return PasteboardImages.imageData(pasteboard)
     }
 }

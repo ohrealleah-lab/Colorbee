@@ -5,7 +5,6 @@ import ColorbeeCore
 final class DocumentWindow: NSWindow {
     weak var editor: Editor?
 
-    private static let pasteboardImageTypes: [NSPasteboard.PasteboardType] = [.png, .tiff]
 
     /// While text is being typed, undo belongs to the text box.
     private var textUndoManager: UndoManager? {
@@ -246,7 +245,7 @@ final class DocumentWindow: NSWindow {
             menuItem.title = editor.redoActionName.map { "Redo \($0)" } ?? "Redo"
             return editor.redoActionName != nil
         case #selector(paste(_:)):
-            return Self.imageDataOnPasteboard() != nil
+            return PasteboardImages.hasImage()
         case #selector(cut(_:)), #selector(delete(_:)), #selector(deselect(_:)), #selector(cropToSelection(_:)),
              #selector(applySolidFill(_:)):
             return editor.hasSelection
@@ -268,7 +267,7 @@ final class DocumentWindow: NSWindow {
             menuItem.state = editor.isSidebarOpen && editor.showsLayersPanel ? .on : .off
             return true
         case #selector(pasteIntoNewImage(_:)):
-            return Self.imageDataOnPasteboard() != nil
+            return PasteboardImages.hasImage()
         case #selector(showCanvasProperties(_:)):
             return true
         case #selector(toggleHistoryPanel(_:)):
@@ -321,17 +320,6 @@ final class DocumentWindow: NSWindow {
     }
 
     private static func imageDataOnPasteboard() -> Data? {
-        let pasteboard = NSPasteboard.general
-        if let type = pasteboard.availableType(from: pasteboardImageTypes) {
-            return pasteboard.data(forType: type)
-        }
-        let options: [NSPasteboard.ReadingOptionKey: Any] = [
-            .urlReadingFileURLsOnly: true,
-            .urlReadingContentsConformToTypes: ["public.image"],
-        ]
-        guard let url = pasteboard.readObjects(forClasses: [NSURL.self], options: options)?.first as? URL else {
-            return nil
-        }
-        return try? Data(contentsOf: url)
+        PasteboardImages.imageData()
     }
 }

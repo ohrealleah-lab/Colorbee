@@ -5,7 +5,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Strokes must see every input sample (NFR-2).
         NSEvent.isMouseCoalescingEnabled = false
-        NSApp.mainMenu = MainMenu.make()
+        let menu = MainMenu.make()
+        NSApp.mainMenu = menu
+        // Every menu command and canvas key, with any changed shortcuts (FR-15.3).
+        ShortcutStore.shared.register(menu)
     }
 
     private let services = ServicesProvider()

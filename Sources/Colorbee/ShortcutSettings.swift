@@ -31,15 +31,31 @@ struct ShortcutSettings: View {
         VStack(alignment: .leading, spacing: 10) {
             TextField("Search commands or shortcuts", text: $search)
                 .textFieldStyle(.roundedBorder)
-            List {
-                ForEach(groups, id: \.name) { group in
-                    Section(group.name) {
-                        ForEach(group.commands, id: \.id) { command in
-                            row(command)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
+                    ForEach(groups, id: \.name) { group in
+                        Section {
+                            ForEach(group.commands, id: \.id) { command in
+                                row(command)
+                                    .padding(.horizontal, 10)
+                                    .frame(height: 28)
+                                Divider().padding(.leading, 10)
+                            }
+                        } header: {
+                            Text(group.name)
+                                .font(.headline)
+                                .padding(.horizontal, 10)
+                                .padding(.top, 12)
+                                .padding(.bottom, 4)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(.background)
                         }
                     }
                 }
             }
+            .frame(maxHeight: .infinity)
+            .background(.background, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.secondary.opacity(0.25)))
             if let message {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)

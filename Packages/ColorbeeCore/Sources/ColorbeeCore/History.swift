@@ -46,6 +46,7 @@ public final class Edit {
     /// Record this edit even when only the selection changed (for example, moving a floating selection).
     public var recordsSelectionChange = false
     private(set) var geometryBefore: GeometryChange?
+    private(set) var layersBefore: LayerStackState?
     private(set) var snapshots: [TileKey: TileSnapshot] = [:]
     public private(set) var dirtyRect: IntRect = .zero
 
@@ -56,6 +57,7 @@ public final class Edit {
     }
 
     public func willModify(_ rect: IntRect, in layer: Layer) {
+        precondition(layersBefore == nil, "Pixel edits can't be mixed with layer changes in one step")
         let bounds = layer.buffer.bounds
         let target = rect.intersection(bounds)
         guard !target.isEmpty else { return }
@@ -78,6 +80,14 @@ public final class Edit {
     public func willChangeGeometry() {
         precondition(snapshots.isEmpty, "Geometry changes can't be mixed with pixel edits in one step")
         if geometryBefore == nil { geometryBefore = canvas.currentGeometry }
+    }
+
+    /// Call before changing the layer stack: adding, removing, reordering or merging layers, or changing
+    /// a layer's name, visibility, opacity, blend mode or lock. Merges swap in new buffers rather than
+    /// editing pixels, so they can't be mixed with pixel edits in one step.
+    public func willChangeLayers() {
+        precondition(snapshots.isEmpty && geometryBefore == nil, "Layer changes can't be mixed with pixel or geometry edits in one step")
+        if layersBefore == nil { layersBefore = canvas.layerStackState }
     }
 
     /// Puts back every pixel this edit has changed so far. Used for live previews that are recomputed.
@@ -125,6 +135,9 @@ final class HistoryEntry {
     let name: String
     var changes: [TileChange]
     var geometry: GeometryChange?
+    var layers: LayerStackState?
+    /// Memory held by buffers only this step keeps alive (a deleted or merged-away layer's pixels).
+    var layerBytes = 0
     let selectionBefore: SelectionState
     var selectionAfter: SelectionState
     var isSpilled = false
@@ -136,7 +149,7 @@ final class HistoryEntry {
         self.selectionAfter = selectionAfter
     }
 
-    var byteCount: Int { changes.reduce(0) { $0 + $1.byteCount } + (geometry?.byteCount ?? 0) }
+    var byteCount: Int { changes.reduce(0) { $0 + $1.byteCount } + (geometry?.byteCount ?? 0) + layerBytes }
     var hasSpillableData: Bool { !changes.isEmpty || geometry != nil }
 }
 
@@ -186,6 +199,18 @@ public final class History {
             }
         }
         let selectionChanged = edit.recordsSelectionChange && !edit.selectionBefore.isSame(as: selectionAfter)
+        if let layers = edit.layersBefore {
+            guard !layers.isSame(as: edit.canvas.layerStackState) else { return false }
+            discardRedo()
+            let entry = HistoryEntry(name: edit.name, changes: [], selectionBefore: edit.selectionBefore, selectionAfter: selectionAfter)
+            entry.layers = layers
+            entry.layerBytes = Self.bytesOnlyIn(layers, comparedWith: edit.canvas.layerStackState)
+            undoStack.append(entry)
+            byteCount += entry.byteCount
+            revision += 1
+            spillToBudget()
+            return true
+        }
         if let geometry = edit.geometryBefore {
             discardRedo()
             let entry = HistoryEntry(name: edit.name, changes: [], selectionBefore: edit.selectionBefore, selectionAfter: selectionAfter)
@@ -251,6 +276,15 @@ public final class History {
     }
 
     private func swapPixels(_ entry: HistoryEntry, on canvas: Canvas) -> IntRect {
+        if let layers = entry.layers {
+            let current = canvas.layerStackState
+            canvas.restore(layers)
+            entry.layers = current
+            byteCount -= entry.layerBytes
+            entry.layerBytes = Self.bytesOnlyIn(current, comparedWith: layers)
+            byteCount += entry.layerBytes
+            return canvas.bounds
+        }
         if let geometry = entry.geometry, let buffers = geometry.buffers {
             entry.geometry = canvas.currentGeometry
             canvas.replaceContents(size: geometry.size, buffers: buffers)
@@ -264,6 +298,17 @@ public final class History {
             changed = changed.union(change.rect)
         }
         return changed
+    }
+
+    /// Bytes of buffers in `state` that `other` doesn't use.
+    private static func bytesOnlyIn(_ state: LayerStackState, comparedWith other: LayerStackState) -> Int {
+        let used = Set(other.records.map { ObjectIdentifier($0.buffer) })
+        var seen = Set<ObjectIdentifier>()
+        return state.records.reduce(0) { total, record in
+            let id = ObjectIdentifier(record.buffer)
+            guard !used.contains(id), seen.insert(id).inserted else { return total }
+            return total + record.buffer.width * record.buffer.height * MemoryLayout<Pixel>.stride
+        }
     }
 
     private func discardRedo() {

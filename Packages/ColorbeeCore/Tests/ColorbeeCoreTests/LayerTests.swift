@@ -1,0 +1,235 @@
+import simd
+import Testing
+@testable import ColorbeeCore
+
+struct BlendModeTests {
+    private let gray = SIMD3<Float>(repeating: 0.5)
+
+    private func close(_ a: SIMD3<Float>, _ b: SIMD3<Float>) -> Bool {
+        simd_reduce_max(abs(a - b)) < 1e-5
+    }
+
+    @Test func separableModesMatchTheSpec() {
+        let b = SIMD3<Float>(0.2, 0.5, 0.8), s = SIMD3<Float>(0.6, 0.5, 0.1)
+        #expect(BlendMode.normal.blend(b, s) == s)
+        #expect(BlendMode.multiply.blend(b, s) == b * s)
+        #expect(BlendMode.screen.blend(b, s) == b + s - b * s)
+        #expect(BlendMode.darken.blend(b, s) == SIMD3<Float>(0.2, 0.5, 0.1))
+        #expect(BlendMode.lighten.blend(b, s) == SIMD3<Float>(0.6, 0.5, 0.8))
+        #expect(BlendMode.difference.blend(b, s) == abs(b - s))
+        #expect(close(BlendMode.additive.blend(b, s), SIMD3<Float>(0.8, 1, 0.9)))
+        // Overlay is Hard Light with the layers swapped.
+        #expect(BlendMode.overlay.blend(b, s) == BlendMode.hardLight.blend(s, b))
+    }
+
+    @Test func dodgeAndBurnHandleTheirEdgeCases() {
+        #expect(BlendMode.colorDodge.blend(.zero, gray) == .zero)
+        #expect(BlendMode.colorDodge.blend(gray, SIMD3(repeating: 1)) == SIMD3<Float>(repeating: 1))
+        #expect(BlendMode.colorBurn.blend(SIMD3<Float>(repeating: 1), gray) == SIMD3<Float>(repeating: 1))
+        #expect(BlendMode.colorBurn.blend(gray, .zero) == .zero)
+    }
+
+    @Test func softLightWithMiddleGrayChangesNothing() {
+        let b = SIMD3<Float>(0.1, 0.4, 0.9)
+        #expect(close(BlendMode.softLight.blend(b, gray), b))
+    }
+
+    @Test func luminosityKeepsTheBackdropHueAndTakesTheSourceLightness() {
+        let red = SIMD3<Float>(1, 0, 0), white = SIMD3<Float>(1, 1, 1), black = SIMD3<Float>(0, 0, 0)
+        #expect(close(BlendMode.luminosity.blend(red, white), white))
+        #expect(close(BlendMode.luminosity.blend(red, black), black))
+        // Color takes the source's hue and saturation over a gray backdrop's lightness.
+        let colored = BlendMode.color.blend(gray, red)
+        #expect(colored.x > colored.y && abs(colored.y - colored.z) < 1e-5)
+        // Saturation from a gray source removes all color.
+        let desaturated = BlendMode.saturation.blend(SIMD3<Float>(0.8, 0.2, 0.2), gray)
+        #expect(simd_reduce_max(desaturated) - simd_reduce_min(desaturated) < 1e-5)
+    }
+
+    @Test func blendingOntoTransparencyIsPlainOver() {
+        for mode in BlendMode.allCases {
+            var backdrop = SIMD4<Float>.zero
+            Compositing.blend(&backdrop, Pixel(r: 200, g: 40, b: 10), opacity: 1, mode: mode)
+            #expect(Compositing.pixel(backdrop) == Pixel(r: 200, g: 40, b: 10))
+        }
+    }
+
+    @Test func normalBlendMatchesOver() {
+        let base = Pixel(r: 10, g: 200, b: 90, a: 180), top = Pixel(r: 250, g: 20, b: 60, a: 120)
+        var backdrop = Compositing.premultiplied(base)
+        Compositing.blend(&backdrop, top, opacity: 0.5, mode: .normal)
+        let expected = Compositing.over(base, top, coverage: 0.5)
+        let actual = Compositing.pixel(backdrop)
+        for (a, e) in [(actual.r, expected.r), (actual.g, expected.g), (actual.b, expected.b), (actual.a, expected.a)] {
+            #expect(abs(Int(a) - Int(e)) <= 1)
+        }
+    }
+}
+
+struct LayerActionTests {
+    private let red = Pixel(r: 255, g: 0, b: 0)
+    private let gray = Pixel(r: 128, g: 128, b: 128)
+    private let context = SelectionContext(color2: .white)
+
+    private func makeCanvas() -> (Canvas, History) {
+        (Canvas(size: IntSize(width: 8, height: 8), colorSpace: Canvas.defaultColorSpace, background: .white), History(byteBudget: .max))
+    }
+
+    @Test func addingALayerPutsATransparentOneAboveAndSelectsIt() {
+        let (canvas, history) = makeCanvas()
+        #expect(LayerActions.add(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 2)
+        #expect(canvas.activeLayerIndex == 1)
+        #expect(canvas.activeLayer.name == "Layer 1")
+        #expect(canvas.activeLayer.buffer[3, 3] == .clear)
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        #expect(canvas.activeLayer.name == "Layer 2")
+        history.undo(on: canvas)
+        history.undo(on: canvas)
+        #expect(canvas.layers.count == 1)
+        history.redo(on: canvas)
+        #expect(canvas.layers.count == 2 && canvas.activeLayer.name == "Layer 1")
+    }
+
+    @Test func deleteRefusesTheLastLayerAndLockedLayers() {
+        let (canvas, history) = makeCanvas()
+        #expect(!LayerActions.delete(canvas: canvas, history: history, context: context))
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.isLocked = true
+        #expect(!LayerActions.delete(canvas: canvas, history: history, context: context))
+        canvas.activeLayer.isLocked = false
+        #expect(LayerActions.delete(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 1 && canvas.activeLayerIndex == 0)
+    }
+
+    @Test func undoingADeleteBringsBackTheSameLayerAndPixels() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        let layer = canvas.activeLayer
+        layer.buffer.fill(red, in: IntRect(x: 0, y: 0, width: 4, height: 4))
+        LayerActions.delete(canvas: canvas, history: history, context: context)
+        history.undo(on: canvas)
+        #expect(canvas.layers[1] === layer)
+        #expect(canvas.layers[1].buffer[1, 1] == red)
+        #expect(canvas.activeLayerIndex == 1)
+    }
+
+    @Test func mergeDownKeepsTheLookAndUndoes() {
+        let (canvas, history) = makeCanvas()
+        let base = canvas.layers[0].buffer
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.buffer.fill(gray, in: canvas.bounds)
+        canvas.activeLayer.blendMode = .multiply
+        canvas.layers[0].buffer.fill(red, in: IntRect(x: 0, y: 0, width: 4, height: 8))
+        let before = canvas.flattened().contentHash()
+        #expect(LayerActions.mergeDown(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 1)
+        #expect(canvas.flattened().contentHash() == before)
+        #expect(canvas.layers[0].buffer[1, 1] == Pixel(r: 128, g: 0, b: 0))
+        history.undo(on: canvas)
+        #expect(canvas.layers.count == 2)
+        #expect(canvas.layers[0].buffer === base)
+        #expect(canvas.layers[1].blendMode == .multiply)
+    }
+
+    @Test func mergeDownRefusesLockedLayersAndTheBottomLayer() {
+        let (canvas, history) = makeCanvas()
+        #expect(!LayerActions.mergeDown(canvas: canvas, history: history, context: context))
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.layers[0].isLocked = true
+        #expect(!LayerActions.mergeDown(canvas: canvas, history: history, context: context))
+    }
+
+    @Test func mergeVisibleKeepsHiddenLayers() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.buffer.fill(red, in: IntRect(x: 0, y: 0, width: 2, height: 2))
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.isVisible = false
+        let before = canvas.flattened().contentHash()
+        #expect(LayerActions.mergeVisible(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 2)
+        #expect(!canvas.layers[1].isVisible)
+        #expect(canvas.flattened().contentHash() == before)
+    }
+
+    @Test func flattenDropsHiddenLayersAndUndoes() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.buffer.fill(red, in: IntRect(x: 0, y: 0, width: 2, height: 2))
+        canvas.activeLayer.opacity = 0.5
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.isVisible = false
+        let before = canvas.flattened().contentHash()
+        #expect(LayerActions.flatten(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 1)
+        #expect(canvas.flattened().contentHash() == before)
+        history.undo(on: canvas)
+        #expect(canvas.layers.count == 3)
+        #expect(canvas.layers[1].opacity == 0.5)
+    }
+
+    @Test func movingALayerKeepsTheActiveLayerActive() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        let active = canvas.activeLayer
+        #expect(LayerActions.move(from: 2, to: 0, canvas: canvas, history: history, context: context))
+        #expect(canvas.layers[0] === active)
+        #expect(canvas.activeLayer === active)
+        history.undo(on: canvas)
+        #expect(canvas.layers[2] === active)
+    }
+
+    @Test func settingsChangesAreStepsButUnchangedOnesAreNot() {
+        let (canvas, history) = makeCanvas()
+        #expect(LayerActions.update("Rename", layerAt: 0, canvas: canvas, history: history) { $0.name = "Paper" })
+        #expect(!LayerActions.update("Rename", layerAt: 0, canvas: canvas, history: history) { $0.name = "Paper" })
+        LayerActions.update("Hide", layerAt: 0, canvas: canvas, history: history) { $0.isVisible = false }
+        history.undo(on: canvas)
+        #expect(canvas.layers[0].isVisible)
+        history.undo(on: canvas)
+        #expect(canvas.layers[0].name == "Background")
+    }
+
+    @Test func erasingOnlyLeavesColor2OnTheBackgroundAtTheBottom() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        #expect(canvas.vacatedFill(for: canvas.layers[0], color2: red) == red)
+        #expect(canvas.vacatedFill(for: canvas.layers[1], color2: red) == .clear)
+        LayerActions.move(from: 0, to: 1, canvas: canvas, history: history, context: context)
+        #expect(canvas.vacatedFill(for: canvas.layers[1], color2: red) == .clear)
+        #expect(canvas.vacatedFill(for: canvas.layers[0], color2: red) == .clear)
+    }
+
+    @Test func randomLayerAndPixelEditsUndoBackToTheOriginal() {
+        let (canvas, history) = makeCanvas()
+        canvas.layers[0].buffer.fill(gray, in: IntRect(x: 2, y: 2, width: 3, height: 3))
+        let original = canvas.flattened().contentHash()
+        var random = SplitMix64(seed: 99)
+        for step in 0..<60 {
+            switch Int.random(in: 0..<8, using: &random) {
+            case 0: LayerActions.add(canvas: canvas, history: history, context: context)
+            case 1: LayerActions.duplicate(canvas: canvas, history: history, context: context)
+            case 2: LayerActions.delete(canvas: canvas, history: history, context: context)
+            case 3: LayerActions.mergeDown(canvas: canvas, history: history, context: context)
+            case 4:
+                let mode = BlendMode.allCases[step % BlendMode.allCases.count]
+                LayerActions.update("Blend Mode", layerAt: canvas.activeLayerIndex, canvas: canvas, history: history) { $0.blendMode = mode }
+            case 5:
+                let count = canvas.layers.count
+                LayerActions.move(from: step % count, to: (step * 7) % count, canvas: canvas, history: history, context: context)
+            case 6: LayerActions.flatten(canvas: canvas, history: history, context: context)
+            default:
+                let edit = history.beginEdit("Paint", on: canvas)
+                let area = IntRect(x: step % 6, y: (step * 3) % 6, width: 2, height: 2)
+                edit.willModify(area, in: canvas.activeLayer)
+                canvas.activeLayer.buffer.fill(Pixel(r: UInt8(step * 4), g: 90, b: 200), in: area)
+                history.commit(edit)
+            }
+        }
+        while history.canUndo { history.undo(on: canvas) }
+        #expect(canvas.layers.count == 1)
+        #expect(canvas.flattened().contentHash() == original)
+    }
+}

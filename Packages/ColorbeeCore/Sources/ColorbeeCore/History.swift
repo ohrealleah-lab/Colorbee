@@ -50,9 +50,13 @@ public final class Edit {
     private(set) var snapshots: [TileKey: TileSnapshot] = [:]
     public private(set) var dirtyRect: IntRect = .zero
 
-    init(name: String, canvas: Canvas) {
+    /// False for scratch canvases nobody undoes, so no before-images are copied.
+    private let recordsPixels: Bool
+
+    init(name: String, canvas: Canvas, recordsPixels: Bool = true) {
         self.name = name
         self.canvas = canvas
+        self.recordsPixels = recordsPixels
         selectionBefore = canvas.selection
     }
 
@@ -62,6 +66,7 @@ public final class Edit {
         let target = rect.intersection(bounds)
         guard !target.isEmpty else { return }
         dirtyRect = dirtyRect.union(target)
+        guard recordsPixels else { return }
         for cell in TileGrid.cells(covering: target) {
             let key = TileKey(layer: layer.id, column: cell.column, row: cell.row)
             guard snapshots[key] == nil else { continue }
@@ -437,9 +442,13 @@ public final class History {
     private func spill(_ entry: HistoryEntry) -> Bool {
         if spillStore == nil { spillStore = try? SpillStore() }
         guard let store = spillStore else { return false }
+        // Compressing is the slow part, so the tiles compress on all cores and are then written in order.
+        let compressed = ParallelRows.map(entry.changes.count) { index in
+            entry.changes[index].pixels.flatMap { try? SpillStore.compress($0) }
+        }
         var locations: [SpillStore.Location] = []
-        for change in entry.changes {
-            guard let pixels = change.pixels, let location = try? store.write(pixels) else { return false }
+        for data in compressed {
+            guard let data, let location = try? store.append(data) else { return false }
             locations.append(location)
         }
         var geometryLocations: [LayerID: SpillStore.Location] = [:]
@@ -467,10 +476,15 @@ public final class History {
     private func load(_ entry: HistoryEntry) -> Bool {
         guard entry.isSpilled else { return true }
         guard let store = spillStore else { return false }
-        var loaded: [[Pixel]] = []
+        var stored: [(data: Data, count: Int)] = []
         for change in entry.changes {
-            guard let location = change.spillLocation,
-                  let pixels = try? store.read(location, count: change.rect.area) else { return false }
+            guard let location = change.spillLocation, let data = try? store.readCompressed(location) else { return false }
+            stored.append((data, change.rect.area))
+        }
+        let decoded = ParallelRows.map(stored.count) { index in try? SpillStore.decompress(stored[index].data, count: stored[index].count) }
+        var loaded: [[Pixel]] = []
+        for pixels in decoded {
+            guard let pixels else { return false }
             loaded.append(pixels)
         }
         var buffers: [LayerID: PixelBuffer] = [:]
@@ -525,8 +539,25 @@ final class SpillStore {
     }
 
     func write(_ pixels: [Pixel]) throws -> Location {
+        try append(Self.compress(pixels))
+    }
+
+    func read(_ location: Location, count: Int) throws -> [Pixel] {
+        try Self.decompress(readCompressed(location), count: count)
+    }
+
+    static func compress(_ pixels: [Pixel]) throws -> Data {
         let raw = pixels.withUnsafeBytes { Data($0) }
-        let compressed = try (raw as NSData).compressed(using: .lz4) as Data
+        return try (raw as NSData).compressed(using: .lz4) as Data
+    }
+
+    static func decompress(_ compressed: Data, count: Int) throws -> [Pixel] {
+        let raw = try (compressed as NSData).decompressed(using: .lz4) as Data
+        guard raw.count == count * MemoryLayout<Pixel>.stride else { throw Failure.corrupt }
+        return raw.withUnsafeBytes { Array($0.bindMemory(to: Pixel.self)) }
+    }
+
+    func append(_ compressed: Data) throws -> Location {
         try handle.seek(toOffset: end)
         try handle.write(contentsOf: compressed)
         let location = Location(offset: end, length: compressed.count)
@@ -534,13 +565,11 @@ final class SpillStore {
         return location
     }
 
-    func read(_ location: Location, count: Int) throws -> [Pixel] {
+    func readCompressed(_ location: Location) throws -> Data {
         try handle.seek(toOffset: location.offset)
         guard let compressed = try handle.read(upToCount: location.length), compressed.count == location.length else {
             throw Failure.corrupt
         }
-        let raw = try (compressed as NSData).decompressed(using: .lz4) as Data
-        guard raw.count == count * MemoryLayout<Pixel>.stride else { throw Failure.corrupt }
-        return raw.withUnsafeBytes { Array($0.bindMemory(to: Pixel.self)) }
+        return compressed
     }
 }

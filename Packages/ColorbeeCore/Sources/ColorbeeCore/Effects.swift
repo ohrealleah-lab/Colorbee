@@ -85,10 +85,12 @@ public enum Effects {
         guard !region.isEmpty else { return .zero }
         if let transform = effect.pointwise {
             edit.willModify(region, in: layer)
-            for y in region.minY..<region.maxY {
-                let row = layer.buffer.row(y)
-                for x in region.minX..<region.maxX where isSelected(selection, x, y) {
-                    row[x] = transform(row[x])
+            ParallelRows.forEach(region.minY..<region.maxY) { rows in
+                for y in rows {
+                    let row = layer.buffer.row(y)
+                    for x in region.minX..<region.maxX where isSelected(selection, x, y) {
+                        row[x] = transform(row[x])
+                    }
                 }
             }
             return region

@@ -7,7 +7,8 @@ extension Compositing {
         let adjusted = Effects.adjusted(below, by: adjustment)
         let result = PixelBuffer(width: below.width, height: below.height)
         let fade = Float(min(1, max(0, opacity)))
-        for y in 0..<below.height {
+        ParallelRows.forEach(0..<below.height) { rows in
+            for y in rows {
             let beneath = below.row(y), changed = adjusted.row(y), target = result.row(y)
             for x in 0..<below.width {
                 let backdrop = premultiplied(beneath[x])
@@ -20,6 +21,7 @@ extension Compositing {
                 let goal = SIMD4(color * sourceAlpha, sourceAlpha)
                 target[x] = pixel(backdrop + (goal - backdrop) * fade)
             }
+          }
         }
         return result
     }
@@ -29,7 +31,8 @@ extension Effects {
     /// A whole image with an effect applied, leaving the original untouched. Used by adjustment layers.
     static func adjusted(_ buffer: PixelBuffer, by effect: Effect) -> PixelBuffer {
         let canvas = Canvas(colorSpace: Canvas.defaultColorSpace, layers: [Layer(name: "Adjust", buffer: buffer.copy())], hasTransparentBackground: true)
-        let edit = Edit(name: "Adjust", canvas: canvas)
+        // Nothing to undo here, so the edit keeps no before-images.
+        let edit = Edit(name: "Adjust", canvas: canvas, recordsPixels: false)
         apply(effect, to: canvas.layers[0], selection: nil, edit: edit)
         return canvas.layers[0].buffer
     }

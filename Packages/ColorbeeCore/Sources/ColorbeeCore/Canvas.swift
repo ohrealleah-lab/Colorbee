@@ -45,6 +45,24 @@ public final class Canvas {
         backgroundLayerID = layers[0].id
     }
 
+    /// An independent copy with the same layers, settings and selection, for saving in the background
+    /// while editing carries on. A floating selection's pixels are never modified, so they're shared.
+    public func copy() -> Canvas {
+        let copies = layers.map { layer in
+            let copy = Layer(name: layer.name, buffer: layer.adjustment == nil ? layer.buffer.copy() : layer.buffer, id: layer.id)
+            copy.isVisible = layer.isVisible
+            copy.opacity = layer.opacity
+            copy.blendMode = layer.blendMode
+            copy.isLocked = layer.isLocked
+            copy.adjustment = layer.adjustment
+            return copy
+        }
+        let canvas = Canvas(colorSpace: colorSpace, layers: copies, hasTransparentBackground: hasTransparentBackground,
+                            backgroundLayerID: backgroundLayerID, activeLayerIndex: activeLayerIndex)
+        canvas.selection = selection
+        return canvas
+    }
+
     public var bounds: IntRect { IntRect(size: size) }
     public var activeLayer: Layer { layers[activeLayerIndex] }
 
@@ -175,31 +193,37 @@ public final class Canvas {
         let floatingPixels = floating.flatMap { floating in
             stack.contains { $0.id == floating.layerID } ? floating.rendered(using: .nearestNeighbor, transparentKey: transparentKey) : nil
         }
-        var row = [SIMD4<Float>](repeating: .zero, count: size.width)
-        for y in 0..<size.height {
-            if let base {
-                let source = base.row(y)
-                for x in 0..<size.width { row[x] = Compositing.premultiplied(source[x]) }
-            } else {
-                for x in 0..<size.width { row[x] = .zero }
-            }
-            for layer in stack {
-                let source = layer.buffer.row(y)
-                let opacity = Float(layer.opacity)
-                for x in 0..<size.width {
-                    Compositing.blend(&row[x], source[x], opacity: opacity, mode: layer.blendMode)
+        let width = size.width
+        // Rows are independent, so bands of them composite on all cores (NFR-6).
+        ParallelRows.forEach(0..<size.height) { rows in
+            let row = UnsafeMutablePointer<SIMD4<Float>>.allocate(capacity: width)
+            defer { row.deallocate() }
+            for y in rows {
+                if let base {
+                    let source = base.row(y)
+                    for x in 0..<width { row[x] = Compositing.premultiplied(source[x]) }
+                } else {
+                    row.update(repeating: .zero, count: width)
                 }
-                if let floating, let floatingPixels, floating.layerID == layer.id {
-                    let destination = floating.destination
-                    guard y >= destination.minY, y < destination.maxY else { continue }
-                    let floatingRow = floatingPixels.row(y - destination.minY)
-                    for x in max(0, destination.minX)..<min(size.width, destination.maxX) {
-                        Compositing.blend(&row[x], floatingRow[x - destination.minX], opacity: opacity, mode: layer.blendMode)
+                for layer in stack {
+                    let source = layer.buffer.row(y)
+                    let opacity = Float(layer.opacity)
+                    let mode = layer.blendMode
+                    for x in 0..<width {
+                        Compositing.blend(&row[x], source[x], opacity: opacity, mode: mode)
+                    }
+                    if let floating, let floatingPixels, floating.layerID == layer.id {
+                        let destination = floating.destination
+                        guard y >= destination.minY, y < destination.maxY else { continue }
+                        let floatingRow = floatingPixels.row(y - destination.minY)
+                        for x in max(0, destination.minX)..<min(width, destination.maxX) {
+                            Compositing.blend(&row[x], floatingRow[x - destination.minX], opacity: opacity, mode: mode)
+                        }
                     }
                 }
+                let target = result.row(y)
+                for x in 0..<width { target[x] = Compositing.pixel(row[x]) }
             }
-            let target = result.row(y)
-            for x in 0..<size.width { target[x] = Compositing.pixel(row[x]) }
         }
         return result
     }

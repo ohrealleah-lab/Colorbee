@@ -35,6 +35,15 @@ final class CustomColors {
         save()
     }
 
+    /// Puts a color in a particular slot (a double-clicked empty one).
+    func set(_ color: Pixel, at index: Int) {
+        guard slots.indices.contains(index) else { return }
+        slots[index] = color
+        order.removeAll { $0 == index }
+        order.append(index)
+        save()
+    }
+
     func remove(at index: Int) {
         guard slots.indices.contains(index) else { return }
         slots[index] = nil

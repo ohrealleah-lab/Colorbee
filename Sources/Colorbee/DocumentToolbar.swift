@@ -35,7 +35,7 @@ private struct SelectingGroups: ToolbarContent {
     }
 }
 
-/// Brushes and shapes, size, outline and fill, and the colors.
+/// Brushes and shapes, size, and outline and fill.
 private struct PaintingGroups: ToolbarContent {
     let editor: Editor
 
@@ -51,10 +51,6 @@ private struct PaintingGroups: ToolbarContent {
         ToolbarSpacer(.fixed)
         ToolbarItem {
             OutlineFillControl(editor: editor)
-        }
-        ToolbarSpacer(.fixed)
-        ToolbarItem {
-            ColorWells(editor: editor)
         }
         // Pushes the groups up against the title, leaving the right end for the stage 6 panel toggles.
         ToolbarSpacer(.flexible)
@@ -217,7 +213,7 @@ private struct OutlineFillControl: View {
 
 /// Color 1 and Color 2 (FR-1.1). The ringed well is the one a swatch click sets; double-click a well
 /// to choose its color, and the arrows swap them (X).
-private struct ColorWells: View {
+struct ColorWells: View {
     @Bindable var editor: Editor
 
     var body: some View {

@@ -2,14 +2,15 @@ import AppKit
 import ColorbeeCore
 import SwiftUI
 
-/// The row under the toolbar (FR-1.2): swatches, custom colors, Alpha, Edit Colors…, the palette,
-/// and the active tool's own settings.
+/// The row under the toolbar (FR-1.2): the color wells, swatches, custom colors, Alpha, Edit Colors…,
+/// the palette, and the active tool's own settings.
 struct PaletteBar<Options: View>: View {
     @Bindable var editor: Editor
     @ViewBuilder let toolOptions: Options
 
     var body: some View {
         HStack(spacing: 16) {
+            ColorWells(editor: editor)
             SwatchGrid(editor: editor, custom: CustomColors.shared.slots)
                 .frame(width: SwatchGridView.size.width, height: SwatchGridView.size.height)
             divider
@@ -172,6 +173,9 @@ final class SwatchGridView: NSView {
         guard let slot = slot(at: point) else { return }
         if event.modifierFlags.contains(.control) {
             showMenu(for: slot, event: event)
+        } else if case .custom(let index) = slot, color(of: slot) == nil {
+            // Double-clicking an empty slot picks a color for it.
+            if event.clickCount == 2 { ColorPanelController.shared.open(for: editor, slot: index) }
         } else if let pixel = color(of: slot) {
             editor.applySwatch(pixel, secondary: false)
         }
@@ -199,16 +203,18 @@ final class SwatchGridView: NSView {
 }
 
 /// Edit Colors…: the Mac color picker, changing the ringed well. A color chosen there joins the custom
-/// colors when the picker closes (FR-1.2).
+/// colors when the picker closes (FR-1.2): in the slot that was double-clicked, or the next empty one.
 @MainActor
 final class ColorPanelController: NSObject {
     static let shared = ColorPanelController()
     private weak var editor: Editor?
     private var changed = false
+    private var slot: Int?
 
-    func open(for editor: Editor) {
+    func open(for editor: Editor, slot: Int? = nil) {
         finish()
         self.editor = editor
+        self.slot = slot
         let panel = NSColorPanel.shared
         panel.showsAlpha = true
         panel.setTarget(nil)
@@ -231,7 +237,10 @@ final class ColorPanelController: NSObject {
     }
 
     private func finish() {
-        if changed, let color = editor?.activeColor { CustomColors.shared.add(color) }
+        if changed, let color = editor?.activeColor {
+            if let slot { CustomColors.shared.set(color, at: slot) } else { CustomColors.shared.add(color) }
+        }
         changed = false
+        slot = nil
     }
 }

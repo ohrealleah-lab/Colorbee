@@ -69,14 +69,15 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 - **Shapes:** a gallery of 23 shapes (FR-5.1).
 - **Size:** presets of 1, 2, 3, 4 and 5px plus a custom value (1–50px for brushes).
 - **Outline / Fill:** style pickers (FR-5.1).
-- **Color wells:** Color 1 and Color 2, with a ring showing which one a swatch click will set.
 - **Layers toggle:** shows or hides the Layers panel. It shows the layer count when there's more than one layer.
 
 ### FR-1.2 Palette bar (docked under the toolbar)
+- **Color wells** at the left end: Color 1 and Color 2, with a ring showing which one a swatch click will set. Double-click a well to choose its color.
 - 28 swatches in 2 rows of 14.
 - **12 custom-color slots** (2 rows of 6) next to the swatches, for your own colors:
   - A color picked with Edit Colors… or the eyedropper's "Add to Custom Colors" goes into the next empty slot. When all are full, the oldest is replaced.
   - Left-click sets Color 1, right-click sets Color 2, exactly like the swatches. Ctrl-click → Remove clears a slot.
+  - Double-click an empty slot to pick a color for it with the color picker; the color goes into that slot.
   - The custom colors are kept between launches and saved as part of a palette (FR-15.1).
 - An Alpha slider (0–100%) for the active color.
 - An **Edit Colors…** button that opens the system Color Panel (Display P3, hex, sliders, screen eyedropper).
@@ -612,6 +613,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-03 | Color wells move from the toolbar to the left end of the palette bar, and double-clicking an empty custom slot opens the color picker for that slot (Leah). |
 | 2026-10-03 | The canvas size isn't shown under the window title (veto): macOS doesn't display a subtitle on document windows and puts its own "— Edited" there. The size stays in the status bar. |
 | 2026-10-03 | No Paste/Cut/Copy buttons in the toolbar (Leah): they only repeated ⌘V/⌘X/⌘C and the Edit menu, and the room is needed for the stage 6 panel toggles. The Paint Classic palette menu stays, ready for palettes in stage 7. |
 | 2026-10-02 | Text box handles (FR-6.1, reported missing by Leah). Behavior choices (veto any): the open text box has eight handles on its border, like a selection. Dragging the border moves it. Side handles set the width the text wraps at (so a click-to-type box starts wrapping once you drag a side); top and bottom handles set the box's height, which still grows if the text needs more. After a move or resize the cursor stays in the text, so you can keep typing. |

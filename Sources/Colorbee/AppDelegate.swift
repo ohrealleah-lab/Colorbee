@@ -13,7 +13,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = services
         NSUpdateDynamicServices()
-        ScreenshotWatcher.shared.resume()
     }
 
     @objc func showSettings(_ sender: Any?) {

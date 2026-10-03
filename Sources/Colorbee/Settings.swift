@@ -78,31 +78,11 @@ final class SettingsWindowController: NSWindowController {
 private struct SettingsView: View {
     var body: some View {
         TabView {
-            GeneralSettings()
-                .tabItem { Label("General", systemImage: "gearshape") }
             ExportPresetSettings(store: ExportPresetStore.shared)
                 .tabItem { Label("Export Presets", systemImage: "square.and.arrow.up") }
         }
         .padding(20)
         .frame(width: 520, height: 380)
-    }
-}
-
-private struct GeneralSettings: View {
-    @State private var watcher = ScreenshotWatcher.shared
-
-    var body: some View {
-        Form {
-            Toggle("Open new screenshots in Colorbee", isOn: Binding(get: { watcher.isEnabled }, set: { watcher.isEnabled = $0 }))
-            Text("Colorbee watches \(watcher.folder.path(percentEncoded: false)), where macOS saves screenshots, and opens each new one. The first time, macOS asks to let Colorbee see that folder.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Screenshots copied straight to the clipboard (⌃⇧⌘4) can't be caught; paste them with ⌘V and they appear in Clipboard History.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
     }
 }
 
@@ -140,77 +120,6 @@ private struct ExportPresetSettings: View {
                 Button("Add Preset") { store.items.append(.init(name: "New Preset", pixels: 1080, square: false)) }
                 Spacer()
                 Button("Reset to Defaults") { store.resetToDefaults() }
-            }
-        }
-    }
-}
-
-/// Opens new screenshots as they appear (FR-14.4). Off by default.
-@MainActor
-@Observable
-final class ScreenshotWatcher {
-    static let shared = ScreenshotWatcher()
-    private static let key = "OpenNewScreenshots"
-
-    var isEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(isEnabled, forKey: Self.key)
-            isEnabled ? start() : stop()
-        }
-    }
-
-    /// Where macOS saves screenshots: the location set in the Screenshot app, or the Desktop.
-    var folder: URL {
-        if let location = UserDefaults(suiteName: "com.apple.screencapture")?.string(forKey: "location") {
-            return URL(fileURLWithPath: (location as NSString).expandingTildeInPath, isDirectory: true)
-        }
-        return URL.desktopDirectory
-    }
-
-    @ObservationIgnored private var source: DispatchSourceFileSystemObject?
-    @ObservationIgnored private var seen: Set<String> = []
-    @ObservationIgnored private var since = Date.now
-
-    private init() {
-        isEnabled = UserDefaults.standard.bool(forKey: Self.key)
-    }
-
-    /// Starts watching if the setting is on; called at launch.
-    func resume() {
-        if isEnabled { start() }
-    }
-
-    private func start() {
-        stop()
-        since = .now
-        seen = Set((try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? [])
-        let descriptor = open(folder.path, O_EVTONLY)
-        guard descriptor >= 0 else { return }
-        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: .write, queue: .main)
-        source.setEventHandler { [weak self] in
-            MainActor.assumeIsolated { self?.folderChanged() }
-        }
-        source.setCancelHandler { close(descriptor) }
-        source.resume()
-        self.source = source
-    }
-
-    private func stop() {
-        source?.cancel()
-        source = nil
-    }
-
-    /// macOS writes a hidden temporary file first, then renames it; only new, visible images count.
-    private func folderChanged() {
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
-        for name in names where !seen.contains(name) && !name.hasPrefix(".") {
-            seen.insert(name)
-            let url = folder.appending(path: name)
-            guard let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType, type.conforms(to: .image),
-                  let created = try? url.resourceValues(forKeys: [.creationDateKey]).creationDate, created >= since else { continue }
-            // Give macOS a moment to finish writing the file.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
             }
         }
     }

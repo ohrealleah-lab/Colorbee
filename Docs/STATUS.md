@@ -35,7 +35,7 @@ _Last updated: 2026-10-03 · 246 core tests passing_
 | 6a. Layers | ✅ Done | Layers panel, Layer menu, 17 blend modes, lock, opacity, merges, Copy Merged |
 | 6b. Adjustment layers, per-layer undo, .colorproj | ✅ Done | Adjustments panel, Undo on Active Layer, Revert Layer, .colorproj |
 | 7a. Integration: canvas, clipboard, history, sharing | ✅ Done | Medium |
-| **7b. Palettes, text styles, Settings, Finder, screenshot watcher** | ✅ Built, awaiting hand test | Medium |
+| **7b. Palettes, text styles, Settings, Finder** | ✅ Built, awaiting hand test | Medium |
 | **7c. Shortcut editor** | ⏭ Next | **High** |
 | 8. Hardening | Planned | Medium |
 | 9. Photo editing (later phase) | Planned | Mostly medium; Curves and Straighten high |
@@ -69,7 +69,7 @@ _Last updated: 2026-10-03 · 246 core tests passing_
 
 **Integration** (stage 7b)
 - Palettes (palette bar menu: switch, save, rename, delete, import/export `.colorpalette`, reset); text styles (text tool's Styles menu).
-- Settings window ⌘, : Open new screenshots in Colorbee (folder watcher), editable Export As presets.
+- Settings window ⌘, : editable Export As presets (screenshot folder watching was built, then removed at Leah's request).
 - Finder: Services ▸ Open in Colorbee. Auto-Redact numbers on the canvas.
 
 **Interface** (mockup look, stage 5c)

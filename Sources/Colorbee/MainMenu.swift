@@ -27,7 +27,7 @@ enum MainMenu {
     /// Hover text for every command, keyed by its action.
     private static let tooltips: [String: String] = [
         "orderFrontStandardAboutPanel:": "Version and credits.",
-        "showSettings:": "Export presets, opening new screenshots, and more.",
+        "showSettings:": "Export presets, and soon keyboard shortcuts.",
         "hide:": "Hide Colorbee's windows until you switch back.",
         "hideOtherApplications:": "Hide every other app's windows.",
         "unhideAllApplications:": "Show every app's windows again.",

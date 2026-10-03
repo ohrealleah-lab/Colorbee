@@ -466,11 +466,9 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - Colorbee is registered for every format in FR-11.1, so it appears in **Open With**.
 - An **Open in Colorbee** item in the Finder right-click menu (Services / Quick Actions).
 
-### FR-14.4 Screenshot capture
-- **Settings → "Open new screenshots in Colorbee"** (off by default).
-- When it's on, Colorbee watches the folder where macOS saves screenshots and opens each new screenshot as it appears.
-- The first time, macOS asks for permission to access that folder.
-- **Limitation:** screenshots sent only to the clipboard (Cmd+Ctrl+Shift+4) can't be caught automatically. Paste them with Cmd+V, and they appear in Clipboard History.
+### FR-14.4 Screenshots
+- Colorbee doesn't watch any folder for screenshots. The quick route is the clipboard: **Cmd+Ctrl+Shift+4** (or 3), then **Paste into New Image (Cmd+Shift+V)** for a new document, or **Cmd+V** into an open one. Either way the screenshot also appears in Clipboard History.
+- A screenshot saved to a file opens like any image (Open, drag and drop, Open With, or Open in Colorbee).
 
 ### FR-14.5 Menus and shortcuts
 
@@ -554,7 +552,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 4. **Redaction:** Magic Wand, combined selections, batch redaction, Auto-Redact, Before/After, export presets.
 5. **Full toolset:** the other 6 brushes, pressure, all 23 shapes with every style, gradients, resize/skew/rotate/flip, symmetry, measure, sharpen and adjustments. Built in two parts (5a routine, 5b hard), then **5c Interface:** the mockup look for the toolbar (FR-1.1, including the Magnifier), the palette bar with custom colors, Alpha and Edit Colors (FR-1.2), and the status bar with the zoom slider (FR-1.5). The right sidebar (FR-1.3) arrives in stage 6 with the Layers panel; palette management (FR-15.1) stays in stage 7.
 6. **Layers:** layers panel, blend modes, opacity, adjustment layers, per-layer undo, .colorproj.
-7. **Integration:** Clipboard History, History panel, palettes, text styles, shortcut editor, Finder, screenshot capture, share, print, desktop picture.
+7. **Integration:** Clipboard History, History panel, palettes, text styles, shortcut editor, Finder, share, print, desktop picture.
 8. **Hardening:** performance, 8000×8000 soak tests, polish.
 9. **Photo editing and presentation (later phase):** the FR-9.5 adjustments and effects, with their own performance and soak checks.
 
@@ -587,7 +585,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 - [ ] AC-22 Measure shows the distance, ΔX, ΔY and angle.
 - [ ] AC-23 Pressure changes brush size on a Force Touch trackpad.
 - [ ] AC-24 "Open in Colorbee" works from Finder.
-- [ ] AC-25 With screenshot capture on, a new Cmd+Shift+4 screenshot opens in Colorbee.
+- [ ] AC-25 A clipboard screenshot (Cmd+Ctrl+Shift+4) opens with Paste into New Image at its full size, and appears in Clipboard History.
 - [ ] AC-26 Palettes and text styles are kept between launches.
 - [ ] AC-27 8000×8000: draw, blur, undo 50 steps and export with no stall over 1s and no crash.
 - [ ] AC-27a A locked layer rejects every pixel edit, move, merge and delete, and can still be hidden and reordered.
@@ -613,7 +611,8 @@ None right now.
 
 | Date | Decision |
 |---|---|
-| 2026-10-03 | Stage 7b behavior choices (veto any): **Palettes** live in the palette bar's palette menu. Switching palettes replaces the 28 swatches and the 12 custom colors with the palette's. Paint Classic is built in and can't be renamed or deleted; an imported palette whose name is taken gets a number. `.colorpalette` files are JSON. **Text styles** are in the text tool's Styles menu; a style keeps the font, size, formatting, background and both colors; applying one sets Color 1, and Color 2 only when the style has an opaque background. **Settings** (⌘,) has General (Open new screenshots in Colorbee) and Export Presets (each a width or a square to fit; add, remove, reset); Export As ends with Edit Presets…. **Screenshots:** Colorbee watches the folder set in the Screenshot app (or the Desktop) and opens only screenshots taken after the setting is turned on or Colorbee starts. **Open in Colorbee** is a Services item for images and projects; macOS may need it switched on once in System Settings ▸ Keyboard ▸ Keyboard Shortcuts ▸ Services. **Auto-Redact** badges sit at each match's top-right corner, orange when it will be redacted and gray when kept. |
+| 2026-10-03 | Screenshot folder watching removed (Leah): editors don't do it, it needed folder access and ran in the background. Screenshots come in through the clipboard and Paste into New Image instead (FR-14.4, AC-25 rewritten). Replaces the 2026-09-30 screenshot decision. |
+| 2026-10-03 | Stage 7b behavior choices (veto any): **Palettes** live in the palette bar's palette menu. Switching palettes replaces the 28 swatches and the 12 custom colors with the palette's. Paint Classic is built in and can't be renamed or deleted; an imported palette whose name is taken gets a number. `.colorpalette` files are JSON. **Text styles** are in the text tool's Styles menu; a style keeps the font, size, formatting, background and both colors; applying one sets Color 1, and Color 2 only when the style has an opaque background. **Settings** (⌘,) has Export Presets (each a width or a square to fit; add, remove, reset); Export As ends with Edit Presets…. **Open in Colorbee** is a Services item for images and projects; macOS may need it switched on once in System Settings ▸ Keyboard ▸ Keyboard Shortcuts ▸ Services. **Auto-Redact** badges sit at each match's top-right corner, orange when it will be redacted and gray when kept. |
 | 2026-10-03 | Paste into New Image moves to the File menu under New (Leah). A paste kept at its own size lands at the canvas's top-left, and pixels past the canvas edge aren't shown; drag it to choose what shows (Leah). Its outline and handles still show the full size. |
 | 2026-10-03 | Stage 7a behavior choices (veto any): **Canvas:** resizing (edge handles or Canvas Properties) keeps the image at the top-left and clears the selection; new area is Color 2 on a solid background, transparent elsewhere. Turning on a transparent background changes what erasing and new area leave, not existing pixels; it and the resize are separate undo steps. Dragging an edge handle shows the new size as a dashed outline and in the status bar. **Big pastes:** a paste larger than the canvas asks Enlarge Canvas or Keep Canvas Size; enlarging grows the canvas to fit and puts the paste at the top-left. **Clipboard History** keeps the last 10 images copied, cut or pasted (Paste into New Image and drops too), newest first; the same image again moves to the top. It's stored in Application Support. **History panel:** an "Opened" row, then every step with a small picture of the image after it (Blur and Sharpen adjustments aren't shown in these pictures). **Drag and drop:** an image dropped on the canvas becomes a floating selection centered where it landed; dropped on the gray around the canvas, it opens as a new document. **Desktop picture:** set on every screen, from a PNG copy kept in Application Support. **Print** scales the image to fit the page, centered. **Share** sends a PNG of the combined image. The sidebar switcher now has Layers, Adjustments, History and Clipboard History. View ▸ Hide Status Bar and Show Rulers (⌘R). |
 | 2026-10-03 | Saving layered images (Leah): once an image has more than one layer or an adjustment layer, it saves as a .colorproj. An opened PNG/JPEG/etc. is left untouched and the next save asks where to put the project; autosave never flattens layers. Flat copies come from Export. A new image saves as PNG by default, or .colorproj if it has layers by its first save. |

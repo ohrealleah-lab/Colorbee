@@ -86,7 +86,7 @@ final class CanvasTextView: NSTextView {
         let font = typingAttributes[.font] as? NSFont ?? .systemFont(ofSize: 12)
         let lineHeight = layoutManager.defaultLineHeight(for: font)
         // A little slack keeps the last glyph from being clipped if AppKit lays it out a hair wider.
-        let width = wrapWidth ?? boxWidth.map { $0 + 2 } ?? max(used.width + 4, lineHeight / 2)
+        let width: Double = wrapWidth ?? boxWidth.map { $0 + 2 } ?? Double(max(used.width + 4, lineHeight / 2))
         frame = NSRect(x: origin.x, y: origin.y, width: width, height: max(used.height, lineHeight, minimumHeight))
     }
 }

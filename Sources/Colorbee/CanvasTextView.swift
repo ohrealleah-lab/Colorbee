@@ -26,6 +26,8 @@ final class CanvasTextView: NSTextView {
         view.isVerticallyResizable = true
         view.isHorizontallyResizable = true
         view.focusRingType = .none
+        // A selected wrapped line highlights to the far edge of its line; keep that inside the box.
+        view.clipsToBounds = true
         return view
     }
 

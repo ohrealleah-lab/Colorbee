@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-03 · 241 core tests passing_
+_Last updated: 2026-10-03 · 246 core tests passing_
 
 ---
 
@@ -33,8 +33,10 @@ _Last updated: 2026-10-03 · 241 core tests passing_
 | 5b. Full toolset (hard) | ✅ Done | 6 brushes, pressure, textured shape styles, Resize/Skew |
 | 5c. Interface (mockup look) | ✅ Done | Glass toolbar, palette bar with wells and custom colors, status bar with zoom slider, Magnifier |
 | 6a. Layers | ✅ Done | Layers panel, Layer menu, 17 blend modes, lock, opacity, merges, Copy Merged |
-| **6b. Adjustment layers, per-layer undo, .colorproj** | ✅ Built, awaiting hand test | Adjustments panel, Undo on Active Layer, Revert Layer, .colorproj |
-| **7. Integration** | ⏭ Next | Mostly medium; shortcut editor high |
+| 6b. Adjustment layers, per-layer undo, .colorproj | ✅ Done | Adjustments panel, Undo on Active Layer, Revert Layer, .colorproj |
+| **7a. Integration: canvas, clipboard, history, sharing** | ✅ Built, awaiting hand test | Medium |
+| 7b. Palettes, text styles, Settings, Finder, screenshot watcher | Planned | Medium |
+| 7c. Shortcut editor | Planned | **High** |
 | 8. Hardening | Planned | Medium |
 | 9. Photo editing (later phase) | Planned | Mostly medium; Curves and Straighten high |
 
@@ -59,6 +61,11 @@ _Last updated: 2026-10-03 · 241 core tests passing_
 - Adjustment layers (stage 6b): Brightness/Contrast, Hue/Saturation, Desaturate, Invert, Gaussian Blur, Sharpen; edited in the Adjustments panel; Apply Adjustment. Display: point adjustments in the blend shader, Blur/Sharpen via MPS mid-pass with edge renormalization.
 - Undo on Active Layer ⌥⌘Z (`History.undoOnLayer`), Revert Layer (pixel copies kept at each explicit save).
 - `.colorproj` (`ProjectFile`): JSON manifest + LZ4 exact pixels + ICC. Layered images save as projects; Save As offers only .colorproj for them; Export makes flat copies.
+
+**Integration** (stage 7a)
+- Canvas Properties ⌥⌘E (size, transparent background) and edge handles on the canvas; Paste into New Image ⇧⌘V; big pastes offer to enlarge the canvas.
+- Sidebar panels: History ⌘Y (steps with thumbnails, click to jump) and Clipboard History ⌥⌘V (last 10, persistent, click to paste).
+- Drag and drop images onto the canvas or the window; File ▸ Share…, Set as Desktop Picture, Page Setup, Print ⌘P; View ▸ Show Rulers ⌘R, Hide Status Bar.
 
 **Interface** (mockup look, stage 5c)
 - Window toolbar in Liquid Glass capsules: selection tools + Transparent Selection; Pencil, Fill, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure; Brushes ▾ and Shapes ▾ galleries; Size (5 presets + px field); Outline/Fill.
@@ -97,12 +104,13 @@ _Last updated: 2026-10-03 · 241 core tests passing_
 
 ## Not built yet (by stage)
 
-**7 Integration**
-- Canvas Properties (⌘⌥E: size, transparent background). Paste into New Image (⇧⌘V). Offer to enlarge the canvas for large pastes.
-- Clipboard History, History panel (⌘Y), palettes, text styles.
-- Settings window: shortcut editor (FR-15.3), editing export presets, screenshot watcher setting.
-- Finder "Open in Colorbee", screenshot folder watcher, Share, Print, Set as Desktop Picture, rulers.
-- Auto-Redact: numbers on the canvas highlights (the mockup has them).
+**7b (medium)**
+- Palettes (FR-15.1: save/load/rename/delete/import/export `.colorpalette`, reset), text styles (FR-6.2).
+- Settings window: editing export presets, screenshot folder watcher (FR-14.4).
+- Finder "Open in Colorbee" (FR-14.3). Auto-Redact numbers on the canvas highlights.
+
+**7c (high)**
+- Shortcut editor (FR-15.3): record, block macOS-owned shortcuts (including System Settings ones), reassign, reset, `.colorbeekeys` import/export.
 
 **8 Hardening**
 - 8000×8000 soak tests (AC-27), performance baselines, polish, accessibility labels.
@@ -116,7 +124,7 @@ _Last updated: 2026-10-03 · 241 core tests passing_
 ## Not yet checked by hand
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
-Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b (built 2026-10-03) awaits a hand test with `TestImages/Stage 6b Practice.colorproj`: adjustment layers on screen (GPU) vs. exported, Undo on Active Layer, Revert Layer, saving a layered PNG as a project. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).
+Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b tested by hand on 2026-10-03. Stage 7a (built 2026-10-03) awaits a hand test. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).
 
 ## Practical notes for the next session
 

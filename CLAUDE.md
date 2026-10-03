@@ -16,6 +16,7 @@ make build    # debug build of the app
 make test     # core unit tests (fast, headless) + full app build
 make core     # core unit tests only (swift test)
 make run      # Release build, then launch (Debug pixel loops are ~50x slower; use run for real use)
+make perf      # Release-only time limits + 8000x8000 soak test (AC-27). A few minutes; no windows.
 make bench     # Release build + scripted perf run (launch, stroke latency, undo, memory). Brings a window to the front; ask Leah first.
 make clean
 ```
@@ -46,7 +47,7 @@ Docs/reference/              Original v1 spec, kept for reference only
 - **Document model from day one:** `Canvas` is the document: `[Layer]` (starting with 1 layer) plus `selection: SelectionState` (`.none`, `.marquee(SelectionMask)` or `.floating(FloatingSelection)`). Tools draw into `activeLayer`. Display composites the whole layer stack, with a floating selection drawn just above its layer. Nothing may assume there's only one layer.
 - **Selections:** all selection behavior lives in `SelectionActions` (core) and is unit-tested there; the app's `Editor` only maps input to those calls. A floating selection's source pixels are never modified, so moves and resizes always start from the original. Masks are immutable and identified by `revision`.
 - **Tiles are logical:** a 256px grid over each contiguous buffer, used for dirty tracking, GPU uploads and undo. They are not a separate storage format.
-- **History:** command pattern. Pixel edits store the *before-images of the dirty tiles*, keyed by (layer, tile). Invertible operations (flip, rotate) store no pixels. Geometry changes (crop, later resize/rotate) replace every layer's buffer, and history swaps the old and new buffer objects rather than copying (`Edit.willChangeGeometry`). Memory is capped by a **byte budget**, not a step count; older entries spill to disk compressed (LZ4, Compression framework). Every entry also captures the selection before and after. An edit records a selection-only change only when it sets `recordsSelectionChange`; drawing a marquee alone isn't a step. Placing a floating selection merges into the step that created or moved it (`commit(_:mergingIntoPrevious:)`). Mark the document edited only when `history.revision` changed (`Editor.recordingChanges`). **All document mutations go through history. No exceptions.**
+- **History:** command pattern. Pixel edits store the *before-images of the dirty tiles*, keyed by (layer, tile). Invertible operations (flip, rotate) store no pixels: undo applies the inverse (`Edit.willTransform`). Geometry changes (crop, resize) replace every layer's buffer, and history swaps the old and new buffer objects rather than copying (`Edit.willChangeGeometry`). Memory is capped by a **byte budget**, not a step count; older entries spill to disk compressed (LZ4, Compression framework, on all cores). Layer buffers that only history holds (merged-away or deleted layers) are written out too and their memory freed in place (`PixelBuffer.discardContents`), so undo gets the very same buffer objects back; anything wrapping buffer memory checks `PixelBuffer.generation`. Every entry also captures the selection before and after. An edit records a selection-only change only when it sets `recordsSelectionChange`; drawing a marquee alone isn't a step. Placing a floating selection merges into the step that created or moved it (`commit(_:mergingIntoPrevious:)`). Mark the document edited only when `history.revision` changed (`Editor.recordingChanges`). **All document mutations go through history. No exceptions.**
 - **Canvas view:** an AppKit `NSView` subclass backed by `CAMetalLayer`, embedded in SwiftUI with `NSViewRepresentable`. It handles left/right mouse, pressure, tablet, magnify, scroll and keys directly. SwiftUI handles toolbar, palette, sidebar panels, dialogs and settings.
 - **App lifecycle and menus are AppKit** (`main.swift`, `AppDelegate`, `MainMenu`). Menus are `NSMenu` so the shortcut editor (FRD FR-15.3) can change key equivalents at runtime. Document commands are handled by `DocumentWindow`.
 - **Rasterizing:** use Core Graphics on the layer buffer for shapes, anti-aliased lines, gradients and text (via Core Text). Use Accelerate/vImage for blur, resampling and conversions. Write custom code only where the platform can't do it (pencil, flood fill, brush dabs, color eraser, magic wand).
@@ -62,13 +63,15 @@ Docs/reference/              Original v1 spec, kept for reference only
 - Upload only dirty tiles. Never re-upload the full canvas for a stroke.
 - Flood fill and magic wand use scanline algorithms, never recursion.
 - Heavy effects run off the main thread. The main thread never blocks for more than a frame.
+- Whole-image pixel loops run on all cores in row bands (`ParallelRows`); use vImage where it fits.
+- Saving and exporting encode a `SaveSnapshot` (a copy of the canvas) in the background.
 - Compile shaders at build time (`.metal` files in the target). Never compile at runtime; it would add hundreds of milliseconds to launch.
 
 ## Code conventions
 
 - `Editor` property observers (`didSet`) call `renderSoon()`, never `onRender()`: drawing reads other settings, and reading one while another is mid-change is a Swift exclusivity crash. Don't `swap(&a, &b)` observed properties.
 - Swift 6 strict concurrency. Mark UI types `@MainActor`. Core types are value types or `Sendable` where practical.
-- Tests use **Swift Testing** (`import Testing`, `@Test`, `#expect`), not XCTest, except for performance baselines (which need `XCTest` `measure`).
+- Tests use **Swift Testing** (`import Testing`, `@Test`, `#expect`), not XCTest. Performance tests are Swift Testing too, with explicit time limits, enabled only in Release (`make perf`): SwiftPM can't store XCTest baselines.
 - Every core algorithm gets unit tests. Pixel algorithms get exact-value tests on small images.
 - Undo property test: N random operations → undo all → the image hash must equal the original.
 - No comments that restate the code. Comment only non-obvious *why*.

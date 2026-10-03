@@ -63,7 +63,6 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 ## 4. FR-1 — Window, toolbar and canvas
 
 ### FR-1.1 Toolbar (always docked at the top)
-- **Clipboard:** Paste, Cut, Copy.
 - **Selection:** Rectangle, Ellipse, Free-Form (lasso), Magic Wand; a Transparent Selection toggle.
 - **Tools:** Pencil, Fill Bucket, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure.
 - **Brushes:** a gallery of 9 brush types (FR-4.2).
@@ -613,6 +612,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-03 | No Paste/Cut/Copy buttons in the toolbar (Leah): they only repeated ⌘V/⌘X/⌘C and the Edit menu, and the room is needed for the stage 6 panel toggles. The Paint Classic palette menu stays, ready for palettes in stage 7. |
 | 2026-10-02 | Text box handles (FR-6.1, reported missing by Leah). Behavior choices (veto any): the open text box has eight handles on its border, like a selection. Dragging the border moves it. Side handles set the width the text wraps at (so a click-to-type box starts wrapping once you drag a side); top and bottom handles set the box's height, which still grows if the text needs more. After a move or resize the cursor stays in the text, so you can keep typing. |
 | 2026-10-02 | Trackpad pressure needs macOS's Force Click and haptic feedback setting on; with it off, the trackpad draws at full size like a mouse. |
 | 2026-10-02 | Stage 5b behavior choices (veto any): **Pressure:** the lightest touch draws at a quarter of the brush size; a mouse or a tap-to-click reports no pressure and draws full size; a Pressure switch in the brush options turns it off. Crayon and Natural Pencil also get stronger with pressure. **Brushes:** every brush keeps the strongest coverage per pixel, so a stroke crossing itself doesn't darken (as the Marker already did). Grain is fixed to the image, so strokes share one paper texture. Calligraphy nibs are 45° and a fifth of the size thick; Symmetry mirrors a `/` nib into `\`. The airbrush sprays 30 times a second while held. Oil tapers over 1.5× its size at both ends; the tail tapers when you let go. Watercolor is see-through with a darker rim and a ragged edge. **Shape styles:** a textured outline is drawn with the matching brush; an arrow's head stays solid; Oil fill streaks run horizontally; Marker is half strength. Textured previews draw in the background, so a large one can lag the pointer by a frame or two. **Resize and Skew:** a dialog (no live preview), starting from the Smooth/Sharp toolbar setting; positive horizontal skew leans the top right, positive vertical raises the right side; corners the skew exposes get Color 2, or transparency on a transparent image; results over 30,000 px a side or 256 megapixels are refused; the undo step is named Resize, Skew, or Resize and Skew. |

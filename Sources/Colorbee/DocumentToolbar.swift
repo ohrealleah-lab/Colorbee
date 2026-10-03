@@ -13,17 +13,11 @@ struct DocumentToolbar: ToolbarContent {
     }
 }
 
-/// Clipboard, selection tools and the other tools.
+/// Selection tools and the other tools.
 private struct SelectingGroups: ToolbarContent {
     let editor: Editor
 
     var body: some ToolbarContent {
-        ToolbarItemGroup {
-            CommandButton(title: "Paste", symbol: "doc.on.clipboard", action: "paste:", help: "Paste an image as a selection you can move (⌘V)")
-            CommandButton(title: "Cut", symbol: "scissors", action: "cut:", help: "Cut the selection (⌘X)")
-            CommandButton(title: "Copy", symbol: "doc.on.doc", action: "copy:", help: "Copy the selection, or the whole image (⌘C)")
-        }
-        ToolbarSpacer(.fixed)
         ToolbarItemGroup {
             ToolButton(tool: .rectangleSelect, editor: editor)
             ToolButton(tool: .ellipseSelect, editor: editor)
@@ -94,23 +88,6 @@ private struct ToolButton: View {
         .buttonStyle(.plain)
         .help("\(tool.title): \(tool.summary)")
         .accessibilityLabel(tool.title)
-    }
-}
-
-/// Sends a menu command (Paste, Cut, Copy) to the window, exactly as the Edit menu does.
-private struct CommandButton: View {
-    let title: String
-    let symbol: String
-    let action: String
-    let help: String
-
-    var body: some View {
-        Button { NSApp.sendAction(Selector(action), to: nil, from: nil) } label: {
-            ToolbarGlyph(symbol: symbol)
-        }
-        .buttonStyle(.plain)
-        .help(help)
-        .accessibilityLabel(title)
     }
 }
 

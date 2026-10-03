@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-03 · 205 core tests passing_
+_Last updated: 2026-10-03 · 222 core tests passing_
 
 ---
 
@@ -32,7 +32,8 @@ _Last updated: 2026-10-03 · 205 core tests passing_
 | 5a. Full toolset (routine) | ✅ Done | All 23 shapes plus rotation, gradient, rotate/flip, symmetry, measure, adjustments, sharpen, D key |
 | 5b. Full toolset (hard) | ✅ Done | 6 brushes, pressure, textured shape styles, Resize/Skew |
 | 5c. Interface (mockup look) | ✅ Done | Glass toolbar, palette bar with wells and custom colors, status bar with zoom slider, Magnifier |
-| **6. Layers** | ⏭ **Next** | **Opus · high** · includes the right sidebar |
+| **6a. Layers** | ✅ Built, awaiting hand test | Layers panel, Layer menu, 17 blend modes, lock, opacity, merges, Copy Merged |
+| 6b. Adjustment layers, per-layer undo, .colorproj | Planned | **Opus · high** |
 | 7. Integration | Planned | Mostly medium; shortcut editor high |
 | 8. Hardening | Planned | Medium |
 | 9. Photo editing (later phase) | Planned | Mostly medium; Curves and Straighten high |
@@ -49,6 +50,12 @@ _Last updated: 2026-10-03 · 205 core tests passing_
 - Metal display with zero-copy layer textures, zoom 12.5–3200%, pan, pinch.
 - Pixel grid at 400% and above (⌘'), checkerboard for transparency.
 - Rendering pauses while the window is hidden.
+
+**Layers** (stage 6a)
+- Right sidebar with the Layers panel (⌘L or the toolbar's Layers button, which shows the count): blend mode, opacity, eye, padlock, thumbnails, drag to reorder, double-click to rename, add/duplicate/delete/merge down.
+- Layer menu: New ⇧⌘N, Duplicate ⌘J, Delete ⌘⌫, Merge Down ⇧⌘E, Merge Visible ⌥⇧⌘E, Flatten, Hide/Show, Lock/Unlock, Layer Properties…. Edit ▸ Copy Merged ⇧⌘C.
+- 17 blend modes (W3C math in `BlendMode.swift`, mirrored in `Shaders.metal`); layers composite off screen in half floats. Exports use the same math.
+- Locked layers refuse pixel changes (beep, 'not allowed' pointer). All layer changes are undo steps (whole-stack snapshots, buffers swapped not copied).
 
 **Interface** (mockup look, stage 5c)
 - Window toolbar in Liquid Glass capsules: selection tools + Transparent Selection; Pencil, Fill, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure; Brushes ▾ and Shapes ▾ galleries; Size (5 presets + px field); Outline/Fill.
@@ -87,12 +94,11 @@ _Last updated: 2026-10-03 · 205 core tests passing_
 
 ## Not built yet (by stage)
 
-**6 Layers (high)**
-- The right sidebar (FR-1.3), starting with the Layers panel.
-- Model supports layers; there's no UI yet. Layers panel, add/duplicate/delete, merge down/visible, flatten, lock, hide, opacity.
-- 17 blend modes.
-- Adjustment layers. Undo on Active Layer (⌘⌥Z), Revert Layer.
-- `.colorproj` format.
+**6b (high)**
+- Adjustment layers (FR-8.4) with the Adjustments panel and Apply Adjustment; New Adjustment Layer ▸ menu.
+- Undo on Active Layer (⌘⌥Z), Revert Layer.
+- `.colorproj` format (layers, blend modes, adjustment layers).
+- The sidebar's panel switcher and Sidebar toolbar button, once there's a second panel.
 
 **7 Integration**
 - Canvas Properties (⌘⌥E: size, transparent background). Paste into New Image (⇧⌘V). Offer to enlarge the canvas for large pastes.
@@ -113,7 +119,7 @@ _Last updated: 2026-10-03 · 205 core tests passing_
 ## Not yet checked by hand
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
-Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight). Nothing outstanding.
+Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a (built 2026-10-03) awaits a hand test with `TestImages/Stage 6a Practice.png`; the Liquid Glass sidebar and eye/lock icons can't be seen in snapshots. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight). Nothing outstanding.
 
 ## Practical notes for the next session
 

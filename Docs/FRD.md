@@ -297,7 +297,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - **Revert Layer** returns the active layer to how it was at the last save.
 
 ### FR-8.4 Adjustment layers (non-destructive)
-- Types: Brightness/Contrast, Hue/Saturation/Lightness, Desaturate, Invert, Gaussian Blur, Sharpen.
+- Types: Hue/Saturation/Lightness, Desaturate, Invert, Gaussian Blur, Sharpen. (Brightness/Contrast was replaced by Adjust Photo, FR-9.5.)
 - Stage 9 adds Levels, Curves, Sepia and Posterize, plus Adjust Photo (all its sliders in one layer) and any photo filter (FR-9.5). Auto Contrast as an adjustment layer is a Levels layer with its points set automatically.
 - An adjustment layer changes how the layers below it look, without changing their pixels.
 - Its settings stay editable in the Adjustments panel. It can be hidden, reordered, deleted, or have its opacity changed like any layer.
@@ -313,7 +313,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 
 ### FR-9.1 Adjustments (Adjustments menu; they change the pixels)
 - **Invert Colors** (Cmd+I)
-- **Brightness/Contrast** (live preview)
+- ~~Brightness/Contrast~~: removed 2026-10-03; Adjust Photo's Brightness and Contrast replace it (FR-9.5).
 - **Hue/Saturation/Lightness** (live preview)
 - **Desaturate** (Cmd+Shift+U)
 - Each has an "as Adjustment Layer" version (FR-8.4).
@@ -508,7 +508,7 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 | **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9), Pixel Grid (Cmd+'), Rulers (Cmd+R), Status Bar, Layers (Cmd+L), History (Cmd+Y), Clipboard History (Cmd+Opt+V), Adjustments panel, Before/After (Cmd+Opt+B) |
 | **Image** | Crop to Selection (Cmd+Shift+X), Resize/Skew (Cmd+E), Canvas Properties (Cmd+Opt+E), Rotate ▸, Flip ▸, Symmetry ▸ |
 | **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete (Cmd+Delete), Merge Down (Cmd+Shift+E), Merge Visible (Cmd+Opt+Shift+E), Flatten, Hide/Show Layer (no default shortcut), Lock/Unlock Layer, New Adjustment Layer ▸, Revert Layer, Layer Properties |
-| **Adjustments** | Invert Colors (Cmd+I), Brightness/Contrast, Hue/Saturation, Desaturate (Cmd+Shift+U) |
+| **Adjustments** | Invert Colors (Cmd+I), Hue/Saturation, Desaturate (Cmd+Shift+U), Adjust Photo…, Levels…, Auto Contrast, Curves…, Sepia…, Posterize… |
 | **Effects** | Gaussian Blur…, Pixelate…, Sharpen…, Auto-Redact…, Batch Redact ▸ |
 | **Window / Help** | Standard |
 
@@ -644,6 +644,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-03 | Brightness/Contrast removed from the Adjustments menu and the adjustment-layer lists (Leah): Adjust Photo's Brightness (which lifts midtones without clipping) and Contrast replace it. Older projects with a Brightness/Contrast layer needn't keep working; they still open, but the layer has no settings. |
 | 2026-10-03 | The Adjustments panel no longer has a grid of buttons for adding adjustment layers (Leah): it repeated the Layers panel's Adjustment ▾ menu. With no adjustment layer selected, it says how to add one. |
 | 2026-10-03 | Polish choices (veto any): **effect previews** are worked out in the background from a copy of the layer taken when the bar opens, so sliders stay smooth on large images; while one preview is being worked out, only the newest settings are done next, and Apply always commits exactly the settings shown. Drop Shadow, Border and Straighten previews are still worked out on the spot (they change the canvas's size). **Copy, Cut and Copy Merged** put the image on the clipboard at once and make the PNG in the background; an app that pastes in that moment waits for it. Copy Merged now joins Clipboard History like Copy. |
 | 2026-10-03 | Fixes from Leah's stage 9 testing (veto any): after **Save as Filter…** the panel switches to the new filter at 100% and zeroes the color and tone sliders it absorbed (detail sliders stay), so the image looks the same and the look isn't applied twice. **Effects ▸ Spotlight…** is greyed out until something is selected, instead of beeping. |

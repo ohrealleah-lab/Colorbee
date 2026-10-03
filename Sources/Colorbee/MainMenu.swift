@@ -89,7 +89,6 @@ enum MainMenu {
         "showResizeSkew:": "Change the size of the selection (or whole image) by percent or pixels, or slant it.",
         "setSymmetry:": "Mirror pencil, brush and eraser strokes across the image's center lines.",
         "invertColors:": "Turn colors into their opposites (black becomes white).",
-        "showBrightnessContrast:": "Make the selection or image lighter, darker, or more or less contrasty.",
         "showHueSaturation:": "Shift colors around the color wheel, or make them more or less vivid.",
         "desaturate:": "Turn the selection or image to grayscale.",
         "showAdjustPhoto:": "Exposure, light, color and detail sliders, Auto, and filters, in a panel at the side.",
@@ -294,7 +293,6 @@ enum MainMenu {
     private static func adjustmentsMenu() -> NSMenu {
         let menu = NSMenu(title: "Adjustments")
         menu.addItem(item("Invert Colors", "invertColors:", "i"))
-        menu.addItem(item("Brightness/Contrast…", "showBrightnessContrast:"))
         menu.addItem(item("Hue/Saturation…", "showHueSaturation:"))
         menu.addItem(item("Desaturate", "desaturate:", "u", [.command, .shift]))
         menu.addItem(.separator())

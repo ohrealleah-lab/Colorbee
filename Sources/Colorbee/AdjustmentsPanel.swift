@@ -3,7 +3,6 @@ import SwiftUI
 
 /// The kinds of adjustment layer (FR-8.4, FR-9.5), with their names, icons and starting settings.
 enum AdjustmentChoice: CaseIterable {
-    case brightnessContrast
     case hueSaturation
     case levels
     case autoContrast
@@ -18,7 +17,6 @@ enum AdjustmentChoice: CaseIterable {
 
     var title: String {
         switch self {
-        case .brightnessContrast: "Brightness/Contrast"
         case .hueSaturation: "Hue/Saturation"
         case .levels: "Levels"
         case .autoContrast: "Auto Contrast"
@@ -35,7 +33,6 @@ enum AdjustmentChoice: CaseIterable {
 
     var symbol: String {
         switch self {
-        case .brightnessContrast: "sun.max"
         case .hueSaturation: "swatchpalette"
         case .levels: "chart.bar"
         case .autoContrast: "wand.and.rays"
@@ -54,7 +51,6 @@ enum AdjustmentChoice: CaseIterable {
     /// visible amount, so adding one shows what it does. Auto Contrast is set from the image (Editor).
     var startingAdjustment: Effect {
         switch self {
-        case .brightnessContrast: .brightnessContrast(brightness: 0, contrast: 0)
         case .hueSaturation: .hueSaturation(hue: 0, saturation: 0, lightness: 0)
         case .levels, .autoContrast: .levels(.identity)
         case .curves: .curves(.identity)
@@ -71,7 +67,6 @@ enum AdjustmentChoice: CaseIterable {
     /// The sliders, shared with the Adjustments and Effects menus' live dialogs. Nil means no settings.
     var kind: EffectKind? {
         switch self {
-        case .brightnessContrast: .brightnessContrast
         case .hueSaturation: .hueSaturation
         case .levels, .autoContrast: .levels
         case .curves: .curves
@@ -86,7 +81,6 @@ enum AdjustmentChoice: CaseIterable {
     /// The choice that edits `effect`. An Auto Contrast layer is a Levels layer.
     init?(_ effect: Effect) {
         switch effect {
-        case .brightnessContrast: self = .brightnessContrast
         case .hueSaturation: self = .hueSaturation
         case .levels: self = .levels
         case .curves: self = .curves
@@ -97,7 +91,8 @@ enum AdjustmentChoice: CaseIterable {
         case .gaussianBlur: self = .gaussianBlur
         case .sharpen: self = .sharpen
         case .photo: self = .adjustPhoto
-        case .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette: return nil
+        // Brightness/Contrast was replaced by Adjust Photo's sliders (Leah); old layers of it have no settings here.
+        case .brightnessContrast, .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette: return nil
         }
     }
 }

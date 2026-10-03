@@ -1,4 +1,5 @@
 import AppKit
+import ColorbeeCore
 
 /// Saves a picture of the first document window and quits, for checking the interface without
 /// taking over the screen: `-ColorbeeSnapshot /path/to.png`, optionally with `-ColorbeeSnapshotDark YES`
@@ -20,7 +21,7 @@ enum Snapshot {
             for _ in 0..<extraLayers { editor.addLayer() }
             editor.setBlendMode(.multiply)
             editor.setLayerLocked(true, at: 0)
-            editor.addAdjustmentLayer(.brightnessContrast(brightness: 12, contrast: 8), named: "Brightness/Contrast")
+            editor.addAdjustmentLayer(.levels(Levels(black: 12, white: 240, gamma: 1.1)), named: "Levels")
             editor.showsAdjustmentsPanel = false
             editor.showsHistoryPanel = true
             editor.showsClipboardPanel = true

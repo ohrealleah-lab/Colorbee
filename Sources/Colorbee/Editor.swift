@@ -89,7 +89,6 @@ enum EffectKind: CaseIterable {
     case gaussianBlur
     case pixelate
     case sharpen
-    case brightnessContrast
     case hueSaturation
     case levels
     case curves
@@ -135,7 +134,6 @@ enum EffectKind: CaseIterable {
         case .gaussianBlur: "Gaussian Blur"
         case .pixelate: "Pixelate"
         case .sharpen: "Sharpen"
-        case .brightnessContrast: "Brightness/Contrast"
         case .hueSaturation: "Hue/Saturation"
         case .levels: "Levels"
         case .curves: "Curves"
@@ -161,10 +159,6 @@ enum EffectKind: CaseIterable {
         case .gaussianBlur: [Parameter(label: "Radius", range: 1...100, defaultValue: 8, unit: "px")]
         case .pixelate: [Parameter(label: "Cell size", range: 2...100, defaultValue: 12, unit: "px")]
         case .sharpen: [Parameter(label: "Amount", range: 0...200, defaultValue: 60, unit: "%")]
-        case .brightnessContrast: [
-            Parameter(label: "Brightness", range: -100...100, defaultValue: 0, unit: ""),
-            Parameter(label: "Contrast", range: -100...100, defaultValue: 0, unit: ""),
-        ]
         case .hueSaturation: [
             Parameter(label: "Hue", range: -180...180, defaultValue: 0, unit: "°"),
             Parameter(label: "Saturation", range: -100...100, defaultValue: 0, unit: ""),
@@ -222,7 +216,6 @@ enum EffectKind: CaseIterable {
         case .gaussianBlur: .gaussianBlur(radius: value(0))
         case .pixelate: .pixelate(cellSize: Int(value(0).rounded()))
         case .sharpen: .sharpen(amount: value(0))
-        case .brightnessContrast: .brightnessContrast(brightness: value(0), contrast: value(1))
         case .hueSaturation: .hueSaturation(hue: value(0), saturation: value(1), lightness: value(2))
         case .levels: .levels(Levels(black: value(0), white: max(value(2), value(0) + 1), gamma: value(1)))
         case .curves: .curves(curves)

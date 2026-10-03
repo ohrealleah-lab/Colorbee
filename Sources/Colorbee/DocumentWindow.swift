@@ -92,7 +92,6 @@ final class DocumentWindow: NSWindow {
     @objc func liftSubject(_ sender: Any?) { editor?.findSubject(.liftToNewLayer) }
     @objc func showStraighten(_ sender: Any?) { editor?.beginEffect(.straighten) }
     @objc func showPerspective(_ sender: Any?) { editor?.beginEffect(.perspective) }
-    @objc func showBrightnessContrast(_ sender: Any?) { editor?.beginEffect(.brightnessContrast) }
     @objc func showHueSaturation(_ sender: Any?) { editor?.beginEffect(.hueSaturation) }
     @objc func invertColors(_ sender: Any?) { editor?.applyAdjustment(.invert) }
     @objc func desaturate(_ sender: Any?) { editor?.applyAdjustment(.desaturate) }
@@ -246,7 +245,7 @@ final class DocumentWindow: NSWindow {
             return editor.hasSelection
         case #selector(selectAll(_:)), #selector(invertSelection(_:)),
              #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showAutoRedact(_:)),
-             #selector(showSharpen(_:)), #selector(showBrightnessContrast(_:)), #selector(showHueSaturation(_:)),
+             #selector(showSharpen(_:)), #selector(showHueSaturation(_:)),
              #selector(invertColors(_:)), #selector(desaturate(_:)), #selector(applyOrientation(_:)), #selector(showResizeSkew(_:)):
             return true
         case #selector(setSymmetry(_:)):

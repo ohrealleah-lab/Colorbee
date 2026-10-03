@@ -11,6 +11,9 @@ enum Snapshot {
     static func startIfRequested(window: NSWindow, editor: Editor) {
         guard let path = defaults.string(forKey: "ColorbeeSnapshot") else { return }
         if defaults.bool(forKey: "ColorbeeSnapshotDark") { NSApp.appearance = NSAppearance(named: .darkAqua) }
+        if defaults.bool(forKey: "ColorbeeSnapshotEdited") {
+            (window.windowController?.document as? NSDocument)?.updateChangeCount(.changeDone)
+        }
         if let name = defaults.string(forKey: "ColorbeeSnapshotTool"), let tool = Tool.allCases.first(where: { "\($0)" == name }) {
             editor.selectTool(tool)
         }

@@ -26,20 +26,10 @@ final class DocumentWindowController: NSWindowController {
         super.init(window: window)
 
         window.makeFirstResponder(canvasView)
-        trackSubtitle()
         canvasView.onFirstFrame = { [weak window, weak canvasView, weak editor] in
             guard let window, let canvasView, let editor else { return }
             Benchmark.startIfRequested(window: window, canvasView: canvasView, editor: editor)
             Snapshot.startIfRequested(window: window, editor: editor)
-        }
-    }
-
-    /// Shows the canvas size under the title, as in the mockups.
-    private func trackSubtitle() {
-        withObservationTracking {
-            window?.subtitle = "\(editor.canvasSize.width) × \(editor.canvasSize.height)"
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.trackSubtitle() }
         }
     }
 

@@ -612,6 +612,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-03 | The canvas size isn't shown under the window title (veto): macOS doesn't display a subtitle on document windows and puts its own "— Edited" there. The size stays in the status bar. |
 | 2026-10-03 | No Paste/Cut/Copy buttons in the toolbar (Leah): they only repeated ⌘V/⌘X/⌘C and the Edit menu, and the room is needed for the stage 6 panel toggles. The Paint Classic palette menu stays, ready for palettes in stage 7. |
 | 2026-10-02 | Text box handles (FR-6.1, reported missing by Leah). Behavior choices (veto any): the open text box has eight handles on its border, like a selection. Dragging the border moves it. Side handles set the width the text wraps at (so a click-to-type box starts wrapping once you drag a side); top and bottom handles set the box's height, which still grows if the text needs more. After a move or resize the cursor stays in the text, so you can keep typing. |
 | 2026-10-02 | Trackpad pressure needs macOS's Force Click and haptic feedback setting on; with it off, the trackpad draws at full size like a mouse. |

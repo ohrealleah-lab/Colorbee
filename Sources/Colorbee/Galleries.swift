@@ -64,6 +64,8 @@ private struct BrushGallery: View {
                 }
             }
             .padding(.horizontal, 24)
+            // Clicking picks a brush; the keyboard focus ring around the first card only looked like a selection.
+            .focusEffectDisabled()
             Divider()
             Toggle("Pressure changes the size", isOn: $editor.usesPressure)
                 .font(.system(size: 11))
@@ -152,6 +154,7 @@ private struct ShapeGallery: View {
                     .help(kind.name)
                 }
             }
+            .focusEffectDisabled()
             Divider()
             VStack(alignment: .leading, spacing: 2) {
                 Text(editor.shapeKind.name).font(.system(size: 11, weight: .semibold))

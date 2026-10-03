@@ -36,8 +36,8 @@ _Last updated: 2026-10-03 · 257 core tests passing_
 | 6b. Adjustment layers, per-layer undo, .colorproj | ✅ Done | Adjustments panel, Undo on Active Layer, Revert Layer, .colorproj |
 | 7a. Integration: canvas, clipboard, history, sharing | ✅ Done | Medium |
 | 7b. Palettes, text styles, Settings, Finder | ✅ Done | Medium |
-| **7c. Shortcut editor** | ✅ Built, awaiting hand test | **High** |
-| **8. Hardening** | ⏭ Next | Medium |
+| 7c. Shortcut editor | ✅ Done | **High** |
+| **8. Hardening** | 🔨 In progress | Medium |
 | 9. Photo editing (later phase) | Planned | Mostly medium; Curves and Straighten high |
 
 ## What's built
@@ -125,7 +125,7 @@ _Last updated: 2026-10-03 · 257 core tests passing_
 ## Not yet checked by hand
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
-Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b tested by hand on 2026-10-03. Stage 7a tested by hand on 2026-10-03. Stage 7b tested by hand on 2026-10-03, including the Auto-Redact box fix. Stage 7c (built 2026-10-03) awaits a hand test. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).
+Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b tested by hand on 2026-10-03. Stage 7a tested by hand on 2026-10-03. Stage 7b tested by hand on 2026-10-03, including the Auto-Redact box fix. Stage 7c tested by hand on 2026-10-03. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).
 
 ## Practical notes for the next session
 

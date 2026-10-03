@@ -19,6 +19,16 @@ final class ImageDocument: NSDocument {
         hasUndoManager = false
     }
 
+    /// Opens `canvas` as a new untitled document in its own window (Paste into New Image).
+    static func open(_ canvas: ColorbeeCore.Canvas) {
+        let document = ImageDocument()
+        document.editor = Editor(canvas: canvas)
+        document.fileType = UTType.png.identifier
+        NSDocumentController.shared.addDocument(document)
+        document.makeWindowControllers()
+        document.showWindows()
+    }
+
     override class var autosavesInPlace: Bool {
         true
     }
@@ -113,6 +123,54 @@ final class ImageDocument: NSDocument {
             throw CocoaError(.fileWriteUnknown)
         }
         return try editor.encoded(as: format)
+    }
+
+    // MARK: Share, desktop picture, print (FR-11.5)
+
+    @IBAction func shareDocument(_ sender: Any?) {
+        guard let editor, let view = windowForSheet?.contentView else { return }
+        do {
+            let folder = FileManager.default.temporaryDirectory.appending(path: "Colorbee Share \(UUID().uuidString)", directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let url = folder.appending(path: "\((displayName as NSString).deletingPathExtension).png")
+            try editor.flattenedPNG().write(to: url)
+            let picker = NSSharingServicePicker(items: [url])
+            picker.show(relativeTo: NSRect(x: view.bounds.midX, y: view.bounds.maxY - 1, width: 1, height: 1), of: view, preferredEdge: .minY)
+        } catch {
+            presentError(error)
+        }
+    }
+
+    /// Saves a PNG copy in Application Support (the desktop needs a file that stays put) and shows it on every screen.
+    @IBAction func setDesktopPicture(_ sender: Any?) {
+        guard let editor else { return }
+        do {
+            let folder = URL.applicationSupportDirectory.appending(path: "Colorbee/Desktop Pictures", directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let stamp = Date.now.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false)).replacingOccurrences(of: ":", with: ".")
+            let url = folder.appending(path: "\((displayName as NSString).deletingPathExtension) \(stamp).png")
+            try editor.flattenedPNG().write(to: url)
+            for screen in NSScreen.screens {
+                try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
+            }
+        } catch {
+            presentError(error)
+        }
+    }
+
+    /// Prints the combined image, scaled down to fit the page and centered.
+    override func printOperation(withSettings printSettings: [NSPrintInfo.AttributeKey: Any]) throws -> NSPrintOperation {
+        guard let editor, let image = NSImage(data: try editor.flattenedPNG()) else { throw CocoaError(.fileReadUnknown) }
+        let view = NSImageView(frame: NSRect(origin: .zero, size: image.size))
+        view.image = image
+        view.imageScaling = .scaleProportionallyUpOrDown
+        let info = printInfo.copy() as! NSPrintInfo
+        info.dictionary().addEntries(from: printSettings)
+        info.horizontalPagination = .fit
+        info.verticalPagination = .fit
+        info.isHorizontallyCentered = true
+        info.isVerticallyCentered = true
+        return NSPrintOperation(view: view, printInfo: info)
     }
 
     // MARK: Export

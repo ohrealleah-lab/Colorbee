@@ -48,6 +48,16 @@ enum MainMenu {
         "cut:": "Copy the selection to the clipboard, then clear it.",
         "copy:": "Copy the selection (or the whole image) to the clipboard as a PNG.",
         "copyMerged:": "Copy the selection as all visible layers show it together.",
+        "pasteIntoNewImage:": "Open the clipboard image as a new document at its own size.",
+        "showCanvasProperties:": "Change the canvas size or make its background transparent.",
+        "toggleHistoryPanel:": "Show or hide every step you've taken, to jump back to any of them.",
+        "toggleClipboardPanel:": "Show or hide the last 10 images you copied or pasted.",
+        "toggleRulers:": "Show or hide pixel rulers along the canvas.",
+        "toggleStatusBar:": "Show or hide the bar along the bottom of the window.",
+        "shareDocument:": "Send the image with AirDrop, Messages, Mail and more.",
+        "setDesktopPicture:": "Use the image as your desktop picture.",
+        "runPageLayout:": "Choose the paper size and orientation for printing.",
+        "printDocument:": "Print the image, scaled to fit the page.",
         "toggleLayers:": "Show or hide the Layers panel.",
         "toggleAdjustmentsPanel:": "Show or hide the Adjustments panel, where an adjustment layer's settings live.",
         "newAdjustmentLayer:": "Add an adjustment layer: it changes how the layers below look, without changing their pixels.",
@@ -148,6 +158,12 @@ enum MainMenu {
             presets.addItem(presetItem)
         }
         menu.addItem(submenu(presets))
+        menu.addItem(.separator())
+        menu.addItem(item("Share…", "shareDocument:"))
+        menu.addItem(item("Set as Desktop Picture", "setDesktopPicture:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Page Setup…", "runPageLayout:", "p", [.command, .shift]))
+        menu.addItem(item("Print…", "printDocument:", "p"))
         return menu
     }
 
@@ -161,6 +177,7 @@ enum MainMenu {
         menu.addItem(item("Copy", "copy:", "c"))
         menu.addItem(item("Copy Merged", "copyMerged:", "c", [.command, .shift]))
         menu.addItem(item("Paste", "paste:", "v"))
+        menu.addItem(item("Paste into New Image", "pasteIntoNewImage:", "v", [.command, .shift]))
         // The canvas handles the Delete key itself, so text fields keep their own Delete.
         menu.addItem(item("Delete", "delete:"))
         menu.addItem(.separator())
@@ -181,6 +198,11 @@ enum MainMenu {
         menu.addItem(item("Before/After", "toggleBeforeAfter:", "b", [.command, .option]))
         menu.addItem(item("Layers", "toggleLayers:", "l"))
         menu.addItem(item("Adjustments Panel", "toggleAdjustmentsPanel:"))
+        menu.addItem(item("History", "toggleHistoryPanel:", "y"))
+        menu.addItem(item("Clipboard History", "toggleClipboardPanel:", "v", [.command, .option]))
+        menu.addItem(.separator())
+        menu.addItem(item("Show Rulers", "toggleRulers:", "r"))
+        menu.addItem(item("Hide Status Bar", "toggleStatusBar:"))
         menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", "toggleFullScreen:", "f", [.command, .control]))
         return menu
@@ -190,6 +212,7 @@ enum MainMenu {
         let menu = NSMenu(title: "Image")
         menu.addItem(item("Crop to Selection", "cropToSelection:", "x", [.command, .shift]))
         menu.addItem(item("Resize and Skew…", "showResizeSkew:", "e"))
+        menu.addItem(item("Canvas Properties…", "showCanvasProperties:", "e", [.command, .option]))
         menu.addItem(.separator())
         let rotate = NSMenu(title: "Rotate")
         let flip = NSMenu(title: "Flip")

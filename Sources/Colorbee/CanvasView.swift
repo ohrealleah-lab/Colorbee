@@ -15,6 +15,7 @@ final class CanvasView: NSView {
         case shape
         case text(start: Point2D)
         case textBox
+        case canvasResize(CanvasHandle, original: IntSize, grab: Point2D)
         case pan(last: NSPoint)
     }
 
@@ -51,6 +52,7 @@ final class CanvasView: NSView {
     init(editor: Editor) {
         self.editor = editor
         super.init(frame: .zero)
+        registerForDraggedTypes([.fileURL, .png, .tiff])
         wantsLayer = true
         layerContentsRedrawPolicy = .duringViewResize
         // Continuous pressure for brushes, without a Force Click stage.
@@ -273,6 +275,9 @@ final class CanvasView: NSView {
             frame(minX, minY, maxX, maxY, color: SIMD4(0, 0, 0, 1))
             frame(minX + inset, minY + inset, maxX - inset, maxY - inset, color: SIMD4(1, 1, 1, 1))
         }
+        if let size = editor.canvasResizePreview {
+            frame(0, 0, Double(size.width), Double(size.height))
+        }
         if let measurement = editor.measurement {
             let center = { (p: IntPoint) in Point2D(x: Double(p.x) + 0.5, y: Double(p.y) + 0.5) }
             lines.append((center(measurement.start), center(measurement.end), SIMD4(1, 0.25, 0.45, 1)))
@@ -331,10 +336,21 @@ final class CanvasView: NSView {
     }
 
     private func handlePoints(_ selection: SelectionState) -> [Point2D] {
-        if editor.pendingShape != nil { return editor.pendingShapeHandlePoints }
-        if editor.pendingText != nil { return editor.pendingTextHandles.map(\.point) }
-        guard editor.tool.isSelectionTool, editor.marqueePreview == nil, let rect = selection.bounds else { return [] }
-        return SelectionHandle.allCases.map { $0.point(on: rect) }
+        let canvasHandles = CanvasHandle.allCases.map { $0.point(on: editor.canvasResizePreview ?? editor.canvasSize) }
+        if editor.pendingShape != nil { return editor.pendingShapeHandlePoints + canvasHandles }
+        if editor.pendingText != nil { return editor.pendingTextHandles.map(\.point) + canvasHandles }
+        guard editor.tool.isSelectionTool, editor.marqueePreview == nil, let rect = selection.bounds else { return canvasHandles }
+        return SelectionHandle.allCases.map { $0.point(on: rect) } + canvasHandles
+    }
+
+    /// The canvas edge handle under a view point, unless a selection, shape or text handle is there too.
+    private func canvasHandle(atView point: Point2D) -> CanvasHandle? {
+        guard editor.comparison == nil, editor.selectionHandle(atView: point) == nil, editor.shapeHandle(atView: point) == nil,
+              editor.textBoxGrab(atView: point) == nil else { return nil }
+        return CanvasHandle.allCases.first { handle in
+            let center = editor.viewport.viewPoint(fromImage: handle.point(on: editor.canvasSize))
+            return abs(center.x - point.x) <= 6 && abs(center.y - point.y) <= 6
+        }
     }
 
     private func render() {
@@ -426,6 +442,9 @@ final class CanvasView: NSView {
 
     private func currentCursor(at point: Point2D?) -> NSCursor {
         if spaceHeld { return .openHand }
+        if let point, let handle = canvasHandle(atView: editor.viewport.viewPoint(fromImage: point)) {
+            return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
+        }
         if let point {
             let view = editor.viewport.viewPoint(fromImage: point)
             if let handle = editor.selectionHandle(atView: view) {
@@ -465,6 +484,10 @@ final class CanvasView: NSView {
         if editor.comparison != nil {
             drag = .divider
             moveDivider(event)
+            return
+        }
+        if !spaceHeld, editor.activeEffect == nil, !secondary, let handle = canvasHandle(atView: viewPoint(event)) {
+            drag = .canvasResize(handle, original: editor.canvasSize, grab: imagePoint(event))
             return
         }
         // While an effect's bar is open the canvas is view-only, so any drag pans.
@@ -540,6 +563,9 @@ final class CanvasView: NSView {
         case .text(let start):
             editor.updateTextDragFrame(from: start, to: imagePoint(event))
             updatePointer(event)
+        case .canvasResize(let handle, let original, let grab):
+            let point = imagePoint(event)
+            editor.canvasResizePreview = handle.resized(original, by: Point2D(x: point.x - grab.x, y: point.y - grab.y))
         case .textBox:
             editor.continueTextBoxDrag(to: imagePoint(event))
             updatePointer(event)
@@ -567,6 +593,13 @@ final class CanvasView: NSView {
             editor.endGradient()
         case .shape:
             editor.endShapeDrag()
+        case .canvasResize:
+            let size = editor.canvasResizePreview
+            editor.canvasResizePreview = nil
+            drag = nil
+            if let size { editor.resizeCanvas(to: size) }
+            currentCursor(at: imagePoint(event)).set()
+            return
         case .textBox:
             editor.endTextBoxDrag()
             drag = nil
@@ -811,5 +844,76 @@ extension CanvasView: NSTextViewDelegate {
         guard let textView else { return }
         editor.updatePendingText(textView.string)
         syncTextEditor()
+    }
+}
+
+/// The canvas's three resize handles (FR-1.4): new area appears on the right and bottom.
+enum CanvasHandle: CaseIterable {
+    case right, bottom, corner
+
+    func point(on size: IntSize) -> Point2D {
+        let width = Double(size.width), height = Double(size.height)
+        return switch self {
+        case .right: Point2D(x: width, y: height / 2)
+        case .bottom: Point2D(x: width / 2, y: height)
+        case .corner: Point2D(x: width, y: height)
+        }
+    }
+
+    func resized(_ size: IntSize, by delta: Point2D) -> IntSize {
+        let dx = Int(delta.x.rounded()), dy = Int(delta.y.rounded())
+        return IntSize(
+            width: self == .bottom ? size.width : max(1, size.width + dx),
+            height: self == .right ? size.height : max(1, size.height + dy)
+        )
+    }
+
+    var cursorPosition: NSCursor.FrameResizePosition {
+        switch self {
+        case .right: .right
+        case .bottom: .bottom
+        case .corner: .bottomRight
+        }
+    }
+}
+
+// MARK: Drag and drop (FR-11.4)
+
+extension CanvasView {
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        Self.imageData(from: sender.draggingPasteboard) == nil ? [] : .copy
+    }
+
+    /// Dropped on the canvas: a floating selection centered where it landed. Dropped on the gray around
+    /// the canvas: it opens as a new document.
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        let pasteboard = sender.draggingPasteboard
+        let location = convert(sender.draggingLocation, from: nil)
+        let point = editor.viewport.imagePoint(fromView: Point2D(x: location.x, y: location.y))
+        let onCanvas = point.x >= 0 && point.y >= 0 && point.x < Double(editor.canvasSize.width) && point.y < Double(editor.canvasSize.height)
+        if !onCanvas, let url = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])?.first as? URL {
+            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+            return true
+        }
+        guard let data = Self.imageData(from: pasteboard),
+              let decoded = try? ImageCodec.decode(data, convertingTo: onCanvas ? editor.canvas.colorSpace : nil) else { return false }
+        if onCanvas {
+            let origin = IntPoint(x: Int(point.x) - decoded.buffer.width / 2, y: Int(point.y) - decoded.buffer.height / 2)
+            editor.paste(decoded.buffer, at: origin)
+        } else {
+            ImageDocument.open(Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)],
+                                      hasTransparentBackground: decoded.buffer.hasTransparency))
+        }
+        return true
+    }
+
+    private static func imageData(from pasteboard: NSPasteboard) -> Data? {
+        if let url = pasteboard.readObjects(forClasses: [NSURL.self], options: [
+            .urlReadingFileURLsOnly: true, .urlReadingContentsConformToTypes: ["public.image"],
+        ])?.first as? URL {
+            return try? Data(contentsOf: url)
+        }
+        if let type = pasteboard.availableType(from: [.png, .tiff]) { return pasteboard.data(forType: type) }
+        return nil
     }
 }

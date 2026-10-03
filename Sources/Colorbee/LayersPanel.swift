@@ -12,6 +12,8 @@ struct Sidebar: View {
             HStack(spacing: 2) {
                 switcherButton("square.3.layers.3d", "Layers panel (⌘L)", isOn: $editor.showsLayersPanel)
                 switcherButton("slider.horizontal.3", "Adjustments panel", isOn: $editor.showsAdjustmentsPanel)
+                switcherButton("clock.arrow.circlepath", "History panel (⌘Y)", isOn: $editor.showsHistoryPanel)
+                switcherButton("list.clipboard", "Clipboard History panel (⌥⌘V)", isOn: $editor.showsClipboardPanel)
             }
             .padding(2)
             .background(Theme.field, in: Capsule())
@@ -26,7 +28,17 @@ struct Sidebar: View {
                 SectionHeader(title: "Adjustments", detail: editor.activeAdjustment.flatMap(AdjustmentChoice.init)?.title ?? "")
                 AdjustmentsPanel(editor: editor)
             }
-            if !editor.showsLayersPanel {
+            if editor.showsHistoryPanel {
+                Divider()
+                SectionHeader(title: "History", detail: "\(editor.historySteps.count) steps")
+                HistoryPanel(editor: editor)
+            }
+            if editor.showsClipboardPanel {
+                Divider()
+                SectionHeader(title: "Clipboard History", detail: "\(ClipboardHistory.shared.items.count)")
+                ClipboardPanel(editor: editor)
+            }
+            if !editor.showsLayersPanel && !editor.showsHistoryPanel && !editor.showsClipboardPanel {
                 Spacer(minLength: 0)
             }
         }

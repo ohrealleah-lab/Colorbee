@@ -411,7 +411,58 @@ final class Editor {
         canvasSize = canvas.size
         asOpened = canvas.flattened()
         history = History(byteBudget: Editor.historyByteBudget)
+        history.makeThumbnail = { $0.thumbnail(maxSide: 64) }
         rememberLayersAsSaved(sharingSingleLayerWith: asOpened)
+    }
+
+    // MARK: History panel (FR-13.2)
+
+    var historySteps: [(name: String, thumbnail: Thumbnail?, isUndone: Bool)] {
+        _ = layersRevision
+        return history.steps
+    }
+
+    /// Undoes or redoes until exactly `count` steps are done, for a click in the History panel.
+    func jump(toStep count: Int) {
+        finishInteractions()
+        while history.undoCount > count, history.canUndo { undo() }
+        while history.undoCount < count, history.canRedo { redo() }
+    }
+
+    // MARK: Canvas (FR-1.4)
+
+    var isCanvasPropertiesOpen = false
+    var showsRulers = false
+    var showsStatusBar = true
+    var showsHistoryPanel = false
+    var showsClipboardPanel = false
+
+    var hasTransparentBackground: Bool {
+        _ = layersRevision
+        return canvas.hasTransparentBackground
+    }
+
+    /// Canvas Properties: the new size and the transparent-background setting, each its own step.
+    func applyCanvasProperties(size: IntSize, transparentBackground: Bool) {
+        isCanvasPropertiesOpen = false
+        finishInteractions()
+        recordingChanges {
+            ImageActions.setTransparentBackground(transparentBackground, canvas: canvas, history: history)
+            ImageActions.resizeCanvas(to: size, canvas: canvas, history: history, context: selectionContext)
+        }
+        selectionDidChange()
+    }
+
+    /// The canvas's edge handles: new area on the right and bottom (FR-1.4).
+    func resizeCanvas(to size: IntSize) {
+        finishInteractions()
+        recordingChanges { ImageActions.resizeCanvas(to: size, canvas: canvas, history: history, context: selectionContext) }
+        selectionDidChange()
+    }
+
+    /// While a canvas edge handle is dragged: the size it would become, outlined on the canvas.
+    var canvasResizePreview: IntSize? {
+        didSet { renderSoon() }
     }
 
     /// Each pixel layer as of the last explicit save (or as opened), for Revert Layer (FR-8.3).
@@ -1459,10 +1510,11 @@ final class Editor {
     }
 
     /// Pastes as a floating selection at the top-left of the visible part of the canvas.
-    func paste(_ image: PixelBuffer) {
+    /// Pastes as a floating selection at the top-left of the visible area (FR-10.1), or at `origin`.
+    func paste(_ image: PixelBuffer, at origin: IntPoint? = nil) {
         guard !refusedBecauseLocked() else { return }
         let visibleTopLeft = viewport.imagePoint(fromView: .zero)
-        let origin = IntPoint(
+        let origin = origin ?? IntPoint(
             x: min(max(0, Int(visibleTopLeft.x.rounded(.down))), canvas.size.width - 1),
             y: min(max(0, Int(visibleTopLeft.y.rounded(.down))), canvas.size.height - 1)
         )
@@ -1637,6 +1689,17 @@ final class Editor {
             if !showsAdjustmentsPanel { isSidebarOpen = false }
         } else {
             showsLayersPanel = true
+            isSidebarOpen = true
+        }
+    }
+
+    /// Shows a sidebar panel (opening the sidebar), or hides it if it's already showing.
+    func togglePanel(_ panel: ReferenceWritableKeyPath<Editor, Bool>) {
+        if isSidebarOpen && self[keyPath: panel] {
+            self[keyPath: panel] = false
+            if !showsLayersPanel && !showsAdjustmentsPanel && !showsHistoryPanel && !showsClipboardPanel { isSidebarOpen = false }
+        } else {
+            self[keyPath: panel] = true
             isSidebarOpen = true
         }
     }

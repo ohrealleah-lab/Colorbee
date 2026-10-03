@@ -30,6 +30,7 @@ final class DocumentWindow: NSWindow {
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setData(png, forType: .png)
+            ClipboardHistory.shared.add(png)
         } catch {
             presentError(error)
         }
@@ -153,11 +154,49 @@ final class DocumentWindow: NSWindow {
         guard let editor, let data = Self.imageDataOnPasteboard() else { return }
         do {
             let decoded = try ImageCodec.decode(data, convertingTo: editor.canvas.colorSpace)
-            editor.paste(decoded.buffer)
+            ClipboardHistory.shared.add(data)
+            let image = decoded.buffer, canvas = editor.canvasSize
+            guard image.width > canvas.width || image.height > canvas.height else {
+                editor.paste(image)
+                return
+            }
+            // Like Paint: a paste bigger than the canvas offers to enlarge the canvas to fit (FR-10.1).
+            let alert = NSAlert()
+            alert.messageText = "The pasted image is larger than the canvas."
+            alert.informativeText = "It's \(image.width) × \(image.height) px; the canvas is \(canvas.width) × \(canvas.height) px. Enlarge the canvas to fit it?"
+            alert.addButton(withTitle: "Enlarge Canvas")
+            alert.addButton(withTitle: "Keep Canvas Size")
+            alert.beginSheetModal(for: self) { response in
+                if response == .alertFirstButtonReturn {
+                    editor.resizeCanvas(to: IntSize(width: max(image.width, canvas.width), height: max(image.height, canvas.height)))
+                    editor.paste(image, at: IntPoint(x: 0, y: 0))
+                } else {
+                    editor.paste(image)
+                }
+            }
         } catch {
             presentError(error)
         }
     }
+
+    /// Paste into New Image (⇧⌘V): the clipboard image becomes a document of its own, at its own size.
+    @objc func pasteIntoNewImage(_ sender: Any?) {
+        guard let data = Self.imageDataOnPasteboard() else { return }
+        do {
+            let decoded = try ImageCodec.decode(data)
+            ClipboardHistory.shared.add(data)
+            ImageDocument.open(Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)],
+                                      hasTransparentBackground: decoded.buffer.hasTransparency))
+        } catch {
+            presentError(error)
+        }
+    }
+
+    @objc func showCanvasProperties(_ sender: Any?) { editor?.isCanvasPropertiesOpen = true }
+    @objc func toggleHistoryPanel(_ sender: Any?) { editor?.togglePanel(\.showsHistoryPanel) }
+    @objc func toggleClipboardPanel(_ sender: Any?) { editor?.togglePanel(\.showsClipboardPanel) }
+    @objc func toggleRulers(_ sender: Any?) { editor?.showsRulers.toggle() }
+    @objc func toggleStatusBar(_ sender: Any?) { editor?.showsStatusBar.toggle() }
 
     @objc func zoomIn(_ sender: Any?) { editor?.zoomIn() }
     @objc func zoomOut(_ sender: Any?) { editor?.zoomOut() }
@@ -205,6 +244,22 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(toggleLayers(_:)):
             menuItem.state = editor.isSidebarOpen && editor.showsLayersPanel ? .on : .off
+            return true
+        case #selector(pasteIntoNewImage(_:)):
+            return Self.imageDataOnPasteboard() != nil
+        case #selector(showCanvasProperties(_:)):
+            return true
+        case #selector(toggleHistoryPanel(_:)):
+            menuItem.state = editor.isSidebarOpen && editor.showsHistoryPanel ? .on : .off
+            return true
+        case #selector(toggleClipboardPanel(_:)):
+            menuItem.state = editor.isSidebarOpen && editor.showsClipboardPanel ? .on : .off
+            return true
+        case #selector(toggleRulers(_:)):
+            menuItem.title = editor.showsRulers ? "Hide Rulers" : "Show Rulers"
+            return true
+        case #selector(toggleStatusBar(_:)):
+            menuItem.title = editor.showsStatusBar ? "Hide Status Bar" : "Show Status Bar"
             return true
         case #selector(toggleAdjustmentsPanel(_:)):
             menuItem.state = editor.isSidebarOpen && editor.showsAdjustmentsPanel ? .on : .off

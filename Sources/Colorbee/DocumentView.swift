@@ -21,6 +21,9 @@ struct DocumentView: View {
                 Divider()
             }
             CanvasHost(view: canvasView)
+                .overlay {
+                    if editor.showsRulers { Rulers(editor: editor) }
+                }
                 // Floats over the gray surround rather than narrowing the canvas, as in the mockups.
                 .overlay(alignment: .trailing) {
                     if editor.isSidebarOpen {
@@ -32,10 +35,15 @@ struct DocumentView: View {
                 .sheet(isPresented: autoRedactBinding) {
                     AutoRedactSheet(editor: editor)
                 }
-            Divider()
-            StatusBar(editor: editor)
+            if editor.showsStatusBar {
+                Divider()
+                StatusBar(editor: editor)
+            }
         }
         .toolbar { DocumentToolbar(editor: editor) }
+        .sheet(isPresented: $editor.isCanvasPropertiesOpen) {
+            CanvasPropertiesSheet(editor: editor)
+        }
         .sheet(isPresented: $editor.isResizeSkewOpen) {
             ResizeSkewSheet(editor: editor, base: editor.resizeSkewBaseSize, appliesToSelection: editor.hasSelection)
         }

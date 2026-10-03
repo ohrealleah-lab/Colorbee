@@ -20,6 +20,10 @@ enum Snapshot {
             editor.setBlendMode(.multiply)
             editor.setLayerLocked(true, at: 0)
             editor.addAdjustmentLayer(.brightnessContrast(brightness: 12, contrast: 8), named: "Brightness/Contrast")
+            editor.showsAdjustmentsPanel = false
+            editor.showsHistoryPanel = true
+            editor.showsClipboardPanel = true
+            editor.showsRulers = true
         }
         if let name = defaults.string(forKey: "ColorbeeSnapshotTool"), let tool = Tool.allCases.first(where: { "\($0)" == name }) {
             editor.selectTool(tool)

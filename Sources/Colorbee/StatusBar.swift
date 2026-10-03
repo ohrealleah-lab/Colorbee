@@ -14,7 +14,7 @@ struct StatusBar: View {
             divider
             item("ruler", measureText).frame(minWidth: 80, alignment: .leading)
             divider
-            item("aspectratio", "\(editor.canvasSize.width) × \(editor.canvasSize.height) px")
+            item("aspectratio", canvasText)
             Spacer(minLength: 8)
             HStack(spacing: 4) {
                 PixelGridChip(editor: editor)
@@ -52,6 +52,13 @@ struct StatusBar: View {
     private var pointerText: String {
         guard let pointer = editor.pointer else { return "—" }
         return "\(pointer.x), \(pointer.y) px"
+    }
+
+    /// The canvas size, and while an edge handle is dragged, the size it will become.
+    private var canvasText: String {
+        let size = "\(editor.canvasSize.width) × \(editor.canvasSize.height) px"
+        guard let preview = editor.canvasResizePreview else { return size }
+        return "\(size) → \(preview.width) × \(preview.height) px"
     }
 
     private var measureText: String {

@@ -125,7 +125,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 **8 Hardening**
 - Leah's hand test of stage 8.
 - The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
-- First `make beta` run: Leah creates the `colorbee-notary` keychain profile once (she types the app-specific password), then the beta is built and checked on a clean first launch.
+- Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
 - Later polish: ⌘C of a very large image still pauses about a second.
 
 **9 Photo editing and presentation (later phase, FR-9.5)**

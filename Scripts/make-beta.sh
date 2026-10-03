@@ -24,9 +24,14 @@ xcodegen generate --quiet
 xcodebuild -project Colorbee.xcodeproj -scheme Colorbee -configuration Release \
     -destination 'platform=macOS,arch=arm64' -derivedDataPath "$derived" -quiet \
     CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application" DEVELOPMENT_TEAM="$team" \
-    ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp \
+    ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
     clean build
 codesign --verify --strict --deep "$app"
+# Apple refuses apps that allow debugger attachment.
+if codesign -d --entitlements - --xml "$app" 2>/dev/null | grep -q get-task-allow; then
+    echo "The app still allows debugging (get-task-allow); Apple would reject it." >&2
+    exit 1
+fi
 
 version=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$app/Contents/Info.plist")
 build=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "$app/Contents/Info.plist")
@@ -35,7 +40,13 @@ mkdir -p "$out/Colorbee $version"
 
 echo "Sending Colorbee $version ($build) to Apple for notarization. This usually takes a few minutes."
 ditto -c -k --keepParent "$app" "$out/notarize.zip"
-xcrun notarytool submit "$out/notarize.zip" --keychain-profile "$profile" --wait
+result=$(xcrun notarytool submit "$out/notarize.zip" --keychain-profile "$profile" --wait)
+print -r -- "$result"
+if ! print -r -- "$result" | grep -q "status: Accepted"; then
+    id=$(print -r -- "$result" | sed -nE 's/^ *id: ([0-9a-f-]+).*/\1/p' | head -1)
+    echo "Apple didn't accept it. Its reasons: xcrun notarytool log $id --keychain-profile $profile" >&2
+    exit 1
+fi
 xcrun stapler staple "$app"
 spctl --assess --type execute "$app"
 

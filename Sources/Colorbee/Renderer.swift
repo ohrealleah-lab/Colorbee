@@ -42,6 +42,8 @@ struct RenderScene {
     let lines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)]
     /// Auto-Redact matches to outline: orange when they'll be redacted, gray when kept visible.
     let highlights: [(rect: IntRect, active: Bool)]
+    /// Crop: the canvas outside this rectangle is shaded.
+    var dimmedOutside: IntRect? = nil
     /// Before/After: the earlier image and how to show it.
     let comparison: (before: PixelBuffer, layout: Comparison.Layout, dividerX: Double)?
 }
@@ -411,6 +413,21 @@ final class Renderer {
                 uniforms.rect = SIMD4(centerX - size / 2, centerY - size / 2, size, size)
                 uniforms.keyColor = SIMD4(shade, shade, shade, 1)
                 draw(discPipeline)
+            }
+        }
+
+        if let keep = scene.dimmedOutside {
+            let whole = scene.canvas.bounds
+            let parts = [
+                IntRect(x: whole.minX, y: whole.minY, width: whole.width, height: keep.minY - whole.minY),
+                IntRect(x: whole.minX, y: keep.maxY, width: whole.width, height: whole.maxY - keep.maxY),
+                IntRect(x: whole.minX, y: keep.minY, width: keep.minX - whole.minX, height: keep.height),
+                IntRect(x: keep.maxX, y: keep.minY, width: whole.maxX - keep.maxX, height: keep.height),
+            ]
+            for part in parts where part.width > 0 && part.height > 0 {
+                uniforms.rect = deviceRect(part)
+                uniforms.keyColor = SIMD4(0, 0, 0, 0.5)
+                draw(solidPipeline)
             }
         }
 

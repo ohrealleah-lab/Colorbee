@@ -101,6 +101,9 @@ enum MainMenu {
         "showMotionBlur:": "Streak the selection or image along an angle, as if it moved.",
         "showAddNoise:": "Add grain, in color or monochrome.",
         "showEmboss:": "Turn the selection or image into a gray relief.",
+        "showCrop:": "Crop with a box you drag: free, a set shape, or an exact pixel size.",
+        "showStraighten:": "Turn the image a little to level a horizon or a crooked scan.",
+        "showPerspective:": "Square up a photo of a whiteboard, a document or a building.",
         "showDropShadow:": "A soft shadow behind the image or the selected object, following its shape. The canvas grows to fit.",
         "showBorder:": "An outline around the image or the selected object, following its shape. The canvas grows to fit.",
         "showSpotlight:": "Dim, blur or desaturate everything outside the selection.",
@@ -223,6 +226,7 @@ enum MainMenu {
     private static func imageMenu() -> NSMenu {
         let menu = NSMenu(title: "Image")
         menu.addItem(item("Crop to Selection", "cropToSelection:", "x", [.command, .shift]))
+        menu.addItem(item("Crop…", "showCrop:"))
         menu.addItem(item("Resize and Skew…", "showResizeSkew:", "e"))
         menu.addItem(item("Canvas Properties…", "showCanvasProperties:", "e", [.command, .option]))
         menu.addItem(.separator())
@@ -234,6 +238,8 @@ enum MainMenu {
             (orientation == .flipHorizontal || orientation == .flipVertical ? flip : rotate).addItem(orientationItem)
         }
         menu.addItem(submenu(rotate))
+        menu.addItem(item("Straighten…", "showStraighten:"))
+        menu.addItem(item("Perspective Correction…", "showPerspective:"))
         menu.addItem(submenu(flip))
         menu.addItem(.separator())
         let symmetry = NSMenu(title: "Symmetry")

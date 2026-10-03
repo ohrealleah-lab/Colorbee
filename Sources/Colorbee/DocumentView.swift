@@ -185,12 +185,24 @@ private struct EffectBar: View {
                 Text("Use the sliders and filters in the panel at the right.")
                     .foregroundStyle(.secondary)
             }
+            if kind == .crop {
+                CropOptions(editor: editor)
+            }
+            if kind == .perspective {
+                Text("Drag the four corners onto the corners of what should be a rectangle.")
+                    .foregroundStyle(.secondary)
+            }
+            if kind == .straighten {
+                Text("Or drag along something that should be level.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+            }
             if kind == .levels {
                 Button("Auto") { editor.autoLevels() }
                     .help("Set the black and white points to the darkest and lightest pixels")
             }
             Spacer(minLength: 0)
-            Text(editor.hasSelection ? "Applies to the selection" : "Applies to the whole layer")
+            Text(kind.appliesToWholeImage ? "Applies to every layer" : editor.hasSelection ? "Applies to the selection" : "Applies to the whole layer")
                 .foregroundStyle(.secondary)
                 .fixedSize()
             Button("Cancel", role: .cancel) { editor.cancelEffect() }
@@ -205,7 +217,7 @@ private struct EffectBar: View {
     }
 
     static func formatted(_ value: Double, _ parameter: EffectKind.Parameter) -> String {
-        let text = parameter.step < 1 ? String(format: "%.2f", value) : "\(Int(value.rounded()))"
+        let text = parameter.step < 0.1 ? String(format: "%.2f", value) : parameter.step < 1 ? String(format: "%.1f", value) : "\(Int(value.rounded()))"
         let signed = parameter.range.lowerBound < 0 && value > 0 && parameter.step >= 1 ? "+" + text : text
         return signed + parameter.unit
     }

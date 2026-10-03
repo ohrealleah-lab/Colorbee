@@ -103,9 +103,19 @@ enum EffectKind: CaseIterable {
     case dropShadow
     case border
     case spotlight
+    case straighten
+    case perspective
+    case crop
 
-    /// Drop Shadow and Border can grow the canvas, so their preview is a real step, redone as settings change.
-    var previewsAsStep: Bool { self == .dropShadow || self == .border }
+    /// Drop Shadow, Border and Straighten change the canvas's size, so their preview is a real step, redone as
+    /// settings change.
+    var previewsAsStep: Bool { self == .dropShadow || self == .border || self == .straighten }
+
+    /// Straighten, Perspective Correction and Crop: dragging on the canvas sets them, rather than panning.
+    var isCanvasTool: Bool { self == .straighten || self == .perspective || self == .crop }
+
+    /// Whether the bar's Apply does anything beyond keeping a preview.
+    var appliesToWholeImage: Bool { isCanvasTool }
 
     struct Parameter {
         let label: String
@@ -137,6 +147,9 @@ enum EffectKind: CaseIterable {
         case .dropShadow: "Drop Shadow"
         case .border: "Border"
         case .spotlight: "Spotlight"
+        case .straighten: "Straighten"
+        case .perspective: "Perspective Correction"
+        case .crop: "Crop"
         }
     }
 
@@ -159,7 +172,11 @@ enum EffectKind: CaseIterable {
             Parameter(label: "Midtones", range: 0.1...9.99, defaultValue: 1, unit: "", step: 0.01),
             Parameter(label: "White", range: 1...255, defaultValue: 255, unit: ""),
         ]
-        case .curves, .adjustPhoto: []
+        case .curves, .adjustPhoto, .perspective, .crop: []
+        case .straighten: [
+            Parameter(label: "Angle", range: -45...45, defaultValue: 0, unit: "°", step: 0.1),
+            Parameter(label: "Corners", range: 0...1, defaultValue: 0, unit: "", options: ["Crop to Fit", "Grow Canvas"]),
+        ]
         case .dropShadow: [
             Parameter(label: "Across", range: -200...200, defaultValue: 12, unit: "px"),
             Parameter(label: "Down", range: -200...200, defaultValue: 12, unit: "px"),
@@ -219,8 +236,8 @@ enum EffectKind: CaseIterable {
             case 2: .hueSaturation(hue: 0, saturation: -value(1), lightness: 0)
             default: .brightnessContrast(brightness: -value(1) * 0.8, contrast: 0)
             }
-        // Drawn by Decorations, not as an effect (see Editor.renderEffectPreview).
-        case .dropShadow, .border: .invert
+        // Done by Decorations and ImageActions, not as an effect (see Editor.renderEffectPreview).
+        case .dropShadow, .border, .straighten, .perspective, .crop: .invert
         }
     }
 }
@@ -1668,7 +1685,19 @@ final class Editor {
         if kind == .adjustPhoto { isSidebarOpen = true }
         effectHistogram = kind == .levels ? Histogram(canvas.activeLayer.buffer, selection: canvas.selection.marquee) : nil
         decorationPreviewed = false
-        effectEdit = kind.previewsAsStep ? nil : history.beginEdit(kind.title, on: canvas)
+        if kind == .crop {
+            cropShape = .free
+            cropPixelSize = nil
+            cropRect = canvas.selection.bounds?.intersection(canvas.bounds) ?? canvas.bounds
+            if cropRect.isEmpty { cropRect = canvas.bounds }
+        }
+        if kind == .perspective {
+            // Inset a little, so the corners are easy to find and grab.
+            let w = Double(canvas.size.width), h = Double(canvas.size.height), inset = 0.06
+            perspectiveCorners = [Point2D(x: w * inset, y: h * inset), Point2D(x: w * (1 - inset), y: h * inset),
+                                  Point2D(x: w * (1 - inset), y: h * (1 - inset)), Point2D(x: w * inset, y: h * (1 - inset))]
+        }
+        effectEdit = kind.previewsAsStep || kind == .crop || kind == .perspective ? nil : history.beginEdit(kind.title, on: canvas)
         if kind == .spotlight {
             effectRegions = canvas.selection.marquee?.inverted(in: canvas.bounds).map { [$0] } ?? []
         } else {
@@ -1678,8 +1707,153 @@ final class Editor {
         renderEffectPreview()
     }
 
-    /// Whether a Drop Shadow or Border preview step is in the history right now.
+    /// Whether a Drop Shadow, Border or Straighten preview step is in the history right now.
     @ObservationIgnored private var decorationPreviewed = false
+
+    // MARK: Straighten, Perspective Correction and Crop (FR-9.5)
+
+    /// Straighten: a line being drawn along something that should be level.
+    private(set) var straightenLine: (start: Point2D, end: Point2D)?
+    /// Perspective Correction: top left, top right, bottom right, bottom left, in image coordinates.
+    private(set) var perspectiveCorners: [Point2D] = []
+    /// Crop: the box, its shape and an exact output size from a pixel-size preset.
+    var cropRect = IntRect.zero
+    var cropShape = CropShape.free { didSet { renderSoon() } }
+    var cropPixelSize: IntSize? { didSet { renderSoon() } }
+    private(set) var isDraggingCrop = false
+    @ObservationIgnored private var toolDrag: (start: Point2D, handle: SelectionHandle?, rect: IntRect, corner: Int?)?
+
+    /// Width ÷ height the crop box keeps, or nil for any shape.
+    var cropAspect: Double? {
+        if let size = cropPixelSize { return Double(size.width) / Double(size.height) }
+        return cropShape.aspect(original: canvas.size)
+    }
+
+    /// Changing the shape or size preset fits the largest box of that shape in the image.
+    func setCrop(shape: CropShape, pixelSize: IntSize?) {
+        cropShape = shape
+        cropPixelSize = pixelSize
+        if let aspect = cropAspect {
+            cropRect = CropBox.fitted(aspect: aspect, in: canvas.bounds)
+        }
+        renderSoon()
+    }
+
+    /// The handles to draw for the open canvas tool, in image coordinates.
+    var canvasToolHandles: [Point2D] {
+        switch activeEffect {
+        case .crop: SelectionHandle.allCases.map { $0.point(on: cropRect) }
+        case .perspective: perspectiveCorners
+        default: []
+        }
+    }
+
+    /// Guide lines for the open canvas tool: the crop frame and its thirds while dragging, the perspective
+    /// outline, Straighten's grid and the line being drawn.
+    var canvasToolLines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)] {
+        var lines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)] = []
+        let white = SIMD4<Float>(1, 1, 1, 0.95), faint = SIMD4<Float>(1, 1, 1, 0.55), accent = SIMD4<Float>(1, 0.35, 0.2, 1)
+        switch activeEffect {
+        case .crop:
+            let r = cropRect
+            let corners = [Point2D(x: Double(r.minX), y: Double(r.minY)), Point2D(x: Double(r.maxX), y: Double(r.minY)),
+                           Point2D(x: Double(r.maxX), y: Double(r.maxY)), Point2D(x: Double(r.minX), y: Double(r.maxY))]
+            for index in 0..<4 { lines.append((corners[index], corners[(index + 1) % 4], white)) }
+            if isDraggingCrop {
+                for third in [1.0, 2.0] {
+                    let x = Double(r.minX) + Double(r.width) * third / 3, y = Double(r.minY) + Double(r.height) * third / 3
+                    lines.append((Point2D(x: x, y: Double(r.minY)), Point2D(x: x, y: Double(r.maxY)), faint))
+                    lines.append((Point2D(x: Double(r.minX), y: y), Point2D(x: Double(r.maxX), y: y), faint))
+                }
+            }
+        case .perspective where perspectiveCorners.count == 4:
+            for index in 0..<4 { lines.append((perspectiveCorners[index], perspectiveCorners[(index + 1) % 4], accent)) }
+        case .straighten:
+            let width = Double(canvas.size.width), height = Double(canvas.size.height)
+            for step in 1..<8 {
+                let x = width * Double(step) / 8, y = height * Double(step) / 8
+                lines.append((Point2D(x: x, y: 0), Point2D(x: x, y: height), faint))
+                lines.append((Point2D(x: 0, y: y), Point2D(x: width, y: y), faint))
+            }
+            if let line = straightenLine { lines.append((line.start, line.end, accent)) }
+        default:
+            break
+        }
+        return lines
+    }
+
+    /// A drag on the canvas while Straighten, Perspective Correction or Crop is open.
+    func beginCanvasToolDrag(at point: Point2D, viewPoint: Point2D) {
+        switch activeEffect {
+        case .straighten:
+            straightenLine = (point, point)
+        case .perspective:
+            let nearest = perspectiveCorners.indices.min { a, b in
+                distance(viewport.viewPoint(fromImage: perspectiveCorners[a]), viewPoint) < distance(viewport.viewPoint(fromImage: perspectiveCorners[b]), viewPoint)
+            }
+            guard let nearest, distance(viewport.viewPoint(fromImage: perspectiveCorners[nearest]), viewPoint) <= 16 else { return }
+            toolDrag = (point, nil, .zero, nearest)
+        case .crop:
+            let handle = nearestHandle(SelectionHandle.allCases.map { ($0, $0.point(on: cropRect)) }, to: viewPoint)
+            let inside = point.x >= Double(cropRect.minX) && point.x < Double(cropRect.maxX) && point.y >= Double(cropRect.minY) && point.y < Double(cropRect.maxY)
+            if handle == nil && !inside {
+                // Outside the box: draw a new one from here.
+                let start = IntPoint(x: Int(point.x.rounded()), y: Int(point.y.rounded()))
+                cropRect = CropBox.clamped(IntRect(x: start.x, y: start.y, width: 1, height: 1), to: canvas.bounds, aspect: nil)
+                toolDrag = (point, .bottomRight, cropRect, nil)
+            } else {
+                toolDrag = (point, handle, cropRect, nil)
+            }
+            isDraggingCrop = true
+        default:
+            break
+        }
+        renderSoon()
+    }
+
+    func continueCanvasToolDrag(to point: Point2D) {
+        switch activeEffect {
+        case .straighten:
+            if let line = straightenLine { straightenLine = (line.start, point) }
+        case .perspective:
+            guard let drag = toolDrag, let corner = drag.corner else { return }
+            perspectiveCorners[corner] = Point2D(x: min(max(point.x, 0), Double(canvas.size.width)), y: min(max(point.y, 0), Double(canvas.size.height)))
+        case .crop:
+            guard let drag = toolDrag else { return }
+            let delta = Point2D(x: point.x - drag.start.x, y: point.y - drag.start.y)
+            if let handle = drag.handle {
+                var start = drag.rect
+                // A new box drawn with a preset shape starts at that shape so it keeps it.
+                if let aspect = cropAspect, start.width <= 1 || start.height <= 1 {
+                    start = IntRect(x: start.minX, y: start.minY, width: max(1, Int(aspect.rounded())), height: max(1, Int((1 / aspect).rounded())))
+                }
+                let resized = handle.resize(start, by: delta, keepProportions: cropAspect != nil)
+                cropRect = CropBox.clamped(resized, to: canvas.bounds, aspect: cropAspect)
+            } else {
+                cropRect = CropBox.moved(drag.rect, by: IntPoint(x: Int(delta.x.rounded()), y: Int(delta.y.rounded())), within: canvas.bounds)
+            }
+        default:
+            break
+        }
+        renderSoon()
+    }
+
+    func endCanvasToolDrag() {
+        if activeEffect == .straighten, let line = straightenLine {
+            straightenLine = nil
+            // The line was drawn on the turned preview, so its tilt adds to the turn already there.
+            if distance(viewport.viewPoint(fromImage: line.start), viewport.viewPoint(fromImage: line.end)) > 8,
+               effectValues.indices.contains(0) {
+                let turned = effectValues[0] + Warp.straighteningAngle(from: line.start, to: line.end)
+                effectValues[0] = (min(max(turned, -45), 45) * 10).rounded() / 10
+            }
+        }
+        toolDrag = nil
+        isDraggingCrop = false
+        renderSoon()
+    }
+
+    private func distance(_ a: Point2D, _ b: Point2D) -> Double { hypot(a.x - b.x, a.y - b.y) }
 
     /// Drop Shadow and Border: takes back the last preview step and draws the new one.
     private func renderDecorationPreview(_ kind: EffectKind) {
@@ -1691,6 +1865,8 @@ final class Editor {
         let values = effectValues
         func value(_ index: Int) -> Double { values.indices.contains(index) ? values[index] : kind.parameters[index].defaultValue }
         let drawn = switch kind {
+        case .straighten:
+            ImageActions.straighten(angle: value(0), cropToFit: value(1) < 0.5, canvas: canvas, history: history, context: selectionContext)
         case .dropShadow:
             Decorations.dropShadow(DropShadow(offsetX: value(0), offsetY: value(1), blur: value(2),
                                               color: value(4) >= 0.5 ? color1 : .black, opacity: value(3)),
@@ -1717,6 +1893,7 @@ final class Editor {
         effectPreviewScheduled = false
         guard let kind = activeEffect else { return }
         if kind.previewsAsStep { return renderDecorationPreview(kind) }
+        if kind == .crop || kind == .perspective { return onRender() }
         guard let edit = effectEdit else { return }
         edit.restoreOriginals()
         let effect = kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
@@ -1876,6 +2053,21 @@ final class Editor {
 
     func applyEffect() {
         if effectPreviewScheduled { renderEffectPreview() }
+        if activeEffect == .crop || activeEffect == .perspective {
+            let kind = activeEffect
+            activeEffect = nil
+            recordingChanges {
+                if kind == .crop {
+                    ImageActions.crop(to: cropRect, resizingTo: cropPixelSize, canvas: canvas, history: history, context: selectionContext)
+                } else {
+                    ImageActions.correctPerspective(corners: perspectiveCorners, canvas: canvas, history: history, context: selectionContext)
+                }
+            }
+            if canvas.size != canvasSize { canvasDidResize() }
+            selectionDidChange()
+            onRender()
+            return
+        }
         if activeEffect?.previewsAsStep == true {
             activeEffect = nil
             // The preview already is the step; it counts as a change only now.

@@ -16,6 +16,8 @@ final class CanvasView: NSView {
         case text(start: Point2D)
         case textBox
         case canvasResize(CanvasHandle, original: IntSize, grab: Point2D)
+        /// Straighten's line, a perspective corner, or the crop box.
+        case canvasTool
         case pan(last: NSPoint)
     }
 
@@ -240,12 +242,13 @@ final class CanvasView: NSView {
             transparentKey: editor.selectionContext.transparentKey,
             smoothFloating: editor.smoothResize,
             overlay: comparing ? nil : editor.renderedPendingShape(),
-            handlePoints: comparing ? [] : handlePoints(selection),
+            handlePoints: comparing ? [] : editor.activeEffect?.isCanvasTool == true ? editor.canvasToolHandles : handlePoints(selection),
             roundHandlePoints: comparing ? [] : [editor.pendingShapeRotateHandle].compactMap { $0 },
             showsPixelGrid: editor.showsPixelGrid,
             antsPhase: Float((CACurrentMediaTime() * 4).truncatingRemainder(dividingBy: 2)),
-            lines: comparing ? [] : overlayLines,
+            lines: comparing ? [] : overlayLines + editor.canvasToolLines,
             highlights: redactionHighlights,
+            dimmedOutside: editor.activeEffect == .crop ? editor.cropRect : nil,
             comparison: comparisonScene
         )
     }
@@ -502,6 +505,11 @@ final class CanvasView: NSView {
             drag = .canvasResize(handle, original: editor.canvasSize, grab: imagePoint(event))
             return
         }
+        if !spaceHeld, !secondary, editor.activeEffect?.isCanvasTool == true {
+            drag = .canvasTool
+            editor.beginCanvasToolDrag(at: imagePoint(event), viewPoint: viewPoint(event))
+            return
+        }
         // While an effect's bar is open the canvas is view-only, so any drag pans.
         if spaceHeld || editor.activeEffect != nil {
             drag = .pan(last: convert(event.locationInWindow, from: nil))
@@ -563,6 +571,8 @@ final class CanvasView: NSView {
             drag = .pan(last: point)
         case .divider:
             moveDivider(event)
+        case .canvasTool:
+            editor.continueCanvasToolDrag(to: imagePoint(event))
         case .measure(let start):
             editor.measure(from: start, to: imagePoint(event))
             updatePointer(event)
@@ -599,6 +609,8 @@ final class CanvasView: NSView {
         switch drag {
         case .pan:
             break
+        case .canvasTool:
+            editor.endCanvasToolDrag()
         case .divider, .measure:
             break
         case .gradient:

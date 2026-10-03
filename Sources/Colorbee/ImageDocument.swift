@@ -177,8 +177,8 @@ final class ImageDocument: NSDocument {
 
     @IBAction func exportPreset(_ sender: Any?) {
         guard let editor, let window = windowForSheet,
-              let tag = (sender as? NSMenuItem)?.tag, ExportPreset.defaults.indices.contains(tag) else { return }
-        let preset = ExportPreset.defaults[tag]
+              let tag = (sender as? NSMenuItem)?.tag, ExportPresetStore.shared.presets.indices.contains(tag) else { return }
+        let preset = ExportPresetStore.shared.presets[tag]
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         let base = (displayName as NSString).deletingPathExtension

@@ -21,6 +21,7 @@ struct DocumentView: View {
                 Divider()
             }
             CanvasHost(view: canvasView)
+                .overlay { RedactionBadges(editor: editor) }
                 .overlay {
                     if editor.showsRulers { Rulers(editor: editor) }
                 }

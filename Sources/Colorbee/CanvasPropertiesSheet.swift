@@ -130,3 +130,31 @@ struct Rulers: View {
         }
     }
 }
+
+/// Numbered badges on Auto-Redact's matches, matching the numbers in the review list (mockup 1c).
+struct RedactionBadges: View {
+    let editor: Editor
+
+    var body: some View {
+        if let session = editor.autoRedact {
+            let viewport = editor.viewport
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(session.matches.enumerated()), id: \.element.id) { index, match in
+                    let corner = viewport.viewPoint(fromImage: Point2D(x: Double(match.rect.maxX), y: Double(match.rect.minY)))
+                    let active = !session.keptVisible.contains(match.id)
+                    Text("\(index + 1)")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .padding(.horizontal, 2)
+                        .background(active ? Color.orange : Color.gray, in: Capsule())
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.8), lineWidth: 1))
+                        .position(x: corner.x + 4, y: corner.y - 4)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .allowsHitTesting(false)
+        }
+    }
+}

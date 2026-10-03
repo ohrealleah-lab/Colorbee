@@ -27,6 +27,7 @@ enum MainMenu {
     /// Hover text for every command, keyed by its action.
     private static let tooltips: [String: String] = [
         "orderFrontStandardAboutPanel:": "Version and credits.",
+        "showSettings:": "Export presets, opening new screenshots, and more.",
         "hide:": "Hide Colorbee's windows until you switch back.",
         "hideOtherApplications:": "Hide every other app's windows.",
         "unhideAllApplications:": "Show every app's windows again.",
@@ -123,6 +124,8 @@ enum MainMenu {
         let menu = NSMenu(title: "Colorbee")
         menu.addItem(item("About Colorbee", "orderFrontStandardAboutPanel:"))
         menu.addItem(.separator())
+        menu.addItem(item("Settings…", "showSettings:", ","))
+        menu.addItem(.separator())
         let services = NSMenu(title: "Services")
         menu.addItem(submenu(services))
         NSApp.servicesMenu = services
@@ -152,12 +155,8 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item("Export…", "exportDocument:", "s", [.command, .option]))
         let presets = NSMenu(title: "Export As")
+        // Filled in when it opens, from the presets in Settings.
         presets.delegate = ExportPresetMenuTitles.shared
-        for (index, preset) in ExportPreset.defaults.enumerated() {
-            let presetItem = item(preset.name, "exportPreset:")
-            presetItem.tag = index
-            presets.addItem(presetItem)
-        }
         menu.addItem(submenu(presets))
         menu.addItem(.separator())
         menu.addItem(item("Share…", "shareDocument:"))
@@ -308,18 +307,23 @@ final class ExportPresetMenuTitles: NSObject, NSMenuDelegate {
     static let shared = ExportPresetMenuTitles()
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
         let size = (NSDocumentController.shared.currentDocument as? ImageDocument)?.canvasSize
-        for item in menu.items where ExportPreset.defaults.indices.contains(item.tag) {
-            let preset = ExportPreset.defaults[item.tag]
-            guard let size else {
-                item.title = preset.name
-                continue
+        for (index, preset) in ExportPresetStore.shared.presets.enumerated() {
+            var title = preset.name
+            if let size {
+                let target = preset.targetSize(for: size)
+                let dimensions = "\(target.width) × \(target.height) px"
+                title = target == size && preset.targetSize(for: size, allowEnlarging: true) != size
+                    ? "\(preset.name) — \(dimensions) (original size)"
+                    : "\(preset.name) — \(dimensions)"
             }
-            let target = preset.targetSize(for: size)
-            let dimensions = "\(target.width) × \(target.height) px"
-            item.title = target == size && preset.targetSize(for: size, allowEnlarging: true) != size
-                ? "\(preset.name) — \(dimensions) (original size)"
-                : "\(preset.name) — \(dimensions)"
+            let presetItem = NSMenuItem(title: title, action: #selector(ImageDocument.exportPreset(_:)), keyEquivalent: "")
+            presetItem.tag = index
+            presetItem.toolTip = "Save a PNG at this exact size; the aspect ratio is kept and nothing is enlarged."
+            menu.addItem(presetItem)
         }
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Edit Presets…", action: #selector(AppDelegate.showSettings(_:)), keyEquivalent: ""))
     }
 }

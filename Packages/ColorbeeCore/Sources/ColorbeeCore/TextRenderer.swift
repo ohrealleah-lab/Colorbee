@@ -3,7 +3,7 @@ import CoreGraphics
 import CoreText
 import Foundation
 
-public enum TextAlignment: CaseIterable, Sendable {
+public enum TextAlignment: String, CaseIterable, Codable, Sendable {
     case left
     case center
     case right

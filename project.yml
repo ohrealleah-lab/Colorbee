@@ -37,6 +37,16 @@ targets:
         NSHumanReadableCopyright: Personal tool. Not for distribution.
         NSPrincipalClass: NSApplication
         UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.leah.colorbee.colorpalette
+            UTTypeDescription: Colorbee Palette
+            UTTypeConformsTo: [public.json]
+            UTTypeTagSpecification:
+              public.filename-extension: [colorpalette]
+          - UTTypeIdentifier: com.leah.colorbee.colorbeekeys
+            UTTypeDescription: Colorbee Keyboard Shortcuts
+            UTTypeConformsTo: [public.json]
+            UTTypeTagSpecification:
+              public.filename-extension: [colorbeekeys]
           - UTTypeIdentifier: com.leah.colorbee.colorproj
             UTTypeDescription: Colorbee Project
             UTTypeConformsTo: [public.data, public.content]

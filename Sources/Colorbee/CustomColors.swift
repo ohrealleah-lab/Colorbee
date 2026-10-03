@@ -44,6 +44,22 @@ final class CustomColors {
         save()
     }
 
+    /// The slots packed as RGBA numbers, -1 for an empty slot, for saving in a palette.
+    var packed: [Int] {
+        slots.map { pixel in pixel.map { Int(UInt32($0.r) << 24 | UInt32($0.g) << 16 | UInt32($0.b) << 8 | UInt32($0.a)) } ?? -1 }
+    }
+
+    /// Replaces every slot, as when a palette is loaded.
+    func replace(with packed: [Int]) {
+        slots = (0..<Self.slotCount).map { index in
+            guard packed.indices.contains(index), packed[index] >= 0 else { return nil }
+            let v = UInt32(packed[index])
+            return Pixel(r: UInt8(v >> 24 & 0xFF), g: UInt8(v >> 16 & 0xFF), b: UInt8(v >> 8 & 0xFF), a: UInt8(v & 0xFF))
+        }
+        order = slots.indices.filter { slots[$0] != nil }
+        save()
+    }
+
     func remove(at index: Int) {
         guard slots.indices.contains(index) else { return }
         slots[index] = nil
@@ -52,10 +68,6 @@ final class CustomColors {
     }
 
     private func save() {
-        let packed = slots.map { pixel -> Int in
-            guard let p = pixel else { return -1 }
-            return Int(UInt32(p.r) << 24 | UInt32(p.g) << 16 | UInt32(p.b) << 8 | UInt32(p.a))
-        }
         UserDefaults.standard.set(packed, forKey: Self.key)
     }
 }

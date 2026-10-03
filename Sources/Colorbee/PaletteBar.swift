@@ -11,7 +11,7 @@ struct PaletteBar<Options: View>: View {
     var body: some View {
         HStack(spacing: 16) {
             ColorWells(editor: editor)
-            SwatchGrid(editor: editor, custom: CustomColors.shared.slots)
+            SwatchGrid(editor: editor, swatches: PaletteStore.shared.swatches, custom: CustomColors.shared.slots)
                 .frame(width: SwatchGridView.size.width, height: SwatchGridView.size.height)
             divider
             HStack(spacing: 10) {
@@ -31,20 +31,14 @@ struct PaletteBar<Options: View>: View {
                 .buttonBorderShape(.capsule)
                 .controlSize(.small)
                 .help("Choose any color for the ringed well, with the Mac color picker")
-            Menu {
-                Button("Paint Classic") {}
-            } label: {
+            PaletteMenu(store: PaletteStore.shared) {
                 HStack(spacing: 5) {
                     Image(systemName: "paintpalette").foregroundStyle(Theme.secondaryInk)
-                    Text("Paint Classic")
+                    Text(PaletteStore.shared.activeName)
                     Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).opacity(0.6)
                 }
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help("The palette. Saving and importing palettes comes in a later stage.")
+            .help("Palettes: switch, save, rename, import or export your swatches and custom colors")
             divider
             HStack(spacing: 10) { toolOptions }
                 .controlSize(.small)
@@ -70,7 +64,8 @@ struct PaletteBar<Options: View>: View {
 
 private struct SwatchGrid: NSViewRepresentable {
     let editor: Editor
-    /// Passed in so SwiftUI redraws the grid when a custom color changes.
+    /// Passed in so SwiftUI redraws the grid when the palette or a custom color changes.
+    let swatches: [UInt32]
     let custom: [Pixel?]
 
     func makeNSView(context: Context) -> SwatchGridView {
@@ -78,6 +73,7 @@ private struct SwatchGrid: NSViewRepresentable {
     }
 
     func updateNSView(_ view: SwatchGridView, context: Context) {
+        view.swatches = swatches
         view.custom = custom
     }
 }
@@ -85,16 +81,14 @@ private struct SwatchGrid: NSViewRepresentable {
 /// The 28 classic swatches and the 12 custom slots. Left-click sets the ringed well, right-click
 /// Color 2, and Control-click on a custom color offers Remove (FR-1.2).
 final class SwatchGridView: NSView, NSViewToolTipOwner {
-    /// The classic Paint palette, as in the mockups.
-    static let classic: [UInt32] = [
-        0x000000, 0x808080, 0x800000, 0x808000, 0x008000, 0x008080, 0x000080, 0x800080, 0x808040, 0x004040, 0x0080FF, 0x004080, 0x8000FF, 0x804000,
-        0xFFFFFF, 0xC0C0C0, 0xFF0000, 0xFFFF00, 0x00FF00, 0x00FFFF, 0x0000FF, 0xFF00FF, 0xFFFF80, 0x00FF80, 0x80FFFF, 0x8080FF, 0xFF0080, 0xFF8040,
-    ]
     private static let cell: CGFloat = 17, gap: CGFloat = 2, groupGap: CGFloat = 10
     private static let classicWidth = 14 * cell + 13 * gap
     static let size = NSSize(width: classicWidth + groupGap + 6 * cell + 5 * gap, height: 2 * cell + gap)
 
     private let editor: Editor
+    var swatches: [UInt32] = Palette.classic.swatches {
+        didSet { needsDisplay = true }
+    }
     var custom: [Pixel?] = [] {
         didSet { needsDisplay = true }
     }
@@ -136,7 +130,7 @@ final class SwatchGridView: NSView, NSViewToolTipOwner {
     private func color(of slot: Slot) -> Pixel? {
         switch slot {
         case .classic(let index):
-            let hex = Self.classic[index]
+            let hex = swatches.indices.contains(index) ? swatches[index] : 0
             let color = NSColor(srgbRed: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
             return Pixel(color, in: editor.canvas.colorSpace)
         case .custom(let index):
@@ -253,5 +247,60 @@ final class ColorPanelController: NSObject {
         }
         changed = false
         slot = nil
+    }
+}
+
+/// The palette menu (FR-15.1): switch palettes, save the current colors, rename, delete, import, export, reset.
+private struct PaletteMenu<Label: View>: View {
+    let store: PaletteStore
+    @ViewBuilder let label: Label
+
+    var body: some View {
+        Menu {
+            ForEach(store.all, id: \.name) { palette in
+                Toggle(palette.name, isOn: Binding(get: { palette.name == store.activeName }, set: { _ in store.load(palette) }))
+            }
+            Divider()
+            Button("Save Palette As…") {
+                if let name = askForName("Save Palette", message: "Saves the 28 swatches and the 12 custom colors.", defaultName: "My Palette") {
+                    store.saveCurrent(as: name)
+                }
+            }
+            Button("Rename Palette…") {
+                if let name = askForName("Rename Palette", defaultName: store.activeName, confirm: "Rename") {
+                    store.rename(store.activeName, to: name)
+                }
+            }
+            .disabled(store.activeName == Palette.classic.name)
+            Button("Delete Palette") { store.delete(store.activeName) }
+                .disabled(store.activeName == Palette.classic.name)
+            Divider()
+            Button("Import Palette…") { importPalette() }
+            Button("Export Palette…") { exportPalette() }
+            Divider()
+            Button("Reset to Paint Classic") { store.resetToClassic() }
+        } label: {
+            label
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+
+    private func importPalette() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.colorbeePalette]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do { try store.importPalette(from: url) } catch { NSAlert(error: error).runModal() }
+    }
+
+    private func exportPalette() {
+        let palette = Palette(name: store.activeName, swatches: store.swatches, custom: CustomColors.shared.packed)
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.colorbeePalette]
+        panel.nameFieldStringValue = palette.name
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do { try store.export(palette, to: url) } catch { NSAlert(error: error).runModal() }
     }
 }

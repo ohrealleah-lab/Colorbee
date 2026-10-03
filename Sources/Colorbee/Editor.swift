@@ -1069,10 +1069,8 @@ final class Editor {
     /// A handle or the border under a view point. Inside the box, clicks go to the text itself.
     func textBoxGrab(atView point: Point2D) -> TextBoxGrab? {
         guard let border = pendingTextBorder else { return nil }
-        for (handle, center) in pendingTextHandles {
-            let view = viewport.viewPoint(fromImage: center)
-            if abs(view.x - point.x) <= 6, abs(view.y - point.y) <= 6 { return .handle(handle) }
-        }
+        // An empty box is only a few pixels wide, so its handles overlap; take the closest one.
+        if let handle = nearestHandle(pendingTextHandles, to: point) { return .handle(handle) }
         let topLeft = viewport.viewPoint(fromImage: Point2D(x: border.minX, y: border.minY))
         let bottomRight = viewport.viewPoint(fromImage: Point2D(x: border.maxX, y: border.maxY))
         let band = 5.0
@@ -1161,10 +1159,20 @@ final class Editor {
     /// The handle under a view point, if the selection's handles are showing there.
     func selectionHandle(atView point: Point2D) -> SelectionHandle? {
         guard tool.isSelectionTool, marqueePreview == nil, let rect = canvas.selection.bounds else { return nil }
-        return SelectionHandle.allCases.first { handle in
-            let center = viewport.viewPoint(fromImage: handle.point(on: rect))
-            return abs(center.x - point.x) <= 6 && abs(center.y - point.y) <= 6
-        }
+        return nearestHandle(SelectionHandle.allCases.map { ($0, $0.point(on: rect)) }, to: point)
+    }
+
+    /// The handle closest to a view point, if one is within reach. On a tiny box the handles overlap,
+    /// and taking the first one in range would always pick a left or top one.
+    private func nearestHandle(_ handles: [(handle: SelectionHandle, point: Point2D)], to point: Point2D) -> SelectionHandle? {
+        handles
+            .map { handle, center -> (SelectionHandle, Double) in
+                let view = viewport.viewPoint(fromImage: center)
+                return (handle, max(abs(view.x - point.x), abs(view.y - point.y)))
+            }
+            .filter { $0.1 <= 6 }
+            .min { $0.1 < $1.1 }?
+            .0
     }
 
     func beginResize(_ handle: SelectionHandle, at point: Point2D) {

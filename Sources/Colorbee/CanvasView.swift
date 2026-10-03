@@ -14,6 +14,7 @@ final class CanvasView: NSView {
         case divider
         case shape
         case text(start: Point2D)
+        case textBox
         case pan(last: NSPoint)
     }
 
@@ -253,10 +254,8 @@ final class CanvasView: NSView {
         if let drag = editor.textDragFrame {
             frame(min(drag.start.x, drag.end.x), min(drag.start.y, drag.end.y), max(drag.start.x, drag.end.x), max(drag.start.y, drag.end.y))
         }
-        if let box = editor.pendingTextFrame {
-            // A little outside the text so the border doesn't touch the glyphs.
-            let pad = 3 / editor.viewport.zoom
-            frame(Double(box.minX) - pad, Double(box.minY) - pad, Double(box.maxX) + pad, Double(box.maxY) + pad)
+        if let border = editor.pendingTextBorder {
+            frame(border.minX, border.minY, border.maxX, border.maxY)
         }
         for guide in editor.pendingShapeGuides {
             lines.append((guide.0, guide.1, SIMD4(0.2, 0.45, 0.95, 0.9)))
@@ -327,6 +326,7 @@ final class CanvasView: NSView {
 
     private func handlePoints(_ selection: SelectionState) -> [Point2D] {
         if editor.pendingShape != nil { return editor.pendingShapeHandlePoints }
+        if editor.pendingText != nil { return editor.pendingTextHandles.map(\.point) }
         guard editor.tool.isSelectionTool, editor.marqueePreview == nil, let rect = selection.bounds else { return [] }
         return SelectionHandle.allCases.map { $0.point(on: rect) }
     }
@@ -433,7 +433,13 @@ final class CanvasView: NSView {
             }
         }
         if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
-        if editor.tool == .text { return .iBeam }
+        if editor.tool == .text {
+            switch editor.textBoxGrab(atView: editor.viewport.viewPoint(fromImage: point ?? .zero)) {
+            case .handle(let handle)?: return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
+            case .border?: return .openHand
+            case nil: return .iBeam
+            }
+        }
         if showsEraserOutline { return Self.hiddenCursor }
         return .crosshair
     }
@@ -477,8 +483,12 @@ final class CanvasView: NSView {
             drag = .shape
             editor.beginShapeDrag(at: point, viewPoint: viewPoint(event), secondary: secondary, clickCount: event.clickCount)
         case .text:
-            // A click away from an open text box places it; the next click starts a new one.
-            if editor.pendingText != nil {
+            // A handle or the border moves or resizes the open text box; a click elsewhere places it,
+            // and the next click starts a new one.
+            if editor.pendingText != nil, !secondary, let grab = editor.textBoxGrab(atView: viewPoint(event)) {
+                drag = .textBox
+                editor.beginTextBoxDrag(grab, at: point)
+            } else if editor.pendingText != nil {
                 editor.commitPendingText()
             } else if !secondary {
                 drag = .text(start: point)
@@ -516,6 +526,9 @@ final class CanvasView: NSView {
         case .text(let start):
             editor.updateTextDragFrame(from: start, to: imagePoint(event))
             updatePointer(event)
+        case .textBox:
+            editor.continueTextBoxDrag(to: imagePoint(event))
+            updatePointer(event)
         case .select:
             let point = imagePoint(event)
             drag = .select(last: point)
@@ -540,6 +553,13 @@ final class CanvasView: NSView {
             editor.endGradient()
         case .shape:
             editor.endShapeDrag()
+        case .textBox:
+            editor.endTextBoxDrag()
+            drag = nil
+            // Keep typing where you left off.
+            if let textView { window?.makeFirstResponder(textView) }
+            currentCursor(at: imagePoint(event)).set()
+            return
         case .text(let start):
             let end = imagePoint(event)
             // Dragging out a box sets its width (lines wrap) and height; a plain click lets the text run on.

@@ -208,6 +208,12 @@ struct PendingText: Equatable {
     var string = ""
 }
 
+/// What a press on the open text box grabbed: a handle resizes it, the border moves it (FR-6.1).
+enum TextBoxGrab: Equatable {
+    case handle(SelectionHandle)
+    case border
+}
+
 /// What a press on a pending shape grabbed.
 enum ShapeHandle: Equatable {
     case box(SelectionHandle)
@@ -999,6 +1005,81 @@ final class Editor {
         var spec = textSpec(for: text)
         if spec.text.isEmpty { spec.text = " " }
         return TextRenderer.box(for: spec)
+    }
+
+    /// The text box's border, drawn a little outside the text so it doesn't touch the glyphs.
+    var pendingTextBorder: (minX: Double, minY: Double, maxX: Double, maxY: Double)? {
+        guard let box = pendingTextFrame else { return nil }
+        let pad = 3 / viewport.zoom
+        return (Double(box.minX) - pad, Double(box.minY) - pad, Double(box.maxX) + pad, Double(box.maxY) + pad)
+    }
+
+    /// The eight handles on the text box's border, in image coordinates.
+    var pendingTextHandles: [(handle: SelectionHandle, point: Point2D)] {
+        guard let border = pendingTextBorder else { return [] }
+        let midX = (border.minX + border.maxX) / 2, midY = (border.minY + border.maxY) / 2
+        return SelectionHandle.allCases.map { handle in
+            let point: Point2D = switch handle {
+            case .topLeft: Point2D(x: border.minX, y: border.minY)
+            case .top: Point2D(x: midX, y: border.minY)
+            case .topRight: Point2D(x: border.maxX, y: border.minY)
+            case .right: Point2D(x: border.maxX, y: midY)
+            case .bottomRight: Point2D(x: border.maxX, y: border.maxY)
+            case .bottom: Point2D(x: midX, y: border.maxY)
+            case .bottomLeft: Point2D(x: border.minX, y: border.maxY)
+            case .left: Point2D(x: border.minX, y: midY)
+            }
+            return (handle, point)
+        }
+    }
+
+    /// A handle or the border under a view point. Inside the box, clicks go to the text itself.
+    func textBoxGrab(atView point: Point2D) -> TextBoxGrab? {
+        guard let border = pendingTextBorder else { return nil }
+        for (handle, center) in pendingTextHandles {
+            let view = viewport.viewPoint(fromImage: center)
+            if abs(view.x - point.x) <= 6, abs(view.y - point.y) <= 6 { return .handle(handle) }
+        }
+        let topLeft = viewport.viewPoint(fromImage: Point2D(x: border.minX, y: border.minY))
+        let bottomRight = viewport.viewPoint(fromImage: Point2D(x: border.maxX, y: border.maxY))
+        let band = 5.0
+        let nearOutside = point.x >= topLeft.x - band && point.x <= bottomRight.x + band
+            && point.y >= topLeft.y - band && point.y <= bottomRight.y + band
+        let wellInside = point.x > topLeft.x + band && point.x < bottomRight.x - band
+            && point.y > topLeft.y + band && point.y < bottomRight.y - band
+        return nearOutside && !wellInside ? .border : nil
+    }
+
+    @ObservationIgnored private var textBoxDrag: (grab: TextBoxGrab, text: PendingText, frame: IntRect, start: Point2D)?
+
+    func beginTextBoxDrag(_ grab: TextBoxGrab, at point: Point2D) {
+        guard let text = pendingText, let frame = pendingTextFrame else { return }
+        textBoxDrag = (grab, text, frame, point)
+    }
+
+    /// Moving keeps the size. Dragging a side handle sets the width the text wraps at; top and
+    /// bottom handles set the box's height, which still grows if the text needs more room.
+    func continueTextBoxDrag(to point: Point2D) {
+        guard let drag = textBoxDrag, var text = pendingText else { return }
+        let delta = Point2D(x: point.x - drag.start.x, y: point.y - drag.start.y)
+        switch drag.grab {
+        case .border:
+            text.origin = Point2D(x: drag.text.origin.x + delta.x.rounded(), y: drag.text.origin.y + delta.y.rounded())
+        case .handle(let handle):
+            let rect = handle.resize(drag.frame, by: delta, keepProportions: false)
+            text.origin = Point2D(
+                x: drag.text.origin.x + Double(rect.minX - drag.frame.minX),
+                y: drag.text.origin.y + Double(rect.minY - drag.frame.minY)
+            )
+            if rect.width != drag.frame.width { text.wrapWidth = Double(rect.width) }
+            if rect.height != drag.frame.height { text.minimumHeight = Double(rect.height) }
+        }
+        pendingText = text
+        onRender()
+    }
+
+    func endTextBoxDrag() {
+        textBoxDrag = nil
     }
 
     func updatePendingText(_ string: String) {

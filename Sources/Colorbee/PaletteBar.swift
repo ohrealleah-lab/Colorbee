@@ -84,7 +84,7 @@ private struct SwatchGrid: NSViewRepresentable {
 
 /// The 28 classic swatches and the 12 custom slots. Left-click sets the ringed well, right-click
 /// Color 2, and Control-click on a custom color offers Remove (FR-1.2).
-final class SwatchGridView: NSView {
+final class SwatchGridView: NSView, NSViewToolTipOwner {
     /// The classic Paint palette, as in the mockups.
     static let classic: [UInt32] = [
         0x000000, 0x808080, 0x800000, 0x808000, 0x008000, 0x008080, 0x000080, 0x800080, 0x808040, 0x004040, 0x0080FF, 0x004080, 0x8000FF, 0x804000,
@@ -205,7 +205,7 @@ final class SwatchGridView: NSView {
     }
 
     /// Hover text for the custom slots, which depends on whether the slot holds a color.
-    override func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
+    func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
         guard case .custom(let index)? = slot(at: point) else { return "" }
         return color(of: .custom(index)) == nil
             ? "Double-click to pick a custom color"

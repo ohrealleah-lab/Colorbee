@@ -127,7 +127,10 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
 - Later polish: ⌘C of a very large image still pauses about a second.
 
-**9 Photo editing and presentation (later phase, FR-9.5)**
+**9 Photo editing and presentation (FR-9.5)** — in progress.
+- Done (2026-10-03, not yet hand-tested): 9a Levels, Auto Contrast, Curves, Sepia, Posterize, Add Noise, Motion Blur, Emboss, Vignette (+ adjustment layers via `ColorLookup`); 9b Adjust Photo panel, Auto, filters (`PhotoAdjustments`, `PhotoFilter`, `FilterStore`, `adjust_photo_fragment`); 9c Drop Shadow, Border, Spotlight (`Decorations`).
+- Next: 9d Straighten (any angle, draw-a-line, Crop to Fit), Perspective Correction (four corners), Crop… with aspect and pixel-size presets and a thirds grid — each needs a canvas mode in `CanvasView` (overlay lines/handles via `RenderScene`). Then 9e Remove Background and Select Subject (Vision). Then the "please try" list.
+- Remaining from the original plan below:
 - Adjustments: Levels (with Auto), Auto Contrast, Curves, Sepia, Posterize.
 - Adjust Photo panel: 15 iPhone-style sliders (White Balance and Vibrance live here), Auto, and filters (9 built in, custom ones saved, shared as .colorbeefilter, intensity).
 - Effects: Add Noise, Motion Blur, Emboss, Vignette, Drop Shadow, Border, Spotlight (shadow and border follow the object's shape).

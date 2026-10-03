@@ -21,6 +21,14 @@ struct DocumentView: View {
                 Divider()
             }
             CanvasHost(view: canvasView)
+                // Floats over the gray surround rather than narrowing the canvas, as in the mockups.
+                .overlay(alignment: .trailing) {
+                    if editor.isSidebarOpen {
+                        Sidebar(editor: editor)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
+                }
+                .animation(.snappy(duration: 0.2), value: editor.isSidebarOpen)
                 .sheet(isPresented: autoRedactBinding) {
                     AutoRedactSheet(editor: editor)
                 }

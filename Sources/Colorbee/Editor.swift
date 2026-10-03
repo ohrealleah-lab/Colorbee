@@ -32,6 +32,14 @@ enum Tool: CaseIterable {
         }
     }
 
+    /// Tools that change the active layer's pixels.
+    var changesPixels: Bool {
+        switch self {
+        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text: true
+        default: false
+        }
+    }
+
     /// Tools that paint while the pointer is dragged.
     var isStrokeTool: Bool {
         switch self {
@@ -486,6 +494,7 @@ final class Editor {
         endStroke()
         cancelOrEndSelectionDrag()
         if activeEffect != nil { cancelEffect() }
+        finishOpacity()
     }
 
     private func placeFloatingSelection() {
@@ -505,6 +514,7 @@ final class Editor {
     // MARK: Painting
 
     func beginStroke(at point: Point2D, secondary: Bool, pressure: Double = 1) {
+        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingSelection()
         let layer = canvas.activeLayer
@@ -604,6 +614,7 @@ final class Editor {
     }
 
     func fill(at point: Point2D, secondary: Bool) {
+        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
         let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
@@ -639,6 +650,7 @@ final class Editor {
     // MARK: Gradient
 
     func beginGradient(at point: Point2D, secondary: Bool) {
+        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
         gradientDrag = GradientDrag(
@@ -833,6 +845,7 @@ final class Editor {
     }
 
     func beginShapeDrag(at point: Point2D, viewPoint: Point2D, secondary: Bool, clickCount: Int) {
+        if pendingShape == nil, refusedBecauseLocked() { return }
         if var pending = pendingShape {
             if pending.isBuilding {
                 continueBuilding(&pending, at: point, viewPoint: viewPoint, clickCount: clickCount)
@@ -1017,6 +1030,7 @@ final class Editor {
 
     /// Opens a text box with its top-left at `origin`. Any open box is placed first.
     func beginText(at origin: Point2D, wrapWidth: Double?, minimumHeight: Double = 0) {
+        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingSelection()
         textDragFrame = nil
@@ -1176,6 +1190,7 @@ final class Editor {
     }
 
     func beginResize(_ handle: SelectionHandle, at point: Point2D) {
+        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         guard let rect = canvas.selection.bounds else { return }
         selectionDrag = .resize(edit: nil, handle: handle, original: rect, grab: point)
@@ -1187,6 +1202,8 @@ final class Editor {
         // The wand always selects when a modifier is held, so it can add to or subtract from a selection.
         let wandCombining = tool == .magicWand && (modifiers.shift || modifiers.option)
         if !wandCombining, selectionContains(point), let origin = canvas.selection.bounds.map({ IntPoint(x: $0.minX, y: $0.minY) }) {
+            // Moving selected pixels changes the layer; drawing a new outline doesn't.
+            guard !refusedBecauseLocked() else { return }
             selectionDrag = .move(edit: nil, grab: point, origin: origin, smear: modifiers.shift, duplicate: modifiers.option)
             return
         }
@@ -1336,7 +1353,10 @@ final class Editor {
     private func recordingChanges(_ body: () -> Void) {
         let revision = history.revision
         body()
-        if history.revision != revision { onDocumentChange(.done) }
+        if history.revision != revision {
+            onDocumentChange(.done)
+            layersRevision += 1
+        }
     }
 
     func selectAll() {
@@ -1354,6 +1374,7 @@ final class Editor {
     }
 
     func deleteSelection(named name: String = "Delete") {
+        guard !refusedBecauseLocked() else { return }
         performSelectionCommand {
             SelectionActions.deleteSelection(named: name, canvas: canvas, history: history, context: selectionContext)
         }
@@ -1367,12 +1388,19 @@ final class Editor {
     }
 
     func nudgeSelection(dx: Int, dy: Int) {
+        guard !refusedBecauseLocked() else { return }
         performSelectionCommand {
             SelectionActions.nudge(dx: dx, dy: dy, canvas: canvas, history: history, context: selectionContext)
         }
     }
 
     /// The selected pixels, or nil when nothing is selected.
+    /// Copy Merged: the selection as all visible layers show it together.
+    func selectedMergedPixels() -> PixelBuffer? {
+        finishInteractions()
+        return SelectionActions.selectedPixels(canvas: canvas, context: selectionContext, merged: true)
+    }
+
     func selectedPixels() -> PixelBuffer? {
         finishInteractions()
         return SelectionActions.selectedPixels(canvas: canvas, context: selectionContext)
@@ -1380,6 +1408,7 @@ final class Editor {
 
     /// Pastes as a floating selection at the top-left of the visible part of the canvas.
     func paste(_ image: PixelBuffer) {
+        guard !refusedBecauseLocked() else { return }
         let visibleTopLeft = viewport.imagePoint(fromView: .zero)
         let origin = IntPoint(
             x: min(max(0, Int(visibleTopLeft.x.rounded(.down))), canvas.size.width - 1),
@@ -1419,6 +1448,7 @@ final class Editor {
 
     /// Opens an effect's dialog and shows its preview. It applies to the selection, or the whole layer.
     func beginEffect(_ kind: EffectKind) {
+        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
         effectValues = kind.parameters.map(\.defaultValue)
@@ -1451,6 +1481,7 @@ final class Editor {
 
     /// An adjustment with no settings (Invert, Desaturate), applied to the selection or the whole layer.
     func applyAdjustment(_ effect: Effect) {
+        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
         let edit = history.beginEdit(effect.name, on: canvas)
@@ -1475,6 +1506,7 @@ final class Editor {
     /// Resizes and skews the selection, or the whole image when nothing is selected (FR-7.2).
     func apply(_ settings: ResizeSkew) {
         isResizeSkewOpen = false
+        if !canvas.selection.isEmpty, refusedBecauseLocked() { return }
         finishInteractions()
         recordingChanges {
             if canvas.selection.isEmpty {
@@ -1488,6 +1520,8 @@ final class Editor {
 
     /// Rotates or flips the selection, or the whole image when nothing is selected.
     func apply(_ orientation: Orientation) {
+        // The whole image turns every layer, locked or not; a selection is pixels on the active layer.
+        if !canvas.selection.isEmpty, refusedBecauseLocked() { return }
         finishInteractions()
         recordingChanges {
             if canvas.selection.isEmpty {
@@ -1507,6 +1541,7 @@ final class Editor {
 
     /// Batch redaction with a solid color: every selected region becomes Color 1 in one step (FR-9.4).
     func applySolidFill() {
+        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
         guard let selection = canvas.selection.marquee else { return }
@@ -1531,6 +1566,130 @@ final class Editor {
         onRender()
     }
 
+    // MARK: Layers
+
+    /// Bumped whenever the layers or their pixels may have changed, so the Layers panel refreshes.
+    private(set) var layersRevision = 0
+    /// Whether the right sidebar (with the Layers panel) is showing (FR-1.3, FR-8.1).
+    var isSidebarOpen = false
+    /// Called when a command can't be carried out, such as painting on a locked layer; the view beeps.
+    @ObservationIgnored var onRefused: () -> Void = {}
+    @ObservationIgnored private var opacityEdit: Edit?
+
+    var layers: [Layer] {
+        _ = layersRevision
+        return canvas.layers
+    }
+
+    var activeLayerIndex: Int {
+        _ = layersRevision
+        return canvas.activeLayerIndex
+    }
+
+    var activeLayerIsLocked: Bool {
+        _ = layersRevision
+        return canvas.activeLayer.isLocked
+    }
+
+    /// Makes another layer active. Moved pixels are placed on their own layer first; the outline stays.
+    func selectLayer(at index: Int) {
+        guard canvas.layers.indices.contains(index), index != canvas.activeLayerIndex else { return }
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        canvas.activeLayerIndex = index
+        layersRevision += 1
+        onRender()
+    }
+
+    func addLayer() {
+        layerCommand { LayerActions.add(canvas: canvas, history: history, context: selectionContext) }
+        isSidebarOpen = true
+    }
+
+    func duplicateLayer() {
+        layerCommand { LayerActions.duplicate(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    func deleteLayer() {
+        layerCommand { LayerActions.delete(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    func mergeDown() {
+        layerCommand { LayerActions.mergeDown(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    func mergeVisible() {
+        layerCommand { LayerActions.mergeVisible(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    func flatten() {
+        layerCommand { LayerActions.flatten(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    /// Moves the layer at `source` so it sits at `destination` (stack indices; 0 is the bottom).
+    func moveLayer(from source: Int, to destination: Int) {
+        layerCommand { LayerActions.move(from: source, to: destination, canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    func setLayerVisible(_ visible: Bool, at index: Int) {
+        layerSetting(visible ? "Show Layer" : "Hide Layer", at: index) { $0.isVisible = visible }
+    }
+
+    func setLayerLocked(_ locked: Bool, at index: Int) {
+        layerSetting(locked ? "Lock Layer" : "Unlock Layer", at: index) { $0.isLocked = locked }
+    }
+
+    func renameLayer(at index: Int, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        layerSetting("Rename Layer", at: index) { $0.name = trimmed }
+    }
+
+    func setBlendMode(_ mode: BlendMode) {
+        layerSetting("Blend Mode", at: canvas.activeLayerIndex) { $0.blendMode = mode }
+    }
+
+    /// Opacity while its slider is dragged: shown live, recorded as one step by `finishOpacity()`.
+    func previewOpacity(_ opacity: Double) {
+        if opacityEdit == nil {
+            finishInteractions()
+            let edit = history.beginEdit("Layer Opacity", on: canvas)
+            edit.willChangeLayers()
+            opacityEdit = edit
+        }
+        canvas.activeLayer.opacity = min(1, max(0, opacity))
+        layersRevision += 1
+        onRender()
+    }
+
+    func finishOpacity() {
+        guard let edit = opacityEdit else { return }
+        opacityEdit = nil
+        recordingChanges { history.commit(edit) }
+    }
+
+    private func layerSetting(_ name: String, at index: Int, _ body: (Layer) -> Void) {
+        finishInteractions()
+        recordingChanges { LayerActions.update(name, layerAt: index, canvas: canvas, history: history, body) }
+        onRender()
+    }
+
+    private func layerCommand(_ body: () -> Bool) {
+        finishInteractions()
+        var done = false
+        recordingChanges { done = body() }
+        if !done { onRefused() }
+        layersRevision += 1
+        selectionDidChange()
+    }
+
+    /// Pixel-changing commands call this first. A locked layer refuses them (FR-8.2).
+    private func refusedBecauseLocked() -> Bool {
+        guard canvas.activeLayer.isLocked else { return false }
+        onRefused()
+        return true
+    }
+
     // MARK: Undo
 
     var undoActionName: String? { history.undoActionName }
@@ -1544,6 +1703,7 @@ final class Editor {
         }
         finishInteractions()
         guard history.undo(on: canvas) != nil else { return }
+        layersRevision += 1
         onDocumentChange(.undone)
         selectionDidChange()
     }
@@ -1551,6 +1711,7 @@ final class Editor {
     func redo() {
         finishInteractions()
         guard history.redo(on: canvas) != nil else { return }
+        layersRevision += 1
         onDocumentChange(.redone)
         selectionDidChange()
     }
@@ -1622,6 +1783,7 @@ final class Editor {
 
     /// Reads the text in the selection (or the whole image) on this Mac and opens the review.
     func beginAutoRedact() {
+        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
         let region = canvas.selection.marquee

@@ -59,6 +59,7 @@ final class CanvasView: NSView {
             self?.setNeedsRender()
             self?.syncTextEditor()
         }
+        editor.onRefused = { NSSound.beep() }
         addTrackingArea(NSTrackingArea(
             rect: .zero,
             options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect, .cursorUpdate],
@@ -438,6 +439,10 @@ final class CanvasView: NSView {
             }
         }
         if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
+        // Over a locked layer, tools that would change it show they can't (FR-8.2).
+        if editor.activeLayerIsLocked, editor.tool.changesPixels || (editor.tool.isSelectionTool && point.map(editor.selectionContains) == true) {
+            return .operationNotAllowed
+        }
         if editor.tool == .text {
             switch editor.textBoxGrab(atView: editor.viewport.viewPoint(fromImage: point ?? .zero)) {
             case .handle(let handle)?: return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)

@@ -12,6 +12,7 @@ struct QuadUniforms {
     float keyEnabled;
     float antsPhase;
     float pixelSize;      // drawable pixels per image pixel
+    float blendMode;      // BlendMode.rawValue
 };
 
 struct QuadOut {
@@ -100,4 +101,85 @@ fragment float4 grid_fragment(QuadOut in [[stage_in]],
     float luminance = dot(destination.rgb, float3(0.299, 0.587, 0.114));
     float3 lineColor = luminance > 0.5 ? float3(0.0) : float3(1.0);
     return float4(mix(destination.rgb, lineColor, 0.5), destination.a);
+}
+
+// MARK: Blend modes. Must match BlendMode.swift (W3C Compositing and Blending), case for case.
+
+static float lum(float3 c) { return dot(c, float3(0.3, 0.59, 0.11)); }
+
+static float3 clipColor(float3 c) {
+    float l = lum(c), n = min(c.r, min(c.g, c.b)), x = max(c.r, max(c.g, c.b));
+    if (n < 0) c = l + (c - l) * l / (l - n);
+    if (x > 1) c = l + (c - l) * (1 - l) / (x - l);
+    return c;
+}
+
+static float3 setLum(float3 c, float l) { return clipColor(c + (l - lum(c))); }
+static float sat(float3 c) { return max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b)); }
+
+static float3 setSat(float3 c, float s) {
+    float low = min(c.r, min(c.g, c.b)), high = max(c.r, max(c.g, c.b));
+    if (high <= low) return float3(0);
+    return (c - low) * (s / (high - low));
+}
+
+static float colorDodge(float b, float s) { return b == 0 ? 0 : (s >= 1 ? 1 : min(1.0, b / (1 - s))); }
+static float colorBurn(float b, float s) { return b >= 1 ? 1 : (s <= 0 ? 0 : 1 - min(1.0, (1 - b) / s)); }
+static float hardLight(float b, float s) { return s <= 0.5 ? b * 2 * s : b + (2 * s - 1) - b * (2 * s - 1); }
+static float softLight(float b, float s) {
+    if (s <= 0.5) return b - (1 - 2 * s) * b * (1 - b);
+    float d = b <= 0.25 ? ((16 * b - 12) * b + 4) * b : sqrt(b);
+    return b + (2 * s - 1) * (d - b);
+}
+
+static float3 blendColor(int mode, float3 b, float3 s) {
+    switch (mode) {
+    case 1: return min(b, s);                                                        // darken
+    case 2: return b * s;                                                            // multiply
+    case 3: return float3(colorBurn(b.r, s.r), colorBurn(b.g, s.g), colorBurn(b.b, s.b));
+    case 4: return max(b, s);                                                        // lighten
+    case 5: return b + s - b * s;                                                    // screen
+    case 6: return float3(colorDodge(b.r, s.r), colorDodge(b.g, s.g), colorDodge(b.b, s.b));
+    case 7: return min(b + s, float3(1));                                            // additive
+    case 8: return float3(hardLight(s.r, b.r), hardLight(s.g, b.g), hardLight(s.b, b.b)); // overlay
+    case 9: return float3(softLight(b.r, s.r), softLight(b.g, s.g), softLight(b.b, s.b));
+    case 10: return float3(hardLight(b.r, s.r), hardLight(b.g, s.g), hardLight(b.b, s.b));
+    case 11: return abs(b - s);                                                      // difference
+    case 12: return b + s - 2 * b * s;                                               // exclusion
+    case 13: return setLum(setSat(s, sat(b)), lum(b));                               // hue
+    case 14: return setLum(setSat(b, sat(s)), lum(b));                               // saturation
+    case 15: return setLum(s, lum(b));                                               // color
+    case 16: return setLum(b, lum(s));                                               // luminosity
+    default: return s;                                                               // normal
+    }
+}
+
+// Composites a straight-alpha layer onto the premultiplied layers already drawn beneath it, read
+// straight from the render target (Apple GPUs allow this without a second texture).
+fragment float4 blend_layer_fragment(QuadOut in [[stage_in]],
+                                     texture2d<float> layer [[texture(0)]],
+                                     sampler layerSampler [[sampler(0)]],
+                                     constant QuadUniforms &u [[buffer(0)]],
+                                     float4 backdrop [[color(0)]]) {
+    float4 color = layer.sample(layerSampler, in.uv);
+    if (u.keyEnabled > 0.5 && color.a > 0 && all(abs(color.rgb - u.keyColor.rgb) < 0.5 / 255.0)) {
+        discard_fragment();
+    }
+    float sourceAlpha = color.a * u.opacity;
+    if (sourceAlpha <= 0) discard_fragment();
+    float backdropAlpha = backdrop.a;
+    float3 blended = color.rgb;
+    int mode = int(u.blendMode + 0.5);
+    if (mode != 0 && backdropAlpha > 0) {
+        float3 b = backdrop.rgb / backdropAlpha;
+        blended = (1 - backdropAlpha) * color.rgb + backdropAlpha * blendColor(mode, b, color.rgb);
+    }
+    return float4(sourceAlpha * blended + (1 - sourceAlpha) * backdrop.rgb, sourceAlpha + backdropAlpha * (1 - sourceAlpha));
+}
+
+// The composited layers, already premultiplied, drawn 1:1 over the checkerboard.
+fragment float4 composite_fragment(QuadOut in [[stage_in]],
+                                   texture2d<float> layers [[texture(0)]],
+                                   sampler layerSampler [[sampler(0)]]) {
+    return layers.sample(layerSampler, in.uv);
 }

@@ -52,8 +52,11 @@ private struct PaintingGroups: ToolbarContent {
         ToolbarItem {
             OutlineFillControl(editor: editor)
         }
-        // Pushes the groups up against the title, leaving the right end for the stage 6 panel toggles.
+        // Pushes the groups up against the title; the Layers button sits at the far right.
         ToolbarSpacer(.flexible)
+        ToolbarItem {
+            LayersButton(editor: editor)
+        }
     }
 }
 
@@ -279,5 +282,35 @@ struct Checkerboard: View {
                 row += 1
             }
         }
+    }
+}
+
+/// Shows or hides the Layers panel (FR-1.1, FR-8.1), with the layer count once there's more than one.
+private struct LayersButton: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        let count = editor.layers.count
+        Button { editor.isSidebarOpen.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "square.3.layers.3d").font(.system(size: 15))
+                if count > 1 {
+                    Text("\(count)")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 4)
+                        .frame(minWidth: 16, minHeight: 16)
+                        .background(Color.accentColor, in: Capsule())
+                }
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .foregroundStyle(editor.isSidebarOpen ? Color.accentColor : Color.primary)
+            .background(editor.isSidebarOpen ? Theme.accentSoft : .clear, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help("Layers (⌘L)")
+        .accessibilityLabel("Layers")
     }
 }

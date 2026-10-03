@@ -101,6 +101,40 @@ final class DocumentWindow: NSWindow {
         editor?.toggleComparison()
     }
 
+    @objc func copyMerged(_ sender: Any?) {
+        guard let editor else { return }
+        do {
+            let png = try editor.selectedMergedPixels().map {
+                try ImageCodec.encodePNG($0, colorSpace: editor.canvas.colorSpace)
+            } ?? editor.flattenedPNG()
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setData(png, forType: .png)
+        } catch {
+            presentError(error)
+        }
+    }
+
+    @objc func toggleLayers(_ sender: Any?) { editor?.isSidebarOpen.toggle() }
+    @objc func newLayer(_ sender: Any?) { editor?.addLayer() }
+    @objc func duplicateLayer(_ sender: Any?) { editor?.duplicateLayer() }
+    @objc func deleteLayer(_ sender: Any?) { editor?.deleteLayer() }
+    @objc func mergeDown(_ sender: Any?) { editor?.mergeDown() }
+    @objc func mergeVisible(_ sender: Any?) { editor?.mergeVisible() }
+    @objc func flattenImage(_ sender: Any?) { editor?.flatten() }
+
+    @objc func toggleLayerVisibility(_ sender: Any?) {
+        guard let editor else { return }
+        editor.setLayerVisible(!editor.canvas.activeLayer.isVisible, at: editor.activeLayerIndex)
+    }
+
+    @objc func toggleLayerLock(_ sender: Any?) {
+        guard let editor else { return }
+        editor.setLayerLocked(!editor.canvas.activeLayer.isLocked, at: editor.activeLayerIndex)
+    }
+
+    /// The Layers panel holds the active layer's name, blend mode and opacity, so this opens it.
+    @objc func showLayerProperties(_ sender: Any?) { editor?.isSidebarOpen = true }
+
     @objc func togglePixelGrid(_ sender: Any?) {
         editor?.showsPixelGrid.toggle()
     }
@@ -158,6 +192,25 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(togglePixelGrid(_:)):
             menuItem.state = editor.showsPixelGrid ? .on : .off
+            return true
+        case #selector(toggleLayers(_:)):
+            menuItem.state = editor.isSidebarOpen ? .on : .off
+            return true
+        case #selector(deleteLayer(_:)):
+            return LayerActions.canDelete(editor.canvas)
+        case #selector(mergeDown(_:)):
+            return LayerActions.canMergeDown(editor.canvas)
+        case #selector(mergeVisible(_:)):
+            return LayerActions.canMergeVisible(editor.canvas)
+        case #selector(flattenImage(_:)):
+            return LayerActions.canFlatten(editor.canvas)
+        case #selector(toggleLayerVisibility(_:)):
+            menuItem.title = editor.canvas.activeLayer.isVisible ? "Hide Layer" : "Show Layer"
+            return true
+        case #selector(toggleLayerLock(_:)):
+            menuItem.title = editor.canvas.activeLayer.isLocked ? "Unlock Layer" : "Lock Layer"
+            return true
+        case #selector(newLayer(_:)), #selector(duplicateLayer(_:)), #selector(showLayerProperties(_:)), #selector(copyMerged(_:)):
             return true
         case #selector(copy(_:)), #selector(zoomIn(_:)), #selector(zoomOut(_:)),
              #selector(actualSize(_:)), #selector(zoomToFit(_:)):

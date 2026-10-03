@@ -13,6 +13,7 @@ struct QuadUniforms {
     var keyEnabled: Float = 0
     var antsPhase: Float = 0
     var pixelSize: Float = 1
+    var blendMode: Float = 0
 }
 
 /// Everything needed to draw one frame of a document.
@@ -55,6 +56,14 @@ final class Renderer {
     private let solidPipeline: MTLRenderPipelineState
     private let linePipeline: MTLRenderPipelineState
     private let discPipeline: MTLRenderPipelineState
+    /// Composites one layer onto the layers below it with its blend mode, reading them in the shader.
+    private let blendLayerPipeline: MTLRenderPipelineState
+    /// Draws the composited layers over the checkerboard.
+    private let compositePipeline: MTLRenderPipelineState
+    /// The layers are composited here, on a transparent background, so blend modes see only the layers
+    /// below and never the checkerboard. Half floats keep a deep stack from losing precision.
+    private var layerTarget: MTLTexture?
+    private static let layerTargetFormat = MTLPixelFormat.rgba16Float
     private let nearestSampler: MTLSamplerState
     private let linearSampler: MTLSamplerState
     private let maskSampler: MTLSamplerState
@@ -76,12 +85,12 @@ final class Renderer {
         self.device = device
         self.queue = queue
 
-        func pipeline(fragment: String, vertex: String = "quad_vertex", blended: Bool = true) -> MTLRenderPipelineState {
+        func pipeline(fragment: String, vertex: String = "quad_vertex", blended: Bool = true, format: MTLPixelFormat = .bgra8Unorm) -> MTLRenderPipelineState {
             let descriptor = MTLRenderPipelineDescriptor()
             descriptor.vertexFunction = library.makeFunction(name: vertex)
             descriptor.fragmentFunction = library.makeFunction(name: fragment)
             let attachment = descriptor.colorAttachments[0]!
-            attachment.pixelFormat = .bgra8Unorm
+            attachment.pixelFormat = format
             if blended {
                 attachment.isBlendingEnabled = true
                 attachment.sourceRGBBlendFactor = .one
@@ -102,6 +111,8 @@ final class Renderer {
         solidPipeline = pipeline(fragment: "solid_fragment")
         linePipeline = pipeline(fragment: "solid_fragment", vertex: "line_vertex")
         discPipeline = pipeline(fragment: "disc_fragment")
+        blendLayerPipeline = pipeline(fragment: "blend_layer_fragment", blended: false, format: Self.layerTargetFormat)
+        compositePipeline = pipeline(fragment: "composite_fragment")
 
         func sampler(_ filter: MTLSamplerMinMagFilter, address: MTLSamplerAddressMode = .clampToEdge) -> MTLSamplerState {
             let descriptor = MTLSamplerDescriptor()
@@ -129,12 +140,12 @@ final class Renderer {
         guard let drawable = metalLayer.nextDrawable(),
               let commandBuffer = queue.makeCommandBuffer() else { return }
 
-        let pass = MTLRenderPassDescriptor()
-        pass.colorAttachments[0].texture = drawable.texture
-        pass.colorAttachments[0].loadAction = .clear
-        pass.colorAttachments[0].storeAction = .store
-        pass.colorAttachments[0].clearColor = surround
-        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        let layerPass = MTLRenderPassDescriptor()
+        layerPass.colorAttachments[0].texture = layerTarget(width: drawable.texture.width, height: drawable.texture.height)
+        layerPass.colorAttachments[0].loadAction = .clear
+        layerPass.colorAttachments[0].storeAction = .store
+        layerPass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        guard var encoder = commandBuffer.makeRenderCommandEncoder(descriptor: layerPass) else { return }
 
         let canvas = scene.canvas
         let zoom = scene.viewport.zoom
@@ -172,8 +183,51 @@ final class Renderer {
             encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         }
 
-        draw(checkerPipeline)
         var liveBuffers = Set<ObjectIdentifier>()
+        encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
+        let floating = canvas.selection.floating
+        for layer in canvas.layers where layer.isVisible && layer.opacity > 0 {
+            uniforms.opacity = Float(layer.opacity)
+            uniforms.rect = deviceRect(canvas.bounds)
+            uniforms.keyEnabled = 0
+            uniforms.blendMode = Float(layer.blendMode.rawValue)
+            encoder.setFragmentTexture(texture(for: layer.buffer, live: &liveBuffers), index: 0)
+            draw(blendLayerPipeline)
+
+            if let floating, floating.layerID == layer.id {
+                uniforms.rect = deviceRect(floating.destination)
+                let stretched = floating.destination.size != floating.pixels.size
+                encoder.setFragmentSamplerState(stretched && scene.smoothFloating ? linearSampler : nearestSampler, index: 0)
+                if let key = scene.transparentKey {
+                    uniforms.keyEnabled = 1
+                    uniforms.keyColor = SIMD4(Float(key.r) / 255, Float(key.g) / 255, Float(key.b) / 255, 1)
+                }
+                encoder.setFragmentTexture(texture(for: floating.pixels, live: &liveBuffers), index: 0)
+                draw(blendLayerPipeline)
+                encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
+            }
+            if let overlay = scene.overlay, layer.id == canvas.activeLayer.id {
+                uniforms.rect = deviceRect(IntRect(x: overlay.origin.x, y: overlay.origin.y, width: overlay.pixels.width, height: overlay.pixels.height))
+                uniforms.keyEnabled = 0
+                uniforms.blendMode = 0
+                encoder.setFragmentTexture(texture(for: overlay.pixels, live: &liveBuffers), index: 0)
+                draw(blendLayerPipeline)
+            }
+        }
+        uniforms.blendMode = 0
+        uniforms.opacity = 1
+        uniforms.keyEnabled = 0
+        encoder.endEncoding()
+
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = drawable.texture
+        pass.colorAttachments[0].loadAction = .clear
+        pass.colorAttachments[0].storeAction = .store
+        pass.colorAttachments[0].clearColor = surround
+        guard let mainEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        encoder = mainEncoder
+        uniforms.rect = deviceRect(canvas.bounds)
+        draw(checkerPipeline)
         if let comparison = scene.comparison, comparison.layout == .sideBySide {
             let before = comparison.before
             let beforeOrigin = scene.viewport.viewPoint(fromImage: .zero)
@@ -187,35 +241,12 @@ final class Renderer {
             draw(layerPipeline)
             uniforms.rect = deviceRect(canvas.bounds)
         }
+        uniforms.rect = SIMD4(0, 0, uniforms.viewportSize.x, uniforms.viewportSize.y)
+        encoder.setFragmentSamplerState(nearestSampler, index: 0)
+        encoder.setFragmentTexture(layerPass.colorAttachments[0].texture, index: 0)
+        draw(compositePipeline)
+        uniforms.rect = deviceRect(canvas.bounds)
 
-        encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
-        let floating = canvas.selection.floating
-        for layer in canvas.layers where layer.isVisible && layer.opacity > 0 {
-            uniforms.opacity = Float(layer.opacity)
-            uniforms.rect = deviceRect(canvas.bounds)
-            uniforms.keyEnabled = 0
-            encoder.setFragmentTexture(texture(for: layer.buffer, live: &liveBuffers), index: 0)
-            draw(layerPipeline)
-
-            if let floating, floating.layerID == layer.id {
-                uniforms.rect = deviceRect(floating.destination)
-                let stretched = floating.destination.size != floating.pixels.size
-                encoder.setFragmentSamplerState(stretched && scene.smoothFloating ? linearSampler : nearestSampler, index: 0)
-                if let key = scene.transparentKey {
-                    uniforms.keyEnabled = 1
-                    uniforms.keyColor = SIMD4(Float(key.r) / 255, Float(key.g) / 255, Float(key.b) / 255, 1)
-                }
-                encoder.setFragmentTexture(texture(for: floating.pixels, live: &liveBuffers), index: 0)
-                draw(layerPipeline)
-                encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
-            }
-            if let overlay = scene.overlay, layer.id == canvas.activeLayer.id {
-                uniforms.rect = deviceRect(IntRect(x: overlay.origin.x, y: overlay.origin.y, width: overlay.pixels.width, height: overlay.pixels.height))
-                uniforms.keyEnabled = 0
-                encoder.setFragmentTexture(texture(for: overlay.pixels, live: &liveBuffers), index: 0)
-                draw(layerPipeline)
-            }
-        }
         if let comparison = scene.comparison, comparison.layout == .split {
             // Left of the divider shows "before", drawn over the current image.
             let dividerDevice = max(0, min(Double(metalLayer.drawableSize.width), comparison.dividerX * scale))
@@ -309,6 +340,16 @@ final class Renderer {
         }
         commandBuffer.present(drawable)
         commandBuffer.commit()
+    }
+
+    private func layerTarget(width: Int, height: Int) -> MTLTexture {
+        if let layerTarget, layerTarget.width == width, layerTarget.height == height { return layerTarget }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: Self.layerTargetFormat, width: width, height: height, mipmapped: false)
+        descriptor.usage = [.renderTarget, .shaderRead]
+        descriptor.storageMode = .private
+        guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create the layer target") }
+        layerTarget = texture
+        return texture
     }
 
     private func texture(for buffer: PixelBuffer, live: inout Set<ObjectIdentifier>) -> MTLTexture {

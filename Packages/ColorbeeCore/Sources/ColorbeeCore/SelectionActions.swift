@@ -214,25 +214,34 @@ public enum SelectionActions {
     }
 
     /// The selected pixels cropped to the selection, for Copy. Unselected pixels in the crop are transparent.
-    public static func selectedPixels(canvas: Canvas, context: SelectionContext) -> PixelBuffer? {
+    /// With `merged` (Copy Merged), the pixels come from all visible layers combined, not just the active one.
+    public static func selectedPixels(canvas: Canvas, context: SelectionContext, merged: Bool = false) -> PixelBuffer? {
         switch canvas.selection {
         case .none:
             return nil
-        case .floating(let floating):
+        case .floating(let floating) where !merged:
             return floating.rendered(using: context.resampling)
+        case .floating:
+            guard let outline = canvas.selection.outline else { return nil }
+            return crop(canvas.flattened(transparentKey: context.transparentKey), to: outline)
         case .marquee(let mask):
-            let bounds = mask.bounds
-            let result = PixelBuffer(width: bounds.width, height: bounds.height)
-            let layer = canvas.activeLayer
-            for y in bounds.minY..<bounds.maxY {
-                let source = layer.buffer.row(y)
-                let destination = result.row(y - bounds.minY)
-                for x in bounds.minX..<bounds.maxX where mask[x, y] > 0 {
-                    destination[x - bounds.minX] = source[x]
-                }
-            }
-            return result
+            return crop(merged ? canvas.flattened() : canvas.activeLayer.buffer, to: mask)
         }
+    }
+
+    /// The pixels of `image` under `mask`, cropped to the mask's bounds; unselected pixels are transparent.
+    private static func crop(_ image: PixelBuffer, to mask: SelectionMask) -> PixelBuffer {
+        let bounds = mask.bounds.intersection(image.bounds)
+        let result = PixelBuffer(width: max(1, bounds.width), height: max(1, bounds.height))
+        guard !bounds.isEmpty else { return result }
+        for y in bounds.minY..<bounds.maxY {
+            let source = image.row(y)
+            let destination = result.row(y - bounds.minY)
+            for x in bounds.minX..<bounds.maxX where mask[x, y] > 0 {
+                destination[x - bounds.minX] = source[x]
+            }
+        }
+        return result
     }
 
     /// Adds `image` as a floating selection on the active layer with its top-left at `origin`.

@@ -10,6 +10,7 @@ enum MainMenu {
         main.addItem(submenu(editMenu()))
         main.addItem(submenu(viewMenu()))
         main.addItem(submenu(imageMenu()))
+        main.addItem(submenu(layerMenu()))
         main.addItem(submenu(adjustmentsMenu()))
         main.addItem(submenu(effectsMenu()))
 
@@ -44,6 +45,17 @@ enum MainMenu {
         "redo:": "Redo the change you just undid.",
         "cut:": "Copy the selection to the clipboard, then clear it.",
         "copy:": "Copy the selection (or the whole image) to the clipboard as a PNG.",
+        "copyMerged:": "Copy the selection as all visible layers show it together.",
+        "toggleLayers:": "Show or hide the Layers panel.",
+        "newLayer:": "Add a transparent layer above the active one.",
+        "duplicateLayer:": "Copy the active layer, with its settings, just above it.",
+        "deleteLayer:": "Delete the active layer. The only layer, or a locked one, can't be deleted.",
+        "mergeDown:": "Combine the active layer into the one below, keeping how they look.",
+        "mergeVisible:": "Combine every visible layer into one. Hidden layers stay.",
+        "flattenImage:": "Combine all visible layers into one and drop hidden layers.",
+        "toggleLayerVisibility:": "Hide or show the active layer.",
+        "toggleLayerLock:": "Lock the active layer against changes, or unlock it.",
+        "showLayerProperties:": "Rename the active layer and change its blend mode and opacity.",
         "paste:": "Paste an image as a selection you can move and resize.",
         "delete:": "Clear the selected pixels to Color 2 (or transparency).",
         "selectAll:": "Select the whole image.",
@@ -141,6 +153,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item("Cut", "cut:", "x"))
         menu.addItem(item("Copy", "copy:", "c"))
+        menu.addItem(item("Copy Merged", "copyMerged:", "c", [.command, .shift]))
         menu.addItem(item("Paste", "paste:", "v"))
         // The canvas handles the Delete key itself, so text fields keep their own Delete.
         menu.addItem(item("Delete", "delete:"))
@@ -160,6 +173,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item("Pixel Grid", "togglePixelGrid:", "'"))
         menu.addItem(item("Before/After", "toggleBeforeAfter:", "b", [.command, .option]))
+        menu.addItem(item("Layers", "toggleLayers:", "l"))
         menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", "toggleFullScreen:", "f", [.command, .control]))
         return menu
@@ -187,6 +201,22 @@ enum MainMenu {
             symmetry.addItem(modeItem)
         }
         menu.addItem(submenu(symmetry))
+        return menu
+    }
+
+    private static func layerMenu() -> NSMenu {
+        let menu = NSMenu(title: "Layer")
+        menu.addItem(item("New Layer", "newLayer:", "n", [.command, .shift]))
+        menu.addItem(item("Duplicate Layer", "duplicateLayer:", "j"))
+        menu.addItem(item("Delete Layer", "deleteLayer:", "\u{8}"))
+        menu.addItem(.separator())
+        menu.addItem(item("Merge Down", "mergeDown:", "e", [.command, .shift]))
+        menu.addItem(item("Merge Visible", "mergeVisible:", "e", [.command, .option, .shift]))
+        menu.addItem(item("Flatten", "flattenImage:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Hide Layer", "toggleLayerVisibility:"))
+        menu.addItem(item("Lock Layer", "toggleLayerLock:"))
+        menu.addItem(item("Layer Properties…", "showLayerProperties:"))
         return menu
     }
 

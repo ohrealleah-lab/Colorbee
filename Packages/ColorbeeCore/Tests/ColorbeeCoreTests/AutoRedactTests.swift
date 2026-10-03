@@ -104,7 +104,7 @@ struct AutoRedactRecognitionTests {
             let (cgImage, canvas) = try image(lines: [text])
             _ = cgImage
             let buffer = canvas.flattened()
-            return (0..<buffer.width).filter { x in (0..<buffer.height).contains { buffer[x, $0].r < 128 } }
+            return (0..<buffer.width).filter { x in (0..<buffer.height).contains { buffer[x, $0].r < 250 } }
         }
         let full = "Customer jordan@example.com says hi"
         let (cgImage, _) = try image(lines: [full])
@@ -116,6 +116,31 @@ struct AutoRedactRecognitionTests {
         #expect(email.rect.minX > customerEnd)
         #expect(email.rect.maxX <= saysStart)
         #expect(email.rect.maxX >= emailEnd)
+    }
+
+    /// Leah's report on the first fix: a key right after "key=" was dropped, and a card number followed by
+    /// a comma lost its last group. Every character of a match must stay covered.
+    @Test func secretsAgainstPunctuationStayFullyCovered() async throws {
+        func inkColumns(_ text: String) throws -> [Int] {
+            let (_, canvas) = try image(lines: [text])
+            let buffer = canvas.flattened()
+            return (0..<buffer.width).filter { x in (0..<buffer.height).contains { buffer[x, $0].r < 250 } }
+        }
+        let keyLine = "The config has key=sk_live_51Hx9TqL2vR8mZ3kP0aYwXc in it"
+        let (keyImage, _) = try image(lines: [keyLine])
+        let keyScan = try await TextScan.read(keyImage)
+        let key = try #require(keyScan.matches(for: RedactionPattern.builtIns).first { $0.text.hasPrefix("sk_live") })
+        let keyStart = try #require(try inkColumns("The config has key=").max())
+        let keyEnd = try #require(try inkColumns("The config has key=sk_live_51Hx9TqL2vR8mZ3kP0aYwXc").max())
+        #expect(key.rect.minX <= keyStart + 4)
+        #expect(key.rect.maxX > keyEnd)
+
+        let cardLine = "Card is 4242 4242 4242 4242, exp 09/28"
+        let (cardImage, _) = try image(lines: [cardLine])
+        let cardScan = try await TextScan.read(cardImage)
+        let card = try #require(cardScan.matches(for: RedactionPattern.builtIns).first { $0.patternName == "Card number" })
+        let cardEnd = try #require(try inkColumns("Card is 4242 4242 4242 4242").max())
+        #expect(card.rect.maxX > cardEnd)
     }
 
     @Test func offsetPlacesMatchesOnTheCanvas() async throws {

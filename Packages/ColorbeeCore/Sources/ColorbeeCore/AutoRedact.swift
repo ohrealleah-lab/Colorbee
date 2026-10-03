@@ -103,11 +103,14 @@ public final class TextScan: @unchecked Sendable {
     private let lines: [Line]
     private let imageSize: IntSize
     private let offset: IntPoint
+    /// The image in gray, one byte per pixel, for finding the gaps between words.
+    private let gray: [UInt8]
 
-    private init(lines: [Line], imageSize: IntSize, offset: IntPoint) {
+    private init(lines: [Line], imageSize: IntSize, offset: IntPoint, gray: [UInt8]) {
         self.lines = lines
         self.imageSize = imageSize
         self.offset = offset
+        self.gray = gray
     }
 
     /// The recognized lines of text, top to bottom.
@@ -127,7 +130,7 @@ public final class TextScan: @unchecked Sendable {
                 guard let candidate = observation.topCandidates(1).first else { return nil }
                 return Line(text: candidate, string: candidate.string)
             }
-            return TextScan(lines: lines, imageSize: IntSize(width: image.width, height: image.height), offset: offset)
+            return TextScan(lines: lines, imageSize: IntSize(width: image.width, height: image.height), offset: offset, gray: grayscale(image))
         }.value
     }
 
@@ -149,49 +152,91 @@ public final class TextScan: @unchecked Sendable {
         return results
     }
 
+    /// Where a match is in the image. It never shrinks below Vision's box for the match: for redaction,
+    /// covering a sliver of a neighboring letter is fine, but leaving part of a secret showing is not.
+    /// The padding around it reaches into a space between words only partway, so it doesn't touch the
+    /// next word; where there's no space (as in "key=sk_live…"), the full padding is kept.
     private func rect(for range: Range<String.Index>, in line: Line) -> IntRect? {
         guard let box = try? line.text.boundingBox(for: range)?.boundingBox else { return nil }
         // Vision's boxes are normalized with the origin at the bottom-left.
         let width = Double(imageSize.width), height = Double(imageSize.height)
         let minY = (1 - box.maxY) * height, maxY = (1 - box.minY) * height
         let padding = 2 + (maxY - minY) * 0.1
-        var minX = box.minX * width - padding, maxX = box.maxX * width + padding
-        // Vision's box for part of a line often spills into the letters beside it, and the padding adds
-        // more; never reach past the nearest visible character on either side (the spaces between still go).
-        if let before = neighbor(of: range, in: line, before: true), let edge = edge(of: before, in: line, leading: false) {
-            minX = max(minX, edge * width + 1)
+        let rawMinX = box.minX * width, rawMaxX = box.maxX * width
+        var minX = rawMinX - padding, maxX = rawMaxX + padding
+        let band = Int(minY.rounded(.down))..<Int(maxY.rounded(.up))
+        let lineHeight = maxY - minY
+        // Vision's box may spill a sliver past the space into the neighboring word. Ink narrower than
+        // half a line's height beyond a word space can't be the match's own first or last part
+        // ("+1", "4242" are wider), so the box may be trimmed back to the space there.
+        let sliver = lineHeight * 0.5
+        var floorMinX = rawMinX, ceilingMaxX = rawMaxX
+        if range.lowerBound > line.string.startIndex, line.string[line.string.index(before: range.lowerBound)].isWhitespace,
+           let space = wordSpace(near: rawMinX, band: band, lineHeight: lineHeight, endingAt: true) {
+            let edge = Double(space.upperBound) - min(padding, Double(space.count) / 2)
+            minX = max(minX, edge)
+            if Double(space.lowerBound) - rawMinX < sliver { floorMinX = max(rawMinX, edge) }
         }
-        if let after = neighbor(of: range, in: line, before: false), let edge = edge(of: after, in: line, leading: true) {
-            maxX = min(maxX, edge * width - 1)
+        if range.upperBound < line.string.endIndex, line.string[range.upperBound].isWhitespace,
+           let space = wordSpace(near: rawMaxX, band: band, lineHeight: lineHeight, endingAt: false) {
+            let edge = Double(space.lowerBound) + min(padding, Double(space.count) / 2)
+            maxX = min(maxX, edge)
+            if rawMaxX - Double(space.upperBound) < sliver { ceilingMaxX = min(rawMaxX, edge) }
         }
-        guard maxX > minX else { return nil }
+        // Otherwise never smaller than Vision's own box.
+        minX = min(minX, floorMinX)
+        maxX = max(maxX, ceilingMaxX)
         return IntRect(enclosingMinX: minX, minY: minY - padding, maxX: maxX, maxY: maxY + padding)
             .offsetBy(dx: offset.x, dy: offset.y)
     }
 
-    /// The closest non-space character before (or after) `range` on the line.
-    private func neighbor(of range: Range<String.Index>, in line: Line, before: Bool) -> Range<String.Index>? {
-        let string = line.string
-        if before {
-            var index = range.lowerBound
-            while index > string.startIndex {
-                index = string.index(before: index)
-                if !string[index].isWhitespace { return index..<string.index(after: index) }
+    /// The run of empty columns (a space between words) nearest `x` within the text's rows: the one
+    /// whose right end is nearest for a gap before the match, or whose left end is nearest after it.
+    private func wordSpace(near x: Double, band: Range<Int>, lineHeight: Double, endingAt: Bool) -> Range<Int>? {
+        // Only the upper part of the line: descenders (the hook of a "j") curl under the space before them.
+        let upper = band.lowerBound + Int((Double(band.count) * 0.7).rounded())
+        let rows = max(0, band.lowerBound)..<min(imageSize.height, upper)
+        guard !rows.isEmpty else { return nil }
+        let reach = Int(lineHeight.rounded(.up))
+        let columns = max(0, Int(x) - reach)..<min(imageSize.width, Int(x) + reach)
+        func empty(_ column: Int) -> Bool {
+            var low: UInt8 = 255, high: UInt8 = 0
+            for row in rows {
+                let value = gray[row * imageSize.width + column]
+                low = min(low, value)
+                high = max(high, value)
             }
-        } else {
-            var index = range.upperBound
-            while index < string.endIndex {
-                if !string[index].isWhitespace { return index..<string.index(after: index) }
-                index = string.index(after: index)
+            return high - low <= 24
+        }
+        // A word space is wider than the gaps between letters.
+        let minimum = max(2, Int((lineHeight * 0.15).rounded()))
+        var runs: [Range<Int>] = []
+        var start: Int?
+        for column in columns {
+            if empty(column) {
+                if start == nil { start = column }
+            } else if let begin = start {
+                if column - begin >= minimum { runs.append(begin..<column) }
+                start = nil
             }
         }
-        return nil
+        if let begin = start, columns.upperBound - begin >= minimum { runs.append(begin..<columns.upperBound) }
+        return runs.min { a, b in
+            let edgeA = Double(endingAt ? a.upperBound : a.lowerBound), edgeB = Double(endingAt ? b.upperBound : b.lowerBound)
+            return abs(edgeA - x) < abs(edgeB - x)
+        }
     }
 
-    /// A character's left or right edge, normalized like Vision's boxes.
-    private func edge(of character: Range<String.Index>, in line: Line, leading: Bool) -> Double? {
-        guard let box = try? line.text.boundingBox(for: character)?.boundingBox else { return nil }
-        return leading ? box.minX : box.maxX
+    private static func grayscale(_ image: CGImage) -> [UInt8] {
+        var pixels = [UInt8](repeating: 255, count: image.width * image.height)
+        pixels.withUnsafeMutableBytes { bytes in
+            guard let context = CGContext(
+                data: bytes.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8,
+                bytesPerRow: image.width, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue
+            ) else { return }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        return pixels
     }
 }
 

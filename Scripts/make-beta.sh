@@ -54,4 +54,10 @@ cp -R "$app" "$out/Colorbee $version/"
 cp "Docs/Beta/Start Here.txt" "$out/Colorbee $version/"
 ditto -c -k --keepParent "$out/Colorbee $version" "$out/Colorbee-$version-$build.zip"
 rm "$out/notarize.zip"
+# Only the zip is for testers. Keep these copies from becoming the Colorbee that opens images on this
+# Mac when Leah double-clicks one; the everyday build should.
+rm -rf "$out/Colorbee $version"
+lsregister=/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
+"$lsregister" -u "$PWD/$app" 2>/dev/null || true
+[[ -d build/Build/Products/Release/Colorbee.app ]] && "$lsregister" -f "$PWD/build/Build/Products/Release/Colorbee.app"
 echo "Ready: $out/Colorbee-$version-$build.zip"

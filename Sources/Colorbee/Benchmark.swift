@@ -25,7 +25,9 @@ enum Benchmark {
         hasStarted = true
         Task {
             try? await Task.sleep(for: .milliseconds(500))
+            Diagnostics.report("Memory at idle: \(Diagnostics.megabytes(Diagnostics.physicalFootprint()))")
             await measureSave(window: window, editor: editor)
+            Diagnostics.report("Memory after saving: \(Diagnostics.megabytes(Diagnostics.physicalFootprint()))")
             exit(0)
         }
     }

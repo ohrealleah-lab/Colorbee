@@ -130,9 +130,12 @@ private final class TileCoverage {
 
 extension Pixel {
     /// Whether every channel, including alpha, is within `tolerance` of `other`.
+    @inlinable @inline(__always)
     public func matches(_ other: Pixel, tolerance: UInt8) -> Bool {
-        func close(_ a: UInt8, _ b: UInt8) -> Bool { (a > b ? a - b : b - a) <= tolerance }
-        return close(r, other.r) && close(g, other.g) && close(b, other.b) && close(a, other.a)
+        // All four channels at once, without branches, since fill and the magic wand test every pixel.
+        let lhs = SIMD4(b, g, r, a), rhs = SIMD4(other.b, other.g, other.r, other.a)
+        let difference = pointwiseMax(lhs, rhs) &- pointwiseMin(lhs, rhs)
+        return difference.max() <= tolerance
     }
 }
 

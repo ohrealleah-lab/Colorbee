@@ -328,3 +328,77 @@ struct AdjustmentLayerTests {
         #expect(canvas.layers[0].buffer[2, 2] == .black)
     }
 }
+
+struct UndoOnLayerTests {
+    private let red = Pixel(r: 255, g: 0, b: 0)
+    private let blue = Pixel(r: 0, g: 0, b: 255)
+    private let context = SelectionContext(color2: .white)
+
+    private func makeCanvas() -> (Canvas, History) {
+        let canvas = Canvas(size: IntSize(width: 8, height: 8), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max)
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        return (canvas, history)
+    }
+
+    private func paint(_ color: Pixel, layer index: Int, canvas: Canvas, history: History, area: IntRect = IntRect(x: 0, y: 0, width: 4, height: 4)) {
+        let layer = canvas.layers[index]
+        let edit = history.beginEdit("Paint", on: canvas)
+        edit.willModify(area, in: layer)
+        layer.buffer.fill(color, in: area)
+        history.commit(edit)
+    }
+
+    @Test func takesBackOnlyTheActiveLayersLastChange() {
+        let (canvas, history) = makeCanvas()
+        paint(red, layer: 0, canvas: canvas, history: history)
+        paint(blue, layer: 1, canvas: canvas, history: history)
+        canvas.activeLayerIndex = 0
+        #expect(history.undoOnLayerActionName(canvas.layers[0].id, canvas: canvas) == "Paint")
+        #expect(history.undoOnLayer(canvas.layers[0].id, canvas: canvas))
+        #expect(canvas.layers[0].buffer[1, 1] == .white)
+        #expect(canvas.layers[1].buffer[1, 1] == blue)
+        // It's a step of its own: ⌘Z brings the change back.
+        #expect(history.undoActionName == "Undo Paint")
+        history.undo(on: canvas)
+        #expect(canvas.layers[0].buffer[1, 1] == red)
+        #expect(canvas.layers[1].buffer[1, 1] == blue)
+    }
+
+    @Test func isUnavailableWhenTheChangeAlsoTouchedAnotherLayer() {
+        let (canvas, history) = makeCanvas()
+        let edit = history.beginEdit("Both", on: canvas)
+        for layer in canvas.layers {
+            edit.willModify(IntRect(x: 0, y: 0, width: 2, height: 2), in: layer)
+            layer.buffer.fill(red, in: IntRect(x: 0, y: 0, width: 2, height: 2))
+        }
+        history.commit(edit)
+        #expect(history.undoOnLayerActionName(canvas.layers[0].id, canvas: canvas) == nil)
+        #expect(!history.undoOnLayer(canvas.layers[0].id, canvas: canvas))
+    }
+
+    @Test func isUnavailableAcrossAWholeCanvasChange() {
+        let (canvas, history) = makeCanvas()
+        paint(red, layer: 0, canvas: canvas, history: history)
+        ImageActions.crop(to: IntRect(x: 0, y: 0, width: 6, height: 6), canvas: canvas, history: history, context: context)
+        #expect(history.undoOnLayerActionName(canvas.layers[0].id, canvas: canvas) == nil)
+    }
+
+    @Test func undoesASettingChangeOnTheLayerAlone() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.update("Layer Opacity", layerAt: 0, canvas: canvas, history: history) { $0.opacity = 0.3 }
+        paint(blue, layer: 1, canvas: canvas, history: history)
+        #expect(history.undoOnLayer(canvas.layers[0].id, canvas: canvas))
+        #expect(canvas.layers[0].opacity == 1)
+        #expect(canvas.layers[1].buffer[1, 1] == blue)
+        history.undo(on: canvas)
+        #expect(canvas.layers[0].opacity == 0.3)
+    }
+
+    @Test func aMergeThatInvolvedTheLayerBlocksIt() {
+        let (canvas, history) = makeCanvas()
+        paint(red, layer: 1, canvas: canvas, history: history)
+        LayerActions.mergeDown(canvas: canvas, history: history, context: context)
+        #expect(history.undoOnLayerActionName(canvas.layers[0].id, canvas: canvas) == nil)
+    }
+}

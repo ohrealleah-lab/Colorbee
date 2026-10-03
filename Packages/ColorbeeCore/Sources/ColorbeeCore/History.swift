@@ -326,6 +326,79 @@ public final class History {
         undoStack.removeFirst(index + 1)
     }
 
+    // MARK: Undo on Active Layer (FR-8.3)
+
+    /// The step Undo on Active Layer would take back for `layer`, or nil if it isn't available.
+    public func undoOnLayerActionName(_ layer: LayerID, canvas: Canvas) -> String? {
+        candidate(for: layer, canvas: canvas).map { undoStack[$0].name }
+    }
+
+    /// Takes back the most recent step that changed `layer`, leaving later steps on other layers in place.
+    /// It becomes a new step itself, so ⌘Z can bring the change back.
+    @discardableResult
+    public func undoOnLayer(_ layer: LayerID, canvas: Canvas) -> Bool {
+        guard let index = candidate(for: layer, canvas: canvas) else { return false }
+        let entry = undoStack[index]
+        guard load(entry) else { return false }
+        let reversal = HistoryEntry(name: "Undo \(entry.name)", changes: [], selectionBefore: canvas.selection, selectionAfter: canvas.selection)
+        if let state = entry.layers, let record = state.records.first(where: { $0.layer.id == layer }), let target = canvas.layer(withID: layer) {
+            // Put back only this layer's settings and pixels; the step before keeps the rest of the stack as it is now.
+            let current = canvas.layerStackState
+            target.name = record.name
+            target.isVisible = record.isVisible
+            target.opacity = record.opacity
+            target.blendMode = record.blendMode
+            target.isLocked = record.isLocked
+            target.adjustment = record.adjustment
+            target.buffer = record.buffer
+            reversal.layers = current
+            reversal.layerBytes = Self.bytesOnlyIn(current, comparedWith: canvas.layerStackState)
+        } else {
+            // Swapping writes the old pixels back and leaves the newer ones in the entry: the reversal's undo.
+            _ = swapPixels(entry, on: canvas)
+            reversal.changes = entry.changes
+        }
+        byteCount -= entry.byteCount
+        undoStack.remove(at: index)
+        discardRedo()
+        undoStack.append(reversal)
+        byteCount += reversal.byteCount
+        revision += 1
+        spillToBudget()
+        return true
+    }
+
+    /// The newest undo step that changed `layer`, if it changed nothing else.
+    private func candidate(for layer: LayerID, canvas: Canvas) -> Int? {
+        let now = canvas.layerStackState
+        guard let currentRecord = now.records.first(where: { $0.layer.id == layer }) else { return nil }
+        for index in undoStack.indices.reversed() {
+            let entry = undoStack[index]
+            // A whole-canvas change replaced every layer's pixels; nothing older can be pulled out alone.
+            if entry.geometry != nil { return nil }
+            if let before = entry.layers {
+                // Nothing newer touched this layer, so its record now is what this step left it as.
+                guard let record = before.records.first(where: { $0.layer.id == layer }) else { return nil }
+                let changedThisLayer = !(record.name == currentRecord.name && record.isVisible == currentRecord.isVisible
+                    && record.opacity == currentRecord.opacity && record.blendMode == currentRecord.blendMode
+                    && record.isLocked == currentRecord.isLocked && record.adjustment == currentRecord.adjustment
+                    && record.buffer === currentRecord.buffer)
+                guard changedThisLayer else { continue }
+                // Only a step that changed just this layer, and kept the same layers in the same order, stands alone.
+                let others = zip(before.records, now.records).allSatisfy { a, b in
+                    a.layer === b.layer && (a.layer.id == layer || (a.name == b.name && a.isVisible == b.isVisible
+                        && a.opacity == b.opacity && a.blendMode == b.blendMode && a.isLocked == b.isLocked
+                        && a.adjustment == b.adjustment && a.buffer === b.buffer))
+                }
+                return before.records.count == now.records.count && others ? index : nil
+            }
+            let touched = entry.changes.contains { $0.key.layer == layer }
+            guard touched else { continue }
+            return entry.changes.allSatisfy { $0.key.layer == layer } ? index : nil
+        }
+        return nil
+    }
+
     // MARK: Spilling
 
     private func spillToBudget() {

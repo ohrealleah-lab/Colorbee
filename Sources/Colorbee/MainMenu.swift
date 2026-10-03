@@ -43,6 +43,8 @@ enum MainMenu {
         "exportPreset:": "Save a PNG at this exact size; the aspect ratio is kept and nothing is enlarged.",
         "undo:": "Undo the last change.",
         "redo:": "Redo the change you just undid.",
+        "undoOnActiveLayer:": "Undo the active layer's last change only, leaving later changes on other layers in place.",
+        "revertLayer:": "Put the active layer's pixels back as they were at the last save.",
         "cut:": "Copy the selection to the clipboard, then clear it.",
         "copy:": "Copy the selection (or the whole image) to the clipboard as a PNG.",
         "copyMerged:": "Copy the selection as all visible layers show it together.",
@@ -153,6 +155,7 @@ enum MainMenu {
         let menu = NSMenu(title: "Edit")
         menu.addItem(item("Undo", "undo:", "z"))
         menu.addItem(item("Redo", "redo:", "z", [.command, .shift]))
+        menu.addItem(item("Undo on Active Layer", "undoOnActiveLayer:", "z", [.command, .option]))
         menu.addItem(.separator())
         menu.addItem(item("Cut", "cut:", "x"))
         menu.addItem(item("Copy", "copy:", "c"))
@@ -220,6 +223,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(submenu(adjustmentLayerMenu()))
         menu.addItem(item("Apply Adjustment", "applyAdjustment:"))
+        menu.addItem(item("Revert Layer", "revertLayer:"))
         menu.addItem(.separator())
         menu.addItem(item("Hide Layer", "toggleLayerVisibility:"))
         menu.addItem(item("Lock Layer", "toggleLayerLock:"))

@@ -411,6 +411,58 @@ final class Editor {
         canvasSize = canvas.size
         asOpened = canvas.flattened()
         history = History(byteBudget: Editor.historyByteBudget)
+        rememberLayersAsSaved(sharingSingleLayerWith: asOpened)
+    }
+
+    /// Each pixel layer as of the last explicit save (or as opened), for Revert Layer (FR-8.3).
+    @ObservationIgnored private var savedLayers: [LayerID: PixelBuffer] = [:]
+    @ObservationIgnored private var savedSize: IntSize = .init(width: 0, height: 0)
+
+    /// A lone opaque layer looks exactly like the flattened image, so it can share that copy.
+    private func rememberLayersAsSaved(sharingSingleLayerWith flattened: PixelBuffer? = nil) {
+        savedSize = canvas.size
+        let pixelLayers = canvas.layers.filter { $0.adjustment == nil }
+        if let flattened, canvas.layers.count == 1, let only = pixelLayers.first, only.opacity >= 1, only.isVisible {
+            savedLayers = [only.id: flattened]
+        } else {
+            savedLayers = Dictionary(uniqueKeysWithValues: pixelLayers.map { ($0.id, $0.buffer.copy()) })
+        }
+    }
+
+    var canRevertLayer: Bool {
+        let layer = canvas.activeLayer
+        return layer.adjustment == nil && !layer.isLocked && canvas.size == savedSize && savedLayers[layer.id] != nil
+    }
+
+    /// Revert Layer: the active layer's pixels go back to how they were at the last save, as one step.
+    func revertLayer() {
+        guard canRevertLayer, let saved = savedLayers[canvas.activeLayer.id] else {
+            onRefused()
+            return
+        }
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        let layer = canvas.activeLayer
+        let edit = history.beginEdit("Revert Layer", on: canvas)
+        edit.willModify(layer.buffer.bounds, in: layer)
+        layer.buffer.setPixels(saved.pixels(in: saved.bounds), in: layer.buffer.bounds)
+        recordingChanges { history.commit(edit) }
+        onRender()
+    }
+
+    /// The step Undo on Active Layer would take back, for the menu; nil when it isn't available.
+    var undoOnActiveLayerName: String? {
+        history.undoOnLayerActionName(canvas.activeLayer.id, canvas: canvas)
+    }
+
+    /// Undo on Active Layer (⌘⌥Z, FR-8.3): takes back the active layer's last change only.
+    func undoOnActiveLayer() {
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        var done = false
+        recordingChanges { done = history.undoOnLayer(canvas.activeLayer.id, canvas: canvas) }
+        if !done { onRefused() }
+        selectionDidChange()
     }
 
     private static var historyByteBudget: Int {
@@ -1973,6 +2025,7 @@ final class Editor {
     /// Records the image as of an explicit save, for "Last Saved".
     func markSaved() {
         lastSaved = canvas.flattened(transparentKey: selectionContext.transparentKey)
+        rememberLayersAsSaved()
     }
 
     // MARK: Files

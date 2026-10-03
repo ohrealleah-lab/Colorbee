@@ -117,6 +117,8 @@ final class DocumentWindow: NSWindow {
     @objc func toggleLayers(_ sender: Any?) { editor?.toggleLayersPanel() }
     @objc func toggleAdjustmentsPanel(_ sender: Any?) { editor?.toggleAdjustmentsPanel() }
     @objc func applyAdjustment(_ sender: Any?) { editor?.applyAdjustmentLayer() }
+    @objc func undoOnActiveLayer(_ sender: Any?) { editor?.undoOnActiveLayer() }
+    @objc func revertLayer(_ sender: Any?) { editor?.revertLayer() }
 
     @objc func newAdjustmentLayer(_ sender: Any?) {
         guard let tag = (sender as? NSMenuItem)?.tag, AdjustmentChoice.allCases.indices.contains(tag) else { return }
@@ -209,6 +211,12 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(applyAdjustment(_:)):
             return LayerActions.canApplyAdjustment(editor.canvas)
+        case #selector(undoOnActiveLayer(_:)):
+            let name = editor.undoOnActiveLayerName
+            menuItem.title = name.map { "Undo \($0) on Active Layer" } ?? "Undo on Active Layer"
+            return name != nil
+        case #selector(revertLayer(_:)):
+            return editor.canRevertLayer
         case #selector(newAdjustmentLayer(_:)):
             return true
         case #selector(deleteLayer(_:)):

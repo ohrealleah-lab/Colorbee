@@ -494,7 +494,7 @@ final class Editor {
         endStroke()
         cancelOrEndSelectionDrag()
         if activeEffect != nil { cancelEffect() }
-        finishOpacity()
+        finishLayerSettings()
     }
 
     private func placeFloatingSelection() {
@@ -1570,11 +1570,34 @@ final class Editor {
 
     /// Bumped whenever the layers or their pixels may have changed, so the Layers panel refreshes.
     private(set) var layersRevision = 0
-    /// Whether the right sidebar (with the Layers panel) is showing (FR-1.3, FR-8.1).
+    /// Whether the right sidebar is showing (FR-1.3, FR-8.1), and which of its panels.
     var isSidebarOpen = false
+    var showsLayersPanel = true
+    var showsAdjustmentsPanel = true
     /// Called when a command can't be carried out, such as painting on a locked layer; the view beeps.
     @ObservationIgnored var onRefused: () -> Void = {}
-    @ObservationIgnored private var opacityEdit: Edit?
+    @ObservationIgnored private var layerSettingsEdit: Edit?
+
+    /// ⌘L and the toolbar's Layers button: show the Layers panel (opening the sidebar), or hide it.
+    func toggleLayersPanel() {
+        if isSidebarOpen && showsLayersPanel {
+            showsLayersPanel = false
+            if !showsAdjustmentsPanel { isSidebarOpen = false }
+        } else {
+            showsLayersPanel = true
+            isSidebarOpen = true
+        }
+    }
+
+    func toggleAdjustmentsPanel() {
+        if isSidebarOpen && showsAdjustmentsPanel {
+            showsAdjustmentsPanel = false
+            if !showsLayersPanel { isSidebarOpen = false }
+        } else {
+            showsAdjustmentsPanel = true
+            isSidebarOpen = true
+        }
+    }
 
     var layers: [Layer] {
         _ = layersRevision
@@ -1586,9 +1609,10 @@ final class Editor {
         return canvas.activeLayerIndex
     }
 
+    /// Whether the active layer refuses pixel changes: it's locked, or it's an adjustment layer with no pixels.
     var activeLayerIsLocked: Bool {
         _ = layersRevision
-        return canvas.activeLayer.isLocked
+        return canvas.activeLayer.isLocked || canvas.activeLayer.adjustment != nil
     }
 
     /// Makes another layer active. Moved pixels are placed on their own layer first; the outline stays.
@@ -1649,23 +1673,54 @@ final class Editor {
         layerSetting("Blend Mode", at: canvas.activeLayerIndex) { $0.blendMode = mode }
     }
 
-    /// Opacity while its slider is dragged: shown live, recorded as one step by `finishOpacity()`.
+    /// Opacity while its slider is dragged: shown live, recorded as one step by `finishLayerSettings()`.
     func previewOpacity(_ opacity: Double) {
-        if opacityEdit == nil {
+        previewLayerSettings("Layer Opacity") { $0.opacity = min(1, max(0, opacity)) }
+    }
+
+    /// An adjustment layer's settings while a slider is dragged (FR-8.4), likewise one step.
+    func previewAdjustment(_ adjustment: Effect) {
+        guard canvas.activeLayer.adjustment != nil else { return }
+        previewLayerSettings("Adjustment Settings") { $0.adjustment = adjustment }
+    }
+
+    func finishLayerSettings() {
+        guard let edit = layerSettingsEdit else { return }
+        layerSettingsEdit = nil
+        recordingChanges { history.commit(edit) }
+    }
+
+    private func previewLayerSettings(_ name: String, _ change: (Layer) -> Void) {
+        if layerSettingsEdit == nil {
             finishInteractions()
-            let edit = history.beginEdit("Layer Opacity", on: canvas)
+            let edit = history.beginEdit(name, on: canvas)
             edit.willChangeLayers()
-            opacityEdit = edit
+            layerSettingsEdit = edit
         }
-        canvas.activeLayer.opacity = min(1, max(0, opacity))
+        change(canvas.activeLayer)
         layersRevision += 1
         onRender()
     }
 
-    func finishOpacity() {
-        guard let edit = opacityEdit else { return }
-        opacityEdit = nil
-        recordingChanges { history.commit(edit) }
+    /// Adds an adjustment layer above the active layer and shows its settings.
+    func addAdjustmentLayer(_ adjustment: Effect, named name: String) {
+        layerCommand { LayerActions.addAdjustment(adjustment, named: name, canvas: canvas, history: history, context: selectionContext) }
+        isSidebarOpen = true
+        showsAdjustmentsPanel = true
+    }
+
+    func applyAdjustmentLayer() {
+        layerCommand { LayerActions.applyAdjustment(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    /// Sets an adjustment layer's settings in one step (Reset).
+    func setAdjustment(_ adjustment: Effect) {
+        layerSetting("Adjustment Settings", at: canvas.activeLayerIndex) { $0.adjustment = adjustment }
+    }
+
+    var activeAdjustment: Effect? {
+        _ = layersRevision
+        return canvas.activeLayer.adjustment
     }
 
     private func layerSetting(_ name: String, at index: Int, _ body: (Layer) -> Void) {
@@ -1683,9 +1738,10 @@ final class Editor {
         selectionDidChange()
     }
 
-    /// Pixel-changing commands call this first. A locked layer refuses them (FR-8.2).
+    /// Pixel-changing commands call this first. A locked layer refuses them (FR-8.2), and so does an
+    /// adjustment layer, which has no pixels to change.
     private func refusedBecauseLocked() -> Bool {
-        guard canvas.activeLayer.isLocked else { return false }
+        guard canvas.activeLayer.isLocked || canvas.activeLayer.adjustment != nil else { return false }
         onRefused()
         return true
     }

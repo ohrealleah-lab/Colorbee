@@ -54,8 +54,9 @@ private struct PaintingGroups: ToolbarContent {
         }
         // Pushes the groups up against the title; the Layers button sits at the far right.
         ToolbarSpacer(.flexible)
-        ToolbarItem {
+        ToolbarItemGroup {
             LayersButton(editor: editor)
+            SidebarButton(editor: editor)
         }
     }
 }
@@ -291,7 +292,7 @@ private struct LayersButton: View {
 
     var body: some View {
         let count = editor.layers.count
-        Button { editor.isSidebarOpen.toggle() } label: {
+        Button { editor.toggleLayersPanel() } label: {
             HStack(spacing: 4) {
                 Image(systemName: "square.3.layers.3d").font(.system(size: 15))
                 if count > 1 {
@@ -305,12 +306,28 @@ private struct LayersButton: View {
             }
             .padding(.horizontal, 8)
             .frame(height: 28)
-            .foregroundStyle(editor.isSidebarOpen ? Color.accentColor : Color.primary)
-            .background(editor.isSidebarOpen ? Theme.accentSoft : .clear, in: Capsule())
+            .foregroundStyle(layersShowing ? Color.accentColor : Color.primary)
+            .background(layersShowing ? Theme.accentSoft : .clear, in: Capsule())
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .help("Layers (⌘L)")
         .accessibilityLabel("Layers")
+    }
+
+    private var layersShowing: Bool { editor.isSidebarOpen && editor.showsLayersPanel }
+}
+
+/// Shows or hides the whole sidebar.
+private struct SidebarButton: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        Button { editor.isSidebarOpen.toggle() } label: {
+            ToolbarGlyph(symbol: "sidebar.right", selected: editor.isSidebarOpen)
+        }
+        .buttonStyle(.plain)
+        .help("Sidebar")
+        .accessibilityLabel("Sidebar")
     }
 }

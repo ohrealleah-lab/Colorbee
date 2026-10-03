@@ -47,6 +47,9 @@ enum MainMenu {
         "copy:": "Copy the selection (or the whole image) to the clipboard as a PNG.",
         "copyMerged:": "Copy the selection as all visible layers show it together.",
         "toggleLayers:": "Show or hide the Layers panel.",
+        "toggleAdjustmentsPanel:": "Show or hide the Adjustments panel, where an adjustment layer's settings live.",
+        "newAdjustmentLayer:": "Add an adjustment layer: it changes how the layers below look, without changing their pixels.",
+        "applyAdjustment:": "Turn the active adjustment layer into pixels on the layer below.",
         "newLayer:": "Add a transparent layer above the active one.",
         "duplicateLayer:": "Copy the active layer, with its settings, just above it.",
         "deleteLayer:": "Delete the active layer. The only layer, or a locked one, can't be deleted.",
@@ -174,6 +177,7 @@ enum MainMenu {
         menu.addItem(item("Pixel Grid", "togglePixelGrid:", "'"))
         menu.addItem(item("Before/After", "toggleBeforeAfter:", "b", [.command, .option]))
         menu.addItem(item("Layers", "toggleLayers:", "l"))
+        menu.addItem(item("Adjustments Panel", "toggleAdjustmentsPanel:"))
         menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", "toggleFullScreen:", "f", [.command, .control]))
         return menu
@@ -214,9 +218,23 @@ enum MainMenu {
         menu.addItem(item("Merge Visible", "mergeVisible:", "e", [.command, .option, .shift]))
         menu.addItem(item("Flatten", "flattenImage:"))
         menu.addItem(.separator())
+        menu.addItem(submenu(adjustmentLayerMenu()))
+        menu.addItem(item("Apply Adjustment", "applyAdjustment:"))
+        menu.addItem(.separator())
         menu.addItem(item("Hide Layer", "toggleLayerVisibility:"))
         menu.addItem(item("Lock Layer", "toggleLayerLock:"))
         menu.addItem(item("Layer Properties…", "showLayerProperties:"))
+        return menu
+    }
+
+    /// One item per kind of adjustment layer; the tag is its position in `AdjustmentChoice.allCases`.
+    private static func adjustmentLayerMenu() -> NSMenu {
+        let menu = NSMenu(title: "New Adjustment Layer")
+        for (index, choice) in AdjustmentChoice.allCases.enumerated() {
+            let choiceItem = item(choice.title, "newAdjustmentLayer:")
+            choiceItem.tag = index
+            menu.addItem(choiceItem)
+        }
         return menu
     }
 
@@ -226,6 +244,9 @@ enum MainMenu {
         menu.addItem(item("Brightness/Contrast…", "showBrightnessContrast:"))
         menu.addItem(item("Hue/Saturation…", "showHueSaturation:"))
         menu.addItem(item("Desaturate", "desaturate:", "u", [.command, .shift]))
+        menu.addItem(.separator())
+        // Each adjustment also comes as a layer that stays editable (FR-9.1).
+        menu.addItem(submenu(adjustmentLayerMenu()))
         return menu
     }
 

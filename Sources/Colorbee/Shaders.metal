@@ -13,6 +13,8 @@ struct QuadUniforms {
     float antsPhase;
     float pixelSize;      // drawable pixels per image pixel
     float blendMode;      // BlendMode.rawValue
+    float4 adjustParams;  // the adjustment's settings (see Renderer.adjustmentUniforms)
+    float adjustKind;     // 0 none, 1 invert, 2 desaturate, 3 brightness/contrast, 4 hue/saturation, 5 blur, 6 sharpen
 };
 
 struct QuadOut {
@@ -182,4 +184,84 @@ fragment float4 composite_fragment(QuadOut in [[stage_in]],
                                    texture2d<float> layers [[texture(0)]],
                                    sampler layerSampler [[sampler(0)]]) {
     return layers.sample(layerSampler, in.uv);
+}
+
+// MARK: Adjustment layers. Must match Effect.pointwise and Compositing.adjust in ColorbeeCore.
+
+static float3 hueSaturation(float3 c, float shift, float saturationChange, float lightnessChange) {
+    float high = max(c.r, max(c.g, c.b)), low = min(c.r, min(c.g, c.b));
+    float lightness = (high + low) / 2, chroma = high - low;
+    float hue = 0, saturation = 0;
+    if (chroma > 0) {
+        saturation = chroma / (1 - abs(2 * lightness - 1));
+        if (high == c.r) hue = 60 * fmod((c.g - c.b) / chroma, 6.0);
+        else if (high == c.g) hue = 60 * ((c.b - c.r) / chroma + 2);
+        else hue = 60 * ((c.r - c.g) / chroma + 4);
+        if (hue < 0) hue += 360;
+    }
+    hue = fmod(hue + shift, 360.0);
+    if (hue < 0) hue += 360;
+    float s = saturationChange / 100, l = lightnessChange / 100;
+    saturation = s >= 0 ? saturation + (1 - saturation) * s : saturation * (1 + s);
+    lightness = l >= 0 ? lightness + (1 - lightness) * l : lightness * (1 + l);
+    float outChroma = (1 - abs(2 * lightness - 1)) * saturation;
+    float section = hue / 60;
+    float second = outChroma * (1 - abs(fmod(section, 2.0) - 1));
+    float3 rgb = section < 1 ? float3(outChroma, second, 0)
+               : section < 2 ? float3(second, outChroma, 0)
+               : section < 3 ? float3(0, outChroma, second)
+               : section < 4 ? float3(0, second, outChroma)
+               : section < 5 ? float3(second, 0, outChroma)
+               : float3(outChroma, 0, second);
+    return clamp(rgb + (lightness - outChroma / 2), 0.0, 1.0);
+}
+
+static float3 pointAdjustment(int kind, float4 p, float3 c) {
+    switch (kind) {
+    case 1: return 1 - c;
+    case 2: return float3(dot(c, float3(0.2126, 0.7152, 0.0722)));
+    case 3: return clamp(((c * 255 - 128) * (1 + p.y / 100) + 128 + p.x * 2.55) / 255, 0.0, 1.0);
+    case 4: return hueSaturation(c, p.x, p.y, p.z);
+    default: return c;
+    }
+}
+
+// The adjusted color mixed by the blend mode and faded in by opacity, as Compositing.adjust does.
+static float4 fadeIn(float4 backdrop, float3 adjusted, float adjustedAlpha, constant QuadUniforms &u) {
+    int mode = int(u.blendMode + 0.5);
+    float3 color = adjusted;
+    if (mode != 0 && backdrop.a > 0) color = blendColor(mode, backdrop.rgb / backdrop.a, adjusted);
+    float4 goal = float4(color * adjustedAlpha, adjustedAlpha);
+    return backdrop + (goal - backdrop) * u.opacity;
+}
+
+// Invert, Desaturate, Brightness/Contrast and Hue/Saturation: each pixel on its own.
+fragment float4 adjust_point_fragment(QuadOut in [[stage_in]],
+                                      constant QuadUniforms &u [[buffer(0)]],
+                                      float4 backdrop [[color(0)]]) {
+    if (backdrop.a <= 0) return backdrop;
+    float3 straight = backdrop.rgb / backdrop.a;
+    return fadeIn(backdrop, pointAdjustment(int(u.adjustKind + 0.5), u.adjustParams, straight), backdrop.a, u);
+}
+
+// Blur and Sharpen read a blurred copy of the layers beneath, made on the GPU. Dividing by the blurred
+// canvas coverage keeps the image's edges from fading into the transparent area around it.
+fragment float4 adjust_blur_fragment(QuadOut in [[stage_in]],
+                                     texture2d<float> blurred [[texture(0)]],
+                                     texture2d<float> coverage [[texture(1)]],
+                                     constant QuadUniforms &u [[buffer(0)]],
+                                     float4 backdrop [[color(0)]]) {
+    uint2 pixel = uint2(in.position.xy);
+    float4 soft = blurred.read(pixel);
+    float weight = coverage.read(pixel).r;
+    if (weight > 0.001) soft /= weight;
+    if (int(u.adjustKind + 0.5) == 5) {
+        if (soft.a <= 0) return backdrop + (float4(0) - backdrop) * u.opacity;
+        return fadeIn(backdrop, clamp(soft.rgb / soft.a, 0.0, 1.0), min(soft.a, 1.0), u);
+    }
+    if (backdrop.a <= 0) return backdrop;
+    float3 original = backdrop.rgb / backdrop.a;
+    float3 softColor = soft.a > 0 ? soft.rgb / soft.a : original;
+    float3 sharp = clamp(original + u.adjustParams.x / 100 * (original - softColor), 0.0, 1.0);
+    return fadeIn(backdrop, sharp, backdrop.a, u);
 }

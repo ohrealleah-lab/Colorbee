@@ -2,16 +2,66 @@ import AppKit
 import ColorbeeCore
 import SwiftUI
 
-/// The right sidebar (FR-1.3): an inset glass pane over the canvas surround. For now it holds the
-/// Layers panel; History, Clipboard History and Adjustments join it in later stages.
+/// The right sidebar (FR-1.3): an inset glass pane over the canvas surround. The switcher at the top
+/// shows or hides each panel; History and Clipboard History join in stage 7.
 struct Sidebar: View {
     @Bindable var editor: Editor
 
     var body: some View {
-        LayersPanel(editor: editor)
-            .frame(width: 272)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
-            .padding(8)
+        VStack(spacing: 0) {
+            HStack(spacing: 2) {
+                switcherButton("square.3.layers.3d", "Layers panel (⌘L)", isOn: $editor.showsLayersPanel)
+                switcherButton("slider.horizontal.3", "Adjustments panel", isOn: $editor.showsAdjustmentsPanel)
+            }
+            .padding(2)
+            .background(Theme.field, in: Capsule())
+            .padding(.top, 10)
+            .padding(.bottom, 6)
+
+            if editor.showsLayersPanel {
+                LayersPanel(editor: editor)
+            }
+            if editor.showsAdjustmentsPanel {
+                if editor.showsLayersPanel { Divider() }
+                SectionHeader(title: "Adjustments", detail: editor.activeAdjustment.flatMap(AdjustmentChoice.init)?.title ?? "")
+                AdjustmentsPanel(editor: editor)
+            }
+            if !editor.showsLayersPanel {
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(width: 272)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
+        .padding(8)
+    }
+
+    private func switcherButton(_ symbol: String, _ help: String, isOn: Binding<Bool>) -> some View {
+        Button { isOn.wrappedValue.toggle() } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .frame(width: 40, height: 24)
+                .foregroundStyle(isOn.wrappedValue ? Color.primary : Theme.secondaryInk)
+                .background(isOn.wrappedValue ? Color.primary.opacity(0.14) : .clear, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+}
+
+/// A panel's title row in the sidebar.
+struct SectionHeader: View {
+    let title: String
+    var detail = ""
+
+    var body: some View {
+        HStack {
+            Text(title).font(.system(size: 12, weight: .semibold))
+            Spacer()
+            Text(detail).font(.system(size: 11)).foregroundStyle(Theme.secondaryInk)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 32)
     }
 }
 
@@ -26,13 +76,7 @@ private struct LayersPanel: View {
         let layers = editor.layers
         let active = editor.activeLayerIndex
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Layers").font(.system(size: 12, weight: .semibold))
-                Spacer()
-                Text("\(layers.count)").font(.system(size: 11)).foregroundStyle(Theme.secondaryInk)
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 34)
+            SectionHeader(title: "Layers", detail: "\(layers.count)")
 
             HStack(spacing: 6) {
                 BlendModeMenu(editor: editor, mode: layers[active].blendMode)
@@ -57,16 +101,17 @@ private struct LayersPanel: View {
                 }
                 .padding(.horizontal, 6)
             }
-            .frame(maxHeight: .infinity)
+            .frame(minHeight: 120, maxHeight: .infinity)
 
             HStack(spacing: 2) {
                 footerButton("plus", "New Layer (⇧⌘N)") { editor.addLayer() }
                 footerButton("plus.square.on.square", "Duplicate Layer (⌘J)") { editor.duplicateLayer() }
                 footerButton("trash", "Delete Layer (⌘⌫)") { editor.deleteLayer() }
                     .disabled(!LayerActions.canDelete(editor.canvas))
-                footerButton("arrow.down.to.line", "Merge Down (⇧⌘E)") { editor.mergeDown() }
+                footerButton("arrow.down.to.line", "Merge Down (⇧⌘E), or Apply Adjustment on an adjustment layer") { editor.mergeDown() }
                     .disabled(!LayerActions.canMergeDown(editor.canvas))
                 Spacer()
+                AddAdjustmentMenu(editor: editor)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -85,13 +130,23 @@ private struct LayersPanel: View {
             .buttonStyle(.plain)
             .help(layer.isVisible ? "Hide this layer" : "Show this layer")
 
-            Image(nsImage: LayerThumbnail.image(for: layer, revision: editor.layersRevision, colorSpace: editor.canvas.colorSpace))
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 40, height: 26)
-                .background(Checkerboard(square: 4))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.gray.opacity(0.4), lineWidth: 0.5))
+            Group {
+                if let choice = layer.adjustment.flatMap(AdjustmentChoice.init) {
+                    // An adjustment layer has no pixels to show; its icon says what it does.
+                    Image(systemName: choice.symbol)
+                        .font(.system(size: 13))
+                        .frame(width: 40, height: 26)
+                        .background(isActive ? Color.white.opacity(0.18) : Theme.field)
+                } else {
+                    Image(nsImage: LayerThumbnail.image(for: layer, revision: editor.layersRevision, colorSpace: editor.canvas.colorSpace))
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 40, height: 26)
+                        .background(Checkerboard(square: 4))
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.gray.opacity(0.4), lineWidth: 0.5))
 
             VStack(alignment: .leading, spacing: 1) {
                 if renaming === layer {
@@ -103,7 +158,9 @@ private struct LayersPanel: View {
                 } else {
                     Text(layer.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
                 }
-                Text("\(layer.blendMode.name) · \(Int((layer.opacity * 100).rounded()))%")
+                Text(layer.adjustment == nil
+                     ? "\(layer.blendMode.name) · \(Int((layer.opacity * 100).rounded()))%"
+                     : "Adjustment · \(layer.blendMode.name)")
                     .font(.system(size: 10.5))
                     .opacity(0.7)
             }
@@ -205,7 +262,7 @@ private struct OpacityControl: View {
         .popover(isPresented: $isOpen, arrowEdge: .bottom) {
             HStack {
                 Slider(value: Binding(get: { (opacity * 100).rounded() }, set: { editor.previewOpacity(($0 / 100 * 100).rounded() / 100) }), in: 0...100) { editing in
-                    if !editing { editor.finishOpacity() }
+                    if !editing { editor.finishLayerSettings() }
                 }
                 .frame(width: 160)
                 Text("\(Int((opacity * 100).rounded()))%").monospacedDigit().frame(width: 40, alignment: .trailing)

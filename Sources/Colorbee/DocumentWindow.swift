@@ -114,7 +114,15 @@ final class DocumentWindow: NSWindow {
         }
     }
 
-    @objc func toggleLayers(_ sender: Any?) { editor?.isSidebarOpen.toggle() }
+    @objc func toggleLayers(_ sender: Any?) { editor?.toggleLayersPanel() }
+    @objc func toggleAdjustmentsPanel(_ sender: Any?) { editor?.toggleAdjustmentsPanel() }
+    @objc func applyAdjustment(_ sender: Any?) { editor?.applyAdjustmentLayer() }
+
+    @objc func newAdjustmentLayer(_ sender: Any?) {
+        guard let tag = (sender as? NSMenuItem)?.tag, AdjustmentChoice.allCases.indices.contains(tag) else { return }
+        let choice = AdjustmentChoice.allCases[tag]
+        editor?.addAdjustmentLayer(choice.startingAdjustment, named: choice.title)
+    }
     @objc func newLayer(_ sender: Any?) { editor?.addLayer() }
     @objc func duplicateLayer(_ sender: Any?) { editor?.duplicateLayer() }
     @objc func deleteLayer(_ sender: Any?) { editor?.deleteLayer() }
@@ -194,7 +202,14 @@ final class DocumentWindow: NSWindow {
             menuItem.state = editor.showsPixelGrid ? .on : .off
             return true
         case #selector(toggleLayers(_:)):
-            menuItem.state = editor.isSidebarOpen ? .on : .off
+            menuItem.state = editor.isSidebarOpen && editor.showsLayersPanel ? .on : .off
+            return true
+        case #selector(toggleAdjustmentsPanel(_:)):
+            menuItem.state = editor.isSidebarOpen && editor.showsAdjustmentsPanel ? .on : .off
+            return true
+        case #selector(applyAdjustment(_:)):
+            return LayerActions.canApplyAdjustment(editor.canvas)
+        case #selector(newAdjustmentLayer(_:)):
             return true
         case #selector(deleteLayer(_:)):
             return LayerActions.canDelete(editor.canvas)

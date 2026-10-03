@@ -26,6 +26,10 @@ public final class Layer {
         case .pixelate, .solidFill: false
         }
     }
+    /// An adjustment layer, or a layer never painted on: its buffer is all clear and takes no memory,
+    /// so whole-image changes give it a new empty buffer rather than touching (and filling) every page.
+    var holdsNoPixels: Bool { adjustment != nil || buffer.isUntouched }
+
     /// Replaced (never resized in place) when the canvas size changes.
     public internal(set) var buffer: PixelBuffer
 

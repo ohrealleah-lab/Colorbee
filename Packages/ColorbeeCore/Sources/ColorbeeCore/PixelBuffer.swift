@@ -39,6 +39,28 @@ public final class PixelBuffer {
         munmap(baseAddress, byteCount)
     }
 
+    /// Changes whenever the memory is replaced, so anything wrapping it (a GPU texture) knows to wrap it again.
+    public private(set) var generation = 0
+
+    /// True when no page has ever been written (or the contents were discarded): the buffer reads as all
+    /// clear and costs no memory. Pages the system compressed or swapped out count as written.
+    var isUntouched: Bool {
+        let pageSize = PixelBuffer.pageSize
+        var pages = [CChar](repeating: 0, count: byteCount / pageSize)
+        guard mincore(baseAddress, byteCount, &pages) == 0 else { return false }
+        // Every page of anonymous memory carries MINCORE_ANONYMOUS; any other flag means it holds data.
+        let anonymous = CChar(bitPattern: UInt8(MINCORE_ANONYMOUS))
+        return pages.allSatisfy { $0 & ~anonymous == 0 }
+    }
+
+    /// Frees the memory, leaving the buffer reading as all clear. History uses this for layers it has
+    /// written to its spill file, and writes the pixels back before anything reads them.
+    func discardContents() {
+        generation += 1
+        let mapped = mmap(baseAddress, byteCount, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0)
+        precondition(mapped == baseAddress, "Couldn't free the pixel memory")
+    }
+
     public var size: IntSize { IntSize(width: width, height: height) }
     public var bounds: IntRect { IntRect(size: size) }
 

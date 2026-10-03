@@ -1,3 +1,5 @@
+import Accelerate
+
 /// A quarter-turn rotation or a mirror flip.
 public enum Orientation: CaseIterable, Sendable {
     case rotate90Clockwise
@@ -13,6 +15,15 @@ public enum Orientation: CaseIterable, Sendable {
         case .rotate180: "Rotate 180°"
         case .flipHorizontal: "Flip Horizontal"
         case .flipVertical: "Flip Vertical"
+        }
+    }
+
+    /// The orientation that undoes this one.
+    var inverse: Orientation {
+        switch self {
+        case .rotate90Clockwise: .rotate90CounterClockwise
+        case .rotate90CounterClockwise: .rotate90Clockwise
+        case .rotate180, .flipHorizontal, .flipVertical: self
         }
     }
 
@@ -36,15 +47,25 @@ public enum Orientation: CaseIterable, Sendable {
 }
 
 extension PixelBuffer {
+    /// Pixels are only moved, never blended, so vImage's 4-channel routines work whatever the channel order.
     public func transformed(_ orientation: Orientation) -> PixelBuffer {
         let result = PixelBuffer(size: orientation.transformedSize(size))
-        for y in 0..<height {
-            let source = row(y)
-            for x in 0..<width {
-                let target = orientation.destination(x: x, y: y, in: size)
-                result.row(target.y)[target.x] = source[x]
+        var source = vImageBuffer, destination = result.vImageBuffer
+        let flags = vImage_Flags(kvImageNoFlags)
+        let error: vImage_Error
+        switch orientation {
+        case .flipHorizontal: error = vImageHorizontalReflect_ARGB8888(&source, &destination, flags)
+        case .flipVertical: error = vImageVerticalReflect_ARGB8888(&source, &destination, flags)
+        case .rotate90Clockwise, .rotate90CounterClockwise, .rotate180:
+            let rotation = switch orientation {
+            case .rotate90Clockwise: kRotate90DegreesClockwise
+            case .rotate90CounterClockwise: kRotate270DegreesClockwise
+            default: kRotate180DegreesClockwise
             }
+            let background: [UInt8] = [0, 0, 0, 0]
+            error = vImageRotate90_ARGB8888(&source, &destination, UInt8(rotation), background, flags)
         }
+        precondition(error == kvImageNoError, "vImage couldn't transform the image (\(error))")
         return result
     }
 

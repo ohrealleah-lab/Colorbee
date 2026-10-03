@@ -12,7 +12,9 @@ public enum ImageActions {
         var buffers: [LayerID: PixelBuffer] = [:]
         for layer in canvas.layers {
             let cropped = PixelBuffer(width: target.width, height: target.height)
-            cropped.setPixels(layer.buffer.pixels(in: target), in: cropped.bounds)
+            if !layer.holdsNoPixels {
+                cropped.setPixels(layer.buffer.pixels(in: target), in: cropped.bounds)
+            }
             buffers[layer.id] = cropped
         }
         canvas.replaceContents(size: target.size, buffers: buffers)
@@ -25,12 +27,8 @@ public enum ImageActions {
     public static func transform(_ orientation: Orientation, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let edit = history.beginEdit(orientation.name, on: canvas)
-        edit.willChangeGeometry()
-        var buffers: [LayerID: PixelBuffer] = [:]
-        for layer in canvas.layers {
-            buffers[layer.id] = layer.buffer.transformed(orientation)
-        }
-        canvas.replaceContents(size: orientation.transformedSize(canvas.size), buffers: buffers)
+        edit.willTransform(orientation)
+        canvas.transform(orientation)
         canvas.selection = .none
         return history.commit(edit)
     }
@@ -45,6 +43,10 @@ public enum ImageActions {
         edit.willChangeGeometry()
         var buffers: [LayerID: PixelBuffer] = [:]
         for layer in canvas.layers {
+            guard layer.adjustment == nil else {
+                buffers[layer.id] = PixelBuffer(size: settings.resultSize)
+                continue
+            }
             let result = layer.buffer.resizedAndSkewed(settings)
             let fill = canvas.vacatedFill(for: layer, color2: context.color2)
             if fill.a > 0, settings.horizontalSkew != 0 || settings.verticalSkew != 0 {
@@ -74,8 +76,10 @@ public enum ImageActions {
         var buffers: [LayerID: PixelBuffer] = [:]
         let kept = IntRect(size: canvas.size).intersection(IntRect(size: size))
         for layer in canvas.layers {
-            let buffer = PixelBuffer(width: size.width, height: size.height, fill: layer.adjustment == nil ? canvas.vacatedFill(for: layer, color2: context.color2) : .clear)
-            if layer.adjustment == nil, !kept.isEmpty {
+            let fill = layer.adjustment == nil ? canvas.vacatedFill(for: layer, color2: context.color2) : .clear
+            let buffer = PixelBuffer(width: size.width, height: size.height, fill: fill)
+            // A layer with no pixels has nothing to copy, unless the new area's fill would cover where they go.
+            if !(layer.holdsNoPixels && fill == .clear), !kept.isEmpty {
                 buffer.setPixels(layer.buffer.pixels(in: kept), in: kept)
             }
             buffers[layer.id] = buffer

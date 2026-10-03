@@ -81,6 +81,8 @@ final class Renderer {
 
     private struct PixelTexture {
         let buffer: PixelBuffer
+        /// History frees an old layer's memory and later writes it back into new pages, so the wrap is redone.
+        let generation: Int
         let metalBuffer: MTLBuffer
         let texture: MTLTexture
     }
@@ -462,7 +464,7 @@ final class Renderer {
     private func texture(for buffer: PixelBuffer, live: inout Set<ObjectIdentifier>) -> MTLTexture {
         let key = ObjectIdentifier(buffer)
         live.insert(key)
-        if let cached = pixelTextures[key] { return cached.texture }
+        if let cached = pixelTextures[key], cached.generation == buffer.generation { return cached.texture }
 
         precondition(
             buffer.bytesPerRow % device.minimumLinearTextureAlignment(for: .bgra8Unorm) == 0,
@@ -487,7 +489,7 @@ final class Renderer {
         guard let texture = metalBuffer.makeTexture(descriptor: descriptor, offset: 0, bytesPerRow: buffer.bytesPerRow) else {
             fatalError("Couldn't create the pixel texture")
         }
-        pixelTextures[key] = PixelTexture(buffer: buffer, metalBuffer: metalBuffer, texture: texture)
+        pixelTextures[key] = PixelTexture(buffer: buffer, generation: buffer.generation, metalBuffer: metalBuffer, texture: texture)
         return texture
     }
 

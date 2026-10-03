@@ -202,6 +202,87 @@ struct LayerActionTests {
         #expect(canvas.vacatedFill(for: canvas.layers[0], color2: red) == .clear)
     }
 
+    @Test func layerStepsOverTheBudgetSpillTheirLayersAndStillUndoExactly() {
+        let side = 200
+        let canvas = Canvas(size: IntSize(width: side, height: side), colorSpace: Canvas.defaultColorSpace, background: .white)
+        // About three layers' worth, so older merged-away layers have to leave memory.
+        let history = History(byteBudget: 3 * side * side * 4)
+        var random = SplitMix64(seed: 7)
+        func paint() {
+            let edit = history.beginEdit("Paint", on: canvas)
+            let rect = IntRect(x: random.int(0..<side / 2), y: random.int(0..<side / 2), width: random.int(1..<side / 2), height: random.int(1..<side / 2))
+            edit.willModify(rect, in: canvas.activeLayer)
+            canvas.activeLayer.buffer.fill(Pixel(r: random.byte(), g: random.byte(), b: random.byte(), a: random.byte()), in: rect)
+            history.commit(edit)
+        }
+        let blank = canvas.flattened().contentHash()
+        paint()
+        // The image after each round, by how many steps it took to get there.
+        var checkpoints: [Int: Int] = [:]
+        for round in 0..<6 {
+            LayerActions.add(canvas: canvas, history: history, context: context)
+            paint()
+            LayerActions.add(canvas: canvas, history: history, context: context)
+            paint()
+            if round % 2 == 0 {
+                LayerActions.mergeDown(canvas: canvas, history: history, context: context)
+            } else {
+                LayerActions.flatten(canvas: canvas, history: history, context: context)
+            }
+            checkpoints[history.undoCount] = canvas.flattened().contentHash()
+        }
+        // Over budget only by the newest steps, which never spill.
+        #expect(history.byteCount <= history.byteBudget + 4 * side * side * 4)
+        let final = canvas.flattened().contentHash()
+
+        while history.canUndo {
+            history.undo(on: canvas)
+            if let expected = checkpoints[history.undoCount] { #expect(canvas.flattened().contentHash() == expected) }
+        }
+        #expect(canvas.layers.count == 1)
+        #expect(canvas.flattened().contentHash() == blank)
+        while history.canRedo {
+            history.redo(on: canvas)
+            if let expected = checkpoints[history.undoCount] { #expect(canvas.flattened().contentHash() == expected) }
+        }
+        #expect(canvas.flattened().contentHash() == final)
+    }
+
+    /// Budgets from tiny (everything spills) to roomy (the crop stays in memory while the layer is written out).
+    @Test(arguments: [1, 2, 3, 4, 5, 6])
+    func aBufferSharedByALayerStepAndACropSurvivesSpilling(budgetInLayers: Int) {
+        let side = 120
+        let canvas = Canvas(size: IntSize(width: side, height: side), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: budgetInLayers * side * side * 4)
+        var checkpoints: [Int: Int] = [:]
+        func mark() { checkpoints[history.undoCount] = canvas.flattened().contentHash() }
+        func paint(_ value: UInt8) {
+            let edit = history.beginEdit("Paint", on: canvas)
+            let rect = IntRect(x: Int(value) % 40, y: 10, width: 50, height: 60)
+            edit.willModify(rect, in: canvas.activeLayer)
+            canvas.activeLayer.buffer.fill(Pixel(r: value, g: 255 - value, b: 90), in: rect)
+            history.commit(edit)
+            mark()
+        }
+        mark()
+        LayerActions.add(canvas: canvas, history: history, context: context); mark()
+        paint(30)
+        LayerActions.mergeDown(canvas: canvas, history: history, context: context); mark()
+        // A layer step whose record holds the merged buffer, then a crop that keeps the same buffer.
+        LayerActions.update("Blend Mode", layerAt: 0, canvas: canvas, history: history) { $0.blendMode = .multiply }; mark()
+        ImageActions.crop(to: IntRect(x: 5, y: 5, width: 100, height: 90), canvas: canvas, history: history, context: context); mark()
+        for value in stride(from: 40, to: 200, by: 20) { paint(UInt8(value)) }
+
+        while history.canUndo {
+            history.undo(on: canvas)
+            #expect(canvas.flattened().contentHash() == checkpoints[history.undoCount])
+        }
+        while history.canRedo {
+            history.redo(on: canvas)
+            #expect(canvas.flattened().contentHash() == checkpoints[history.undoCount])
+        }
+    }
+
     @Test func randomLayerAndPixelEditsUndoBackToTheOriginal() {
         let (canvas, history) = makeCanvas()
         canvas.layers[0].buffer.fill(gray, in: IntRect(x: 2, y: 2, width: 3, height: 3))

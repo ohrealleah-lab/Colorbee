@@ -84,6 +84,15 @@ public final class Canvas {
         }
     }
 
+    /// Rotates or flips every layer.
+    func transform(_ orientation: Orientation) {
+        let newSize = orientation.transformedSize(size)
+        let buffers = Dictionary(uniqueKeysWithValues: layers.map { layer in
+            (layer.id, layer.holdsNoPixels ? PixelBuffer(size: newSize) : layer.buffer.transformed(orientation))
+        })
+        replaceContents(size: newSize, buffers: buffers)
+    }
+
     var currentGeometry: GeometryChange {
         GeometryChange(size: size, buffers: Dictionary(uniqueKeysWithValues: layers.map { ($0.id, $0.buffer) }))
     }

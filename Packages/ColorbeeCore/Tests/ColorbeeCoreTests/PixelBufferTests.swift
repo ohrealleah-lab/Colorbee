@@ -47,3 +47,19 @@ struct PixelBufferTests {
         #expect(copy.contentHash() != buffer.contentHash())
     }
 }
+
+struct PixelBufferMemoryTests {
+    @Test func aNewBufferIsUntouchedUntilWritten() {
+        let buffer = PixelBuffer(width: 300, height: 200)
+        #expect(buffer.isUntouched)
+        buffer[10, 10] = .black
+        #expect(!buffer.isUntouched)
+    }
+
+    @Test func discardingFreesTheMemoryAndReadsClear() {
+        let buffer = PixelBuffer(width: 300, height: 200, fill: .white)
+        buffer.discardContents()
+        #expect(buffer.isUntouched)
+        #expect(buffer[150, 100] == .clear)
+    }
+}

@@ -66,6 +66,21 @@ struct OrientationTests {
     }
 
     @Test(arguments: Orientation.allCases)
+    func transformsKeepNoPixelsAndUndoAndRedoExactly(orientation: Orientation) {
+        let (canvas, history) = makeCanvas()
+        canvas.activeLayer.buffer[3, 7] = Pixel(r: 1, g: 2, b: 3, a: 4)
+        let original = canvas.activeLayer.buffer.contentHash()
+        ImageActions.transform(orientation, canvas: canvas, history: history, context: SelectionContext(color2: .white))
+        let turned = canvas.activeLayer.buffer.contentHash()
+        #expect(history.byteCount == 0)
+        history.undo(on: canvas)
+        #expect(canvas.size == IntSize(width: 30, height: 20))
+        #expect(canvas.activeLayer.buffer.contentHash() == original)
+        history.redo(on: canvas)
+        #expect(canvas.activeLayer.buffer.contentHash() == turned)
+    }
+
+    @Test(arguments: Orientation.allCases)
     func everyTransformMapsCornersCorrectly(orientation: Orientation) {
         let buffer = PixelBuffer(width: 3, height: 2)
         buffer[0, 0] = red

@@ -65,6 +65,9 @@ final class Renderer {
     private let compositePipeline: MTLRenderPipelineState
     private let adjustPointPipeline: MTLRenderPipelineState
     private let adjustBlurPipeline: MTLRenderPipelineState
+    /// Levels, Curves, Sepia, Posterize (and later photo adjustments) through a 3D color table.
+    private let adjustLookupPipeline: MTLRenderPipelineState
+    private var lookupTextures: [Effect: MTLTexture] = [:]
     /// Marks where the canvas is, for keeping blurred edges opaque.
     private let coveragePipeline: MTLRenderPipelineState
     private var blurTargets: (blurred: MTLTexture, coverage: MTLTexture, coverageBlurred: MTLTexture)?
@@ -126,6 +129,7 @@ final class Renderer {
         compositePipeline = pipeline(fragment: "composite_fragment")
         adjustPointPipeline = pipeline(fragment: "adjust_point_fragment", blended: false, format: Self.layerTargetFormat)
         adjustBlurPipeline = pipeline(fragment: "adjust_blur_fragment", blended: false, format: Self.layerTargetFormat)
+        adjustLookupPipeline = pipeline(fragment: "adjust_lookup_fragment", blended: false, format: Self.layerTargetFormat)
         coveragePipeline = pipeline(fragment: "solid_fragment", blended: false, format: .r16Float)
 
         func sampler(_ filter: MTLSamplerMinMagFilter, address: MTLSamplerAddressMode = .clampToEdge) -> MTLSamplerState {
@@ -218,7 +222,11 @@ final class Renderer {
                 uniforms.adjustKind = kind
                 uniforms.adjustParams = params
                 uniforms.blendMode = Float(layer.blendMode.rawValue)
-                if kind >= 5 {
+                if let lookup = lookupTexture(for: adjustment) {
+                    uniforms.adjustParams = SIMD4(Float(lookup.width), 0, 0, 0)
+                    encoder.setFragmentTexture(lookup, index: 0)
+                    draw(adjustLookupPipeline)
+                } else if kind >= 5 {
                     // Blur and Sharpen need the neighbors of each pixel: pause the layer pass, blur on the GPU, resume.
                     encoder.endEncoding()
                     let radius = kind == 5 ? Double(params.x) : 1
@@ -403,8 +411,31 @@ final class Renderer {
         case .hueSaturation(let hue, let saturation, let lightness): (4, SIMD4(Float(hue), Float(saturation), Float(lightness), 0))
         case .gaussianBlur(let radius): (5, SIMD4(Float(radius), 0, 0, 0))
         case .sharpen(let amount): (6, SIMD4(Float(amount), 0, 0, 0))
-        case .pixelate, .solidFill: (0, .zero)
+        default: (0, .zero)
         }
+    }
+
+    /// The 3D table for a color adjustment layer, made once per setting. A slider drag makes a new one
+    /// each step, so only the most recent few are kept.
+    private func lookupTexture(for effect: Effect) -> MTLTexture? {
+        if let cached = lookupTextures[effect] { return cached }
+        guard let lookup = ColorLookup(effect) else { return nil }
+        let descriptor = MTLTextureDescriptor()
+        descriptor.textureType = .type3D
+        descriptor.pixelFormat = .rgba32Float
+        descriptor.width = lookup.size
+        descriptor.height = lookup.size
+        descriptor.depth = lookup.size
+        descriptor.usage = .shaderRead
+        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+        lookup.values.withUnsafeBytes { bytes in
+            let rowBytes = lookup.size * 4 * MemoryLayout<Float>.stride
+            texture.replace(region: MTLRegionMake3D(0, 0, 0, lookup.size, lookup.size, lookup.size), mipmapLevel: 0, slice: 0,
+                            withBytes: bytes.baseAddress!, bytesPerRow: rowBytes, bytesPerImage: rowBytes * lookup.size)
+        }
+        if lookupTextures.count >= 8 { lookupTextures.removeAll() }
+        lookupTextures[effect] = texture
+        return texture
     }
 
     /// Blurs the layers composited so far into `blurTargets.blurred`, and the canvas's coverage alongside.

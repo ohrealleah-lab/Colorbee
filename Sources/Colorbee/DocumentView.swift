@@ -138,19 +138,52 @@ private struct ToolOptions: View {
 private struct EffectBar: View {
     @Bindable var editor: Editor
     let kind: EffectKind
+    @State private var curvesChannel = Curves.Channel.rgb
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(alignment: kind == .curves ? .top : .center, spacing: 14) {
             Text(kind.title).font(.headline)
+            if kind == .levels {
+                HistogramView(histogram: editor.effectHistogram, black: editor.effectValues[safe: 0] ?? 0, white: editor.effectValues[safe: 2] ?? 255)
+                    .frame(width: 160, height: 34)
+                    .help("How many pixels have each brightness, darkest on the left")
+            }
+            if kind == .curves {
+                CurvesEditor(curves: editor.effectCurves, channel: $curvesChannel) { curves in
+                    editor.effectCurves = curves
+                    editor.previewEffect()
+                }
+                .frame(width: 180)
+                Button("Reset") {
+                    editor.effectCurves = .identity
+                    editor.previewEffect()
+                }
+                .help("Back to a straight line")
+            }
             ForEach(Array(kind.parameters.enumerated()), id: \.offset) { index, parameter in
                 HStack(spacing: 6) {
                     Text(parameter.label)
-                    Slider(value: value(at: index), in: parameter.range)
-                        .frame(minWidth: 90, maxWidth: 180)
-                    Text("\(Int(editor.effectValues[safe: index] ?? 0))\(parameter.unit)")
-                        .monospacedDigit()
-                        .frame(width: 44, alignment: .trailing)
+                    if let options = parameter.options {
+                        Picker(parameter.label, selection: value(at: index, step: 1)) {
+                            ForEach(Array(options.enumerated()), id: \.offset) { option, title in
+                                Text(title).tag(Double(option))
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                    } else {
+                        Slider(value: value(at: index, step: parameter.step), in: parameter.range)
+                            .frame(minWidth: 90, maxWidth: 180)
+                        Text(EffectBar.formatted(editor.effectValues[safe: index] ?? 0, parameter))
+                            .monospacedDigit()
+                            .frame(width: 44, alignment: .trailing)
+                    }
                 }
+            }
+            if kind == .levels {
+                Button("Auto") { editor.autoLevels() }
+                    .help("Set the black and white points to the darkest and lightest pixels")
             }
             Spacer(minLength: 0)
             Text(editor.hasSelection ? "Applies to the selection" : "Applies to the whole layer")
@@ -167,10 +200,16 @@ private struct EffectBar: View {
         .onChange(of: editor.effectValues) { editor.previewEffect() }
     }
 
-    private func value(at index: Int) -> Binding<Double> {
+    static func formatted(_ value: Double, _ parameter: EffectKind.Parameter) -> String {
+        let text = parameter.step < 1 ? String(format: "%.2f", value) : "\(Int(value.rounded()))"
+        let signed = parameter.range.lowerBound < 0 && value > 0 && parameter.step >= 1 ? "+" + text : text
+        return signed + parameter.unit
+    }
+
+    private func value(at index: Int, step: Double) -> Binding<Double> {
         Binding(
             get: { editor.effectValues[safe: index] ?? 0 },
-            set: { if editor.effectValues.indices.contains(index) { editor.effectValues[index] = $0.rounded() } }
+            set: { if editor.effectValues.indices.contains(index) { editor.effectValues[index] = ($0 / step).rounded() * step } }
         )
     }
 }

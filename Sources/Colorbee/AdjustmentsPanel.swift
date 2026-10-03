@@ -1,11 +1,16 @@
 import ColorbeeCore
 import SwiftUI
 
-/// The six kinds of adjustment layer (FR-8.4), with their names, icons and starting settings.
+/// The kinds of adjustment layer (FR-8.4, FR-9.5), with their names, icons and starting settings.
 enum AdjustmentChoice: CaseIterable {
     case brightnessContrast
     case hueSaturation
+    case levels
+    case autoContrast
+    case curves
     case desaturate
+    case sepia
+    case posterize
     case invert
     case gaussianBlur
     case sharpen
@@ -14,7 +19,12 @@ enum AdjustmentChoice: CaseIterable {
         switch self {
         case .brightnessContrast: "Brightness/Contrast"
         case .hueSaturation: "Hue/Saturation"
+        case .levels: "Levels"
+        case .autoContrast: "Auto Contrast"
+        case .curves: "Curves"
         case .desaturate: "Desaturate"
+        case .sepia: "Sepia"
+        case .posterize: "Posterize"
         case .invert: "Invert"
         case .gaussianBlur: "Gaussian Blur"
         case .sharpen: "Sharpen"
@@ -25,20 +35,29 @@ enum AdjustmentChoice: CaseIterable {
         switch self {
         case .brightnessContrast: "sun.max"
         case .hueSaturation: "swatchpalette"
+        case .levels: "chart.bar"
+        case .autoContrast: "wand.and.rays"
+        case .curves: "scribble.variable"
         case .desaturate: "circle.dotted.and.circle"
+        case .sepia: "camera.filters"
+        case .posterize: "square.grid.3x3.square"
         case .invert: "circle.lefthalf.filled"
         case .gaussianBlur: "drop"
         case .sharpen: "triangle"
         }
     }
 
-    /// The settings a new adjustment layer starts with. Blur and Sharpen start with a visible amount,
-    /// so adding one shows what it does.
+    /// The settings a new adjustment layer starts with. Blur, Sharpen, Sepia and Posterize start with a
+    /// visible amount, so adding one shows what it does. Auto Contrast is set from the image (Editor).
     var startingAdjustment: Effect {
         switch self {
         case .brightnessContrast: .brightnessContrast(brightness: 0, contrast: 0)
         case .hueSaturation: .hueSaturation(hue: 0, saturation: 0, lightness: 0)
+        case .levels, .autoContrast: .levels(.identity)
+        case .curves: .curves(.identity)
         case .desaturate: .desaturate
+        case .sepia: .sepia(amount: 100)
+        case .posterize: .posterize(levels: 4)
         case .invert: .invert
         case .gaussianBlur: .gaussianBlur(radius: 8)
         case .sharpen: .sharpen(amount: 60)
@@ -50,21 +69,30 @@ enum AdjustmentChoice: CaseIterable {
         switch self {
         case .brightnessContrast: .brightnessContrast
         case .hueSaturation: .hueSaturation
+        case .levels, .autoContrast: .levels
+        case .curves: .curves
+        case .sepia: .sepia
+        case .posterize: .posterize
         case .gaussianBlur: .gaussianBlur
         case .sharpen: .sharpen
         case .desaturate, .invert: nil
         }
     }
 
+    /// The choice that edits `effect`. An Auto Contrast layer is a Levels layer.
     init?(_ effect: Effect) {
         switch effect {
         case .brightnessContrast: self = .brightnessContrast
         case .hueSaturation: self = .hueSaturation
+        case .levels: self = .levels
+        case .curves: self = .curves
         case .desaturate: self = .desaturate
+        case .sepia: self = .sepia
+        case .posterize: self = .posterize
         case .invert: self = .invert
         case .gaussianBlur: self = .gaussianBlur
         case .sharpen: self = .sharpen
-        case .pixelate, .solidFill: return nil
+        case .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette: return nil
         }
     }
 }
@@ -78,7 +106,14 @@ extension Effect {
         case .gaussianBlur(let radius): [radius]
         case .sharpen(let amount): [amount]
         case .pixelate(let cellSize): [Double(cellSize)]
-        case .invert, .desaturate, .solidFill: []
+        case .levels(let levels): [levels.black, levels.gamma, levels.white]
+        case .sepia(let amount): [amount]
+        case .posterize(let levels): [Double(levels)]
+        case .addNoise(let amount, let monochrome): [amount, monochrome ? 1 : 0]
+        case .motionBlur(let angle, let distance): [angle, distance]
+        case .emboss(let angle, let depth): [angle, depth]
+        case .vignette(let amount, let size): [amount, size]
+        case .invert, .desaturate, .solidFill, .curves: []
         }
     }
 }
@@ -90,9 +125,7 @@ struct AddAdjustmentMenu: View {
     var body: some View {
         Menu {
             ForEach(AdjustmentChoice.allCases, id: \.self) { choice in
-                Button(choice.title, systemImage: choice.symbol) {
-                    editor.addAdjustmentLayer(choice.startingAdjustment, named: choice.title)
-                }
+                Button(choice.title, systemImage: choice.symbol) { editor.addAdjustmentLayer(choice) }
             }
         } label: {
             HStack(spacing: 3) {
@@ -116,12 +149,25 @@ struct AddAdjustmentMenu: View {
 /// The Adjustments panel (FR-8.4): the active adjustment layer's settings, or a way to add one.
 struct AdjustmentsPanel: View {
     @Bindable var editor: Editor
+    @State private var curvesChannel = Curves.Channel.rgb
+    @State private var histogramBelow: Histogram?
 
     var body: some View {
         let adjustment = editor.activeAdjustment
         let choice = adjustment.flatMap(AdjustmentChoice.init)
         VStack(alignment: .leading, spacing: 12) {
             if let adjustment, let choice {
+                if case .curves(let curves) = adjustment {
+                    CurvesEditor(curves: curves, channel: $curvesChannel) { editor.previewAdjustment(.curves($0)) } onFinish: {
+                        editor.finishLayerSettings()
+                    }
+                }
+                if choice.kind == .levels {
+                    HistogramView(histogram: histogramBelow, black: adjustment.sliderValues[0], white: adjustment.sliderValues[2])
+                        .frame(height: 44)
+                        .task(id: editor.canvas.activeLayer.id) { histogramBelow = editor.histogramBelowActiveLayer() }
+                        .help("The layers below this one, by brightness")
+                }
                 if let kind = choice.kind {
                     ForEach(Array(kind.parameters.enumerated()), id: \.offset) { index, parameter in
                         slider(parameter, value: adjustment.sliderValues[safe: index] ?? parameter.defaultValue) { newValue in
@@ -141,6 +187,12 @@ struct AdjustmentsPanel: View {
                     .font(.system(size: 12))
                     .help("Show or hide this adjustment")
                     Spacer()
+                    if choice.kind == .levels {
+                        Button("Auto") {
+                            if let histogramBelow { editor.setAdjustment(.levels(Levels.auto(from: histogramBelow))) }
+                        }
+                        .help("Set the black and white points to the darkest and lightest pixels below")
+                    }
                     if choice.kind != nil {
                         Button("Reset") { editor.setAdjustment(choice.startingAdjustment) }
                             .help("Back to the starting settings")
@@ -157,7 +209,7 @@ struct AdjustmentsPanel: View {
                     .fixedSize(horizontal: false, vertical: true)
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 6) {
                     ForEach(AdjustmentChoice.allCases, id: \.self) { choice in
-                        Button { editor.addAdjustmentLayer(choice.startingAdjustment, named: choice.title) } label: {
+                        Button { editor.addAdjustmentLayer(choice) } label: {
                             Label(choice.title, systemImage: choice.symbol)
                                 .font(.system(size: 11.5))
                                 .lineLimit(1)
@@ -188,7 +240,7 @@ struct AdjustmentsPanel: View {
                     .frame(height: 18)
                     .background(Theme.field, in: RoundedRectangle(cornerRadius: 5))
             }
-            Slider(value: Binding(get: { value }, set: { set($0.rounded()) }), in: parameter.range) { editing in
+            Slider(value: Binding(get: { value }, set: { set(($0 / parameter.step).rounded() * parameter.step) }), in: parameter.range) { editing in
                 if !editing { editor.finishLayerSettings() }
             }
             .controlSize(.small)
@@ -196,6 +248,7 @@ struct AdjustmentsPanel: View {
     }
 
     private func formatted(_ value: Double, _ parameter: EffectKind.Parameter) -> String {
+        guard parameter.step >= 1 else { return String(format: "%.2f", value) + parameter.unit }
         let number = Int(value.rounded())
         let signed = parameter.range.lowerBound < 0 && number > 0 ? "+\(number)" : "\(number)"
         return signed + parameter.unit

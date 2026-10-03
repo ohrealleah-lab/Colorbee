@@ -85,18 +85,30 @@ struct Measurement: Equatable {
 }
 
 /// An effect with a dialog, and the sliders it shows.
-enum EffectKind {
+enum EffectKind: CaseIterable {
     case gaussianBlur
     case pixelate
     case sharpen
     case brightnessContrast
     case hueSaturation
+    case levels
+    case curves
+    case sepia
+    case posterize
+    case addNoise
+    case motionBlur
+    case emboss
+    case vignette
 
     struct Parameter {
         let label: String
         let range: ClosedRange<Double>
         let defaultValue: Double
         let unit: String
+        /// The slider moves in steps of this size.
+        var step: Double = 1
+        /// A picker instead of a slider: the value is the chosen option's index.
+        var options: [String]? = nil
     }
 
     var title: String {
@@ -106,6 +118,14 @@ enum EffectKind {
         case .sharpen: "Sharpen"
         case .brightnessContrast: "Brightness/Contrast"
         case .hueSaturation: "Hue/Saturation"
+        case .levels: "Levels"
+        case .curves: "Curves"
+        case .sepia: "Sepia"
+        case .posterize: "Posterize"
+        case .addNoise: "Add Noise"
+        case .motionBlur: "Motion Blur"
+        case .emboss: "Emboss"
+        case .vignette: "Vignette"
         }
     }
 
@@ -123,16 +143,49 @@ enum EffectKind {
             Parameter(label: "Saturation", range: -100...100, defaultValue: 0, unit: ""),
             Parameter(label: "Lightness", range: -100...100, defaultValue: 0, unit: ""),
         ]
+        case .levels: [
+            Parameter(label: "Black", range: 0...254, defaultValue: 0, unit: ""),
+            Parameter(label: "Midtones", range: 0.1...9.99, defaultValue: 1, unit: "", step: 0.01),
+            Parameter(label: "White", range: 1...255, defaultValue: 255, unit: ""),
+        ]
+        case .curves: []
+        case .sepia: [Parameter(label: "Amount", range: 0...100, defaultValue: 100, unit: "%")]
+        case .posterize: [Parameter(label: "Levels", range: 2...32, defaultValue: 4, unit: "")]
+        case .addNoise: [
+            Parameter(label: "Amount", range: 0...100, defaultValue: 20, unit: "%"),
+            Parameter(label: "Noise", range: 0...1, defaultValue: 0, unit: "", options: ["Color", "Monochrome"]),
+        ]
+        case .motionBlur: [
+            Parameter(label: "Angle", range: -180...180, defaultValue: 0, unit: "°"),
+            Parameter(label: "Distance", range: 1...200, defaultValue: 20, unit: "px"),
+        ]
+        case .emboss: [
+            Parameter(label: "Angle", range: -180...180, defaultValue: 135, unit: "°"),
+            Parameter(label: "Depth", range: 1...10, defaultValue: 3, unit: ""),
+        ]
+        case .vignette: [
+            Parameter(label: "Amount", range: -100...100, defaultValue: 50, unit: ""),
+            Parameter(label: "Size", range: 0...100, defaultValue: 50, unit: ""),
+        ]
         }
     }
 
-    func effect(_ values: [Double]) -> Effect {
-        switch self {
-        case .gaussianBlur: .gaussianBlur(radius: values[0])
-        case .pixelate: .pixelate(cellSize: Int(values[0].rounded()))
-        case .sharpen: .sharpen(amount: values[0])
-        case .brightnessContrast: .brightnessContrast(brightness: values[0], contrast: values[1])
-        case .hueSaturation: .hueSaturation(hue: values[0], saturation: values[1], lightness: values[2])
+    func effect(_ values: [Double], curves: Curves = .identity) -> Effect {
+        func value(_ index: Int) -> Double { values.indices.contains(index) ? values[index] : parameters[index].defaultValue }
+        return switch self {
+        case .gaussianBlur: .gaussianBlur(radius: value(0))
+        case .pixelate: .pixelate(cellSize: Int(value(0).rounded()))
+        case .sharpen: .sharpen(amount: value(0))
+        case .brightnessContrast: .brightnessContrast(brightness: value(0), contrast: value(1))
+        case .hueSaturation: .hueSaturation(hue: value(0), saturation: value(1), lightness: value(2))
+        case .levels: .levels(Levels(black: value(0), white: max(value(2), value(0) + 1), gamma: value(1)))
+        case .curves: .curves(curves)
+        case .sepia: .sepia(amount: value(0))
+        case .posterize: .posterize(levels: Int(value(0).rounded()))
+        case .addNoise: .addNoise(amount: value(0), monochrome: value(1) >= 0.5)
+        case .motionBlur: .motionBlur(angle: value(0), distance: value(1))
+        case .emboss: .emboss(angle: value(0), depth: value(1))
+        case .vignette: .vignette(amount: value(0), size: value(1))
         }
     }
 }
@@ -365,6 +418,10 @@ final class Editor {
     @ObservationIgnored private var activeStroke: ActiveStroke?
     @ObservationIgnored private var selectionDrag: SelectionDrag?
     @ObservationIgnored private var effectEdit: Edit?
+    /// Curves' points while its dialog is open.
+    var effectCurves = Curves.identity
+    /// What Levels shows behind its sliders: the pixels it applies to, before any change.
+    private(set) var effectHistogram: Histogram?
     /// The selection's separate regions, worked out once per dialog; nil applies to the whole layer.
     @ObservationIgnored private var effectRegions: [SelectionMask]?
     @ObservationIgnored private var effectPreviewScheduled = false
@@ -1565,6 +1622,8 @@ final class Editor {
         finishInteractions()
         placeFloatingKeepingOutline()
         effectValues = kind.parameters.map(\.defaultValue)
+        effectCurves = .identity
+        effectHistogram = kind == .levels ? Histogram(canvas.activeLayer.buffer, selection: canvas.selection.marquee) : nil
         effectEdit = history.beginEdit(kind.title, on: canvas)
         effectRegions = canvas.selection.marquee?.connectedRegions()
         activeEffect = kind
@@ -1583,13 +1642,41 @@ final class Editor {
         effectPreviewScheduled = false
         guard let kind = activeEffect, let edit = effectEdit else { return }
         edit.restoreOriginals()
-        let effect = kind.effect(effectValues)
+        let effect = kind.effect(effectValues, curves: effectCurves)
         if let regions = effectRegions {
             Effects.apply(effect, to: canvas.activeLayer, regions: regions, edit: edit)
         } else {
             Effects.apply(effect, to: canvas.activeLayer, selection: nil, edit: edit)
         }
         onRender()
+    }
+
+    /// Levels' Auto button: black and white points at the darkest and lightest values (FR-9.5).
+    func autoLevels() {
+        guard activeEffect == .levels, let histogram = effectHistogram else { return }
+        let levels = Levels.auto(from: histogram)
+        effectValues = [levels.black, levels.gamma, levels.white]
+        previewEffect()
+    }
+
+    /// Adjustments ▸ Auto Contrast: one step, no settings (FR-9.5, AC-31).
+    func autoContrast() {
+        guard !refusedBecauseLocked() else { return }
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        let selection = canvas.selection.marquee
+        let levels = Levels.auto(from: Histogram(canvas.activeLayer.buffer, selection: selection))
+        guard levels != .identity else { return }
+        let edit = history.beginEdit("Auto Contrast", on: canvas)
+        Effects.apply(.levels(levels), to: canvas.activeLayer, selection: selection, edit: edit)
+        recordingChanges { history.commit(edit) }
+        onRender()
+    }
+
+    /// An Auto Contrast adjustment layer: a Levels layer with its points set from what's beneath it now.
+    func addAutoContrastLayer() {
+        let below = canvas.composited(through: canvas.activeLayerIndex)
+        addAdjustmentLayer(.levels(Levels.auto(from: Histogram(below))), named: "Auto Contrast")
     }
 
     /// An adjustment with no settings (Invert, Desaturate), applied to the selection or the whole layer.
@@ -1831,6 +1918,22 @@ final class Editor {
         layerCommand { LayerActions.addAdjustment(adjustment, named: name, canvas: canvas, history: history, context: selectionContext) }
         isSidebarOpen = true
         showsAdjustmentsPanel = true
+    }
+
+    /// Adds an adjustment layer of this kind above the active layer.
+    func addAdjustmentLayer(_ choice: AdjustmentChoice) {
+        if choice == .autoContrast {
+            addAutoContrastLayer()
+        } else {
+            addAdjustmentLayer(choice.startingAdjustment, named: choice.title)
+        }
+    }
+
+    /// The layers beneath the active one as they look together, by brightness, for a Levels layer.
+    func histogramBelowActiveLayer() -> Histogram {
+        let index = canvas.activeLayerIndex
+        guard index > 0 else { return Histogram(PixelBuffer(width: 1, height: 1)) }
+        return Histogram(canvas.composited(through: index - 1))
     }
 
     func applyAdjustmentLayer() {

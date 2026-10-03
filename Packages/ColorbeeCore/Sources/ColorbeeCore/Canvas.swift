@@ -238,6 +238,12 @@ public final class Canvas {
     }
 
 
+    /// The visible layers from the bottom up to and including `index`, as they look together.
+    /// What an adjustment layer added above `index` would see.
+    public func composited(through index: Int) -> PixelBuffer {
+        composite(layers.prefix(index + 1).filter { $0.isVisible && $0.opacity > 0 })
+    }
+
     /// All visible layers composited bottom to top with their blend modes, in straight alpha, with any
     /// floating selection shown above its layer. This is what's exported.
     public func flattened(transparentKey: Pixel? = nil) -> PixelBuffer {

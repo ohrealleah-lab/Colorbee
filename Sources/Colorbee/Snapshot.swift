@@ -2,7 +2,8 @@ import AppKit
 
 /// Saves a picture of the first document window and quits, for checking the interface without
 /// taking over the screen: `-ColorbeeSnapshot /path/to.png`, optionally with `-ColorbeeSnapshotDark YES`
-/// `-ColorbeeSnapshotTool brush` (any tool's name) and `-ColorbeeSnapshotLayers 3` (adds layers, opens the panel). The Metal canvas and Liquid Glass aren't drawn,
+/// `-ColorbeeSnapshotTool brush` (any tool's name), `-ColorbeeSnapshotLayers 3` (adds layers, opens the panel),
+/// `-ColorbeeSnapshotEffect levels` and `-ColorbeeSnapshotAdjustment curves`. The Metal canvas and Liquid Glass aren't drawn,
 /// so it checks layout, not the glass.
 @MainActor
 enum Snapshot {
@@ -27,6 +28,15 @@ enum Snapshot {
         }
         if let name = defaults.string(forKey: "ColorbeeSnapshotTool"), let tool = Tool.allCases.first(where: { "\($0)" == name }) {
             editor.selectTool(tool)
+        }
+        // `-ColorbeeSnapshotEffect levels` opens an effect's bar; `-ColorbeeSnapshotAdjustment curves` adds that
+        // adjustment layer and shows its settings.
+        if let name = defaults.string(forKey: "ColorbeeSnapshotEffect"), let kind = EffectKind.allCases.first(where: { "\($0)" == name }) {
+            editor.beginEffect(kind)
+        }
+        if let name = defaults.string(forKey: "ColorbeeSnapshotAdjustment"), let choice = AdjustmentChoice.allCases.first(where: { "\($0)" == name }) {
+            editor.addAdjustmentLayer(choice)
+            editor.showsLayersPanel = true
         }
         // `-ColorbeeSnapshotSettings YES` photographs the Settings window instead.
         let settings = defaults.bool(forKey: "ColorbeeSnapshotSettings")

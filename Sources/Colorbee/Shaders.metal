@@ -244,6 +244,20 @@ fragment float4 adjust_point_fragment(QuadOut in [[stage_in]],
     return fadeIn(backdrop, pointAdjustment(int(u.adjustKind + 0.5), u.adjustParams, straight), backdrop.a, u);
 }
 
+// Color adjustments through a 3D table made from the same per-pixel function exports use (ColorLookup).
+// adjustParams.x is the table's size; coordinates land on texel centers so the ends are exact.
+fragment float4 adjust_lookup_fragment(QuadOut in [[stage_in]],
+                                       texture3d<float> lookup [[texture(0)]],
+                                       constant QuadUniforms &u [[buffer(0)]],
+                                       float4 backdrop [[color(0)]]) {
+    constexpr sampler tableSampler(filter::linear, address::clamp_to_edge);
+    if (backdrop.a <= 0) return backdrop;
+    float3 straight = clamp(backdrop.rgb / backdrop.a, 0.0, 1.0);
+    float size = u.adjustParams.x;
+    float3 adjusted = lookup.sample(tableSampler, (straight * (size - 1) + 0.5) / size).rgb;
+    return fadeIn(backdrop, adjusted, backdrop.a, u);
+}
+
 // Blur and Sharpen read a blurred copy of the layers beneath, made on the GPU. Dividing by the blurred
 // canvas coverage keeps the image's edges from fading into the transparent area around it.
 fragment float4 adjust_blur_fragment(QuadOut in [[stage_in]],

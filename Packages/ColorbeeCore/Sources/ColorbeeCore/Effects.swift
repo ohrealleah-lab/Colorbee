@@ -1,6 +1,6 @@
 import Accelerate
 
-public enum Effect: Sendable, Equatable {
+public enum Effect: Sendable, Hashable {
     /// Gaussian blur; `radius` is the standard deviation in pixels (1...100).
     case gaussianBlur(radius: Double)
     /// Square mosaic blocks of `cellSize` pixels (2...100), aligned to the canvas.
@@ -16,6 +16,21 @@ public enum Effect: Sendable, Equatable {
     case hueSaturation(hue: Double, saturation: Double, lightness: Double)
     /// Unsharp mask; `amount` 0...200 percent.
     case sharpen(amount: Double)
+    case levels(Levels)
+    case curves(Curves)
+    /// Warm brown tones; `amount` 0...100 percent.
+    case sepia(amount: Double)
+    /// Each channel reduced to 2...32 evenly spaced values.
+    case posterize(levels: Int)
+    /// Grain; `amount` 0...100 percent. The same pixel always gets the same grain, so previews match the result.
+    case addNoise(amount: Double, monochrome: Bool)
+    /// Streaks along `angle` degrees (counterclockwise from the right), `distance` 1...200 pixels long.
+    case motionBlur(angle: Double, distance: Double)
+    /// A gray relief lit from `angle` degrees; `depth` 1...10.
+    case emboss(angle: Double, depth: Double)
+    /// Darkens (positive `amount`) or lightens (negative) toward the edges, -100...100; `size` 0...100 is how
+    /// much of the middle stays untouched.
+    case vignette(amount: Double, size: Double)
 
     public var name: String {
         switch self {
@@ -27,6 +42,22 @@ public enum Effect: Sendable, Equatable {
         case .brightnessContrast: "Brightness/Contrast"
         case .hueSaturation: "Hue/Saturation"
         case .sharpen: "Sharpen"
+        case .levels: "Levels"
+        case .curves: "Curves"
+        case .sepia: "Sepia"
+        case .posterize: "Posterize"
+        case .addNoise: "Add Noise"
+        case .motionBlur: "Motion Blur"
+        case .emboss: "Emboss"
+        case .vignette: "Vignette"
+        }
+    }
+
+    /// Color adjustments the display shows through a `ColorLookup` table.
+    public var usesColorLookup: Bool {
+        switch self {
+        case .levels, .curves, .sepia, .posterize: true
+        default: false
         }
     }
 
@@ -56,7 +87,28 @@ public enum Effect: Sendable, Equatable {
             }
         case .hueSaturation(let hue, let saturation, let lightness):
             return { pixel in HSL(pixel).adjusted(hue: hue, saturation: saturation, lightness: lightness).pixel(alpha: pixel.a) }
-        case .gaussianBlur, .pixelate, .sharpen:
+        case .levels(let levels):
+            let table = levels.table
+            return { Pixel(r: table[Int($0.r)], g: table[Int($0.g)], b: table[Int($0.b)], a: $0.a) }
+        case .curves(let curves):
+            let tables = curves.tables
+            return { Pixel(r: tables.red[Int($0.r)], g: tables.green[Int($0.g)], b: tables.blue[Int($0.b)], a: $0.a) }
+        case .sepia(let amount):
+            let mix = min(max(amount, 0), 100) / 100
+            return { pixel in
+                let r = Double(pixel.r), g = Double(pixel.g), b = Double(pixel.b)
+                func channel(_ original: Double, _ toned: Double) -> UInt8 {
+                    UInt8(min(255, max(0, (original + (toned - original) * mix).rounded())))
+                }
+                return Pixel(r: channel(r, 0.393 * r + 0.769 * g + 0.189 * b),
+                             g: channel(g, 0.349 * r + 0.686 * g + 0.168 * b),
+                             b: channel(b, 0.272 * r + 0.534 * g + 0.131 * b), a: pixel.a)
+            }
+        case .posterize(let levels):
+            let steps = Double(min(max(levels, 2), 32) - 1)
+            let table = (0..<256).map { UInt8(((Double($0) / 255 * steps).rounded() / steps * 255).rounded()) }
+            return { Pixel(r: table[Int($0.r)], g: table[Int($0.g)], b: table[Int($0.b)], a: $0.a) }
+        case .gaussianBlur, .pixelate, .sharpen, .addNoise, .motionBlur, .emboss, .vignette:
             return nil
         }
     }
@@ -104,7 +156,15 @@ public enum Effects {
             (result, origin) = pixelated(layer.buffer, region: region, cellSize: max(2, cellSize), selection: selection)
         case .sharpen(let amount):
             (result, origin) = sharpened(layer.buffer, region: region, amount: amount / 100, selection: selection)
-        case .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation:
+        case .addNoise(let amount, let monochrome):
+            (result, origin) = noisy(layer.buffer, region: region, amount: amount, monochrome: monochrome)
+        case .motionBlur(let angle, let distance):
+            (result, origin) = motionBlurred(layer.buffer, region: region, angle: angle, distance: distance, selection: selection)
+        case .emboss(let angle, let depth):
+            (result, origin) = embossed(layer.buffer, region: region, angle: angle, depth: depth)
+        case .vignette(let amount, let size):
+            (result, origin) = vignetted(layer.buffer, region: region, amount: amount, size: size)
+        case .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation, .levels, .curves, .sepia, .posterize:
             return .zero
         }
         edit.willModify(region, in: layer)
@@ -196,7 +256,7 @@ public enum Effects {
 
     /// Whether a pixel is selected; no selection means everything is. Reads the mask's storage directly.
     @inline(__always)
-    private static func isSelected(_ selection: SelectionMask?, _ x: Int, _ y: Int) -> Bool {
+    static func isSelected(_ selection: SelectionMask?, _ x: Int, _ y: Int) -> Bool {
         guard let selection else { return true }
         let bounds = selection.bounds
         guard x >= bounds.minX, x < bounds.maxX, y >= bounds.minY, y < bounds.maxY else { return false }

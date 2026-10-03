@@ -92,6 +92,15 @@ enum MainMenu {
         "showBrightnessContrast:": "Make the selection or image lighter, darker, or more or less contrasty.",
         "showHueSaturation:": "Shift colors around the color wheel, or make them more or less vivid.",
         "desaturate:": "Turn the selection or image to grayscale.",
+        "showLevels:": "Set the black point, white point and midtones, with a histogram. Auto sets them from the image.",
+        "autoContrast:": "Stretch the darkest pixels to black and the lightest to white, in one step.",
+        "showCurves:": "Reshape the tones with a curve, for all colors together or one at a time.",
+        "showSepia:": "Give the selection or image warm brown tones.",
+        "showPosterize:": "Reduce each color channel to a few levels, for a flat poster look.",
+        "showMotionBlur:": "Streak the selection or image along an angle, as if it moved.",
+        "showAddNoise:": "Add grain, in color or monochrome.",
+        "showEmboss:": "Turn the selection or image into a gray relief.",
+        "showVignette:": "Darken (or lighten) toward the edges of the selection or image.",
         "showGaussianBlur:": "Blur the selection (or image). Each separate selected area is blurred on its own.",
         "showPixelate:": "Turn the selection (or image) into large square blocks.",
         "showSharpen:": "Make edges crisper.",
@@ -271,6 +280,12 @@ enum MainMenu {
         menu.addItem(item("Hue/Saturation…", "showHueSaturation:"))
         menu.addItem(item("Desaturate", "desaturate:", "u", [.command, .shift]))
         menu.addItem(.separator())
+        menu.addItem(item("Levels…", "showLevels:"))
+        menu.addItem(item("Auto Contrast", "autoContrast:"))
+        menu.addItem(item("Curves…", "showCurves:"))
+        menu.addItem(item("Sepia…", "showSepia:"))
+        menu.addItem(item("Posterize…", "showPosterize:"))
+        menu.addItem(.separator())
         // Each adjustment also comes as a layer that stays editable (FR-9.1).
         menu.addItem(submenu(adjustmentLayerMenu()))
         return menu
@@ -281,6 +296,11 @@ enum MainMenu {
         menu.addItem(item("Gaussian Blur…", "showGaussianBlur:"))
         menu.addItem(item("Pixelate…", "showPixelate:"))
         menu.addItem(item("Sharpen…", "showSharpen:"))
+        menu.addItem(item("Motion Blur…", "showMotionBlur:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Add Noise…", "showAddNoise:"))
+        menu.addItem(item("Emboss…", "showEmboss:"))
+        menu.addItem(item("Vignette…", "showVignette:"))
         menu.addItem(.separator())
         let batch = NSMenu(title: "Batch Redact")
         batch.addItem(item("Blur…", "showGaussianBlur:"))

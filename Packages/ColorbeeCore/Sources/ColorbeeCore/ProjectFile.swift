@@ -39,6 +39,8 @@ public enum ProjectFile {
     struct AdjustmentEntry: Codable {
         var kind: String
         var values: [Double]
+        var levels: Levels? = nil
+        var curves: Curves? = nil
     }
 
     /// Encodes `canvas`. A floating selection is stamped into a copy of its layer, so what's saved is what's seen.
@@ -149,9 +151,13 @@ public enum ProjectFile {
         case .hueSaturation(let h, let s, let l): AdjustmentEntry(kind: "hueSaturation", values: [h, s, l])
         case .gaussianBlur(let radius): AdjustmentEntry(kind: "gaussianBlur", values: [radius])
         case .sharpen(let amount): AdjustmentEntry(kind: "sharpen", values: [amount])
+        case .levels(let levels): AdjustmentEntry(kind: "levels", values: [], levels: levels)
+        case .curves(let curves): AdjustmentEntry(kind: "curves", values: [], curves: curves)
+        case .sepia(let amount): AdjustmentEntry(kind: "sepia", values: [amount])
+        case .posterize(let levels): AdjustmentEntry(kind: "posterize", values: [Double(levels)])
+        // Never adjustment layers (see Layer.isAdjustable); unknown kinds read back as no adjustment.
         case .pixelate(let size): AdjustmentEntry(kind: "pixelate", values: [Double(size)])
-        // Never an adjustment layer (see Layer.isAdjustable); unknown kinds read back as no adjustment.
-        case .solidFill: AdjustmentEntry(kind: "solidFill", values: [])
+        case .solidFill, .addNoise, .motionBlur, .emboss, .vignette: AdjustmentEntry(kind: effect.name, values: [])
         }
     }
 
@@ -165,6 +171,10 @@ public enum ProjectFile {
         case "hueSaturation": .hueSaturation(hue: value(0), saturation: value(1), lightness: value(2))
         case "gaussianBlur": .gaussianBlur(radius: value(0))
         case "sharpen": .sharpen(amount: value(0))
+        case "levels": entry.levels.map(Effect.levels)
+        case "curves": entry.curves.map(Effect.curves)
+        case "sepia": .sepia(amount: value(0))
+        case "posterize": .posterize(levels: Int(value(0)))
         default: nil
         }
     }

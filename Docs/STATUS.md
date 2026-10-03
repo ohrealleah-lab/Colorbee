@@ -37,8 +37,8 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 7a. Integration: canvas, clipboard, history, sharing | ✅ Done | Medium |
 | 7b. Palettes, text styles, Settings, Finder | ✅ Done | Medium |
 | 7c. Shortcut editor | ✅ Done | **High** |
-| **8. Hardening** | 🔨 In progress | Medium |
-| 9. Photo editing (later phase) | Planned | Mostly medium; Curves and Straighten high |
+| 8. Hardening | ✅ Done | Medium |
+| **9. Photo editing** | 🔨 In progress | **High** |
 
 ## What's built
 
@@ -123,7 +123,6 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 ## Not built yet (by stage)
 
 **8 Hardening**
-- Leah's hand test of stage 8.
 - The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
 - Later polish: ⌘C of a very large image still pauses about a second.
@@ -139,7 +138,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 ## Not yet checked by hand
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
-Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b tested by hand on 2026-10-03. Stage 7a tested by hand on 2026-10-03. Stage 7b tested by hand on 2026-10-03, including the Auto-Redact box fix. Stage 7c tested by hand on 2026-10-03. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).
+Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b tested by hand on 2026-10-03. Stage 7a tested by hand on 2026-10-03. Stage 7b tested by hand on 2026-10-03, including the Auto-Redact box fix. Stage 7c tested by hand on 2026-10-03. Stage 8 tested by hand on 2026-10-03. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).
 
 ## Practical notes for the next session
 

@@ -71,6 +71,15 @@ final class DocumentWindow: NSWindow {
     }
 
     @objc func showSharpen(_ sender: Any?) { editor?.beginEffect(.sharpen) }
+    @objc func showLevels(_ sender: Any?) { editor?.beginEffect(.levels) }
+    @objc func showCurves(_ sender: Any?) { editor?.beginEffect(.curves) }
+    @objc func showSepia(_ sender: Any?) { editor?.beginEffect(.sepia) }
+    @objc func showPosterize(_ sender: Any?) { editor?.beginEffect(.posterize) }
+    @objc func autoContrast(_ sender: Any?) { editor?.autoContrast() }
+    @objc func showAddNoise(_ sender: Any?) { editor?.beginEffect(.addNoise) }
+    @objc func showMotionBlur(_ sender: Any?) { editor?.beginEffect(.motionBlur) }
+    @objc func showEmboss(_ sender: Any?) { editor?.beginEffect(.emboss) }
+    @objc func showVignette(_ sender: Any?) { editor?.beginEffect(.vignette) }
     @objc func showBrightnessContrast(_ sender: Any?) { editor?.beginEffect(.brightnessContrast) }
     @objc func showHueSaturation(_ sender: Any?) { editor?.beginEffect(.hueSaturation) }
     @objc func invertColors(_ sender: Any?) { editor?.applyAdjustment(.invert) }
@@ -123,8 +132,7 @@ final class DocumentWindow: NSWindow {
 
     @objc func newAdjustmentLayer(_ sender: Any?) {
         guard let tag = (sender as? NSMenuItem)?.tag, AdjustmentChoice.allCases.indices.contains(tag) else { return }
-        let choice = AdjustmentChoice.allCases[tag]
-        editor?.addAdjustmentLayer(choice.startingAdjustment, named: choice.title)
+        editor?.addAdjustmentLayer(AdjustmentChoice.allCases[tag])
     }
     @objc func newLayer(_ sender: Any?) { editor?.addLayer() }
     @objc func duplicateLayer(_ sender: Any?) { editor?.duplicateLayer() }

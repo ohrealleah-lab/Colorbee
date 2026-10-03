@@ -22,8 +22,9 @@ public final class Layer {
     /// The adjustments an adjustment layer can be.
     public static func isAdjustable(_ effect: Effect) -> Bool {
         switch effect {
-        case .invert, .desaturate, .brightnessContrast, .hueSaturation, .gaussianBlur, .sharpen: true
-        case .pixelate, .solidFill: false
+        case .invert, .desaturate, .brightnessContrast, .hueSaturation, .gaussianBlur, .sharpen,
+             .levels, .curves, .sepia, .posterize: true
+        case .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette: false
         }
     }
     /// An adjustment layer, or a layer never painted on: its buffer is all clear and takes no memory,

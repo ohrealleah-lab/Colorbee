@@ -95,8 +95,10 @@ public final class BrushStroke: Stroke {
         return switch brush {
         case .calligraphyForward, .calligraphyBack: max(0.25, nibThickness * 0.4)
         case .airbrush: max(1, r * 0.5)
-        case .naturalPencil: max(0.3, r * 0.2)
-        default: max(0.5, r * 0.15)
+        // Oil's thin bristles need close dabs or they break into dots.
+        case .oil: max(0.5, r * 0.15)
+        case .naturalPencil: max(0.3, r * 0.25)
+        default: max(0.5, r * 0.25)
         }
     }
 
@@ -220,9 +222,13 @@ public final class BrushStroke: Stroke {
     /// Paints a disc of `reach` around `center`, with `amount` (0...1) from the pixel and its distance to the center.
     private func disc(around center: Point2D, reach: Double, amount: @escaping (Int, Int, Double) -> Double) -> IntRect {
         let area = IntRect(enclosingMinX: center.x - reach - 1, minY: center.y - reach - 1, maxX: center.x + reach + 1, maxY: center.y + reach + 1)
+        let limit = (reach + 0.5) * (reach + 0.5)
         return painter.paint(area) { x, y in
             let ox = Double(x) + 0.5 - center.x, oy = Double(y) + 0.5 - center.y
-            return Self.coverage(amount(x, y, (ox * ox + oy * oy).squareRoot()))
+            let squared = ox * ox + oy * oy
+            // Most of the square around a disc is outside it; skip the grain math there.
+            guard squared <= limit else { return 0 }
+            return Self.coverage(amount(x, y, squared.squareRoot()))
         }
     }
 

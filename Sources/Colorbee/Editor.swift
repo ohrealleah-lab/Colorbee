@@ -351,6 +351,12 @@ final class Editor {
         let selection: SelectionMask?
     }
     @ObservationIgnored private var shapeRenderCache: (spec: ShapeSpec, pixels: PixelBuffer, origin: IntPoint)?
+    /// Textured shapes take too long to draw on every drag event, so they're drawn in the background;
+    /// these track the drawing under way and the newest spec waiting for it.
+    @ObservationIgnored private var shapeRenderInFlight = false
+    @ObservationIgnored private var shapeRenderWanted: ShapeSpec?
+    /// Bumped when a shape is placed or cancelled, so a late background result for it is dropped.
+    @ObservationIgnored private var shapeRenderGeneration = 0
 
     private enum ShapeDrag {
         case draw
@@ -666,15 +672,54 @@ final class Editor {
     }
 
     /// The pending shape drawn into pixels, cached until it changes.
+    /// For display. A textured shape may briefly show its previous frame while the new one draws in the background.
     func renderedPendingShape() -> (pixels: PixelBuffer, origin: IntPoint)? {
         guard let spec = pendingShapeSpec else { return nil }
         if let cache = shapeRenderCache, cache.spec == spec { return (cache.pixels, cache.origin) }
+        if spec.outlineStyle == .solid, spec.fillStyle == .solid {
+            return renderShapeNow(spec)
+        }
+        renderShapeInBackground(spec)
+        return shapeRenderCache.map { ($0.pixels, $0.origin) }
+    }
+
+    private func renderShapeNow(_ spec: ShapeSpec) -> (pixels: PixelBuffer, origin: IntPoint)? {
         guard let rendered = ShapeRenderer.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) else {
             shapeRenderCache = nil
             return nil
         }
         shapeRenderCache = (spec, rendered.pixels, rendered.origin)
         return rendered
+    }
+
+    private func renderShapeInBackground(_ spec: ShapeSpec) {
+        guard !shapeRenderInFlight else {
+            shapeRenderWanted = spec
+            return
+        }
+        shapeRenderInFlight = true
+        let generation = shapeRenderGeneration
+        let colorSpace = canvas.colorSpace, bounds = canvas.bounds
+        Task { [weak self] in
+            let rendered = await Task.detached(priority: .userInitiated) {
+                ShapeRenderer.render(spec, colorSpace: colorSpace, clippedTo: bounds).map { RenderedShape(pixels: $0.pixels, origin: $0.origin) }
+            }.value
+            guard let self else { return }
+            self.shapeRenderInFlight = false
+            guard generation == self.shapeRenderGeneration else { return }
+            self.shapeRenderCache = rendered.map { (spec, $0.pixels, $0.origin) }
+            if let wanted = self.shapeRenderWanted {
+                self.shapeRenderWanted = nil
+                if wanted != spec { self.renderShapeInBackground(wanted) }
+            }
+            self.renderSoon()
+        }
+    }
+
+    private func forgetShapeRender() {
+        shapeRenderCache = nil
+        shapeRenderWanted = nil
+        shapeRenderGeneration += 1
     }
 
     /// The rotate handle sits a fixed on-screen distance above the box's top edge.
@@ -910,9 +955,10 @@ final class Editor {
     /// Draws the pending shape into the active layer as one step.
     func commitPendingShape() {
         guard let spec = pendingShapeSpec else { return }
-        let rendered = renderedPendingShape()
+        // Placing always uses the finished drawing, never a frame still catching up.
+        let rendered = shapeRenderCache.flatMap { $0.spec == spec ? ($0.pixels, $0.origin) : nil } ?? renderShapeNow(spec)
         pendingShape = nil
-        shapeRenderCache = nil
+        forgetShapeRender()
         if let rendered {
             let edit = history.beginEdit(spec.kind.name, on: canvas)
             Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.activeLayer, edit: edit)
@@ -923,7 +969,7 @@ final class Editor {
 
     func cancelPendingShape() {
         pendingShape = nil
-        shapeRenderCache = nil
+        forgetShapeRender()
         shapeDrag = nil
         onRender()
     }
@@ -1604,4 +1650,10 @@ final class Editor {
     func flattenedPNG() throws -> Data {
         try encoded(as: .png)
     }
+}
+
+/// A finished shape drawing handed back from the background. The buffer is new and nothing else holds it.
+private struct RenderedShape: @unchecked Sendable {
+    let pixels: PixelBuffer
+    let origin: IntPoint
 }

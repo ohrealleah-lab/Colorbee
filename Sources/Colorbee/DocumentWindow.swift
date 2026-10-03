@@ -81,6 +81,9 @@ final class DocumentWindow: NSWindow {
     @objc func showMotionBlur(_ sender: Any?) { editor?.beginEffect(.motionBlur) }
     @objc func showEmboss(_ sender: Any?) { editor?.beginEffect(.emboss) }
     @objc func showVignette(_ sender: Any?) { editor?.beginEffect(.vignette) }
+    @objc func showDropShadow(_ sender: Any?) { editor?.beginEffect(.dropShadow) }
+    @objc func showBorder(_ sender: Any?) { editor?.beginEffect(.border) }
+    @objc func showSpotlight(_ sender: Any?) { editor?.beginEffect(.spotlight) }
     @objc func showBrightnessContrast(_ sender: Any?) { editor?.beginEffect(.brightnessContrast) }
     @objc func showHueSaturation(_ sender: Any?) { editor?.beginEffect(.hueSaturation) }
     @objc func invertColors(_ sender: Any?) { editor?.applyAdjustment(.invert) }

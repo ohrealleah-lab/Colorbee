@@ -100,6 +100,12 @@ enum EffectKind: CaseIterable {
     case emboss
     case vignette
     case adjustPhoto
+    case dropShadow
+    case border
+    case spotlight
+
+    /// Drop Shadow and Border can grow the canvas, so their preview is a real step, redone as settings change.
+    var previewsAsStep: Bool { self == .dropShadow || self == .border }
 
     struct Parameter {
         let label: String
@@ -128,6 +134,9 @@ enum EffectKind: CaseIterable {
         case .emboss: "Emboss"
         case .vignette: "Vignette"
         case .adjustPhoto: "Adjust Photo"
+        case .dropShadow: "Drop Shadow"
+        case .border: "Border"
+        case .spotlight: "Spotlight"
         }
     }
 
@@ -151,6 +160,21 @@ enum EffectKind: CaseIterable {
             Parameter(label: "White", range: 1...255, defaultValue: 255, unit: ""),
         ]
         case .curves, .adjustPhoto: []
+        case .dropShadow: [
+            Parameter(label: "Across", range: -200...200, defaultValue: 12, unit: "px"),
+            Parameter(label: "Down", range: -200...200, defaultValue: 12, unit: "px"),
+            Parameter(label: "Blur", range: 0...100, defaultValue: 10, unit: "px"),
+            Parameter(label: "Opacity", range: 0...100, defaultValue: 50, unit: "%"),
+            Parameter(label: "Color", range: 0...1, defaultValue: 0, unit: "", options: ["Black", "Color 1"]),
+        ]
+        case .border: [
+            Parameter(label: "Width", range: 1...200, defaultValue: 8, unit: "px"),
+            Parameter(label: "Color", range: 0...3, defaultValue: 0, unit: "", options: ["Color 1", "Color 2", "Black", "White"]),
+        ]
+        case .spotlight: [
+            Parameter(label: "Outside", range: 0...2, defaultValue: 0, unit: "", options: ["Dim", "Blur", "Desaturate"]),
+            Parameter(label: "Amount", range: 0...100, defaultValue: 60, unit: "%"),
+        ]
         case .sepia: [Parameter(label: "Amount", range: 0...100, defaultValue: 100, unit: "%")]
         case .posterize: [Parameter(label: "Levels", range: 2...32, defaultValue: 4, unit: "")]
         case .addNoise: [
@@ -189,6 +213,14 @@ enum EffectKind: CaseIterable {
         case .emboss: .emboss(angle: value(0), depth: value(1))
         case .vignette: .vignette(amount: value(0), size: value(1))
         case .adjustPhoto: .photo(photo)
+        case .spotlight:
+            switch Int(value(0).rounded()) {
+            case 1: .gaussianBlur(radius: max(1, value(1) / 2))
+            case 2: .hueSaturation(hue: 0, saturation: -value(1), lightness: 0)
+            default: .brightnessContrast(brightness: -value(1) * 0.8, contrast: 0)
+            }
+        // Drawn by Decorations, not as an effect (see Editor.renderEffectPreview).
+        case .dropShadow, .border: .invert
         }
     }
 }
@@ -1627,16 +1659,50 @@ final class Editor {
         guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
+        // Spotlight changes what's around the selection, so it needs one.
+        if kind == .spotlight, canvas.selection.marquee == nil { return onRefused() }
         effectValues = kind.parameters.map(\.defaultValue)
         effectCurves = .identity
         photoEdit = PhotoEdit()
         photoAutoMoved = []
         if kind == .adjustPhoto { isSidebarOpen = true }
         effectHistogram = kind == .levels ? Histogram(canvas.activeLayer.buffer, selection: canvas.selection.marquee) : nil
-        effectEdit = history.beginEdit(kind.title, on: canvas)
-        effectRegions = canvas.selection.marquee?.connectedRegions()
+        decorationPreviewed = false
+        effectEdit = kind.previewsAsStep ? nil : history.beginEdit(kind.title, on: canvas)
+        if kind == .spotlight {
+            effectRegions = canvas.selection.marquee?.inverted(in: canvas.bounds).map { [$0] } ?? []
+        } else {
+            effectRegions = canvas.selection.marquee?.connectedRegions()
+        }
         activeEffect = kind
         renderEffectPreview()
+    }
+
+    /// Whether a Drop Shadow or Border preview step is in the history right now.
+    @ObservationIgnored private var decorationPreviewed = false
+
+    /// Drop Shadow and Border: takes back the last preview step and draws the new one.
+    private func renderDecorationPreview(_ kind: EffectKind) {
+        if decorationPreviewed {
+            history.undo(on: canvas)
+            decorationPreviewed = false
+        }
+        let colors = [color1, color2, .black, .white]
+        let values = effectValues
+        func value(_ index: Int) -> Double { values.indices.contains(index) ? values[index] : kind.parameters[index].defaultValue }
+        let drawn = switch kind {
+        case .dropShadow:
+            Decorations.dropShadow(DropShadow(offsetX: value(0), offsetY: value(1), blur: value(2),
+                                              color: value(4) >= 0.5 ? color1 : .black, opacity: value(3)),
+                                   canvas: canvas, history: history, context: selectionContext)
+        default:
+            Decorations.border(Border(width: value(0), color: colors[min(max(Int(value(1).rounded()), 0), 3)]),
+                               canvas: canvas, history: history, context: selectionContext)
+        }
+        decorationPreviewed = drawn
+        if canvas.size != canvasSize { canvasDidResize() }
+        selectionDidChange()
+        onRender()
     }
 
     /// Called as the slider moves. Updates are merged, so only the latest value is ever computed
@@ -1649,7 +1715,9 @@ final class Editor {
 
     private func renderEffectPreview() {
         effectPreviewScheduled = false
-        guard let kind = activeEffect, let edit = effectEdit else { return }
+        guard let kind = activeEffect else { return }
+        if kind.previewsAsStep { return renderDecorationPreview(kind) }
+        guard let edit = effectEdit else { return }
         edit.restoreOriginals()
         let effect = kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
         if let regions = effectRegions {
@@ -1808,6 +1876,18 @@ final class Editor {
 
     func applyEffect() {
         if effectPreviewScheduled { renderEffectPreview() }
+        if activeEffect?.previewsAsStep == true {
+            activeEffect = nil
+            // The preview already is the step; it counts as a change only now.
+            if decorationPreviewed {
+                onDocumentChange(.done)
+                layersRevision += 1
+            } else {
+                onRefused()
+            }
+            decorationPreviewed = false
+            return
+        }
         guard let edit = effectEdit else { return }
         effectEdit = nil
         activeEffect = nil
@@ -1815,6 +1895,13 @@ final class Editor {
     }
 
     func cancelEffect() {
+        if activeEffect?.previewsAsStep == true, decorationPreviewed {
+            history.undo(on: canvas)
+            history.forgetRedo()
+            if canvas.size != canvasSize { canvasDidResize() }
+            selectionDidChange()
+        }
+        decorationPreviewed = false
         effectEdit?.restoreOriginals()
         effectEdit = nil
         activeEffect = nil

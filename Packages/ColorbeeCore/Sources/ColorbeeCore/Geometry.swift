@@ -81,6 +81,11 @@ public struct IntRect: Hashable, Sendable {
         return IntRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
     }
 
+    /// Grown by `amount` on every side (shrunk when negative).
+    public func insetBy(_ amount: Int) -> IntRect {
+        IntRect(x: x + amount, y: y + amount, width: width - 2 * amount, height: height - 2 * amount)
+    }
+
     public func offsetBy(dx: Int, dy: Int) -> IntRect {
         IntRect(x: x + dx, y: y + dy, width: width, height: height)
     }

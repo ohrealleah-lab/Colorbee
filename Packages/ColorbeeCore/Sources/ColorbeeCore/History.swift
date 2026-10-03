@@ -358,6 +358,12 @@ public final class History {
         return changed
     }
 
+    /// Forgets the steps that could be redone. Used when a preview that was a real step is cancelled.
+    public func forgetRedo() {
+        discardRedo()
+        revision += 1
+    }
+
     private func discardRedo() {
         for entry in redoStack where !entry.isSpilled {
             tileBytes -= entry.byteCount

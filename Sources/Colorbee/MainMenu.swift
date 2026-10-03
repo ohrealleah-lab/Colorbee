@@ -101,6 +101,9 @@ enum MainMenu {
         "showMotionBlur:": "Streak the selection or image along an angle, as if it moved.",
         "showAddNoise:": "Add grain, in color or monochrome.",
         "showEmboss:": "Turn the selection or image into a gray relief.",
+        "showDropShadow:": "A soft shadow behind the image or the selected object, following its shape. The canvas grows to fit.",
+        "showBorder:": "An outline around the image or the selected object, following its shape. The canvas grows to fit.",
+        "showSpotlight:": "Dim, blur or desaturate everything outside the selection.",
         "showVignette:": "Darken (or lighten) toward the edges of the selection or image.",
         "showGaussianBlur:": "Blur the selection (or image). Each separate selected area is blurred on its own.",
         "showPixelate:": "Turn the selection (or image) into large square blocks.",
@@ -303,6 +306,10 @@ enum MainMenu {
         menu.addItem(item("Add Noise…", "showAddNoise:"))
         menu.addItem(item("Emboss…", "showEmboss:"))
         menu.addItem(item("Vignette…", "showVignette:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Drop Shadow…", "showDropShadow:"))
+        menu.addItem(item("Border…", "showBorder:"))
+        menu.addItem(item("Spotlight…", "showSpotlight:"))
         menu.addItem(.separator())
         let batch = NSMenu(title: "Batch Redact")
         batch.addItem(item("Blur…", "showGaussianBlur:"))

@@ -2012,12 +2012,19 @@ final class Editor {
     }
 
     /// Save as Filter…: the filter at its intensity, then the color and tone sliders, as one filter.
-    func saveFilter(from edit: PhotoEdit, named name: String) {
+    /// Returns the settings that now look the same: the new filter at 100%, with the color and tone
+    /// sliders it absorbed back at zero (only the detail sliders stay). Nil if there was nothing to save.
+    func saveFilter(from edit: PhotoEdit, named name: String) -> PhotoEdit? {
         var steps = edit.filter?.steps(atIntensity: edit.filterIntensity / 100) ?? []
         let own = edit.adjustments.colorAndTone
         if !own.isNeutral { steps.append(.photo(PhotoEdit(adjustments: own))) }
-        guard !steps.isEmpty else { return onRefused() }
-        FilterStore.shared.add(PhotoFilter(name: name, steps: steps))
+        guard !steps.isEmpty else {
+            onRefused()
+            return nil
+        }
+        let savedName = FilterStore.shared.add(PhotoFilter(name: name, steps: steps))
+        let detail = PhotoAdjustments(edit.adjustments.values.filter { !$0.key.isColorOrTone })
+        return PhotoEdit(adjustments: detail, filter: FilterStore.shared.filter(named: savedName), filterIntensity: 100)
     }
 
     /// Save Filter from Layers: the visible color and tone adjustment layers, bottom to top.

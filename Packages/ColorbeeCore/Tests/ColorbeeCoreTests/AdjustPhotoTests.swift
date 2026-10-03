@@ -136,6 +136,18 @@ struct PhotoFilterTests {
         #expect(PhotoFilter.fromLayers([canvas.layers[0]], name: "None") == nil)
     }
 
+    @Test func aFilterSavedFromThePanelLooksTheSameAtFullIntensity() {
+        // What Save as Filter keeps: the chosen filter at its intensity, then the color and tone sliders.
+        let before = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 18, .warmth: 22, .vibrance: 10, .sharpness: 40]),
+                               filter: PhotoFilter.builtIn[0], filterIntensity: 60)
+        let steps = before.filter!.steps(atIntensity: 0.6) + [.photo(PhotoEdit(adjustments: before.adjustments.colorAndTone))]
+        let saved = PhotoFilter(name: "Mine", steps: steps)
+        let after = PhotoEdit(adjustments: PhotoAdjustments([.sharpness: 40]), filter: saved, filterIntensity: 100)
+        for pixel in [Pixel(r: 30, g: 60, b: 90), Pixel(r: 200, g: 180, b: 40), Pixel(r: 128, g: 128, b: 128, a: 77)] {
+            #expect(after.colorTransform(pixel) == before.colorTransform(pixel))
+        }
+    }
+
     @Test func otherStepsScaleTowardNoChange() {
         #expect(Effect.levels(Levels(black: 40, white: 200, gamma: 4)).scaled(by: 0.5) == .levels(Levels(black: 20, white: 227.5, gamma: 2)))
         #expect(Effect.sepia(amount: 80).scaled(by: 0.25) == .sepia(amount: 20))

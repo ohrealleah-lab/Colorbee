@@ -119,7 +119,7 @@ private struct FilterStrip: View {
             HStack {
                 Text("Filters").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryInk)
                 Spacer()
-                FilterMenu(edit: edit, editor: editor)
+                FilterMenu(edit: edit, editor: editor, onChange: onChange)
             }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4)], alignment: .leading, spacing: 4) {
                 chip("None", selected: edit.filter == nil) { choose(nil) }
@@ -158,13 +158,15 @@ private struct FilterStrip: View {
 private struct FilterMenu: View {
     let edit: PhotoEdit
     let editor: Editor
+    let onChange: (PhotoEdit) -> Void
     private var store: FilterStore { FilterStore.shared }
 
     var body: some View {
         Menu {
             Button("Save as Filter…") {
                 if let name = askForName("Save as Filter", message: "Saves the filter and color and tone sliders as they are now.", defaultName: "My Filter") {
-                    editor.saveFilter(from: edit, named: name)
+                    // The new filter replaces what it was made from, so the image looks just the same.
+                    if let saved = editor.saveFilter(from: edit, named: name) { onChange(saved) }
                 }
             }
             .disabled(edit.isNeutral)

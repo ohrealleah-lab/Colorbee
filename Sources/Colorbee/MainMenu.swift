@@ -109,7 +109,7 @@ enum MainMenu {
         "showPerspective:": "Square up a photo of a whiteboard, a document or a building.",
         "showDropShadow:": "A soft shadow behind the image or the selected object, following its shape. The canvas grows to fit.",
         "showBorder:": "An outline around the image or the selected object, following its shape. The canvas grows to fit.",
-        "showSpotlight:": "Dim, blur or desaturate everything outside the selection.",
+        "showSpotlight:": "Dim, blur or desaturate everything outside the selection. Select the area to keep first.",
         "showVignette:": "Darken (or lighten) toward the edges of the selection or image.",
         "showGaussianBlur:": "Blur the selection (or image). Each separate selected area is blurred on its own.",
         "showPixelate:": "Turn the selection (or image) into large square blocks.",

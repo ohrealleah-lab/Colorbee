@@ -230,6 +230,9 @@ final class DocumentWindow: NSWindow {
                     #selector(zoomToFit(_:)), #selector(togglePixelGrid(_:))].contains(menuItem.action)
         }
         switch menuItem.action {
+        case #selector(showSpotlight(_:)):
+            // Spotlight changes what's around a selection, so it waits for one.
+            return editor.hasSelection
         case #selector(undo(_:)) where textUndoManager != nil:
             menuItem.title = textUndoManager!.undoMenuItemTitle
             return textUndoManager!.canUndo

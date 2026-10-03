@@ -225,25 +225,11 @@ struct AdjustmentsPanel: View {
                 }
                 .controlSize(.small)
             } else {
-                Text("Select an adjustment layer to change its settings, or add one:")
+                // One way in from the sidebar: the Layers panel's Adjustment ▾ menu (Leah, FRD §23).
+                Text("Select an adjustment layer to change its settings. To add one, use Adjustment ▾ in the Layers panel, or Layer ▸ New Adjustment Layer.")
                     .font(.system(size: 11.5))
                     .foregroundStyle(Theme.secondaryInk)
                     .fixedSize(horizontal: false, vertical: true)
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 6) {
-                    ForEach(AdjustmentChoice.allCases, id: \.self) { choice in
-                        Button { editor.addAdjustmentLayer(choice) } label: {
-                            Label(choice.title, systemImage: choice.symbol)
-                                .font(.system(size: 11.5))
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 8)
-                                .frame(height: 24)
-                                .background(Theme.field, in: RoundedRectangle(cornerRadius: 7))
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
             }
         }
         .padding(.horizontal, 16)

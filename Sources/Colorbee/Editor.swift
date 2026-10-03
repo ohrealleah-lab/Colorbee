@@ -2146,11 +2146,14 @@ final class Editor {
                 }
             }
             if canvas.size != canvasSize { canvasDidResize() }
+            // The new image can be a very different size; show all of it.
+            zoomToFit()
             selectionDidChange()
             onRender()
             return
         }
         if activeEffect?.previewsAsStep == true {
+            if activeEffect == .straighten { zoomToFit() }
             activeEffect = nil
             // The preview already is the step; it counts as a change only now.
             if decorationPreviewed {

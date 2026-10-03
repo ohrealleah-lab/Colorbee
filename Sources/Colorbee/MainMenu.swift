@@ -138,6 +138,7 @@ enum MainMenu {
     private static func fileMenu() -> NSMenu {
         let menu = NSMenu(title: "File")
         menu.addItem(item("New", "newDocument:", "n"))
+        menu.addItem(item("Paste into New Image", "pasteIntoNewImage:", "v", [.command, .shift]))
         menu.addItem(item("Open…", "openDocument:", "o"))
         let recent = NSMenu(title: "Open Recent")
         recent.addItem(item("Clear Menu", "clearRecentDocuments:"))
@@ -177,7 +178,6 @@ enum MainMenu {
         menu.addItem(item("Copy", "copy:", "c"))
         menu.addItem(item("Copy Merged", "copyMerged:", "c", [.command, .shift]))
         menu.addItem(item("Paste", "paste:", "v"))
-        menu.addItem(item("Paste into New Image", "pasteIntoNewImage:", "v", [.command, .shift]))
         // The canvas handles the Delete key itself, so text fields keep their own Delete.
         menu.addItem(item("Delete", "delete:"))
         menu.addItem(.separator())

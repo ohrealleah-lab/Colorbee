@@ -171,7 +171,8 @@ final class DocumentWindow: NSWindow {
                     editor.resizeCanvas(to: IntSize(width: max(image.width, canvas.width), height: max(image.height, canvas.height)))
                     editor.paste(image, at: IntPoint(x: 0, y: 0))
                 } else {
-                    editor.paste(image)
+                    // At the top-left, shown only where it falls on the canvas; drag it to choose what shows.
+                    editor.paste(image, at: IntPoint(x: 0, y: 0))
                 }
             }
         } catch {

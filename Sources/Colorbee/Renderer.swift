@@ -196,6 +196,15 @@ final class Renderer {
         }
 
         var liveBuffers = Set<ObjectIdentifier>()
+        // Layers, and pixels pasted or moved past the edge, only show on the canvas itself.
+        let canvasScissor: MTLScissorRect = {
+            let rect = deviceRect(canvas.bounds)
+            let width = Double(layerPass.colorAttachments[0].texture!.width), height = Double(layerPass.colorAttachments[0].texture!.height)
+            let minX = min(max(0, Double(rect.x).rounded(.down)), width), minY = min(max(0, Double(rect.y).rounded(.down)), height)
+            let maxX = min(max(minX, Double(rect.x + rect.z).rounded(.up)), width), maxY = min(max(minY, Double(rect.y + rect.w).rounded(.up)), height)
+            return MTLScissorRect(x: Int(minX), y: Int(minY), width: Int(maxX - minX), height: Int(maxY - minY))
+        }()
+        encoder.setScissorRect(canvasScissor)
         encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
         let floating = canvas.selection.floating
         for layer in canvas.layers where layer.isVisible && layer.opacity > 0 {
@@ -219,6 +228,7 @@ final class Renderer {
                     resume.colorAttachments[0].storeAction = .store
                     guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume), let targets = blurTargets else { return }
                     encoder = resumed
+                    encoder.setScissorRect(canvasScissor)
                     encoder.setFragmentTexture(targets.blurred, index: 0)
                     encoder.setFragmentTexture(targets.coverageBlurred, index: 1)
                     uniforms.rect = canvasRect

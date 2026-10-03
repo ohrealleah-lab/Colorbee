@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-02 · 203 core tests passing_
+_Last updated: 2026-10-03 · 205 core tests passing_
 
 ---
 
@@ -31,8 +31,8 @@ _Last updated: 2026-10-02 · 203 core tests passing_
 | 4. Redaction | ✅ Done | Magic wand, batch redact, Auto-Redact, Before/After, export presets |
 | 5a. Full toolset (routine) | ✅ Done | All 23 shapes plus rotation, gradient, rotate/flip, symmetry, measure, adjustments, sharpen, D key |
 | 5b. Full toolset (hard) | ✅ Done | 6 brushes, pressure, textured shape styles, Resize/Skew |
-| **5c. Interface (mockup look)** | ⏭ **Next** | **Opus · high** · toolbar, palette bar, status bar |
-| 6. Layers | Planned | **Opus · high** · includes the right sidebar |
+| 5c. Interface (mockup look) | ✅ Done | Glass toolbar, palette bar with wells and custom colors, status bar with zoom slider, Magnifier |
+| **6. Layers** | ⏭ **Next** | **Opus · high** · includes the right sidebar |
 | 7. Integration | Planned | Mostly medium; shortcut editor high |
 | 8. Hardening | Planned | Medium |
 | 9. Photo editing (later phase) | Planned | Mostly medium; Curves and Straighten high |
@@ -49,6 +49,11 @@ _Last updated: 2026-10-02 · 203 core tests passing_
 - Metal display with zero-copy layer textures, zoom 12.5–3200%, pan, pinch.
 - Pixel grid at 400% and above (⌘'), checkerboard for transparency.
 - Rendering pauses while the window is hidden.
+
+**Interface** (mockup look, stage 5c)
+- Window toolbar in Liquid Glass capsules: selection tools + Transparent Selection; Pencil, Fill, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure; Brushes ▾ and Shapes ▾ galleries; Size (5 presets + px field); Outline/Fill.
+- Palette bar: color wells (ring = which one swatch clicks set; double-click to pick), 28 classic swatches, 12 custom slots (double-click empty to pick, Control-click to remove, kept between launches), Alpha, Edit Colors…, Paint Classic menu (palettes come in stage 7), then the tool's own settings.
+- Status bar: pointer, selection, measurement, canvas size, Pixel Grid and Symmetry switches, log-scale zoom slider, − % +.
 
 **Tools** (key)
 - Pencil P · Brush B (all 9: Round, Calligraphy 1 and 2, Airbrush, Oil, Crayon, Marker, Natural Pencil, Watercolor; pressure from a Force Touch trackpad or pen, with a Pressure switch) · Eraser E (square outline pointer; right-drag = Color Eraser) · Fill G (tolerance) · Eyedropper I (Option = all layers)
@@ -82,9 +87,6 @@ _Last updated: 2026-10-02 · 203 core tests passing_
 
 ## Not built yet (by stage)
 
-**5c Interface (high)** (moved up from stage 7 on 2026-10-02)
-- Mockup look: unified Liquid Glass toolbar with the Magnifier, 28-swatch palette bar with 12 custom slots, an Alpha slider and Edit Colors… (today's toolbar uses plain color pickers), and a status-bar zoom slider. Biggest visual gap versus the mockups.
-
 **6 Layers (high)**
 - The right sidebar (FR-1.3), starting with the Layers panel.
 - Model supports layers; there's no UI yet. Layers panel, add/duplicate/delete, merge down/visible, flatten, lock, hide, opacity.
@@ -111,7 +113,7 @@ _Last updated: 2026-10-02 · 203 core tests passing_
 ## Not yet checked by hand
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
-Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Nothing outstanding.
+Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight). Nothing outstanding.
 
 ## Practical notes for the next session
 
@@ -120,5 +122,7 @@ Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Nothing outs
 - Computer-use can't drive Colorbee while another app is frontmost (menus are disabled, canvas clicks are ignored). Don't take over the screen; ask Leah instead.
 - A Colorbee launched from Xcode (DerivedData) shares the bundle ID with ours, so the computer-use tool may attach to that copy. Never kill Leah's copy.
 - Launch test copies with `-ApplePersistenceIgnoreState YES` so they don't restore old windows.
+- To check layout without taking over the screen: `open -g -n -W -a "$PWD/build/Build/Products/Release/Colorbee.app" --args -ApplePersistenceIgnoreState YES -ColorbeeSnapshot /path/out.png` (options: `-ColorbeeSnapshotDark YES`, `-ColorbeeSnapshotTool shape`, `-ColorbeeSnapshotEdited YES`). It can't draw Liquid Glass or the Metal canvas, so ask Leah for screenshots of those. Screen capture of other windows needs Screen Recording permission; don't ask for it.
+- Commit only after `make test` and the Release build both succeed.
 - Xcode 26 needs the Metal Toolchain component (already installed on this Mac).
 - Trackpad pressure arrives only in `pressureChange` events (drag events always say 1.0), and only when System Settings ▸ Trackpad ▸ Force Click and haptic feedback is on. Leah turned it on 2026-10-02. Each brush stroke logs its pressure range: `/usr/bin/log show --last 10m --predicate 'subsystem == "com.leah.Colorbee"' | grep pressure` (plain `log` is a zsh builtin).

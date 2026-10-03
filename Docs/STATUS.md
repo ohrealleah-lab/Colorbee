@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
+_Last updated: 2026-10-02 · 203 core tests passing_
 
 ---
 
@@ -30,8 +30,8 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 | 3b. Editable objects | ✅ Done | Crop, resize handles, 5 shapes plus arrow, text tool |
 | 4. Redaction | ✅ Done | Magic wand, batch redact, Auto-Redact, Before/After, export presets |
 | 5a. Full toolset (routine) | ✅ Done | All 23 shapes plus rotation, gradient, rotate/flip, symmetry, measure, adjustments, sharpen, D key |
-| **5b. Full toolset (hard)** | ⏭ **Next** | **Opus · high** |
-| 5c. Interface (mockup look) | Planned | **Opus · high** · toolbar, palette bar, status bar |
+| 5b. Full toolset (hard) | ✅ Done (awaiting hand test) | 6 brushes, pressure, textured shape styles, Resize/Skew |
+| **5c. Interface (mockup look)** | ⏭ **Next** | **Opus · high** · toolbar, palette bar, status bar |
 | 6. Layers | Planned | **Opus · high** · includes the right sidebar |
 | 7. Integration | Planned | Mostly medium; shortcut editor high |
 | 8. Hardening | Planned | Medium |
@@ -51,8 +51,8 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 - Rendering pauses while the window is hidden.
 
 **Tools** (key)
-- Pencil P · Brush B (Round, Marker) · Eraser E (square outline pointer; right-drag = Color Eraser) · Fill G (tolerance) · Eyedropper I (Option = all layers)
-- Shapes U: all 23 FR-5.1 shapes plus Arrow (gallery menu). Editable until placed: move, handles, rotate handle (box shapes, Shift snaps 15°), outline and fill solid or none. Polygon: click corners, close on the first one or double-click. Curve: line, then two bends.
+- Pencil P · Brush B (all 9: Round, Calligraphy 1 and 2, Airbrush, Oil, Crayon, Marker, Natural Pencil, Watercolor; pressure from a Force Touch trackpad or pen, with a Pressure switch) · Eraser E (square outline pointer; right-drag = Color Eraser) · Fill G (tolerance) · Eyedropper I (Option = all layers)
+- Shapes U: all 23 FR-5.1 shapes plus Arrow (gallery menu). Editable until placed: move, handles, rotate handle (box shapes, Shift snaps 15°), outline and fill None, Solid, Crayon, Marker, Oil, Watercolor or Natural Pencil (textured previews draw in the background). Polygon: click corners, close on the first one or double-click. Curve: line, then two bends.
 - Gradient: linear, radial, reflected, diamond, conical; right-drag reverses; fades to transparent cleanly.
 - Measure R: distance, ΔX/ΔY, angle in the status bar.
 - Text T: in-place editing; font, size, B/I/U/S, alignment, opaque or transparent background.
@@ -67,6 +67,7 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 
 **Image and adjustments**
 - Image ▸ Rotate (90° CW, 90° CCW, 180°) and Flip (horizontal, vertical): the selection around its center, or the whole image.
+- Image ▸ Resize and Skew… (⌘E): by percent or pixels with aspect lock, Smooth or Sharp, skew ±89°; the selection or the whole image.
 - Adjustments: Invert ⌘I, Brightness/Contrast, Hue/Saturation, Desaturate ⇧⌘U. Effects ▸ Sharpen. All apply to the selection or the whole layer.
 
 **Effects and redaction**
@@ -80,12 +81,6 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 - Restores the selection with the pixels; geometry changes swap whole buffers.
 
 ## Not built yet (by stage)
-
-**5b (high)**
-- 6 textured brushes: calligraphy ×2, airbrush, oil, crayon, natural pencil, watercolor.
-- Textured shape outline and fill styles (crayon, marker, oil, watercolor, natural pencil); moved from 5a because they reuse the brush textures.
-- Pressure sensitivity.
-- Resize/Skew dialog (⌘E).
 
 **5c Interface (high)** (moved up from stage 7 on 2026-10-02)
 - Mockup look: unified Liquid Glass toolbar with the Magnifier, 28-swatch palette bar with 12 custom slots, an Alpha slider and Edit Colors… (today's toolbar uses plain color pickers), and a status-bar zoom slider. Biggest visual gap versus the mockups.
@@ -115,7 +110,8 @@ _Last updated: 2026-10-02 · 46 commits · 166 core tests passing_
 
 ## Not yet checked by hand
 
-Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. Nothing outstanding.
+Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
+**Stage 5b (built 2026-10-02), not yet tried by hand:** the 7 new brushes, pressure on the trackpad (pressure range is logged: `log show --last 10m --predicate 'subsystem == "com.leah.Colorbee"' --info | grep pressure`), textured shape outlines and fills, Resize and Skew.
 
 ## Practical notes for the next session
 

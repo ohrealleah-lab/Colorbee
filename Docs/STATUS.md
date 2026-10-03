@@ -115,6 +115,7 @@ _Last updated: 2026-10-03 · 257 core tests passing_
 
 **8 Hardening**
 - 8000×8000 soak tests (AC-27), performance baselines, polish, accessibility labels.
+- Beta packaging: Developer ID signing and notarization with Leah's Apple Developer account (signing details kept out of the repo), plus a start-here note for the tester.
 
 **9 Photo editing and presentation (later phase, FR-9.5)**
 - Adjustments: Levels (with Auto), Auto Contrast, Curves, Sepia, Posterize.

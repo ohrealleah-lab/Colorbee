@@ -101,6 +101,9 @@ enum MainMenu {
         "showMotionBlur:": "Streak the selection or image along an angle, as if it moved.",
         "showAddNoise:": "Add grain, in color or monochrome.",
         "showEmboss:": "Turn the selection or image into a gray relief.",
+        "selectSubject:": "Select the main subject of a photo, found on this Mac. With several, click the one you want.",
+        "removeBackground:": "Make everything but the photo's subject transparent, with soft edges. Found on this Mac; nothing is uploaded.",
+        "liftSubject:": "Copy the photo's subject onto a new layer, leaving this one as it is.",
         "showCrop:": "Crop with a box you drag: free, a set shape, or an exact pixel size.",
         "showStraighten:": "Turn the image a little to level a horizon or a crooked scan.",
         "showPerspective:": "Square up a photo of a whiteboard, a document or a building.",
@@ -199,6 +202,7 @@ enum MainMenu {
         menu.addItem(item("Select All", "selectAll:", "a"))
         menu.addItem(item("Deselect", "deselect:", "d"))
         menu.addItem(item("Invert Selection", "invertSelection:", "i", [.command, .shift]))
+        menu.addItem(item("Select Subject", "selectSubject:"))
         return menu
     }
 
@@ -240,6 +244,10 @@ enum MainMenu {
         menu.addItem(submenu(rotate))
         menu.addItem(item("Straighten…", "showStraighten:"))
         menu.addItem(item("Perspective Correction…", "showPerspective:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Remove Background", "removeBackground:"))
+        menu.addItem(item("Lift Subject to New Layer", "liftSubject:"))
+        menu.addItem(.separator())
         menu.addItem(submenu(flip))
         menu.addItem(.separator())
         let symmetry = NSMenu(title: "Symmetry")

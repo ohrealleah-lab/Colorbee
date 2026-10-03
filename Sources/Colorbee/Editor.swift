@@ -106,16 +106,18 @@ enum EffectKind: CaseIterable {
     case straighten
     case perspective
     case crop
+    /// Waiting for a click on one of several subjects (Remove Background, Select Subject).
+    case pickSubject
 
     /// Drop Shadow, Border and Straighten change the canvas's size, so their preview is a real step, redone as
     /// settings change.
     var previewsAsStep: Bool { self == .dropShadow || self == .border || self == .straighten }
 
     /// Straighten, Perspective Correction and Crop: dragging on the canvas sets them, rather than panning.
-    var isCanvasTool: Bool { self == .straighten || self == .perspective || self == .crop }
+    var isCanvasTool: Bool { self == .straighten || self == .perspective || self == .crop || self == .pickSubject }
 
-    /// Whether the bar's Apply does anything beyond keeping a preview.
-    var appliesToWholeImage: Bool { isCanvasTool }
+    /// Changes every layer, not just the active one.
+    var appliesToWholeImage: Bool { self == .straighten || self == .perspective || self == .crop }
 
     struct Parameter {
         let label: String
@@ -150,6 +152,7 @@ enum EffectKind: CaseIterable {
         case .straighten: "Straighten"
         case .perspective: "Perspective Correction"
         case .crop: "Crop"
+        case .pickSubject: "Pick a Subject"
         }
     }
 
@@ -172,7 +175,7 @@ enum EffectKind: CaseIterable {
             Parameter(label: "Midtones", range: 0.1...9.99, defaultValue: 1, unit: "", step: 0.01),
             Parameter(label: "White", range: 1...255, defaultValue: 255, unit: ""),
         ]
-        case .curves, .adjustPhoto, .perspective, .crop: []
+        case .curves, .adjustPhoto, .perspective, .crop, .pickSubject: []
         case .straighten: [
             Parameter(label: "Angle", range: -45...45, defaultValue: 0, unit: "°", step: 0.1),
             Parameter(label: "Corners", range: 0...1, defaultValue: 0, unit: "", options: ["Crop to Fit", "Grow Canvas"]),
@@ -237,7 +240,7 @@ enum EffectKind: CaseIterable {
             default: .brightnessContrast(brightness: -value(1) * 0.8, contrast: 0)
             }
         // Done by Decorations and ImageActions, not as an effect (see Editor.renderEffectPreview).
-        case .dropShadow, .border, .straighten, .perspective, .crop: .invert
+        case .dropShadow, .border, .straighten, .perspective, .crop, .pickSubject: .invert
         }
     }
 }
@@ -1697,7 +1700,7 @@ final class Editor {
             perspectiveCorners = [Point2D(x: w * inset, y: h * inset), Point2D(x: w * (1 - inset), y: h * inset),
                                   Point2D(x: w * (1 - inset), y: h * (1 - inset)), Point2D(x: w * inset, y: h * (1 - inset))]
         }
-        effectEdit = kind.previewsAsStep || kind == .crop || kind == .perspective ? nil : history.beginEdit(kind.title, on: canvas)
+        effectEdit = kind.previewsAsStep || kind.isCanvasTool ? nil : history.beginEdit(kind.title, on: canvas)
         if kind == .spotlight {
             effectRegions = canvas.selection.marquee?.inverted(in: canvas.bounds).map { [$0] } ?? []
         } else {
@@ -1785,6 +1788,9 @@ final class Editor {
     /// A drag on the canvas while Straighten, Perspective Correction or Crop is open.
     func beginCanvasToolDrag(at point: Point2D, viewPoint: Point2D) {
         switch activeEffect {
+        case .pickSubject:
+            pickSubject(at: point)
+            return
         case .straighten:
             straightenLine = (point, point)
         case .perspective:
@@ -1855,6 +1861,69 @@ final class Editor {
 
     private func distance(_ a: Point2D, _ b: Point2D) -> Double { hypot(a.x - b.x, a.y - b.y) }
 
+    // MARK: Subjects (FR-9.5)
+
+    enum SubjectAction {
+        case removeBackground, liftToNewLayer, select
+    }
+
+    /// Whether Vision is looking for the subject now.
+    private(set) var isFindingSubject = false
+    /// A message to show, such as "No subject found".
+    var subjectMessage: String?
+    /// With several subjects: what was found and what to do with the one you click.
+    @ObservationIgnored private var subjectPick: (scan: SubjectScan, action: SubjectAction, layer: LayerID)?
+
+    /// Finds the subject in the active layer with Vision, on this Mac, then acts on it. With several
+    /// subjects it waits for a click on one (Return takes them all).
+    func findSubject(_ action: SubjectAction) {
+        guard !isFindingSubject, activeEffect == nil else { return }
+        if action != .select, refusedBecauseLocked() { return }
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        let layer = canvas.activeLayer
+        guard layer.adjustment == nil, let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
+        let size = canvas.size
+        isFindingSubject = true
+        Task { @MainActor [weak self] in
+            let scan = try? await SubjectScan.find(in: image)
+            guard let self else { return }
+            self.isFindingSubject = false
+            // Something else changed the image meanwhile; the masks no longer fit it.
+            guard self.canvas.size == size, self.canvas.activeLayer.id == layer.id, self.activeEffect == nil else { return }
+            guard let scan, !scan.isEmpty else {
+                self.subjectMessage = "No subject found. Remove Background and Select Subject work on photos of people, pets and objects, not on screenshots or text."
+                return
+            }
+            if scan.masks.count == 1 {
+                self.perform(action, mask: scan.mask())
+            } else {
+                self.subjectPick = (scan, action, layer.id)
+                self.beginEffect(.pickSubject)
+            }
+        }
+    }
+
+    private func perform(_ action: SubjectAction, mask: [UInt8]) {
+        recordingChanges {
+            switch action {
+            case .removeBackground: SubjectActions.removeBackground(mask, canvas: canvas, history: history, context: selectionContext)
+            case .liftToNewLayer: SubjectActions.liftToNewLayer(mask, canvas: canvas, history: history, context: selectionContext)
+            case .select: SubjectActions.select(mask, canvas: canvas, history: history, context: selectionContext)
+            }
+        }
+        selectionDidChange()
+        onRender()
+    }
+
+    /// A click while picking: that subject, or a beep on the background.
+    private func pickSubject(at point: Point2D) {
+        guard let pick = subjectPick, let index = pick.scan.subject(at: IntPoint(x: Int(point.x), y: Int(point.y))) else { return onRefused() }
+        subjectPick = nil
+        activeEffect = nil
+        perform(pick.action, mask: pick.scan.mask(for: [index]))
+    }
+
     /// Drop Shadow and Border: takes back the last preview step and draws the new one.
     private func renderDecorationPreview(_ kind: EffectKind) {
         if decorationPreviewed {
@@ -1893,7 +1962,7 @@ final class Editor {
         effectPreviewScheduled = false
         guard let kind = activeEffect else { return }
         if kind.previewsAsStep { return renderDecorationPreview(kind) }
-        if kind == .crop || kind == .perspective { return onRender() }
+        if kind.isCanvasTool { return onRender() }
         guard let edit = effectEdit else { return }
         edit.restoreOriginals()
         let effect = kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
@@ -2053,6 +2122,12 @@ final class Editor {
 
     func applyEffect() {
         if effectPreviewScheduled { renderEffectPreview() }
+        if activeEffect == .pickSubject {
+            activeEffect = nil
+            if let pick = subjectPick { perform(pick.action, mask: pick.scan.mask()) }
+            subjectPick = nil
+            return
+        }
         if activeEffect == .crop || activeEffect == .perspective {
             let kind = activeEffect
             activeEffect = nil
@@ -2094,6 +2169,7 @@ final class Editor {
             selectionDidChange()
         }
         decorationPreviewed = false
+        subjectPick = nil
         effectEdit?.restoreOriginals()
         effectEdit = nil
         activeEffect = nil

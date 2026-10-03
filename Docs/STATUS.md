@@ -116,7 +116,7 @@ _Last updated: 2026-10-03 · 241 core tests passing_
 ## Not yet checked by hand
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
-Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b (built 2026-10-03) awaits a hand test with `TestImages/Stage 6b Practice.colorproj`: adjustment layers on screen (GPU) vs. exported, Undo on Active Layer, Revert Layer, saving a layered PNG as a project. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight). Nothing outstanding.
+Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b (built 2026-10-03) awaits a hand test with `TestImages/Stage 6b Practice.colorproj`: adjustment layers on screen (GPU) vs. exported, Undo on Active Layer, Revert Layer, saving a layered PNG as a project. Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).
 
 ## Practical notes for the next session
 

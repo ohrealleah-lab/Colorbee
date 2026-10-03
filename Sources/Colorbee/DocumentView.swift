@@ -166,15 +166,21 @@ private struct ToolOptions: View {
                     .monospacedDigit()
                     .frame(width: 40, alignment: .trailing)
             }
-            if !editor.shapeKind.isOpen {
-                Picker("Outline", selection: $editor.shapeHasOutline) {
-                    Text("Solid").tag(true)
-                    Text("None").tag(false)
+            if editor.shapeKind.isOpen {
+                // Lines, arrows and curves are all outline, so there's no None.
+                Picker("Outline", selection: Binding(get: { editor.shapeOutline ?? .solid }, set: { editor.shapeOutline = $0 })) {
+                    ForEach(PaintStyle.allCases, id: \.self) { Text($0.name).tag($0) }
                 }
                 .fixedSize()
-                Picker("Fill", selection: $editor.shapeHasFill) {
-                    Text("None").tag(false)
-                    Text("Solid").tag(true)
+            } else {
+                Picker("Outline", selection: $editor.shapeOutline) {
+                    Text("None").tag(Optional<PaintStyle>.none)
+                    ForEach(PaintStyle.allCases, id: \.self) { Text($0.name).tag(Optional($0)) }
+                }
+                .fixedSize()
+                Picker("Fill", selection: $editor.shapeFill) {
+                    Text("None").tag(Optional<PaintStyle>.none)
+                    ForEach(PaintStyle.allCases, id: \.self) { Text($0.name).tag(Optional($0)) }
                 }
                 .fixedSize()
             }

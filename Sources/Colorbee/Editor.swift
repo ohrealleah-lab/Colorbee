@@ -289,10 +289,12 @@ final class Editor {
     var shapeLineWidth = 3.0 {
         didSet { renderSoon() }
     }
-    var shapeHasOutline = true {
+    /// Nil is no outline. Open shapes (lines, arrows, curves) always have one.
+    var shapeOutline: PaintStyle? = .solid {
         didSet { renderSoon() }
     }
-    var shapeHasFill = false {
+    /// Nil is no fill.
+    var shapeFill: PaintStyle? {
         didSet { renderSoon() }
     }
     private(set) var pendingShape: PendingShape?
@@ -656,8 +658,10 @@ final class Editor {
             points: pendingShape.points,
             rotation: pendingShape.rotation,
             lineWidth: shapeLineWidth,
-            outline: shapeHasOutline || pendingShape.kind.isOpen ? outlineColor : nil,
-            fill: shapeHasFill ? fillColor : nil
+            outline: shapeOutline != nil || pendingShape.kind.isOpen ? outlineColor : nil,
+            fill: shapeFill != nil ? fillColor : nil,
+            outlineStyle: shapeOutline ?? .solid,
+            fillStyle: shapeFill ?? .solid
         )
     }
 

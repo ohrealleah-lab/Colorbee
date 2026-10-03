@@ -83,11 +83,15 @@ public struct ShapeSpec: Equatable, Sendable {
     public var outline: Pixel?
     /// Nil draws no fill. Ignored for open shapes.
     public var fill: Pixel?
+    public var outlineStyle: PaintStyle
+    public var fillStyle: PaintStyle
 
     public init(
         kind: ShapeKind, start: Point2D, end: Point2D, points: [Point2D] = [], rotation: Double = 0,
-        lineWidth: Double, outline: Pixel?, fill: Pixel?
+        lineWidth: Double, outline: Pixel?, fill: Pixel?, outlineStyle: PaintStyle = .solid, fillStyle: PaintStyle = .solid
     ) {
+        self.outlineStyle = outlineStyle
+        self.fillStyle = fillStyle
         self.kind = kind
         self.start = start
         self.end = end
@@ -127,6 +131,19 @@ public struct ShapeSpec: Equatable, Sendable {
     }
 
     var arrowHeadLength: Double { max(10, lineWidth * 4) }
+
+    /// Where an arrow's shaft stops: inside the head, so its square end doesn't poke out of the point.
+    var arrowShaftEnd: Point2D {
+        let dx = end.x - start.x, dy = end.y - start.y
+        let length = (dx * dx + dy * dy).squareRoot()
+        guard length > 0 else { return end }
+        let head = min(arrowHeadLength, length)
+        let back = head - min(head / 2, lineWidth)
+        return Point2D(x: end.x - dx / length * back, y: end.y - dy / length * back)
+    }
+
+    /// Off draws only an arrow's head, which stays solid under a textured shaft.
+    var drawsShaft = true
 
     /// Everything the shape can paint, including stroke width, arrow head and anti-aliasing.
     public var paintedBounds: IntRect {
@@ -298,18 +315,44 @@ public enum ShapeRenderer {
     /// Returns nil when nothing would be visible.
     public static func render(_ shape: ShapeSpec, colorSpace: CGColorSpace, clippedTo canvasBounds: IntRect) -> (pixels: PixelBuffer, origin: IntPoint)? {
         let area = shape.paintedBounds.intersection(canvasBounds)
-        guard !area.isEmpty, shape.outline != nil || (shape.fill != nil && !shape.kind.isOpen) else { return nil }
-        let buffer = PixelBuffer(width: area.width, height: area.height)
-        let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
-        guard let context = CGContext(
-            data: buffer.baseAddress, width: area.width, height: area.height, bitsPerComponent: 8,
-            bytesPerRow: buffer.bytesPerRow, space: colorSpace, bitmapInfo: bitmapInfo
-        ) else { return nil }
+        let hasFill = shape.fill != nil && !shape.kind.isOpen
+        guard !area.isEmpty, shape.outline != nil || hasFill else { return nil }
+        let origin = IntPoint(x: area.minX, y: area.minY)
+        if shape.outlineStyle == .solid, shape.fillStyle == .solid {
+            return drawSolid(shape, fill: true, outline: true, area: area, colorSpace: colorSpace).map { ($0, origin) }
+        }
 
-        // Image coordinates: origin at the top-left of the canvas, y down.
-        context.translateBy(x: 0, y: CGFloat(area.height))
-        context.scaleBy(x: 1, y: -1)
-        context.translateBy(x: CGFloat(-area.minX), y: CGFloat(-area.minY))
+        // Textured styles: the fill and the outline are made separately, then the outline goes on top.
+        var result: PixelBuffer?
+        if hasFill, let fill = shape.fill {
+            result = shape.fillStyle == .solid
+                ? drawSolid(shape, fill: true, outline: false, area: area, colorSpace: colorSpace)
+                : texturedFill(shape, color: fill, area: area)
+        }
+        if let outline = shape.outline {
+            let stroke = shape.outlineStyle == .solid
+                ? drawSolid(shape, fill: false, outline: true, area: area, colorSpace: colorSpace)
+                : texturedOutline(shape, color: outline, style: shape.outlineStyle, area: area, colorSpace: colorSpace)
+            if let stroke {
+                if let base = result {
+                    for y in 0..<area.height {
+                        let top = stroke.row(y), bottom = base.row(y)
+                        for x in 0..<area.width where top[x].a > 0 {
+                            bottom[x] = Compositing.over(bottom[x], top[x])
+                        }
+                    }
+                } else {
+                    result = stroke
+                }
+            }
+        }
+        return result.map { ($0, origin) }
+    }
+
+    /// Core Graphics drawing for solid fills and outlines.
+    private static func drawSolid(_ shape: ShapeSpec, fill drawFill: Bool, outline drawOutline: Bool, area: IntRect, colorSpace: CGColorSpace) -> PixelBuffer? {
+        let buffer = PixelBuffer(width: area.width, height: area.height)
+        guard let context = imageContext(for: buffer, area: area, colorSpace: colorSpace) else { return nil }
         context.setLineWidth(shape.lineWidth)
         context.setLineJoin(.round)
 
@@ -318,14 +361,14 @@ public enum ShapeRenderer {
         }
 
         if shape.kind.isLinear {
-            draw(line: shape, in: context, color: shape.outline.map(cgColor))
+            if drawOutline { draw(line: shape, in: context, color: shape.outline.map(cgColor)) }
         } else if let path = shape.path {
-            if let fill = shape.fill, !shape.kind.isOpen {
+            if drawFill, let fill = shape.fill, !shape.kind.isOpen {
                 context.addPath(path)
                 context.setFillColor(cgColor(fill))
                 context.fillPath()
             }
-            if let outline = shape.outline {
+            if drawOutline, let outline = shape.outline {
                 context.addPath(path)
                 context.setStrokeColor(cgColor(outline))
                 context.strokePath()
@@ -335,7 +378,164 @@ public enum ShapeRenderer {
         var image = buffer.vImageBuffer
         // BGRA keeps alpha last, which is all the RGBA8888 variant needs.
         vImageUnpremultiplyData_RGBA8888(&image, &image, vImage_Flags(kvImageNoFlags))
-        return (buffer, IntPoint(x: area.minX, y: area.minY))
+        return buffer
+    }
+
+    /// A context drawing into `buffer` in image coordinates: origin at the canvas's top-left, y down.
+    private static func imageContext(for buffer: PixelBuffer, area: IntRect, colorSpace: CGColorSpace) -> CGContext? {
+        let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        guard let context = CGContext(
+            data: buffer.baseAddress, width: area.width, height: area.height, bitsPerComponent: 8,
+            bytesPerRow: buffer.bytesPerRow, space: colorSpace, bitmapInfo: bitmapInfo
+        ) else { return nil }
+        context.translateBy(x: 0, y: CGFloat(area.height))
+        context.scaleBy(x: 1, y: -1)
+        context.translateBy(x: CGFloat(-area.minX), y: CGFloat(-area.minY))
+        return context
+    }
+
+    /// The outline traced with the style's brush, one stroke per subpath. An arrow's head stays solid.
+    private static func texturedOutline(_ shape: ShapeSpec, color: Pixel, style: PaintStyle, area: IntRect, colorSpace: CGColorSpace) -> PixelBuffer? {
+        guard let brush = style.brush else { return nil }
+        let scratch = Canvas(size: IntSize(width: area.width, height: area.height), colorSpace: colorSpace, background: .clear)
+        let edit = Edit(name: "Shape", canvas: scratch)
+        let offset = Point2D(x: Double(area.minX), y: Double(area.minY))
+
+        var lines: [[Point2D]]
+        if shape.kind.isLinear {
+            lines = [[shape.start, shape.kind == .arrow ? shape.arrowShaftEnd : shape.end]]
+        } else {
+            lines = shape.path.map(flatten) ?? []
+        }
+        for line in lines where !line.isEmpty {
+            // A fixed seed keeps the oil bristles from changing every time the preview redraws.
+            let stroke = brush.makeStroke(diameter: shape.lineWidth, color: color, layer: scratch.activeLayer, edit: edit, seed: 1)
+            for point in line { stroke.move(to: Point2D(x: point.x - offset.x, y: point.y - offset.y)) }
+            stroke.finish()
+        }
+        let buffer = scratch.activeLayer.buffer
+        if shape.kind == .arrow, let head = drawSolid(arrowHeadOnly(shape), fill: false, outline: true, area: area, colorSpace: colorSpace) {
+            for y in 0..<area.height {
+                let top = head.row(y), bottom = buffer.row(y)
+                for x in 0..<area.width where top[x].a > 0 { bottom[x] = Compositing.over(bottom[x], top[x]) }
+            }
+        }
+        return buffer
+    }
+
+    /// The arrow with its shaft shortened to nothing, so only the head is drawn.
+    private static func arrowHeadOnly(_ shape: ShapeSpec) -> ShapeSpec {
+        var head = shape
+        head.outlineStyle = .solid
+        head.drawsShaft = false
+        return head
+    }
+
+    /// The fill area with the style's texture applied.
+    private static func texturedFill(_ shape: ShapeSpec, color: Pixel, area: IntRect) -> PixelBuffer? {
+        guard let path = shape.path else { return nil }
+        let width = area.width, height = area.height
+        var mask = [UInt8](repeating: 0, count: width * height)
+        let drawn = mask.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(
+                data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue
+            ) else { return false }
+            context.translateBy(x: 0, y: CGFloat(height))
+            context.scaleBy(x: 1, y: -1)
+            context.translateBy(x: CGFloat(-area.minX), y: CGFloat(-area.minY))
+            context.addPath(path)
+            context.setFillColor(gray: 1, alpha: 1)
+            context.fillPath()
+            return true
+        }
+        guard drawn else { return nil }
+        // Watercolor pools at the edges: a blurred copy of the mask says how far inside each pixel is.
+        let interior = shape.fillStyle == .watercolor ? blurred(mask, width: width, height: height, radius: max(3, min(width, height) / 12)) : mask
+
+        let buffer = PixelBuffer(width: width, height: height)
+        for y in 0..<height {
+            let row = buffer.row(y)
+            for x in 0..<width {
+                let index = y * width + x
+                guard mask[index] > 0 else { continue }
+                let amount = shape.fillStyle.fillAmount(
+                    x: x + area.minX, y: y + area.minY,
+                    mask: Double(mask[index]) / 255, interior: Double(interior[index]) / 255
+                )
+                guard amount > 0 else { continue }
+                var pixel = color
+                pixel.a = UInt8((Double(color.a) * min(1, amount)).rounded())
+                row[x] = pixel
+            }
+        }
+        return buffer
+    }
+
+    private static func blurred(_ plane: [UInt8], width: Int, height: Int, radius: Int) -> [UInt8] {
+        var source = plane, result = plane
+        let kernel = UInt32(radius * 2 + 1)
+        source.withUnsafeMutableBytes { input in
+            result.withUnsafeMutableBytes { output in
+                var from = vImage_Buffer(data: input.baseAddress, height: vImagePixelCount(height), width: vImagePixelCount(width), rowBytes: width)
+                var to = vImage_Buffer(data: output.baseAddress, height: vImagePixelCount(height), width: vImagePixelCount(width), rowBytes: width)
+                // Two box passes approximate a Gaussian; outside the shape counts as empty.
+                vImageBoxConvolve_Planar8(&from, &to, nil, 0, 0, kernel, kernel, 0, vImage_Flags(kvImageBackgroundColorFill))
+                vImageBoxConvolve_Planar8(&to, &from, nil, 0, 0, kernel, kernel, 0, vImage_Flags(kvImageBackgroundColorFill))
+            }
+        }
+        return source
+    }
+
+    /// The path as polylines, one per subpath, with curves split into short straight pieces.
+    static func flatten(_ path: CGPath) -> [[Point2D]] {
+        var lines: [[Point2D]] = []
+        var current: [Point2D] = []
+        var start = CGPoint.zero, last = CGPoint.zero
+        func add(_ point: CGPoint) {
+            current.append(Point2D(x: point.x, y: point.y))
+            last = point
+        }
+        func steps(_ points: [CGPoint]) -> Int {
+            var length = 0.0
+            for (a, b) in zip(points, points.dropFirst()) { length += hypot(b.x - a.x, b.y - a.y) }
+            return max(4, Int(length / 2))
+        }
+        path.applyWithBlock { element in
+            let e = element.pointee
+            switch e.type {
+            case .moveToPoint:
+                if current.count > 1 { lines.append(current) }
+                current = []
+                start = e.points[0]
+                add(start)
+            case .addLineToPoint:
+                add(e.points[0])
+            case .addQuadCurveToPoint:
+                let from = last, control = e.points[0], to = e.points[1]
+                let count = steps([from, control, to])
+                for step in 1...count {
+                    let t = CGFloat(step) / CGFloat(count), u = 1 - t
+                    add(CGPoint(x: u * u * from.x + 2 * u * t * control.x + t * t * to.x,
+                                y: u * u * from.y + 2 * u * t * control.y + t * t * to.y))
+                }
+            case .addCurveToPoint:
+                let from = last, c1 = e.points[0], c2 = e.points[1], to = e.points[2]
+                let count = steps([from, c1, c2, to])
+                for step in 1...count {
+                    let t = CGFloat(step) / CGFloat(count), u = 1 - t
+                    let a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t
+                    add(CGPoint(x: a * from.x + b * c1.x + c * c2.x + d * to.x,
+                                y: a * from.y + b * c1.y + c * c2.y + d * to.y))
+                }
+            case .closeSubpath:
+                add(start)
+            @unknown default:
+                break
+            }
+        }
+        if current.count > 1 { lines.append(current) }
+        return lines
     }
 
     private static func draw(line shape: ShapeSpec, in context: CGContext, color: CGColor?) {
@@ -358,9 +558,9 @@ public enum ShapeRenderer {
             context.addLine(to: CGPoint(x: base.x + unit.y * halfWidth, y: base.y - unit.x * halfWidth))
             context.closePath()
             context.fillPath()
-            // Stop the shaft inside the head so its square end doesn't poke out of the point.
-            lineEnd = CGPoint(x: base.x + unit.x * min(head / 2, shape.lineWidth), y: base.y + unit.y * min(head / 2, shape.lineWidth))
+            lineEnd = CGPoint(x: shape.arrowShaftEnd.x, y: shape.arrowShaftEnd.y)
         }
+        guard shape.drawsShaft else { return }
         context.move(to: start)
         context.addLine(to: lineEnd)
         context.strokePath()

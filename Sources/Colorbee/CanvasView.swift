@@ -321,7 +321,12 @@ final class CanvasView: NSView {
             appliedTextStyle = (style, zoom)
         }
         let origin = editor.viewport.viewPoint(fromImage: pending.origin)
-        view.fit(at: NSPoint(x: origin.x, y: origin.y), wrapWidth: pending.wrapWidth.map { $0 * zoom }, minimumHeight: pending.minimumHeight * zoom)
+        view.fit(
+            at: NSPoint(x: origin.x, y: origin.y),
+            wrapWidth: pending.wrapWidth.map { $0 * zoom },
+            boxWidth: editor.pendingTextFrame.map { Double($0.width) * zoom },
+            minimumHeight: pending.minimumHeight * zoom
+        )
     }
 
     private func handlePoints(_ selection: SelectionState) -> [Point2D] {

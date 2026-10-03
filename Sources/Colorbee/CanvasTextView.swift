@@ -69,8 +69,10 @@ final class CanvasTextView: NSTextView {
         }
     }
 
-    /// Sizes the view to its text. `wrapWidth` is in view points.
-    func fit(at origin: NSPoint, wrapWidth: Double?, minimumHeight: Double = 0) {
+    /// Sizes the view to its text. `wrapWidth` and `boxWidth` (the width of the box that will be placed)
+    /// are in view points; an unwrapped box takes its width from `boxWidth`, so an opaque background
+    /// doesn't show past the box's border.
+    func fit(at origin: NSPoint, wrapWidth: Double?, boxWidth: Double?, minimumHeight: Double = 0) {
         guard let container = textContainer, let layoutManager else { return }
         if let wrapWidth {
             isHorizontallyResizable = false
@@ -83,7 +85,8 @@ final class CanvasTextView: NSTextView {
         let used = layoutManager.usedRect(for: container)
         let font = typingAttributes[.font] as? NSFont ?? .systemFont(ofSize: 12)
         let lineHeight = layoutManager.defaultLineHeight(for: font)
-        let width = wrapWidth ?? max(used.width + 4, lineHeight / 2)
+        // A little slack keeps the last glyph from being clipped if AppKit lays it out a hair wider.
+        let width = wrapWidth ?? boxWidth.map { $0 + 2 } ?? max(used.width + 4, lineHeight / 2)
         frame = NSRect(x: origin.x, y: origin.y, width: width, height: max(used.height, lineHeight, minimumHeight))
     }
 }

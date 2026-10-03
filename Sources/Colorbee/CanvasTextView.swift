@@ -86,7 +86,8 @@ final class CanvasTextView: NSTextView {
         let font = typingAttributes[.font] as? NSFont ?? .systemFont(ofSize: 12)
         let lineHeight = layoutManager.defaultLineHeight(for: font)
         // A little slack keeps the last glyph from being clipped if AppKit lays it out a hair wider.
-        let width: Double = wrapWidth ?? boxWidth.map { $0 + 2 } ?? Double(max(used.width + 4, lineHeight / 2))
+        // A wrapped box still wraps at `wrapWidth` (the container), but is as wide as its ink, so italics aren't clipped.
+        let width: Double = wrapWidth.map { max($0, boxWidth ?? $0) } ?? boxWidth.map { $0 + 2 } ?? Double(max(used.width + 4, lineHeight / 2))
         frame = NSRect(x: origin.x, y: origin.y, width: width, height: max(used.height, lineHeight, minimumHeight))
     }
 }

@@ -57,4 +57,18 @@ struct TextRendererTests {
         let lined = try #require(TextRenderer.render(struck, colorSpace: Canvas.defaultColorSpace, clippedTo: bounds))
         #expect(coloredCount(lined.pixels) { $0.a > 128 } > coloredCount(plain.pixels) { $0.a > 128 })
     }
+
+    /// Italic letters lean past their advance; the last one must not be cut off (Leah's report).
+    @Test(arguments: [nil, 200.0])
+    func italicTextIsNotClipped(wrapWidth: Double?) {
+        var spec = TextSpec(text: "ffff", origin: Point2D(x: 10, y: 10), wrapWidth: wrapWidth, fontFamily: "Helvetica Neue", fontSize: 72, color: .black)
+        spec.italic = true
+        guard let rendered = TextRenderer.render(spec, colorSpace: Canvas.defaultColorSpace, clippedTo: IntRect(x: 0, y: 0, width: 600, height: 300)) else {
+            Issue.record("Nothing rendered")
+            return
+        }
+        let lastColumn = rendered.pixels.width - 1
+        #expect((0..<rendered.pixels.height).allSatisfy { rendered.pixels[lastColumn, $0].a == 0 })
+        #expect(TextRenderer.box(for: spec).width == rendered.pixels.width)
+    }
 }

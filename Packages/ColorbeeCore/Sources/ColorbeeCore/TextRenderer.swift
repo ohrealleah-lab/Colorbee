@@ -42,17 +42,21 @@ public struct TextSpec: Equatable, Sendable {
 
 public enum TextRenderer {
     /// The box the text occupies, in image coordinates.
+    /// It reaches past the text's layout width where glyphs lean out, as italics do, so nothing is clipped.
     public static func box(for spec: TextSpec) -> IntRect {
         let size = layoutSize(of: spec, colorSpace: nil)
-        return IntRect(enclosingMinX: spec.origin.x, minY: spec.origin.y, maxX: spec.origin.x + size.width, maxY: spec.origin.y + size.height)
+        let width = max(size.width, inkWidth(of: spec, layoutSize: size, colorSpace: nil))
+        return IntRect(enclosingMinX: spec.origin.x, minY: spec.origin.y, maxX: spec.origin.x + width, maxY: spec.origin.y + size.height)
     }
 
     /// Draws the text (and background, if any) into a straight-alpha buffer. Nil when there's nothing to draw.
     public static func render(_ spec: TextSpec, colorSpace: CGColorSpace, clippedTo canvasBounds: IntRect) -> (pixels: PixelBuffer, origin: IntPoint)? {
         guard !spec.text.isEmpty else { return nil }
         let size = layoutSize(of: spec, colorSpace: colorSpace)
+        // `box` is where the text is laid out and wraps; the pixels drawn also cover any ink leaning past it.
         let box = CGRect(x: spec.origin.x, y: spec.origin.y, width: size.width, height: size.height)
-        let area = IntRect(enclosingMinX: box.minX, minY: box.minY, maxX: box.maxX, maxY: box.maxY).intersection(canvasBounds)
+        let inkRight = spec.origin.x + max(size.width, inkWidth(of: spec, layoutSize: size, colorSpace: colorSpace))
+        let area = IntRect(enclosingMinX: box.minX, minY: box.minY, maxX: inkRight, maxY: box.maxY).intersection(canvasBounds)
         guard !area.isEmpty else { return nil }
 
         let buffer = PixelBuffer(width: area.width, height: area.height)
@@ -110,6 +114,22 @@ public enum TextRenderer {
         // A pixel of slack keeps the last character from wrapping on rounding.
         let width = spec.wrapWidth ?? (suggested.width.rounded(.up) + 1)
         return Size2D(width: max(1, width), height: max(1, suggested.height.rounded(.up), spec.minimumHeight.rounded(.up)))
+    }
+
+    /// How far right the glyphs' ink reaches, measured from the box's left edge, plus a pixel of slack.
+    private static func inkWidth(of spec: TextSpec, layoutSize size: Size2D, colorSpace: CGColorSpace?) -> Double {
+        guard !spec.text.isEmpty else { return 0 }
+        let space = colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
+        let framesetter = CTFramesetterCreateWithAttributedString(attributedString(for: spec, colorSpace: space))
+        let path = CGPath(rect: CGRect(x: 0, y: 0, width: size.width, height: size.height), transform: nil)
+        let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil)
+        let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
+        var origins = [CGPoint](repeating: .zero, count: lines.count)
+        CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+        let right = zip(lines, origins).map { line, origin in
+            origin.x + CTLineGetBoundsWithOptions(line, .useGlyphPathBounds).maxX
+        }.max() ?? 0
+        return (right + 1).rounded(.up)
     }
 
     private static func attributedString(for spec: TextSpec, colorSpace: CGColorSpace) -> CFAttributedString {

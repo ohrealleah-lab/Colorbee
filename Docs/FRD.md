@@ -298,7 +298,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 
 ### FR-8.4 Adjustment layers (non-destructive)
 - Types: Brightness/Contrast, Hue/Saturation/Lightness, Desaturate, Invert, Gaussian Blur, Sharpen.
-- Stage 9 adds Levels, Curves, White Balance, Vibrance, Sepia and Posterize (FR-9.5). Auto Contrast as an adjustment layer is a Levels layer with its points set automatically.
+- Stage 9 adds Levels, Curves, Sepia and Posterize, plus Adjust Photo (all its sliders in one layer) and any photo filter (FR-9.5). Auto Contrast as an adjustment layer is a Levels layer with its points set automatically.
 - An adjustment layer changes how the layers below it look, without changing their pixels.
 - Its settings stay editable in the Adjustments panel. It can be hidden, reordered, deleted, or have its opacity changed like any layer.
 - **Apply Adjustment** turns it into pixels on the layer below.
@@ -344,11 +344,34 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - **Levels:** black point, white point and midtones (gamma), with a histogram. An **Auto** button sets the black and white points from the image.
 - **Auto Contrast:** one step, no settings. Stretches the darkest and lightest pixels to full black and white.
 - **Curves:** a tone curve with draggable points, for the combined RGB and for each channel.
-- **White Balance:** Temperature (cooler to warmer) and Tint (green to magenta) sliders.
-- **Vibrance:** boosts muted colors more than already-vivid ones, so skin tones don't go orange.
 - **Sepia:** a warm brown-tone version of the image, with an amount slider.
 - **Posterize:** reduces each channel to 2–32 levels.
 - Each of these also comes as an adjustment layer (FR-8.4), from "as Adjustment Layer" versions of the menu items.
+- White Balance and Vibrance are sliders in the Adjust Photo panel, not separate menu items.
+
+**Adjust Photo panel** (Adjustments ▸ Adjust Photo…)
+- One docked panel with all the photo sliders, like the iPhone Photos editor: Exposure, Brilliance, Highlights, Shadows, Contrast, Brightness, Black Point, Saturation, Vibrance, Warmth, Tint, Sharpness, Definition, Noise Reduction, Vignette.
+  - **Vibrance** boosts muted colors more than already-vivid ones, so skin tones don't go orange.
+  - **Warmth** and **Tint** are the white balance: cooler to warmer, and green to magenta.
+- Applies to the selection if there is one, otherwise the active layer. Live preview. One undo step.
+- Also available as an adjustment layer, with every slider still editable.
+- **Auto:** analyzes the photo and sets Exposure, Brilliance, Highlights, Shadows, Contrast, White Balance (Warmth and Tint) and Vibrance. The panel marks the sliders Auto moved, and any of them can be adjusted afterwards. One undo step together with the rest of the panel.
+
+**Filters** (in the Adjust Photo panel)
+- Built in: Vivid, Vivid Warm, Vivid Cool, Dramatic, Dramatic Warm, Dramatic Cool, Mono, Silvertone, Noir. Each has an intensity slider.
+- A filter is a named recipe of the panel's color and tone slider values only. Filters never crop or straighten.
+- Intensity scales every value (50% is half of each).
+- **Save as Filter…** saves the current slider settings under a name.
+- **Save Filter from Layers** turns a stack of adjustment layers into one filter.
+- Rename, Delete, Import and Export work like palettes. Filters are stored in Application Support; a `.colorbeefilter` file is for sharing.
+- Any filter can be applied as an adjustment layer.
+
+**Subject (Apple Vision, on this Mac; nothing leaves it)**
+- **Remove Background:** writes Vision's soft edges directly into transparency. Option: put the subject on a new layer instead of erasing in place.
+- **Select Subject:** makes a selection from the subject. Its edges are hard for now, since selections are all-or-nothing; soft selections can come later.
+- With several subjects, clicking one picks just that subject.
+- Shows "No subject found" when Vision finds nothing (screenshots, text).
+- **Clean Up** (removing an object and filling in the background) is out of scope.
 
 **Effects menu**
 - **Add Noise:** amount, and monochrome or color noise.
@@ -366,6 +389,12 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
   - Or draw a line along something that should be level (or upright), and Colorbee works out the angle.
   - **Crop to fit** (on by default) trims the corners that rotating leaves empty. With it off, the canvas grows and the corners are filled with Color 2, or left transparent on a transparent image.
   - Smooth resampling. Applies to the whole image (every layer) as one undo step.
+- **Perspective Correction…** (next to Straighten): squares up a photo of a whiteboard, a document or a building. Drag four corners onto the shape that should be a rectangle; the image is warped so it becomes one.
+- **Crop…** (next to Crop to Selection): a crop box with handles over the image.
+  - Aspect presets: Free, Original, Square, 4:3, 3:2, 16:9, 9:16, and a custom W:H, with a button that swaps portrait and landscape.
+  - Pixel-size presets, such as 1200 × 630 for link previews: the box keeps that shape, and the result is resized to exactly that size.
+  - A rule-of-thirds grid shows while dragging.
+  - Return applies, Esc cancels. Applies to every layer as one undo step.
 
 ---
 
@@ -598,6 +627,10 @@ Everything ships. This is only the order work happens in, and each stage builds 
 - [ ] AC-32 Every FR-9.5 adjustment and effect previews live, applies only inside a selection when there is one, and undoes exactly.
 - [ ] AC-33 Drop Shadow and Border grow the canvas to fit, follow a cutout's shape, and undo restores the original size.
 - [ ] AC-34 Straighten levels a line drawn along a tilted horizon. With Crop to Fit on, no empty corners remain.
+- [ ] AC-35 Adjust Photo's Auto moves only the sliders it lists and shows which; the whole panel is one undo step and also works as an adjustment layer.
+- [ ] AC-36 A filter at 50% intensity gives the same result as its slider values halved. A saved filter survives a relaunch and round-trips through a .colorbeefilter file.
+- [ ] AC-37 Remove Background leaves soft edges in transparency; Select Subject picks only the clicked subject; an image with no subject says "No subject found" and changes nothing.
+- [ ] AC-38 Crop with a pixel-size preset produces exactly that size; Perspective Correction turns a photographed rectangle into a rectangle.
 
 ---
 
@@ -611,6 +644,8 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-03 | Stage 9 additions (Leah): an **Adjust Photo** panel with the iPhone Photos sliders (Exposure, Brilliance, Highlights, Shadows, Contrast, Brightness, Black Point, Saturation, Vibrance, Warmth, Tint, Sharpness, Definition, Noise Reduction, Vignette), on the selection or active layer, live, one undo step, also as an adjustment layer; White Balance and Vibrance move into it from the Adjustments menu. **Auto** sets Exposure, Brilliance, Highlights, Shadows, Contrast, White Balance and Vibrance and shows what it moved. **Filters:** nine built in (Vivid, Dramatic, each with Warm and Cool, Mono, Silvertone, Noir) with intensity; custom filters from the sliders or from a stack of adjustment layers; managed like palettes, stored in Application Support, shared as .colorbeefilter; color and tone only. **Subject** via on-device Vision: Remove Background (soft edges, or onto a new layer), Select Subject (hard edges for now), click to pick one of several, "No subject found". **Clean Up** is out of scope. |
+| 2026-10-03 | Stage 9 crop and perspective details are Claude's proposal (veto any): Image ▸ Crop… is a crop box with aspect presets (Free, Original, Square, 4:3, 3:2, 16:9, 9:16, custom W:H, orientation swap) and pixel-size presets (e.g. 1200 × 630), a rule-of-thirds grid while dragging, Return/Esc, every layer, one undo step. Perspective Correction… sits next to Straighten: drag four corners onto the shape that should be a rectangle. Effects ▸ Vignette stays alongside the panel's Vignette slider, for its size and lighten options. |
 | 2026-10-03 | Shortcut Import/Export stays (Leah): a friend who uses editing tools will try Colorbee once it's beta-ready, so sharing shortcut sets is useful. |
 | 2026-10-03 | Export presets stay as they are (Leah): a preset is either a width (the height follows) or a square to fit within; no height or W × H box option. Presets never crop, stretch or enlarge. |
 | 2026-10-03 | Stage 7c behavior choices (veto any): Settings ▸ Shortcuts is the first tab. The Mac's own app and window commands (About, Settings, Hide, Hide Others, Show All, Quit, Close, Minimize, Zoom, Bring All to Front, Enter Full Screen) are listed with a padlock and can't be changed. Canvas keys are grouped as "Tools and Canvas Keys"; Space (pan), the arrows, Return, Esc and Delete stay fixed. Items in submenus are listed as "Rotate ▸ 90° Clockwise" and so on; Batch Redact's Blur and Pixelate share their shortcuts with the Effects menu items they open. A command whose shortcut macOS takes first on this Mac shows an orange warning. Globe (Fn) shortcuts are refused. Resetting a command whose default another command has since taken leaves it without one. Importing skips commands that no longer exist and shortcuts reserved on this Mac. macOS's screenshot shortcuts ⇧⌘3/4/5 stay blocked even when switched off in System Settings. |

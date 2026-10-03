@@ -117,10 +117,12 @@ _Last updated: 2026-10-03 · 257 core tests passing_
 - 8000×8000 soak tests (AC-27), performance baselines, polish, accessibility labels.
 
 **9 Photo editing and presentation (later phase, FR-9.5)**
-- Adjustments: Levels (with Auto), Auto Contrast, Curves, White Balance, Vibrance, Sepia, Posterize.
+- Adjustments: Levels (with Auto), Auto Contrast, Curves, Sepia, Posterize.
+- Adjust Photo panel: 15 iPhone-style sliders (White Balance and Vibrance live here), Auto, and filters (9 built in, custom ones saved, shared as .colorbeefilter, intensity).
 - Effects: Add Noise, Motion Blur, Emboss, Vignette, Drop Shadow, Border, Spotlight (shadow and border follow the object's shape).
-- Image ▸ Straighten… (any angle, or draw along the horizon; Crop to Fit).
-- The photo adjustments also come as adjustment layers.
+- Image ▸ Straighten… (any angle, or draw along the horizon; Crop to Fit), Perspective Correction…, Crop… with aspect and pixel-size presets.
+- Subject (on-device Vision): Remove Background, Select Subject.
+- The photo adjustments, Adjust Photo and filters also come as adjustment layers. Clean Up is out of scope.
 
 ## Not yet checked by hand
 

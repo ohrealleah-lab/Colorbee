@@ -40,6 +40,11 @@ extension Tool {
         }
     }
 
+    /// The name without its shortcut, as VoiceOver says it ("Pencil").
+    var name: String {
+        title.components(separatedBy: " (").first ?? title
+    }
+
     var symbol: String {
         switch self {
         case .pencil: "pencil"

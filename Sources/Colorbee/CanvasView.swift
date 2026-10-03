@@ -91,6 +91,18 @@ final class CanvasView: NSView {
     override var isOpaque: Bool { true }
     override var acceptsFirstResponder: Bool { true }
 
+    // MARK: Accessibility
+
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .image }
+    override func accessibilityLabel() -> String? { "Canvas" }
+
+    override func accessibilityValue() -> Any? {
+        let size = editor.canvas.size
+        let layers = editor.canvas.layers.count
+        return "\(size.width) by \(size.height) pixels, \(layers == 1 ? "1 layer" : "\(layers) layers"), \(editor.tool.name) tool"
+    }
+
     // MARK: Rendering
 
     override func viewWillMove(toWindow newWindow: NSWindow?) {

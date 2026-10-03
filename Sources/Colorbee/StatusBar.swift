@@ -38,7 +38,7 @@ struct StatusBar: View {
 
     private func item(_ symbol: String, _ text: String) -> some View {
         HStack(spacing: 5) {
-            Image(systemName: symbol).font(.system(size: 11))
+            Image(systemName: symbol).font(.system(size: 11)).accessibilityHidden(true)
             Text(text)
         }
     }
@@ -75,7 +75,7 @@ private struct Chip: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: symbol).font(.system(size: 11))
+            Image(systemName: symbol).font(.system(size: 11)).accessibilityHidden(true)
             Text(title)
         }
         .padding(.horizontal, 8)

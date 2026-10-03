@@ -10,10 +10,10 @@ struct Sidebar: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 2) {
-                switcherButton("square.3.layers.3d", "Layers panel (⌘L)", isOn: $editor.showsLayersPanel)
-                switcherButton("slider.horizontal.3", "Adjustments panel", isOn: $editor.showsAdjustmentsPanel)
-                switcherButton("clock.arrow.circlepath", "History panel (⌘Y)", isOn: $editor.showsHistoryPanel)
-                switcherButton("list.clipboard", "Clipboard History panel (⌥⌘V)", isOn: $editor.showsClipboardPanel)
+                switcherButton("square.3.layers.3d", "Layers", "Layers panel (⌘L)", isOn: $editor.showsLayersPanel)
+                switcherButton("slider.horizontal.3", "Adjustments", "Adjustments panel", isOn: $editor.showsAdjustmentsPanel)
+                switcherButton("clock.arrow.circlepath", "History", "History panel (⌘Y)", isOn: $editor.showsHistoryPanel)
+                switcherButton("list.clipboard", "Clipboard History", "Clipboard History panel (⌥⌘V)", isOn: $editor.showsClipboardPanel)
             }
             .padding(2)
             .background(Theme.field, in: Capsule())
@@ -47,7 +47,7 @@ struct Sidebar: View {
         .padding(8)
     }
 
-    private func switcherButton(_ symbol: String, _ help: String, isOn: Binding<Bool>) -> some View {
+    private func switcherButton(_ symbol: String, _ name: String, _ help: String, isOn: Binding<Bool>) -> some View {
         Button { isOn.wrappedValue.toggle() } label: {
             Image(systemName: symbol)
                 .font(.system(size: 13))
@@ -58,6 +58,8 @@ struct Sidebar: View {
         }
         .buttonStyle(.plain)
         .help(help)
+        .accessibilityLabel("\(name) panel")
+        .accessibilityAddTraits(isOn.wrappedValue ? .isSelected : [])
     }
 }
 
@@ -116,11 +118,11 @@ private struct LayersPanel: View {
             .frame(minHeight: 120, maxHeight: .infinity)
 
             HStack(spacing: 2) {
-                footerButton("plus", "New Layer (⇧⌘N)") { editor.addLayer() }
-                footerButton("plus.square.on.square", "Duplicate Layer (⌘J)") { editor.duplicateLayer() }
-                footerButton("trash", "Delete Layer (⌘⌫)") { editor.deleteLayer() }
+                footerButton("plus", "New Layer", "New Layer (⇧⌘N)") { editor.addLayer() }
+                footerButton("plus.square.on.square", "Duplicate Layer", "Duplicate Layer (⌘J)") { editor.duplicateLayer() }
+                footerButton("trash", "Delete Layer", "Delete Layer (⌘⌫)") { editor.deleteLayer() }
                     .disabled(!LayerActions.canDelete(editor.canvas))
-                footerButton("arrow.down.to.line", "Merge Down (⇧⌘E), or Apply Adjustment on an adjustment layer") { editor.mergeDown() }
+                footerButton("arrow.down.to.line", "Merge Down", "Merge Down (⇧⌘E), or Apply Adjustment on an adjustment layer") { editor.mergeDown() }
                     .disabled(!LayerActions.canMergeDown(editor.canvas))
                 Spacer()
                 AddAdjustmentMenu(editor: editor)
@@ -141,6 +143,7 @@ private struct LayersPanel: View {
             }
             .buttonStyle(.plain)
             .help(layer.isVisible ? "Hide this layer" : "Show this layer")
+            .accessibilityLabel(layer.isVisible ? "Hide \(layer.name)" : "Show \(layer.name)")
 
             Group {
                 if let choice = layer.adjustment.flatMap(AdjustmentChoice.init) {
@@ -159,6 +162,7 @@ private struct LayersPanel: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.gray.opacity(0.4), lineWidth: 0.5))
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 1) {
                 if renaming === layer {
@@ -185,6 +189,7 @@ private struct LayersPanel: View {
             }
             .buttonStyle(.plain)
             .help(layer.isLocked ? "Unlock: allow changes to this layer" : "Lock: protect this layer from changes")
+            .accessibilityLabel(layer.isLocked ? "Unlock \(layer.name)" : "Lock \(layer.name)")
         }
         .padding(.leading, 6)
         .padding(.trailing, 8)
@@ -198,6 +203,12 @@ private struct LayersPanel: View {
         }
         .onTapGesture { editor.selectLayer(at: index) }
         .help("Click to make active · double-click to rename · drag to reorder")
+        .accessibilityAddTraits(isActive ? [.isSelected] : [])
+        .accessibilityAction(named: "Make Active") { editor.selectLayer(at: index) }
+        .accessibilityAction(named: "Rename") {
+            newName = layer.name
+            renaming = layer
+        }
     }
 
     private func finishRenaming(_ index: Int) {
@@ -205,7 +216,7 @@ private struct LayersPanel: View {
         renaming = nil
     }
 
-    private func footerButton(_ symbol: String, _ help: String, action: @escaping () -> Void) -> some View {
+    private func footerButton(_ symbol: String, _ name: String, _ help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 13))
@@ -215,6 +226,7 @@ private struct LayersPanel: View {
         .buttonStyle(.plain)
         .foregroundStyle(Theme.secondaryInk)
         .help(help)
+        .accessibilityLabel(name)
     }
 }
 

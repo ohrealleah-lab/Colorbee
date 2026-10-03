@@ -96,9 +96,9 @@ struct AddAdjustmentMenu: View {
             }
         } label: {
             HStack(spacing: 3) {
-                Image(systemName: "slider.horizontal.3").font(.system(size: 12))
+                Image(systemName: "slider.horizontal.3").font(.system(size: 12)).accessibilityHidden(true)
                 Text("Adjustment").font(.system(size: 11.5))
-                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).accessibilityHidden(true)
             }
             .padding(.horizontal, 8)
             .frame(height: 24)

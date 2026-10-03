@@ -33,11 +33,12 @@ struct PaletteBar<Options: View>: View {
                 .help("Choose any color for the ringed well, with the Mac color picker")
             PaletteMenu(store: PaletteStore.shared) {
                 HStack(spacing: 5) {
-                    Image(systemName: "paintpalette").foregroundStyle(Theme.secondaryInk)
+                    Image(systemName: "paintpalette").foregroundStyle(Theme.secondaryInk).accessibilityHidden(true)
                     Text(PaletteStore.shared.activeName)
-                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).opacity(0.6)
+                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).opacity(0.6).accessibilityHidden(true)
                 }
             }
+            .accessibilityLabel("Palette: \(PaletteStore.shared.activeName)")
             .help("Palettes: switch, save, rename, import or export your swatches and custom colors")
             divider
             HStack(spacing: 10) { toolOptions }
@@ -198,12 +199,62 @@ final class SwatchGridView: NSView, NSViewToolTipOwner {
         CustomColors.shared.remove(at: sender.tag)
     }
 
+    // MARK: Accessibility
+
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .group }
+    override func accessibilityLabel() -> String? { "Colors" }
+
+    /// Each swatch and custom slot as a button VoiceOver can press: it sets the ringed well, as a click does.
+    override func accessibilityChildren() -> [Any]? {
+        let classic = (0..<28).map { index in
+            SwatchElement(parent: self, frame: rect(.classic(index)), label: "Swatch \(index + 1)",
+                          value: color(of: .classic(index))?.spokenDescription(in: editor.canvas.colorSpace)) { [weak self] in
+                guard let self, let pixel = color(of: .classic(index)) else { return }
+                editor.applySwatch(pixel, secondary: false)
+            }
+        }
+        let customs = (0..<CustomColors.slotCount).map { index in
+            let pixel = color(of: .custom(index))
+            return SwatchElement(parent: self, frame: rect(.custom(index)), label: "Custom color \(index + 1)",
+                                 value: pixel?.spokenDescription(in: editor.canvas.colorSpace) ?? "Empty") { [weak self] in
+                guard let self else { return }
+                if let pixel = color(of: .custom(index)) {
+                    editor.applySwatch(pixel, secondary: false)
+                } else {
+                    ColorPanelController.shared.open(for: editor, slot: index)
+                }
+            }
+        }
+        return classic + customs
+    }
+
     /// Hover text for the custom slots, which depends on whether the slot holds a color.
     func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
         guard case .custom(let index)? = slot(at: point) else { return "" }
         return color(of: .custom(index)) == nil
             ? "Double-click to pick a custom color"
             : "Control-click to remove custom color"
+    }
+}
+
+/// One swatch in the grid, for VoiceOver.
+private final class SwatchElement: NSAccessibilityElement {
+    private let press: () -> Void
+
+    init(parent: NSView, frame: NSRect, label: String, value: String?, press: @escaping () -> Void) {
+        self.press = press
+        super.init()
+        setAccessibilityParent(parent)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(label)
+        setAccessibilityValue(value)
+        setAccessibilityFrameInParentSpace(frame)
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        press()
+        return true
     }
 }
 

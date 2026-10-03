@@ -20,4 +20,14 @@ extension Pixel {
         }
         return NSColor(colorSpace: space, components: components, count: 4)
     }
+
+    /// How VoiceOver says a color: the name macOS gives it, its sRGB hex value, and its opacity when not solid.
+    func spokenDescription(in colorSpace: CGColorSpace) -> String {
+        let color = nsColor(in: colorSpace).usingColorSpace(.sRGB) ?? nsColor(in: colorSpace)
+        func byte(_ value: CGFloat) -> Int { Int((min(max(value, 0), 1) * 255).rounded()) }
+        let name = color.withAlphaComponent(1).accessibilityName
+        let hex = String(format: "#%02X%02X%02X", byte(color.redComponent), byte(color.greenComponent), byte(color.blueComponent))
+        guard a < 255 else { return "\(name), \(hex)" }
+        return "\(name), \(hex), \(Int((Double(a) / 255 * 100).rounded()))% opaque"
+    }
 }

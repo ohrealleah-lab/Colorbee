@@ -87,7 +87,7 @@ private struct ToolButton: View {
         }
         .buttonStyle(.plain)
         .help("\(tool.title): \(tool.summary)")
-        .accessibilityLabel(tool.title)
+        .accessibilityLabel(tool.name)
     }
 }
 
@@ -145,7 +145,7 @@ private struct SizeControl: View {
         .padding(.trailing, 2)
         .disabled(size == nil)
         .opacity(size == nil ? 0.4 : 1)
-        .help(size == nil ? "This tool has no size" : "Size of the \(editor.tool.title.components(separatedBy: " (").first ?? "tool"). [ and ] change it.")
+        .help(size == nil ? "This tool has no size" : "Size of the \(editor.tool.name). [ and ] change it.")
     }
 }
 
@@ -203,7 +203,7 @@ private struct OutlineFillControl: View {
                     Text(title).font(.system(size: 9.5)).foregroundStyle(Theme.secondaryInk)
                     Text(value).font(.system(size: 12))
                 }
-                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).opacity(0.6)
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).opacity(0.6).accessibilityHidden(true)
             }
             .padding(.leading, 8)
             .padding(.trailing, 6)
@@ -217,6 +217,26 @@ private struct OutlineFillControl: View {
 
 /// Color 1 and Color 2 (FR-1.1). The ringed well is the one a swatch click sets; double-click a well
 /// to choose its color, and the arrows swap them (X).
+/// A color well as VoiceOver hears it: its name, its color, whether it's the ringed one, and Choose Color….
+private struct WellAccessibility: ViewModifier {
+    let name: String
+    let color: Pixel
+    let colorSpace: CGColorSpace
+    let active: Bool
+    let select: () -> Void
+    let choose: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(name)
+            .accessibilityValue(color.spokenDescription(in: colorSpace))
+            .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
+            .accessibilityAction { select() }
+            .accessibilityAction(named: "Choose Color…") { choose() }
+    }
+}
+
 struct ColorWells: View {
     @Bindable var editor: Editor
 
@@ -227,11 +247,15 @@ struct ColorWells: View {
                 .onTapGesture(count: 2) { open(.color2) }
                 .onTapGesture { editor.activeWell = .color2 }
                 .help("Color 2: right-click colors, fills and the eraser. Double-click to choose.")
+                .modifier(WellAccessibility(name: "Color 2", color: editor.color2, colorSpace: editor.canvas.colorSpace, active: editor.activeWell == .color2,
+                                            select: { editor.activeWell = .color2 }, choose: { open(.color2) }))
             well(editor.color1, active: editor.activeWell == .color1)
                 .offset(x: 2, y: 2)
                 .onTapGesture(count: 2) { open(.color1) }
                 .onTapGesture { editor.activeWell = .color1 }
                 .help("Color 1: left-click colors and outlines. Double-click to choose.")
+                .modifier(WellAccessibility(name: "Color 1", color: editor.color1, colorSpace: editor.canvas.colorSpace, active: editor.activeWell == .color1,
+                                            select: { editor.activeWell = .color1 }, choose: { open(.color1) }))
             Button { editor.swapColors() } label: {
                 Image(systemName: "arrow.trianglehead.swap")
                     .font(.system(size: 9, weight: .semibold))
@@ -241,6 +265,7 @@ struct ColorWells: View {
             .buttonStyle(.plain)
             .offset(x: 34, y: -2)
             .help("Swap Color 1 and Color 2 (X)")
+            .accessibilityLabel("Swap Colors")
         }
         .frame(width: 48, height: 30, alignment: .topLeading)
         .padding(.horizontal, 6)

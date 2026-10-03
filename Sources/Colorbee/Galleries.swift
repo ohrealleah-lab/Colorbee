@@ -174,7 +174,7 @@ private struct GalleryLabel: View {
     var body: some View {
         HStack(spacing: 1) {
             Image(systemName: symbol).font(.system(size: 15))
-            Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).opacity(0.6)
+            Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).opacity(0.6).accessibilityHidden(true)
         }
         .padding(.leading, 8)
         .padding(.trailing, 5)

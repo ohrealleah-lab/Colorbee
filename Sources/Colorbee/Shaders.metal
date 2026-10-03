@@ -15,6 +15,7 @@ struct QuadUniforms {
     float blendMode;      // BlendMode.rawValue
     float4 adjustParams;  // the adjustment's settings (see Renderer.adjustmentUniforms)
     float adjustKind;     // 0 none, 1 invert, 2 desaturate, 3 brightness/contrast, 4 hue/saturation, 5 blur, 6 sharpen
+    float4 photoParams;   // Adjust Photo's vignette (x)
 };
 
 struct QuadOut {
@@ -256,6 +257,55 @@ fragment float4 adjust_lookup_fragment(QuadOut in [[stage_in]],
     float size = u.adjustParams.x;
     float3 adjusted = lookup.sample(tableSampler, (straight * (size - 1) + 0.5) / size).rgb;
     return fadeIn(backdrop, adjusted, backdrop.a, u);
+}
+
+// Adjust Photo (PhotoAdjustments in ColorbeeCore): detail from blurred copies of what's below, then the color
+// table, then the vignette. adjustParams: table size, sharpness, definition, noise reduction (0...1).
+static float3 unblurred(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel, float3 fallback) {
+    float4 soft = blurred.read(pixel);
+    float weight = coverage.read(pixel).r;
+    if (weight > 0.001) soft /= weight;
+    return soft.a > 0 ? clamp(soft.rgb / soft.a, 0.0, 1.0) : fallback;
+}
+
+fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
+                                      texture3d<float> lookup [[texture(0)]],
+                                      texture2d<float> fine [[texture(1)]],
+                                      texture2d<float> fineCoverage [[texture(2)]],
+                                      texture2d<float> wide [[texture(3)]],
+                                      texture2d<float> wideCoverage [[texture(4)]],
+                                      constant QuadUniforms &u [[buffer(0)]],
+                                      float4 backdrop [[color(0)]]) {
+    constexpr sampler tableSampler(filter::linear, address::clamp_to_edge);
+    if (backdrop.a <= 0) return backdrop;
+    float3 c = clamp(backdrop.rgb / backdrop.a, 0.0, 1.0);
+    float sharpness = u.adjustParams.y, definition = u.adjustParams.z, noiseReduction = u.adjustParams.w;
+    if (sharpness > 0 || definition > 0 || noiseReduction > 0) {
+        uint2 pixel = uint2(in.position.xy);
+        float3 original = c;
+        float3 soft = (sharpness > 0 || noiseReduction > 0) ? unblurred(fine, fineCoverage, pixel, original) : original;
+        float3 wider = definition > 0 ? unblurred(wide, wideCoverage, pixel, original) : original;
+        if (noiseReduction > 0) {
+            float3 difference = abs(original - soft);
+            float weight = noiseReduction * (1 - smoothstep(0.04, 0.2, max(difference.r, max(difference.g, difference.b))));
+            c += (soft - c) * weight;
+        }
+        if (sharpness > 0) c += (original - soft) * sharpness * 1.5;
+        if (definition > 0) c += (original - wider) * definition * 0.6;
+        c = clamp(c, 0.0, 1.0);
+    }
+    float size = u.adjustParams.x;
+    c = lookup.sample(tableSampler, (c * (size - 1) + 0.5) / size).rgb;
+    float vignette = u.photoParams.x / 100;
+    if (vignette != 0) {
+        // Vignette.strength with size 50.
+        float distance = length(in.uv * 2 - 1) / sqrt(2.0);
+        float start = 0.5 * 0.95;
+        float t = clamp((distance - start) / (1 - start), 0.0, 1.0);
+        float strength = t * t * (3 - 2 * t) * vignette;
+        c = strength >= 0 ? c * (1 - strength) : c + (1 - c) * -strength;
+    }
+    return fadeIn(backdrop, c, backdrop.a, u);
 }
 
 // Blur and Sharpen read a blurred copy of the layers beneath, made on the GPU. Dividing by the blurred

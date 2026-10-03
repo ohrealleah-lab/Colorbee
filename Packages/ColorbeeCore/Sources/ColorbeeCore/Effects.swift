@@ -31,6 +31,8 @@ public enum Effect: Sendable, Hashable {
     /// Darkens (positive `amount`) or lightens (negative) toward the edges, -100...100; `size` 0...100 is how
     /// much of the middle stays untouched.
     case vignette(amount: Double, size: Double)
+    /// The Adjust Photo panel: a filter, then the sliders (FR-9.5).
+    case photo(PhotoEdit)
 
     public var name: String {
         switch self {
@@ -50,15 +52,23 @@ public enum Effect: Sendable, Hashable {
         case .motionBlur: "Motion Blur"
         case .emboss: "Emboss"
         case .vignette: "Vignette"
+        case .photo: "Adjust Photo"
         }
     }
 
     /// Color adjustments the display shows through a `ColorLookup` table.
     public var usesColorLookup: Bool {
         switch self {
-        case .levels, .curves, .sepia, .posterize: true
+        case .levels, .curves, .sepia, .posterize, .photo: true
         default: false
         }
+    }
+
+    /// The per-pixel color part: the whole effect for point adjustments; for Adjust Photo, everything but
+    /// its detail sliders and vignette.
+    public var colorTransform: ((Pixel) -> Pixel)? {
+        if case .photo(let edit) = self { return edit.colorTransform }
+        return pointwise
     }
 
     /// The per-pixel function for effects that don't look at neighbors.
@@ -108,7 +118,7 @@ public enum Effect: Sendable, Hashable {
             let steps = Double(min(max(levels, 2), 32) - 1)
             let table = (0..<256).map { UInt8(((Double($0) / 255 * steps).rounded() / steps * 255).rounded()) }
             return { Pixel(r: table[Int($0.r)], g: table[Int($0.g)], b: table[Int($0.b)], a: $0.a) }
-        case .gaussianBlur, .pixelate, .sharpen, .addNoise, .motionBlur, .emboss, .vignette:
+        case .gaussianBlur, .pixelate, .sharpen, .addNoise, .motionBlur, .emboss, .vignette, .photo:
             return nil
         }
     }
@@ -164,6 +174,8 @@ public enum Effects {
             (result, origin) = embossed(layer.buffer, region: region, angle: angle, depth: depth)
         case .vignette(let amount, let size):
             (result, origin) = vignetted(layer.buffer, region: region, amount: amount, size: size)
+        case .photo(let edit):
+            (result, origin) = photoAdjusted(layer.buffer, region: region, edit: edit, selection: selection)
         case .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation, .levels, .curves, .sepia, .posterize:
             return .zero
         }
@@ -180,7 +192,7 @@ public enum Effects {
 
     /// Blurs `region` plus a margin. Unselected pixels are left out of the sampling, so the blur of
     /// one region never picks up color from outside the selection.
-    private static func blurred(_ buffer: PixelBuffer, region: IntRect, sigma: Double, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
+    static func blurred(_ buffer: PixelBuffer, region: IntRect, sigma: Double, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
         // Three box blurs approximate a Gaussian; each box is about 2σ wide.
         let boxWidth = max(1, Int((12 * sigma * sigma / 3 + 1).squareRoot().rounded()) | 1)
         let margin = 3 * (boxWidth / 2) + 1

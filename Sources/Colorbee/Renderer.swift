@@ -17,6 +17,8 @@ struct QuadUniforms {
     var blendMode: Float = 0
     var adjustParams: SIMD4<Float> = .zero
     var adjustKind: Float = 0
+    /// Adjust Photo's vignette (x); the rest is spare.
+    var photoParams: SIMD4<Float> = .zero
 }
 
 /// Everything needed to draw one frame of a document.
@@ -67,10 +69,13 @@ final class Renderer {
     private let adjustBlurPipeline: MTLRenderPipelineState
     /// Levels, Curves, Sepia, Posterize (and later photo adjustments) through a 3D color table.
     private let adjustLookupPipeline: MTLRenderPipelineState
+    private let adjustPhotoPipeline: MTLRenderPipelineState
     private var lookupTextures: [Effect: MTLTexture] = [:]
     /// Marks where the canvas is, for keeping blurred edges opaque.
     private let coveragePipeline: MTLRenderPipelineState
-    private var blurTargets: (blurred: MTLTexture, coverage: MTLTexture, coverageBlurred: MTLTexture)?
+    private typealias BlurTarget = (blurred: MTLTexture, coverage: MTLTexture, coverageBlurred: MTLTexture)
+    /// Two sets, so Adjust Photo can use a fine and a wide blur in the same frame.
+    private var blurTargets: [BlurTarget] = []
     private var blurKernels: [Float: MPSImageGaussianBlur] = [:]
     /// The layers are composited here, on a transparent background, so blend modes see only the layers
     /// below and never the checkerboard. Half floats keep a deep stack from losing precision.
@@ -130,6 +135,7 @@ final class Renderer {
         adjustPointPipeline = pipeline(fragment: "adjust_point_fragment", blended: false, format: Self.layerTargetFormat)
         adjustBlurPipeline = pipeline(fragment: "adjust_blur_fragment", blended: false, format: Self.layerTargetFormat)
         adjustLookupPipeline = pipeline(fragment: "adjust_lookup_fragment", blended: false, format: Self.layerTargetFormat)
+        adjustPhotoPipeline = pipeline(fragment: "adjust_photo_fragment", blended: false, format: Self.layerTargetFormat)
         coveragePipeline = pipeline(fragment: "solid_fragment", blended: false, format: .r16Float)
 
         func sampler(_ filter: MTLSamplerMinMagFilter, address: MTLSamplerAddressMode = .clampToEdge) -> MTLSamplerState {
@@ -222,7 +228,37 @@ final class Renderer {
                 uniforms.adjustKind = kind
                 uniforms.adjustParams = params
                 uniforms.blendMode = Float(layer.blendMode.rawValue)
-                if let lookup = lookupTexture(for: adjustment) {
+                if case .photo(let edit) = adjustment, let lookup = lookupTexture(for: adjustment) {
+                    // Detail sliders need blurred copies of what's below: pause the layer pass, blur, resume.
+                    let a = edit.adjustments
+                    let fine = a[.sharpness] > 0 || a[.noiseReduction] > 0, wide = a[.definition] > 0
+                    let canvasRect = uniforms.rect
+                    let source = layerPass.colorAttachments[0].texture!
+                    if fine || wide {
+                        encoder.endEncoding()
+                        if fine { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.fineRadius * zoom * scale), slot: 0, commandBuffer: commandBuffer) }
+                        if wide { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.definitionRadius * zoom * scale), slot: 1, commandBuffer: commandBuffer) }
+                        let resume = MTLRenderPassDescriptor()
+                        resume.colorAttachments[0].texture = source
+                        resume.colorAttachments[0].loadAction = .load
+                        resume.colorAttachments[0].storeAction = .store
+                        guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume) else { return }
+                        encoder = resumed
+                        encoder.setScissorRect(canvasScissor)
+                        encoder.setFragmentSamplerState(zoom >= 1 ? nearestSampler : linearSampler, index: 0)
+                    }
+                    let targets = preparedBlurTargets(width: source.width, height: source.height)
+                    encoder.setFragmentTexture(lookup, index: 0)
+                    encoder.setFragmentTexture(targets[0].blurred, index: 1)
+                    encoder.setFragmentTexture(targets[0].coverageBlurred, index: 2)
+                    encoder.setFragmentTexture(targets[1].blurred, index: 3)
+                    encoder.setFragmentTexture(targets[1].coverageBlurred, index: 4)
+                    uniforms.rect = canvasRect
+                    uniforms.adjustParams = SIMD4(Float(lookup.width), fine ? Float(a[.sharpness] / 100) : 0,
+                                                  wide ? Float(a[.definition] / 100) : 0, fine ? Float(a[.noiseReduction] / 100) : 0)
+                    uniforms.photoParams = SIMD4(Float(a[.vignette]), 0, 0, 0)
+                    draw(adjustPhotoPipeline)
+                } else if let lookup = lookupTexture(for: adjustment) {
                     uniforms.adjustParams = SIMD4(Float(lookup.width), 0, 0, 0)
                     encoder.setFragmentTexture(lookup, index: 0)
                     draw(adjustLookupPipeline)
@@ -231,12 +267,12 @@ final class Renderer {
                     encoder.endEncoding()
                     let radius = kind == 5 ? Double(params.x) : 1
                     let canvasRect = uniforms.rect
-                    blur(layerPass.colorAttachments[0].texture!, canvasRect: canvasRect, sigma: Float(radius * zoom * scale), commandBuffer: commandBuffer)
+                    blur(layerPass.colorAttachments[0].texture!, canvasRect: canvasRect, sigma: Float(radius * zoom * scale), slot: 0, commandBuffer: commandBuffer)
                     let resume = MTLRenderPassDescriptor()
                     resume.colorAttachments[0].texture = layerPass.colorAttachments[0].texture
                     resume.colorAttachments[0].loadAction = .load
                     resume.colorAttachments[0].storeAction = .store
-                    guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume), let targets = blurTargets else { return }
+                    guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume), let targets = blurTargets.first else { return }
                     encoder = resumed
                     encoder.setScissorRect(canvasScissor)
                     encoder.setFragmentTexture(targets.blurred, index: 0)
@@ -438,20 +474,24 @@ final class Renderer {
         return texture
     }
 
-    /// Blurs the layers composited so far into `blurTargets.blurred`, and the canvas's coverage alongside.
-    private func blur(_ source: MTLTexture, canvasRect: SIMD4<Float>, sigma: Float, commandBuffer: MTLCommandBuffer) {
-        let width = source.width, height = source.height
-        if blurTargets?.blurred.width != width || blurTargets?.blurred.height != height {
-            func make(_ format: MTLPixelFormat, renderTarget: Bool) -> MTLTexture {
-                let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
-                descriptor.usage = renderTarget ? [.renderTarget, .shaderRead] : [.shaderRead, .shaderWrite]
-                descriptor.storageMode = .private
-                guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create a blur texture") }
-                return texture
-            }
-            blurTargets = (make(Self.layerTargetFormat, renderTarget: false), make(.r16Float, renderTarget: true), make(.r16Float, renderTarget: false))
+    /// Both blur target sets at the drawable's size, made when needed.
+    private func preparedBlurTargets(width: Int, height: Int) -> [BlurTarget] {
+        if blurTargets.count == 2, blurTargets[0].blurred.width == width, blurTargets[0].blurred.height == height { return blurTargets }
+        func make(_ format: MTLPixelFormat, renderTarget: Bool) -> MTLTexture {
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
+            descriptor.usage = renderTarget ? [.renderTarget, .shaderRead] : [.shaderRead, .shaderWrite]
+            descriptor.storageMode = .private
+            guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create a blur texture") }
+            return texture
         }
-        guard let targets = blurTargets else { return }
+        blurTargets = (0..<2).map { _ in (make(Self.layerTargetFormat, renderTarget: false), make(.r16Float, renderTarget: true), make(.r16Float, renderTarget: false)) }
+        return blurTargets
+    }
+
+    /// Blurs the layers composited so far into one blur target set, and the canvas's coverage alongside.
+    private func blur(_ source: MTLTexture, canvasRect: SIMD4<Float>, sigma: Float, slot: Int, commandBuffer: MTLCommandBuffer) {
+        let width = source.width, height = source.height
+        let targets = preparedBlurTargets(width: width, height: height)[slot]
 
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = targets.coverage

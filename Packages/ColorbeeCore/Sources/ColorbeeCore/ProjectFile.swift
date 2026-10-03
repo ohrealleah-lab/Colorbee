@@ -36,11 +36,13 @@ public enum ProjectFile {
         var pixels: Range<Int>?
     }
 
+    /// An adjustment that reads back as none if it's of a kind this version doesn't know.
     struct AdjustmentEntry: Codable {
-        var kind: String
-        var values: [Double]
-        var levels: Levels? = nil
-        var curves: Curves? = nil
+        var effect: Effect?
+
+        init(_ effect: Effect) { self.effect = effect }
+        init(from decoder: Decoder) throws { effect = try? Effect(from: decoder) }
+        func encode(to encoder: Encoder) throws { try effect?.encode(to: encoder) }
     }
 
     /// Encodes `canvas`. A floating selection is stamped into a copy of its layer, so what's saved is what's seen.
@@ -68,7 +70,7 @@ public enum ProjectFile {
             entries.append(LayerEntry(
                 id: layer.id.rawValue, name: layer.name, isVisible: layer.isVisible, opacity: layer.opacity,
                 blendMode: layer.blendMode.rawValue, isLocked: layer.isLocked,
-                adjustment: layer.adjustment.map(entry(for:)), pixels: range
+                adjustment: layer.adjustment.map(AdjustmentEntry.init), pixels: range
             ))
         }
         let manifest = Manifest(
@@ -114,7 +116,7 @@ public enum ProjectFile {
             layer.opacity = min(1, max(0, entry.opacity))
             layer.blendMode = BlendMode(rawValue: entry.blendMode) ?? .normal
             layer.isLocked = entry.isLocked
-            layer.adjustment = entry.adjustment.flatMap(adjustment(from:))
+            layer.adjustment = entry.adjustment?.effect
             return layer
         }
         return Canvas(
@@ -140,42 +142,6 @@ public enum ProjectFile {
             for y in 0..<buffer.height {
                 UnsafeMutableRawPointer(buffer.row(y)).copyMemory(from: bytes.baseAddress! + y * buffer.width * 4, byteCount: buffer.width * 4)
             }
-        }
-    }
-
-    private static func entry(for effect: Effect) -> AdjustmentEntry {
-        switch effect {
-        case .invert: AdjustmentEntry(kind: "invert", values: [])
-        case .desaturate: AdjustmentEntry(kind: "desaturate", values: [])
-        case .brightnessContrast(let b, let c): AdjustmentEntry(kind: "brightnessContrast", values: [b, c])
-        case .hueSaturation(let h, let s, let l): AdjustmentEntry(kind: "hueSaturation", values: [h, s, l])
-        case .gaussianBlur(let radius): AdjustmentEntry(kind: "gaussianBlur", values: [radius])
-        case .sharpen(let amount): AdjustmentEntry(kind: "sharpen", values: [amount])
-        case .levels(let levels): AdjustmentEntry(kind: "levels", values: [], levels: levels)
-        case .curves(let curves): AdjustmentEntry(kind: "curves", values: [], curves: curves)
-        case .sepia(let amount): AdjustmentEntry(kind: "sepia", values: [amount])
-        case .posterize(let levels): AdjustmentEntry(kind: "posterize", values: [Double(levels)])
-        // Never adjustment layers (see Layer.isAdjustable); unknown kinds read back as no adjustment.
-        case .pixelate(let size): AdjustmentEntry(kind: "pixelate", values: [Double(size)])
-        case .solidFill, .addNoise, .motionBlur, .emboss, .vignette: AdjustmentEntry(kind: effect.name, values: [])
-        }
-    }
-
-    private static func adjustment(from entry: AdjustmentEntry) -> Effect? {
-        let v = entry.values
-        func value(_ i: Int) -> Double { v.indices.contains(i) ? v[i] : 0 }
-        return switch entry.kind {
-        case "invert": .invert
-        case "desaturate": .desaturate
-        case "brightnessContrast": .brightnessContrast(brightness: value(0), contrast: value(1))
-        case "hueSaturation": .hueSaturation(hue: value(0), saturation: value(1), lightness: value(2))
-        case "gaussianBlur": .gaussianBlur(radius: value(0))
-        case "sharpen": .sharpen(amount: value(0))
-        case "levels": entry.levels.map(Effect.levels)
-        case "curves": entry.curves.map(Effect.curves)
-        case "sepia": .sepia(amount: value(0))
-        case "posterize": .posterize(levels: Int(value(0)))
-        default: nil
         }
     }
 }

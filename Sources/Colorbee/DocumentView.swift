@@ -181,6 +181,10 @@ private struct EffectBar: View {
                     }
                 }
             }
+            if kind == .adjustPhoto {
+                Text("Use the sliders and filters in the panel at the right.")
+                    .foregroundStyle(.secondary)
+            }
             if kind == .levels {
                 Button("Auto") { editor.autoLevels() }
                     .help("Set the black and white points to the darkest and lightest pixels")

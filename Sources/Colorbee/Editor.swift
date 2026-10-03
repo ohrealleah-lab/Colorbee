@@ -99,6 +99,7 @@ enum EffectKind: CaseIterable {
     case motionBlur
     case emboss
     case vignette
+    case adjustPhoto
 
     struct Parameter {
         let label: String
@@ -126,6 +127,7 @@ enum EffectKind: CaseIterable {
         case .motionBlur: "Motion Blur"
         case .emboss: "Emboss"
         case .vignette: "Vignette"
+        case .adjustPhoto: "Adjust Photo"
         }
     }
 
@@ -148,7 +150,7 @@ enum EffectKind: CaseIterable {
             Parameter(label: "Midtones", range: 0.1...9.99, defaultValue: 1, unit: "", step: 0.01),
             Parameter(label: "White", range: 1...255, defaultValue: 255, unit: ""),
         ]
-        case .curves: []
+        case .curves, .adjustPhoto: []
         case .sepia: [Parameter(label: "Amount", range: 0...100, defaultValue: 100, unit: "%")]
         case .posterize: [Parameter(label: "Levels", range: 2...32, defaultValue: 4, unit: "")]
         case .addNoise: [
@@ -170,7 +172,7 @@ enum EffectKind: CaseIterable {
         }
     }
 
-    func effect(_ values: [Double], curves: Curves = .identity) -> Effect {
+    func effect(_ values: [Double], curves: Curves = .identity, photo: PhotoEdit = PhotoEdit()) -> Effect {
         func value(_ index: Int) -> Double { values.indices.contains(index) ? values[index] : parameters[index].defaultValue }
         return switch self {
         case .gaussianBlur: .gaussianBlur(radius: value(0))
@@ -186,6 +188,7 @@ enum EffectKind: CaseIterable {
         case .motionBlur: .motionBlur(angle: value(0), distance: value(1))
         case .emboss: .emboss(angle: value(0), depth: value(1))
         case .vignette: .vignette(amount: value(0), size: value(1))
+        case .adjustPhoto: .photo(photo)
         }
     }
 }
@@ -420,6 +423,9 @@ final class Editor {
     @ObservationIgnored private var effectEdit: Edit?
     /// Curves' points while its dialog is open.
     var effectCurves = Curves.identity
+    /// The Adjust Photo panel's settings while it's open, and which sliders Auto last set.
+    private(set) var photoEdit = PhotoEdit()
+    private(set) var photoAutoMoved: Set<PhotoAdjustments.Slider> = []
     /// What Levels shows behind its sliders: the pixels it applies to, before any change.
     private(set) var effectHistogram: Histogram?
     /// The selection's separate regions, worked out once per dialog; nil applies to the whole layer.
@@ -1623,6 +1629,9 @@ final class Editor {
         placeFloatingKeepingOutline()
         effectValues = kind.parameters.map(\.defaultValue)
         effectCurves = .identity
+        photoEdit = PhotoEdit()
+        photoAutoMoved = []
+        if kind == .adjustPhoto { isSidebarOpen = true }
         effectHistogram = kind == .levels ? Histogram(canvas.activeLayer.buffer, selection: canvas.selection.marquee) : nil
         effectEdit = history.beginEdit(kind.title, on: canvas)
         effectRegions = canvas.selection.marquee?.connectedRegions()
@@ -1642,7 +1651,7 @@ final class Editor {
         effectPreviewScheduled = false
         guard let kind = activeEffect, let edit = effectEdit else { return }
         edit.restoreOriginals()
-        let effect = kind.effect(effectValues, curves: effectCurves)
+        let effect = kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
         if let regions = effectRegions {
             Effects.apply(effect, to: canvas.activeLayer, regions: regions, edit: edit)
         } else {
@@ -1657,6 +1666,52 @@ final class Editor {
         let levels = Levels.auto(from: histogram)
         effectValues = [levels.black, levels.gamma, levels.white]
         previewEffect()
+    }
+
+    func setPhotoEdit(_ edit: PhotoEdit) {
+        guard activeEffect == .adjustPhoto else { return }
+        photoEdit = edit
+        photoAutoMoved = photoAutoMoved.filter { edit.adjustments[$0] != 0 }
+        previewEffect()
+    }
+
+    /// Adjust Photo's Auto: sets the sliders it balances from the original pixels and marks them (FR-9.5).
+    func autoPhoto() {
+        guard activeEffect == .adjustPhoto, let edit = effectEdit else { return }
+        edit.restoreOriginals()
+        let auto = PhotoAdjustments.auto(for: canvas.activeLayer.buffer, selection: canvas.selection.marquee)
+        var changed = photoEdit
+        for slider in [PhotoAdjustments.Slider.exposure, .brilliance, .highlights, .shadows, .contrast, .warmth, .tint, .vibrance] {
+            changed.adjustments[slider] = auto[slider]
+        }
+        photoEdit = changed
+        photoAutoMoved = Set(auto.values.keys)
+        renderEffectPreview()
+    }
+
+    /// Adjust Photo's "As Adjustment Layer": the settings become an adjustment layer instead of pixels.
+    func photoAsAdjustmentLayer() {
+        guard activeEffect == .adjustPhoto else { return }
+        let settings = photoEdit
+        cancelEffect()
+        addAdjustmentLayer(.photo(settings), named: settings.filter?.name ?? "Adjust Photo")
+    }
+
+    /// Save as Filter…: the filter at its intensity, then the color and tone sliders, as one filter.
+    func saveFilter(from edit: PhotoEdit, named name: String) {
+        var steps = edit.filter?.steps(atIntensity: edit.filterIntensity / 100) ?? []
+        let own = edit.adjustments.colorAndTone
+        if !own.isNeutral { steps.append(.photo(PhotoEdit(adjustments: own))) }
+        guard !steps.isEmpty else { return onRefused() }
+        FilterStore.shared.add(PhotoFilter(name: name, steps: steps))
+    }
+
+    /// Save Filter from Layers: the visible color and tone adjustment layers, bottom to top.
+    /// False when there are none to save.
+    func saveFilterFromLayers(named name: String) -> Bool {
+        guard let filter = PhotoFilter.fromLayers(canvas.layers, name: name) else { return false }
+        FilterStore.shared.add(filter)
+        return true
     }
 
     /// Adjustments ▸ Auto Contrast: one step, no settings (FR-9.5, AC-31).

@@ -72,6 +72,7 @@ final class DocumentWindow: NSWindow {
 
     @objc func showSharpen(_ sender: Any?) { editor?.beginEffect(.sharpen) }
     @objc func showLevels(_ sender: Any?) { editor?.beginEffect(.levels) }
+    @objc func showAdjustPhoto(_ sender: Any?) { editor?.beginEffect(.adjustPhoto) }
     @objc func showCurves(_ sender: Any?) { editor?.beginEffect(.curves) }
     @objc func showSepia(_ sender: Any?) { editor?.beginEffect(.sepia) }
     @objc func showPosterize(_ sender: Any?) { editor?.beginEffect(.posterize) }

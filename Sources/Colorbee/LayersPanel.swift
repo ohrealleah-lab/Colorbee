@@ -20,31 +20,41 @@ struct Sidebar: View {
             .padding(.top, 10)
             .padding(.bottom, 6)
 
-            if editor.showsLayersPanel {
-                LayersPanel(editor: editor)
-            }
-            if editor.showsAdjustmentsPanel {
-                if editor.showsLayersPanel { Divider() }
-                SectionHeader(title: "Adjustments", detail: editor.activeAdjustment.flatMap(AdjustmentChoice.init)?.title ?? "")
-                AdjustmentsPanel(editor: editor)
-            }
-            if editor.showsHistoryPanel {
-                Divider()
-                SectionHeader(title: "History", detail: "\(editor.historySteps.count) steps")
-                HistoryPanel(editor: editor)
-            }
-            if editor.showsClipboardPanel {
-                Divider()
-                SectionHeader(title: "Clipboard History", detail: "\(ClipboardHistory.shared.items.count)")
-                ClipboardPanel(editor: editor)
-            }
-            if !editor.showsLayersPanel && !editor.showsHistoryPanel && !editor.showsClipboardPanel {
-                Spacer(minLength: 0)
+            // While Adjust Photo is open it has the sidebar to itself; the other panels come back after.
+            if editor.activeEffect == .adjustPhoto {
+                SectionHeader(title: "Adjust Photo", detail: editor.hasSelection ? "Selection" : "Whole layer")
+                ScrollView { AdjustPhotoPanel(editor: editor) }
+            } else {
+                panels
             }
         }
         .frame(width: 272)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
         .padding(8)
+    }
+
+    @ViewBuilder private var panels: some View {
+        if editor.showsLayersPanel {
+            LayersPanel(editor: editor)
+        }
+        if editor.showsAdjustmentsPanel {
+            if editor.showsLayersPanel { Divider() }
+            SectionHeader(title: "Adjustments", detail: editor.activeAdjustment.flatMap(AdjustmentChoice.init)?.title ?? "")
+            AdjustmentsPanel(editor: editor)
+        }
+        if editor.showsHistoryPanel {
+            Divider()
+            SectionHeader(title: "History", detail: "\(editor.historySteps.count) steps")
+            HistoryPanel(editor: editor)
+        }
+        if editor.showsClipboardPanel {
+            Divider()
+            SectionHeader(title: "Clipboard History", detail: "\(ClipboardHistory.shared.items.count)")
+            ClipboardPanel(editor: editor)
+        }
+        if !editor.showsLayersPanel && !editor.showsHistoryPanel && !editor.showsClipboardPanel {
+            Spacer(minLength: 0)
+        }
     }
 
     private func switcherButton(_ symbol: String, _ name: String, _ help: String, isOn: Binding<Bool>) -> some View {

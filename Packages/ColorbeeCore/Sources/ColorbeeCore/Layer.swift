@@ -23,7 +23,7 @@ public final class Layer {
     public static func isAdjustable(_ effect: Effect) -> Bool {
         switch effect {
         case .invert, .desaturate, .brightnessContrast, .hueSaturation, .gaussianBlur, .sharpen,
-             .levels, .curves, .sepia, .posterize: true
+             .levels, .curves, .sepia, .posterize, .photo: true
         case .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette: false
         }
     }

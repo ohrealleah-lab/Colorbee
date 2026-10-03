@@ -14,6 +14,7 @@ enum AdjustmentChoice: CaseIterable {
     case invert
     case gaussianBlur
     case sharpen
+    case adjustPhoto
 
     var title: String {
         switch self {
@@ -28,6 +29,7 @@ enum AdjustmentChoice: CaseIterable {
         case .invert: "Invert"
         case .gaussianBlur: "Gaussian Blur"
         case .sharpen: "Sharpen"
+        case .adjustPhoto: "Adjust Photo"
         }
     }
 
@@ -44,6 +46,7 @@ enum AdjustmentChoice: CaseIterable {
         case .invert: "circle.lefthalf.filled"
         case .gaussianBlur: "drop"
         case .sharpen: "triangle"
+        case .adjustPhoto: "camera.aperture"
         }
     }
 
@@ -61,6 +64,7 @@ enum AdjustmentChoice: CaseIterable {
         case .invert: .invert
         case .gaussianBlur: .gaussianBlur(radius: 8)
         case .sharpen: .sharpen(amount: 60)
+        case .adjustPhoto: .photo(PhotoEdit())
         }
     }
 
@@ -75,7 +79,7 @@ enum AdjustmentChoice: CaseIterable {
         case .posterize: .posterize
         case .gaussianBlur: .gaussianBlur
         case .sharpen: .sharpen
-        case .desaturate, .invert: nil
+        case .desaturate, .invert, .adjustPhoto: nil
         }
     }
 
@@ -92,6 +96,7 @@ enum AdjustmentChoice: CaseIterable {
         case .invert: self = .invert
         case .gaussianBlur: self = .gaussianBlur
         case .sharpen: self = .sharpen
+        case .photo: self = .adjustPhoto
         case .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette: return nil
         }
     }
@@ -113,7 +118,7 @@ extension Effect {
         case .motionBlur(let angle, let distance): [angle, distance]
         case .emboss(let angle, let depth): [angle, depth]
         case .vignette(let amount, let size): [amount, size]
-        case .invert, .desaturate, .solidFill, .curves: []
+        case .invert, .desaturate, .solidFill, .curves, .photo: []
         }
     }
 }
@@ -157,6 +162,23 @@ struct AdjustmentsPanel: View {
         let choice = adjustment.flatMap(AdjustmentChoice.init)
         VStack(alignment: .leading, spacing: 12) {
             if let adjustment, let choice {
+                if case .photo(let photo) = adjustment {
+                    // Fifteen sliders and the filters don't fit under the Layers panel, so they scroll.
+                    ScrollView {
+                    PhotoControls(edit: photo, editor: editor) { editor.previewAdjustment(.photo($0)) } onFinish: {
+                        editor.finishLayerSettings()
+                    } onAuto: {
+                        let below = editor.canvas.composited(through: max(0, editor.activeLayerIndex - 1))
+                        var changed = photo
+                        let auto = PhotoAdjustments.auto(for: below)
+                        for slider in [PhotoAdjustments.Slider.exposure, .brilliance, .highlights, .shadows, .contrast, .warmth, .tint, .vibrance] {
+                            changed.adjustments[slider] = auto[slider]
+                        }
+                        editor.setAdjustment(.photo(changed))
+                    }
+                    }
+                    .frame(maxHeight: 340)
+                }
                 if case .curves(let curves) = adjustment {
                     CurvesEditor(curves: curves, channel: $curvesChannel) { editor.previewAdjustment(.curves($0)) } onFinish: {
                         editor.finishLayerSettings()
@@ -176,7 +198,7 @@ struct AdjustmentsPanel: View {
                             editor.previewAdjustment(kind.effect(values))
                         }
                     }
-                } else {
+                } else if choice != .adjustPhoto {
                     Text("\(choice.title) has no settings.").font(.system(size: 12)).foregroundStyle(Theme.secondaryInk)
                 }
                 HStack(spacing: 8) {

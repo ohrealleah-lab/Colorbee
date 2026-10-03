@@ -28,7 +28,7 @@ public struct ColorLookup: Sendable {
 
     /// The table for a color adjustment layer, or nil when the display handles it another way.
     public init?(_ effect: Effect) {
-        guard effect.usesColorLookup, let transform = effect.pointwise else { return nil }
+        guard effect.usesColorLookup, let transform = effect.colorTransform else { return nil }
         self.init(transform)
     }
 }

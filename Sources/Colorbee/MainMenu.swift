@@ -92,6 +92,7 @@ enum MainMenu {
         "showBrightnessContrast:": "Make the selection or image lighter, darker, or more or less contrasty.",
         "showHueSaturation:": "Shift colors around the color wheel, or make them more or less vivid.",
         "desaturate:": "Turn the selection or image to grayscale.",
+        "showAdjustPhoto:": "Exposure, light, color and detail sliders, Auto, and filters, in a panel at the side.",
         "showLevels:": "Set the black point, white point and midtones, with a histogram. Auto sets them from the image.",
         "autoContrast:": "Stretch the darkest pixels to black and the lightest to white, in one step.",
         "showCurves:": "Reshape the tones with a curve, for all colors together or one at a time.",
@@ -280,6 +281,7 @@ enum MainMenu {
         menu.addItem(item("Hue/Saturation…", "showHueSaturation:"))
         menu.addItem(item("Desaturate", "desaturate:", "u", [.command, .shift]))
         menu.addItem(.separator())
+        menu.addItem(item("Adjust Photo…", "showAdjustPhoto:"))
         menu.addItem(item("Levels…", "showLevels:"))
         menu.addItem(item("Auto Contrast", "autoContrast:"))
         menu.addItem(item("Curves…", "showCurves:"))

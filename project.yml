@@ -51,6 +51,11 @@ targets:
             UTTypeConformsTo: [public.json]
             UTTypeTagSpecification:
               public.filename-extension: [colorpalette]
+          - UTTypeIdentifier: com.leah.colorbee.colorbeefilter
+            UTTypeDescription: Colorbee Photo Filter
+            UTTypeConformsTo: [public.json]
+            UTTypeTagSpecification:
+              public.filename-extension: [colorbeefilter]
           - UTTypeIdentifier: com.leah.colorbee.colorbeekeys
             UTTypeDescription: Colorbee Keyboard Shortcuts
             UTTypeConformsTo: [public.json]

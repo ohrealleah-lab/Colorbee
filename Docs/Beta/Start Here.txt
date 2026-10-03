@@ -1,0 +1,66 @@
+COLORBEE BETA — START HERE
+
+Thanks for trying Colorbee. It's a Mac paint and editing app: the quickness of
+classic MS Paint, plus layers, effects, annotation and redaction for screenshots.
+This is a beta, so expect a few rough edges. Telling Leah about them is the
+whole point.
+
+
+WHAT YOU NEED
+
+- A Mac with Apple silicon (M1 or later)
+- macOS 26 or later
+
+
+INSTALLING
+
+1. Drag Colorbee.app into your Applications folder.
+2. Open it. macOS may say it was downloaded from the internet; click Open.
+   Colorbee is signed and checked by Apple, so you won't need to change any
+   security settings.
+
+
+GETTING AROUND
+
+- Tools are in the toolbar. Most have a one-key shortcut, shown when you
+  hover over them (P Pencil, B Brush, E Eraser, G Fill, T Text, M Select...).
+- Left-click paints with Color 1, right-click with Color 2, as in Paint.
+- Click a swatch to set the ringed color well; right-click sets Color 2.
+- Hover over almost anything to see what it does.
+- Every change can be undone (⌘Z), with no step limit. The History panel
+  (⌘Y) lets you jump back to any step.
+- Layers: ⌘L shows the Layers panel.
+- Settings (⌘,) has your keyboard shortcuts and export sizes.
+
+
+A FEW THINGS WORTH TRYING
+
+- Take a screenshot to the clipboard (⇧⌃⌘4), then File ▸ Paste into New Image.
+- Effects ▸ Auto-Redact... finds email addresses, phone numbers, card numbers
+  and keys in a screenshot so you can hide them.
+- View ▸ Before/After compares your edits with the original.
+- File ▸ Export As picks a common size for sharing.
+
+
+SAVING
+
+- Plain images save as PNG (or whatever format you opened).
+- Once an image has more than one layer, it saves as a Colorbee project
+  (.colorproj) so the layers are kept. Use File ▸ Export... for a flat copy.
+- Colorbee saves automatically, like Pages and TextEdit.
+
+
+PRIVACY
+
+Colorbee has no internet access at all. Nothing you open, draw or redact
+leaves your Mac. Auto-Redact reads text on your Mac using Apple's built-in
+text recognition.
+
+
+IF SOMETHING GOES WRONG
+
+- Tell Leah what you were doing, what you expected and what happened.
+  A screenshot or screen recording helps a lot.
+- If Colorbee quits unexpectedly, macOS shows a report. Click "Report...",
+  then copy the text in the details and send it to Leah. It holds technical
+  details about where the app stopped, not your pictures or files.

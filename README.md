@@ -10,7 +10,9 @@ Colorbee is a personal tool, built as a product exercise. I'm the product manage
 
 ## What it does
 
-**Paint and draw.** Pencil, round brush, marker, eraser and color eraser, flood fill, eyedropper, 24 shapes that stay editable (move, resize, rotate) until placed, gradients (linear, radial, reflected, diamond, conical), text, symmetry drawing and a measure tool. Left-click paints with Color 1 and right-click with Color 2, as in Paint.
+**Paint and draw.** Pencil, nine brushes (round, calligraphy, airbrush, oil, crayon, marker, natural pencil, watercolor) with pressure from a Force Touch trackpad or pen, eraser and color eraser, flood fill, eyedropper, 24 shapes that stay editable (move, resize, rotate) until placed, gradients (linear, radial, reflected, diamond, conical), text with styles, symmetry drawing and a measure tool. Left-click paints with Color 1 and right-click with Color 2, as in Paint.
+
+**Layers.** Blend modes (17, with the W3C math on screen and in exports), opacity, locking, merge and flatten, and non-destructive adjustment layers. Undo on Active Layer takes back one layer's last change while leaving the others alone. Layered images save as a `.colorproj` project.
 
 **Select and transform.** Rectangle, ellipse, lasso and magic wand selections that add, subtract and intersect. Floating selections can be moved, duplicated, resized with handles and placed. Crop, rotate and flip apply to the selection or the whole image.
 
@@ -20,7 +22,9 @@ Colorbee is a personal tool, built as a product exercise. I'm the product manage
 
 **Files.** Opens PNG, JPEG, HEIC, TIFF, GIF, BMP and WebP. Keeps each image's color profile (Display P3 screenshots stay P3). Autosave, versions and window restoration come from the standard macOS document model. Export presets show the exact output size.
 
-**History.** Unlimited undo. It stores only the changed 256-pixel tiles, works within a memory budget, and compresses older steps to disk.
+**History.** Unlimited undo, with a History panel to jump to any step. It stores only the changed 256-pixel tiles, works within a memory budget, and compresses older steps (and layers only undo can bring back) to disk.
+
+**Make it yours.** Palettes, custom colors, text styles, export presets, and a keyboard shortcut editor that knows which shortcuts macOS has already taken on this Mac.
 
 ## How it's built
 
@@ -28,14 +32,14 @@ Colorbee is a personal tool, built as a product exercise. I'm the product manage
 - **Two layers of code.** `ColorbeeCore` is a pure Swift package with no UI imports. It holds the pixel model, history, selections and every tool and effect algorithm, and it runs its tests headless. The app target handles input, display and the operating system.
 - **The CPU owns the pixels.** Each layer is one page-aligned BGRA buffer with straight alpha. Metal is used only for display: zero-copy textures, compositing, nearest-neighbor zoom up to 3200%, the pixel grid and overlays.
 - **Every edit goes through history**, using the command pattern with tile-level before-images, so undo is exact.
-- **Performance targets:** under 16 ms from input to frame, scanline fill and magic wand algorithms instead of recursion, and heavy effects off the main thread.
-- **Tests:** 166 unit tests in Swift Testing, including exact pixel values on small images and a property test that runs random edits, undoes them all and checks the image is unchanged.
+- **Performance targets:** under 16 ms from input to frame, scanline fill and magic wand algorithms instead of recursion, whole-image work on all cores, and saving in the background. In the 8000 × 8000 soak test (up to five layers), no step takes a second.
+- **Tests:** 271 unit tests in Swift Testing, including exact pixel values on small images and property tests that run random edits, undo them all and check the image is unchanged. A separate Release-only suite (`make perf`) sets time limits and runs an 8000 × 8000 soak test.
 
-About 10,500 lines of Swift.
+About 15,000 lines of Swift, plus 3,000 lines of tests.
 
 ## Status
 
-Built in stages, each working end to end before the next starts. Stages 1 to 5a of 8 are done and tested by hand. Still to come: textured brushes and pressure sensitivity, layers with blend modes, the full design-mockup interface, and hardening. See [Docs/STATUS.md](Docs/STATUS.md).
+Built in stages, each working end to end before the next starts. Stages 1 to 7 are done and tested by hand. Stage 8 (hardening: performance, memory, accessibility and a signed beta) is under way, and stage 9 adds photo editing. See [Docs/STATUS.md](Docs/STATUS.md).
 
 ## The product docs
 

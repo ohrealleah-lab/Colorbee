@@ -17,6 +17,7 @@ make test     # core unit tests (fast, headless) + full app build
 make core     # core unit tests only (swift test)
 make run      # Release build, then launch (Debug pixel loops are ~50x slower; use run for real use)
 make perf      # Release-only time limits + 8000x8000 soak test (AC-27). A few minutes; no windows.
+make beta      # Signed + notarized beta zip in build/Beta (Scripts/make-beta.sh). Uses Leah's keychain; ask her first.
 make bench     # Release build + scripted perf run (launch, stroke latency, undo, memory). Brings a window to the front; ask Leah first.
 make clean
 ```
@@ -32,7 +33,9 @@ Sources/Colorbee/            App target: SwiftUI shell + AppKit canvas view + Me
 Packages/ColorbeeCore/       Local Swift package: pixel model, history, selection, tool logic, effects
   Sources/ColorbeeCore/
   Tests/ColorbeeCoreTests/
+Scripts/make-beta.sh         Beta packaging (Developer ID signing, notarization)
 Docs/FRD.md                  Requirements (source of truth)
+Docs/Beta/Start Here.txt     The note that ships in the beta zip for testers
 Docs/reference/              Original v1 spec, kept for reference only
 ```
 

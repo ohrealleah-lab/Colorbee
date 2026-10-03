@@ -4,7 +4,7 @@ DERIVED := build
 APP     := $(DERIVED)/Build/Products/Debug/Colorbee.app
 BENCH   := $(DERIVED)/Build/Products/Release/Colorbee.app/Contents/MacOS/Colorbee -ColorbeeBenchmark YES -ApplePersistenceIgnoreState YES
 
-.PHONY: gen build test core perf run bench open clean
+.PHONY: gen build test core perf run bench beta open clean
 
 gen:
 	xcodegen generate --quiet
@@ -21,6 +21,10 @@ test: core build
 # Release-only time limits and the 8000x8000 soak test (AC-27, NFR-7). Takes a few minutes.
 perf:
 	cd Packages/ColorbeeCore && swift test -c release --no-parallel --filter "SoakTests|PerformanceTests"
+
+# Signed, notarized beta zip for testers in build/Beta. Uses the keychain; may ask for its password.
+beta:
+	Scripts/make-beta.sh
 
 # Release, so it runs at real speed (Debug pixel loops are ~50x slower).
 run: gen

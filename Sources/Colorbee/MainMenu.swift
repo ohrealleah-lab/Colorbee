@@ -27,13 +27,13 @@ enum MainMenu {
     /// Hover text for every command, keyed by its action.
     private static let tooltips: [String: String] = [
         "orderFrontStandardAboutPanel:": "Version and credits.",
-        "showSettings:": "Export presets, and soon keyboard shortcuts.",
+        "showSettings:": "Keyboard shortcuts and export presets.",
         "hide:": "Hide Colorbee's windows until you switch back.",
         "hideOtherApplications:": "Hide every other app's windows.",
         "unhideAllApplications:": "Show every app's windows again.",
         "terminate:": "Quit Colorbee. Your work is saved automatically.",
         "newDocument:": "Start a new blank 1920 × 1080 image.",
-        "openDocument:": "Open an image file (PNG, JPEG, HEIC, TIFF, GIF, BMP or WebP).",
+        "openDocument:": "Open an image (PNG, JPEG, HEIC, TIFF, GIF, BMP or WebP) or a Colorbee project.",
         "clearRecentDocuments:": "Forget the list of recently opened images.",
         "performClose:": "Close this window.",
         "saveDocument:": "Save the image. Untitled images ask for a name and format.",

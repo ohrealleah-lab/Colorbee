@@ -200,7 +200,7 @@ struct PendingShape: Equatable {
 }
 
 /// Text formatting for the text tool (FR-6.1).
-struct TextStyle: Equatable {
+struct TextStyle: Equatable, Codable {
     var fontFamily = "Helvetica Neue"
     /// In image pixels at 100% zoom.
     var fontSize = 24.0

@@ -111,6 +111,7 @@ private struct ToolOptions: View {
         case .shape:
             hint(editor.shapeKind.hint)
         case .text:
+            TextStyleMenu(editor: editor, store: TextStyleStore.shared)
             TextOptions(style: $editor.textStyle)
         case .pencil:
             hint("1 px · Shift draws straight lines")

@@ -98,6 +98,26 @@ struct AutoRedactRecognitionTests {
         #expect(matches.count == 2)
     }
 
+    /// The box covers the match but not the letters on either side (Leah: the "r" of "Customer" was cut off).
+    @Test func theBoxStopsShortOfTheNeighboringLetters() async throws {
+        func inkColumns(_ text: String) throws -> [Int] {
+            let (cgImage, canvas) = try image(lines: [text])
+            _ = cgImage
+            let buffer = canvas.flattened()
+            return (0..<buffer.width).filter { x in (0..<buffer.height).contains { buffer[x, $0].r < 128 } }
+        }
+        let full = "Customer jordan@example.com says hi"
+        let (cgImage, _) = try image(lines: [full])
+        let scan = try await TextScan.read(cgImage)
+        let email = try #require(scan.matches(for: RedactionPattern.builtIns).first { $0.patternName == "Email" })
+        let customerEnd = try #require(try inkColumns("Customer").max())
+        let emailEnd = try #require(try inkColumns("Customer jordan@example.com").max())
+        let saysStart = try #require(try inkColumns(full).first { $0 > emailEnd + 2 })
+        #expect(email.rect.minX > customerEnd)
+        #expect(email.rect.maxX <= saysStart)
+        #expect(email.rect.maxX >= emailEnd)
+    }
+
     @Test func offsetPlacesMatchesOnTheCanvas() async throws {
         let (cgImage, _) = try image(lines: ["Mail me at a.person@example.com"])
         let shifted = try await TextScan.read(cgImage, offset: IntPoint(x: 500, y: 300))

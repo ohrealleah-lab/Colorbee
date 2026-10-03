@@ -153,11 +153,45 @@ public final class TextScan: @unchecked Sendable {
         guard let box = try? line.text.boundingBox(for: range)?.boundingBox else { return nil }
         // Vision's boxes are normalized with the origin at the bottom-left.
         let width = Double(imageSize.width), height = Double(imageSize.height)
-        let minX = box.minX * width, maxX = box.maxX * width
         let minY = (1 - box.maxY) * height, maxY = (1 - box.minY) * height
         let padding = 2 + (maxY - minY) * 0.1
-        return IntRect(enclosingMinX: minX - padding, minY: minY - padding, maxX: maxX + padding, maxY: maxY + padding)
+        var minX = box.minX * width - padding, maxX = box.maxX * width + padding
+        // Vision's box for part of a line often spills into the letters beside it, and the padding adds
+        // more; never reach past the nearest visible character on either side (the spaces between still go).
+        if let before = neighbor(of: range, in: line, before: true), let edge = edge(of: before, in: line, leading: false) {
+            minX = max(minX, edge * width + 1)
+        }
+        if let after = neighbor(of: range, in: line, before: false), let edge = edge(of: after, in: line, leading: true) {
+            maxX = min(maxX, edge * width - 1)
+        }
+        guard maxX > minX else { return nil }
+        return IntRect(enclosingMinX: minX, minY: minY - padding, maxX: maxX, maxY: maxY + padding)
             .offsetBy(dx: offset.x, dy: offset.y)
+    }
+
+    /// The closest non-space character before (or after) `range` on the line.
+    private func neighbor(of range: Range<String.Index>, in line: Line, before: Bool) -> Range<String.Index>? {
+        let string = line.string
+        if before {
+            var index = range.lowerBound
+            while index > string.startIndex {
+                index = string.index(before: index)
+                if !string[index].isWhitespace { return index..<string.index(after: index) }
+            }
+        } else {
+            var index = range.upperBound
+            while index < string.endIndex {
+                if !string[index].isWhitespace { return index..<string.index(after: index) }
+                index = string.index(after: index)
+            }
+        }
+        return nil
+    }
+
+    /// A character's left or right edge, normalized like Vision's boxes.
+    private func edge(of character: Range<String.Index>, in line: Line, leading: Bool) -> Double? {
+        guard let box = try? line.text.boundingBox(for: character)?.boundingBox else { return nil }
+        return leading ? box.minX : box.maxX
     }
 }
 

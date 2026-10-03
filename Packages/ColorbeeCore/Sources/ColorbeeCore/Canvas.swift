@@ -75,7 +75,7 @@ public final class Canvas {
         LayerStackState(
             records: layers.map {
                 LayerStackState.Record(layer: $0, name: $0.name, isVisible: $0.isVisible, opacity: $0.opacity,
-                                       blendMode: $0.blendMode, isLocked: $0.isLocked, buffer: $0.buffer)
+                                       blendMode: $0.blendMode, isLocked: $0.isLocked, adjustment: $0.adjustment, buffer: $0.buffer)
             },
             activeIndex: activeLayerIndex
         )
@@ -89,6 +89,7 @@ public final class Canvas {
             layer.opacity = record.opacity
             layer.blendMode = record.blendMode
             layer.isLocked = record.isLocked
+            layer.adjustment = record.adjustment
             layer.buffer = record.buffer
             return layer
         }
@@ -107,8 +108,26 @@ public final class Canvas {
     }
 
     /// `layers` composited bottom to top with their blend modes and opacity, onto `base` if given.
-    /// The floating selection is drawn just above its layer, as on screen.
+    /// An adjustment layer changes everything composited so far. The floating selection is drawn just
+    /// above its layer, as on screen.
     func composite(_ stack: [Layer], onto base: PixelBuffer? = nil, transparentKey: Pixel? = nil) -> PixelBuffer {
+        var current = base
+        var segment: [Layer] = []
+        for layer in stack {
+            if let adjustment = layer.adjustment {
+                let below = segment.isEmpty && current != nil ? current! : compositePixels(segment, onto: current, transparentKey: transparentKey)
+                current = Compositing.adjust(below, by: adjustment, opacity: layer.opacity, mode: layer.blendMode)
+                segment = []
+            } else {
+                segment.append(layer)
+            }
+        }
+        if segment.isEmpty, let current, current !== base { return current }
+        return compositePixels(segment, onto: current, transparentKey: transparentKey)
+    }
+
+    /// Pixel layers only, composited row by row in premultiplied floats.
+    private func compositePixels(_ stack: [Layer], onto base: PixelBuffer?, transparentKey: Pixel?) -> PixelBuffer {
         let result = PixelBuffer(width: size.width, height: size.height)
         let floating = selection.floating
         let floatingPixels = floating.flatMap { floating in
@@ -165,6 +184,7 @@ struct LayerStackState {
         let opacity: Double
         let blendMode: BlendMode
         let isLocked: Bool
+        let adjustment: Effect?
         let buffer: PixelBuffer
     }
 
@@ -175,7 +195,7 @@ struct LayerStackState {
         records.count == other.records.count && activeIndex == other.activeIndex
             && zip(records, other.records).allSatisfy { a, b in
                 a.layer === b.layer && a.name == b.name && a.isVisible == b.isVisible && a.opacity == b.opacity
-                    && a.blendMode == b.blendMode && a.isLocked == b.isLocked && a.buffer === b.buffer
+                    && a.blendMode == b.blendMode && a.isLocked == b.isLocked && a.adjustment == b.adjustment && a.buffer === b.buffer
             }
     }
 }

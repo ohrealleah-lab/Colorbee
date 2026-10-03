@@ -16,6 +16,16 @@ public final class Layer {
     public var blendMode: BlendMode = .normal
     /// A locked layer refuses every pixel change, move, merge and delete (FR-8.2).
     public var isLocked = false
+    /// Set for an adjustment layer (FR-8.4): it changes how the layers below look and holds no pixels.
+    public var adjustment: Effect?
+
+    /// The adjustments an adjustment layer can be.
+    public static func isAdjustable(_ effect: Effect) -> Bool {
+        switch effect {
+        case .invert, .desaturate, .brightnessContrast, .hueSaturation, .gaussianBlur, .sharpen: true
+        case .pixelate, .solidFill: false
+        }
+    }
     /// Replaced (never resized in place) when the canvas size changes.
     public internal(set) var buffer: PixelBuffer
 

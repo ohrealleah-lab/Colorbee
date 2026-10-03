@@ -233,3 +233,98 @@ struct LayerActionTests {
         #expect(canvas.flattened().contentHash() == original)
     }
 }
+
+struct AdjustmentLayerTests {
+    private let red = Pixel(r: 255, g: 0, b: 0)
+    private let context = SelectionContext(color2: .white)
+
+    private func makeCanvas() -> (Canvas, History) {
+        (Canvas(size: IntSize(width: 8, height: 8), colorSpace: Canvas.defaultColorSpace, background: .white), History(byteBudget: .max))
+    }
+
+    @Test func anAdjustmentLayerChangesWhatsBelowWithoutTouchingIt() {
+        let (canvas, history) = makeCanvas()
+        #expect(LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context))
+        #expect(canvas.flattened()[3, 3] == .black)
+        #expect(canvas.layers[0].buffer[3, 3] == .white)
+    }
+
+    @Test func opacityFadesTheAdjustmentIn() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        canvas.activeLayer.opacity = 0.5
+        let pixel = canvas.flattened()[3, 3]
+        #expect(abs(Int(pixel.r) - 128) <= 1 && pixel.r == pixel.g && pixel.a == 255)
+    }
+
+    @Test func layersAboveAnAdjustmentAreNotAdjusted() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.buffer.fill(red, in: IntRect(x: 0, y: 0, width: 2, height: 2))
+        let flat = canvas.flattened()
+        #expect(flat[0, 0] == red)
+        #expect(flat[5, 5] == .black)
+    }
+
+    @Test func hiddenAdjustmentsDoNothing() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        canvas.activeLayer.isVisible = false
+        #expect(canvas.flattened()[3, 3] == .white)
+    }
+
+    @Test func applyAdjustmentBakesItIntoTheLayerBelowAndUndoes() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.addAdjustment(.brightnessContrast(brightness: -50, contrast: 0), named: "Darker", canvas: canvas, history: history, context: context)
+        let looks = canvas.flattened().contentHash()
+        #expect(LayerActions.applyAdjustment(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 1)
+        #expect(canvas.flattened().contentHash() == looks)
+        #expect(canvas.layers[0].buffer[1, 1].r < 255)
+        history.undo(on: canvas)
+        #expect(canvas.layers.count == 2)
+        #expect(canvas.layers[0].buffer[1, 1] == .white)
+    }
+
+    @Test func mergeDownOnAnAdjustmentAppliesIt() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        #expect(LayerActions.mergeDown(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers[0].buffer[1, 1] == .black)
+    }
+
+    @Test func pixelsCantMergeIntoAnAdjustmentLayer() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        #expect(!LayerActions.canMergeDown(canvas))
+    }
+
+    @Test func changingTheSettingsIsAnUndoableStep() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.addAdjustment(.brightnessContrast(brightness: 0, contrast: 0), named: "B/C", canvas: canvas, history: history, context: context)
+        LayerActions.update("Adjustment", layerAt: 1, canvas: canvas, history: history) { $0.adjustment = .brightnessContrast(brightness: 40, contrast: 0) }
+        #expect(canvas.layers[1].adjustment == .brightnessContrast(brightness: 40, contrast: 0))
+        history.undo(on: canvas)
+        #expect(canvas.layers[1].adjustment == .brightnessContrast(brightness: 0, contrast: 0))
+    }
+
+    @Test func aBlurAdjustmentSoftensAnEdge() {
+        let (canvas, history) = makeCanvas()
+        canvas.layers[0].buffer.fill(.black, in: IntRect(x: 0, y: 0, width: 4, height: 8))
+        LayerActions.addAdjustment(.gaussianBlur(radius: 1), named: "Blur", canvas: canvas, history: history, context: context)
+        let edge = canvas.flattened()[4, 4]
+        #expect(edge.r > 0 && edge.r < 255)
+        #expect(canvas.layers[0].buffer[4, 4] == .white)
+    }
+
+    @Test func flattenAppliesAdjustments() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        LayerActions.flatten(canvas: canvas, history: history, context: context)
+        #expect(canvas.layers.count == 1)
+        #expect(canvas.layers[0].adjustment == nil)
+        #expect(canvas.layers[0].buffer[2, 2] == .black)
+    }
+}

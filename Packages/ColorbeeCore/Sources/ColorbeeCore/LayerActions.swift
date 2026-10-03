@@ -12,6 +12,41 @@ public enum LayerActions {
         }
     }
 
+    /// A new adjustment layer above the active one, which becomes active (FR-8.4).
+    @discardableResult
+    public static func addAdjustment(_ adjustment: Effect, named name: String, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        guard Layer.isAdjustable(adjustment) else { return false }
+        return change("New Adjustment Layer", canvas: canvas, history: history, context: context) {
+            let layer = Layer(name: name, buffer: PixelBuffer(width: canvas.size.width, height: canvas.size.height))
+            layer.adjustment = adjustment
+            canvas.insertLayer(layer, at: canvas.activeLayerIndex + 1)
+            canvas.activeLayerIndex += 1
+            return true
+        }
+    }
+
+    /// Apply Adjustment: the active adjustment layer becomes pixels on the layer below it, and goes away.
+    @discardableResult
+    public static func applyAdjustment(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        guard canApplyAdjustment(canvas) else { return false }
+        return change("Apply Adjustment", canvas: canvas, history: history, context: context) {
+            let index = canvas.activeLayerIndex
+            let adjustmentLayer = canvas.layers[index], lower = canvas.layers[index - 1]
+            guard let adjustment = adjustmentLayer.adjustment else { return false }
+            lower.buffer = Compositing.adjust(lower.buffer, by: adjustment, opacity: adjustmentLayer.opacity, mode: adjustmentLayer.blendMode)
+            canvas.removeLayer(at: index)
+            canvas.activeLayerIndex = index - 1
+            return true
+        }
+    }
+
+    public static func canApplyAdjustment(_ canvas: Canvas) -> Bool {
+        let index = canvas.activeLayerIndex
+        guard index > 0, canvas.layers[index].adjustment != nil else { return false }
+        let lower = canvas.layers[index - 1]
+        return !lower.isLocked && lower.adjustment == nil && !canvas.layers[index].isLocked
+    }
+
     /// A copy of the active layer, with its settings, just above it.
     @discardableResult
     public static func duplicate(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
@@ -21,6 +56,7 @@ public enum LayerActions {
             copy.isVisible = source.isVisible
             copy.opacity = source.opacity
             copy.blendMode = source.blendMode
+            copy.adjustment = source.adjustment
             canvas.insertLayer(copy, at: canvas.activeLayerIndex + 1)
             canvas.activeLayerIndex += 1
             return true
@@ -44,9 +80,10 @@ public enum LayerActions {
     }
 
     /// Combines the active layer into the one below, using its blend mode and opacity. The result keeps
-    /// the lower layer's name and settings.
+    /// the lower layer's name and settings. On an adjustment layer this is Apply Adjustment.
     @discardableResult
     public static func mergeDown(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        if canvas.activeLayer.adjustment != nil { return applyAdjustment(canvas: canvas, history: history, context: context) }
         guard canMergeDown(canvas) else { return false }
         return change("Merge Down", canvas: canvas, history: history, context: context) {
             let index = canvas.activeLayerIndex
@@ -59,8 +96,10 @@ public enum LayerActions {
     }
 
     public static func canMergeDown(_ canvas: Canvas) -> Bool {
+        if canvas.activeLayer.adjustment != nil { return canApplyAdjustment(canvas) }
         let index = canvas.activeLayerIndex
-        return index > 0 && !canvas.layers[index].isLocked && !canvas.layers[index - 1].isLocked
+        // Pixels can't be merged into an adjustment layer, which has none.
+        return index > 0 && !canvas.layers[index].isLocked && !canvas.layers[index - 1].isLocked && canvas.layers[index - 1].adjustment == nil
     }
 
     /// Combines every visible layer into the lowest visible one, as they look together. Hidden layers stay.
@@ -73,6 +112,7 @@ public enum LayerActions {
             target.buffer = canvas.composite(visible)
             target.opacity = 1
             target.blendMode = .normal
+            target.adjustment = nil
             let active = canvas.activeLayer
             for layer in visible.dropFirst() {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
@@ -98,6 +138,7 @@ public enum LayerActions {
             bottom.opacity = 1
             bottom.blendMode = .normal
             bottom.isVisible = true
+            bottom.adjustment = nil
             while canvas.layers.count > 1 { canvas.removeLayer(at: 1) }
             canvas.activeLayerIndex = 0
             return true

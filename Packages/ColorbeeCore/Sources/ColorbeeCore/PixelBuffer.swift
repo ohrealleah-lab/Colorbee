@@ -23,8 +23,12 @@ public final class PixelBuffer {
         pixelsPerRow = bytesPerRow / 4
         let pageSize = PixelBuffer.pageSize
         byteCount = (bytesPerRow * height + pageSize - 1) / pageSize * pageSize
-        baseAddress = UnsafeMutableRawPointer.allocate(byteCount: byteCount, alignment: pageSize)
-        baseAddress.initializeMemory(as: UInt8.self, repeating: 0, count: byteCount)
+        // Anonymous mapped memory arrives zeroed and page-aligned, and pages are only committed once
+        // written, so a new transparent layer (or an adjustment layer, which never stores pixels) is cheap.
+        guard let mapped = mmap(nil, byteCount, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0), mapped != MAP_FAILED else {
+            fatalError("Out of memory for a \(width) × \(height) image")
+        }
+        baseAddress = mapped
         pixels = baseAddress.bindMemory(to: Pixel.self, capacity: byteCount / 4)
         if fill != .clear {
             self.fill(fill)
@@ -32,7 +36,7 @@ public final class PixelBuffer {
     }
 
     deinit {
-        baseAddress.deallocate()
+        munmap(baseAddress, byteCount)
     }
 
     public var size: IntSize { IntSize(width: width, height: height) }

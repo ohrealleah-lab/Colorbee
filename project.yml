@@ -36,11 +36,22 @@ targets:
         LSApplicationCategoryType: public.app-category.graphics-design
         NSHumanReadableCopyright: Personal tool. Not for distribution.
         NSPrincipalClass: NSApplication
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.leah.colorbee.colorproj
+            UTTypeDescription: Colorbee Project
+            UTTypeConformsTo: [public.data, public.content]
+            UTTypeTagSpecification:
+              public.filename-extension: [colorproj]
         CFBundleDocumentTypes:
           - CFBundleTypeName: PNG image
             CFBundleTypeRole: Editor
             LSHandlerRank: Alternate
             LSItemContentTypes: [public.png]
+            NSDocumentClass: $(PRODUCT_MODULE_NAME).ImageDocument
+          - CFBundleTypeName: Colorbee Project
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Owner
+            LSItemContentTypes: [com.leah.colorbee.colorproj]
             NSDocumentClass: $(PRODUCT_MODULE_NAME).ImageDocument
           - CFBundleTypeName: JPEG image
             CFBundleTypeRole: Editor

@@ -26,6 +26,13 @@ public final class Canvas {
         backgroundLayerID = layers[0].id
     }
 
+    /// A canvas read from a project: `backgroundLayerID` says which layer, if any, is the original background.
+    public convenience init(colorSpace: CGColorSpace, layers: [Layer], hasTransparentBackground: Bool, backgroundLayerID: LayerID?, activeLayerIndex: Int) {
+        self.init(colorSpace: colorSpace, layers: layers, hasTransparentBackground: hasTransparentBackground)
+        self.backgroundLayerID = backgroundLayerID
+        self.activeLayerIndex = min(max(0, activeLayerIndex), layers.count - 1)
+    }
+
     public init(colorSpace: CGColorSpace, layers: [Layer], hasTransparentBackground: Bool) {
         precondition(!layers.isEmpty, "A canvas needs at least one layer")
         let size = layers[0].buffer.size

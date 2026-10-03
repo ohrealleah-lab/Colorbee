@@ -2044,6 +2044,18 @@ final class Editor {
         }
     }
 
+    /// The whole document as a .colorproj (FR-8.5), without any live effect preview.
+    func encodedProject() throws -> Data {
+        try withoutEffectPreview {
+            try ProjectFile.encode(canvas, transparentKey: selectionContext.transparentKey)
+        }
+    }
+
+    /// More than one layer, or an adjustment layer: something only a project file can keep.
+    var isLayered: Bool {
+        canvas.layers.count > 1 || canvas.layers.contains { $0.adjustment != nil }
+    }
+
     /// An effect's live preview is drawn into the layer before it's applied; an autosave in the
     /// meantime must write the image without it, in case the effect is cancelled.
     private func withoutEffectPreview<T>(_ body: () throws -> T) rethrows -> T {

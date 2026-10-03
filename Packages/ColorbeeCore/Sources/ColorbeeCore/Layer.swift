@@ -3,8 +3,8 @@ import Foundation
 public struct LayerID: Hashable, Sendable {
     public let rawValue: UUID
 
-    public init() {
-        rawValue = UUID()
+    public init(rawValue: UUID = UUID()) {
+        self.rawValue = rawValue
     }
 }
 

@@ -3,8 +3,16 @@ import ColorbeeCore
 import SwiftUI
 import UniformTypeIdentifiers
 
+extension UTType {
+    /// The native format with layers (FR-8.5).
+    static let colorbeeProject = UTType(exportedAs: "com.leah.colorbee.colorproj")
+}
+
 final class ImageDocument: NSDocument {
     private var editor: Editor?
+    /// An image that gained layers becomes an unsaved project so the original file is never flattened;
+    /// this keeps its name in the title until the project is saved somewhere.
+    private var projectName: String?
 
     override init() {
         super.init()
@@ -30,11 +38,18 @@ final class ImageDocument: NSDocument {
             case .undone: self?.updateChangeCount(.changeUndone)
             case .redone: self?.updateChangeCount(.changeRedone)
             }
+            self?.becomeProjectIfLayered()
         }
+        if editor.canvas.layers.count > 1 { editor.isSidebarOpen = true }
         addWindowController(DocumentWindowController(editor: editor))
     }
 
     override func read(from data: Data, ofType typeName: String) throws {
+        if UTType(typeName)?.conforms(to: .colorbeeProject) == true {
+            let canvas = try ProjectFile.decode(data)
+            MainActor.assumeIsolated { editor = Editor(canvas: canvas) }
+            return
+        }
         let decoded = try ImageCodec.decode(data)
         // AppKit reads on the main thread unless canConcurrentlyReadDocuments is overridden.
         MainActor.assumeIsolated {
@@ -63,7 +78,37 @@ final class ImageDocument: NSDocument {
         return super.validateUserInterfaceItem(item)
     }
 
+    /// Once an image has layers (or an adjustment layer), saving keeps it as a .colorproj: an image file
+    /// would flatten the layers. A file that was opened is left untouched; the next save asks where to put
+    /// the project (decided by Leah, FRD §23).
+    private func becomeProjectIfLayered() {
+        guard let editor, editor.isLayered, let fileType, UTType(fileType)?.conforms(to: .colorbeeProject) != true else { return }
+        if let fileURL {
+            projectName = fileURL.deletingPathExtension().lastPathComponent
+            self.fileURL = nil
+        }
+        self.fileType = UTType.colorbeeProject.identifier
+        windowControllers.forEach { $0.synchronizeWindowTitleWithDocumentName() }
+    }
+
+    override var displayName: String! {
+        get { fileURL == nil ? projectName ?? super.displayName : super.displayName }
+        set { super.displayName = newValue }
+    }
+
+    /// A layered image can only be saved as a project; flat copies come from Export.
+    override func writableTypes(for saveOperation: NSDocument.SaveOperationType) -> [String] {
+        // AppKit asks on the main thread while setting up a save panel.
+        let layered = MainActor.assumeIsolated { editor?.isLayered == true }
+        if layered { return [UTType.colorbeeProject.identifier] }
+        return super.writableTypes(for: saveOperation)
+    }
+
     override func data(ofType typeName: String) throws -> Data {
+        if UTType(typeName)?.conforms(to: .colorbeeProject) == true {
+            guard let editor else { throw CocoaError(.fileWriteUnknown) }
+            return try editor.encodedProject()
+        }
         guard let editor, let format = UTType(typeName).flatMap(ImageFileFormat.init(type:)) else {
             throw CocoaError(.fileWriteUnknown)
         }

@@ -138,6 +138,8 @@ final class HistoryEntry {
     var layers: LayerStackState?
     /// Memory held by buffers only this step keeps alive (a deleted or merged-away layer's pixels).
     var layerBytes = 0
+    /// How the image looked after this step, for the History panel.
+    var thumbnail: Thumbnail?
     let selectionBefore: SelectionState
     var selectionAfter: SelectionState
     var isSpilled = false
@@ -174,6 +176,14 @@ public final class History {
     public var undoCount: Int { undoStack.count }
     public var redoCount: Int { redoStack.count }
     public var undoActionName: String? { undoStack.last?.name }
+
+    /// Makes the History panel's picture of the image after each step. Nil makes none (tests, scratch work).
+    public var makeThumbnail: ((Canvas) -> Thumbnail)?
+
+    /// Every step, oldest first: the ones that can be undone, then the ones that can be redone.
+    public var steps: [(name: String, thumbnail: Thumbnail?, isUndone: Bool)] {
+        undoStack.map { ($0.name, $0.thumbnail, false) } + redoStack.reversed().map { ($0.name, $0.thumbnail, true) }
+    }
     public var redoActionName: String? { redoStack.last?.name }
     var spilledEntryCount: Int { (undoStack + redoStack).filter(\.isSpilled).count }
 
@@ -190,6 +200,14 @@ public final class History {
     /// With `mergingIntoPrevious`, the change is folded into the most recent step instead of adding one.
     @discardableResult
     public func commit(_ edit: Edit, mergingIntoPrevious: Bool = false) -> Bool {
+        let recorded = record(edit, mergingIntoPrevious: mergingIntoPrevious)
+        if recorded, let makeThumbnail, let entry = undoStack.last {
+            entry.thumbnail = makeThumbnail(edit.canvas)
+        }
+        return recorded
+    }
+
+    private func record(_ edit: Edit, mergingIntoPrevious: Bool) -> Bool {
         let selectionAfter = edit.canvas.selection
         var changes: [TileChange] = []
         for (key, snapshot) in edit.snapshots {
@@ -361,6 +379,7 @@ public final class History {
         byteCount -= entry.byteCount
         undoStack.remove(at: index)
         discardRedo()
+        reversal.thumbnail = makeThumbnail?(canvas)
         undoStack.append(reversal)
         byteCount += reversal.byteCount
         revision += 1

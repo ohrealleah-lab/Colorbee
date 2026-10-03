@@ -9,7 +9,7 @@ public final class Canvas {
     public var activeLayerIndex: Int
     public var selection: SelectionState = .none
     /// Whether the bottom layer is transparent rather than a solid background (FR-2.2).
-    public var hasTransparentBackground: Bool
+    public internal(set) var hasTransparentBackground: Bool
     /// The original bottom layer. Erasing it leaves Color 2 while it's still at the bottom of a solid image.
     public private(set) var backgroundLayerID: LayerID?
 
@@ -75,6 +75,39 @@ public final class Canvas {
         layer.id == backgroundLayerID && layer.id == layers.first?.id && !hasTransparentBackground ? color2 : .clear
     }
 
+    // MARK: Thumbnails
+
+    /// A small picture of the whole image for the History panel, made by compositing only the sampled
+    /// pixels, so it costs almost nothing even on a huge image. Blur and Sharpen adjustments are skipped.
+    public func thumbnail(maxSide: Int) -> Thumbnail {
+        let scale = min(1, Double(maxSide) / Double(max(size.width, size.height)))
+        let width = max(1, Int(Double(size.width) * scale)), height = max(1, Int(Double(size.height) * scale))
+        var pixels: [Pixel] = []
+        pixels.reserveCapacity(width * height)
+        let visible = layers.filter { $0.isVisible && $0.opacity > 0 }
+        for ty in 0..<height {
+            let y = min(size.height - 1, Int((Double(ty) + 0.5) / scale))
+            for tx in 0..<width {
+                let x = min(size.width - 1, Int((Double(tx) + 0.5) / scale))
+                var color = SIMD4<Float>.zero
+                for layer in visible {
+                    if let adjustment = layer.adjustment {
+                        guard let transform = adjustment.pointwise else { continue }
+                        let below = Compositing.pixel(color)
+                        var adjusted = transform(below)
+                        adjusted.a = below.a
+                        let goal = Compositing.premultiplied(adjusted)
+                        color += (goal - color) * Float(layer.opacity)
+                    } else {
+                        Compositing.blend(&color, layer.buffer[x, y], opacity: Float(layer.opacity), mode: layer.blendMode)
+                    }
+                }
+                pixels.append(Compositing.pixel(color))
+            }
+        }
+        return Thumbnail(width: width, height: height, pixels: pixels)
+    }
+
     // MARK: Layer stack
 
     /// Every layer's properties and buffer, for undoing changes to the stack (FR-8).
@@ -84,7 +117,8 @@ public final class Canvas {
                 LayerStackState.Record(layer: $0, name: $0.name, isVisible: $0.isVisible, opacity: $0.opacity,
                                        blendMode: $0.blendMode, isLocked: $0.isLocked, adjustment: $0.adjustment, buffer: $0.buffer)
             },
-            activeIndex: activeLayerIndex
+            activeIndex: activeLayerIndex,
+            hasTransparentBackground: hasTransparentBackground
         )
     }
 
@@ -101,6 +135,7 @@ public final class Canvas {
             return layer
         }
         activeLayerIndex = min(max(0, state.activeIndex), layers.count - 1)
+        hasTransparentBackground = state.hasTransparentBackground
     }
 
     func removeLayer(at index: Int) {
@@ -197,12 +232,21 @@ struct LayerStackState {
 
     let records: [Record]
     let activeIndex: Int
+    let hasTransparentBackground: Bool
 
     func isSame(as other: LayerStackState) -> Bool {
         records.count == other.records.count && activeIndex == other.activeIndex
+            && hasTransparentBackground == other.hasTransparentBackground
             && zip(records, other.records).allSatisfy { a, b in
                 a.layer === b.layer && a.name == b.name && a.isVisible == b.isVisible && a.opacity == b.opacity
                     && a.blendMode == b.blendMode && a.isLocked == b.isLocked && a.adjustment == b.adjustment && a.buffer === b.buffer
             }
     }
+}
+
+/// A small image kept as a plain array (a PixelBuffer would round up to a whole memory page).
+public struct Thumbnail: Sendable {
+    public let width: Int
+    public let height: Int
+    public let pixels: [Pixel]
 }

@@ -62,6 +62,40 @@ public enum ImageActions {
         return history.commit(edit)
     }
 
+    /// Changes the canvas size (FR-1.4), keeping the image at the top-left. New area on a solid background
+    /// gets Color 2; on other layers, or a transparent background, it's transparent. The selection is cleared.
+    @discardableResult
+    public static func resizeCanvas(to size: IntSize, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        guard size.width > 0, size.height > 0, size != canvas.size,
+              size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return false }
+        SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
+        let edit = history.beginEdit("Resize Canvas", on: canvas)
+        edit.willChangeGeometry()
+        var buffers: [LayerID: PixelBuffer] = [:]
+        let kept = IntRect(size: canvas.size).intersection(IntRect(size: size))
+        for layer in canvas.layers {
+            let buffer = PixelBuffer(width: size.width, height: size.height, fill: layer.adjustment == nil ? canvas.vacatedFill(for: layer, color2: context.color2) : .clear)
+            if layer.adjustment == nil, !kept.isEmpty {
+                buffer.setPixels(layer.buffer.pixels(in: kept), in: kept)
+            }
+            buffers[layer.id] = buffer
+        }
+        canvas.replaceContents(size: size, buffers: buffers)
+        canvas.selection = .none
+        return history.commit(edit)
+    }
+
+    /// Canvas Properties' transparent background switch (FR-2.2): what erasing and new canvas area leave
+    /// behind on the background. Existing pixels don't change.
+    @discardableResult
+    public static func setTransparentBackground(_ transparent: Bool, canvas: Canvas, history: History) -> Bool {
+        guard transparent != canvas.hasTransparentBackground else { return false }
+        let edit = history.beginEdit(transparent ? "Transparent Background" : "Solid Background", on: canvas)
+        edit.willChangeLayers()
+        canvas.hasTransparentBackground = transparent
+        return history.commit(edit)
+    }
+
     /// Crops to the selection's bounding box.
     @discardableResult
     public static func cropToSelection(canvas: Canvas, history: History, context: SelectionContext) -> Bool {

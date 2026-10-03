@@ -62,7 +62,7 @@ final class SettingsWindowController: NSWindowController {
     static let shared = SettingsWindowController()
 
     private init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 380), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 560), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Colorbee Settings"
         window.contentView = NSHostingView(rootView: SettingsView())
         window.center()
@@ -78,11 +78,13 @@ final class SettingsWindowController: NSWindowController {
 private struct SettingsView: View {
     var body: some View {
         TabView {
+            ShortcutSettings(store: ShortcutStore.shared)
+                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
             ExportPresetSettings(store: ExportPresetStore.shared)
                 .tabItem { Label("Export Presets", systemImage: "square.and.arrow.up") }
         }
         .padding(20)
-        .frame(width: 520, height: 380)
+        .frame(width: 640, height: 560)
     }
 }
 

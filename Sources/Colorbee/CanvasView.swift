@@ -781,28 +781,29 @@ final class CanvasView: NSView {
             case (" ", true):
                 spaceHeld = true
                 if drag == nil { NSCursor.openHand.set() }
-            case ("x", true):
-                editor.swapColors()
-            case ("d", true):
-                editor.resetColors()
-            case ("p", true): editor.selectTool(.pencil)
-            case ("b", true): editor.selectTool(.brush)
-            case ("e", true): editor.selectTool(.eraser)
-            case ("g", true): editor.selectTool(.fill)
-            case ("i", true): editor.selectTool(.eyedropper)
-            case ("m", true): editor.selectTool(.rectangleSelect)
-            case ("l", true): editor.selectTool(.lassoSelect)
-            case ("u", true): editor.selectTool(.shape)
-            case ("t", true): editor.selectTool(.text)
-            case ("w", true): editor.selectTool(.magicWand)
-            case ("r", true): editor.selectTool(.measure)
-            case ("z", true): editor.selectTool(.magnifier)
-            case ("[", true): editor.adjustToolSize(larger: false)
-            case ("]", true): editor.adjustToolSize(larger: true)
             default:
-                super.keyDown(with: event)
+                // Tool and canvas keys come from the shortcut settings (FR-15.3).
+                if let id = ShortcutStore.shared.canvasCommand(for: event), let action = canvasActions[id] {
+                    action()
+                } else {
+                    super.keyDown(with: event)
+                }
             }
         }
+    }
+
+    /// What each canvas key does, by its id in `ShortcutStore.canvasCommands`.
+    private var canvasActions: [String: () -> Void] {
+        [
+            "canvas.pencil": { self.editor.selectTool(.pencil) }, "canvas.brush": { self.editor.selectTool(.brush) },
+            "canvas.eraser": { self.editor.selectTool(.eraser) }, "canvas.fill": { self.editor.selectTool(.fill) },
+            "canvas.text": { self.editor.selectTool(.text) }, "canvas.eyedropper": { self.editor.selectTool(.eyedropper) },
+            "canvas.magnifier": { self.editor.selectTool(.magnifier) }, "canvas.rectangleSelect": { self.editor.selectTool(.rectangleSelect) },
+            "canvas.lassoSelect": { self.editor.selectTool(.lassoSelect) }, "canvas.magicWand": { self.editor.selectTool(.magicWand) },
+            "canvas.shape": { self.editor.selectTool(.shape) }, "canvas.measure": { self.editor.selectTool(.measure) },
+            "canvas.swapColors": { self.editor.swapColors() }, "canvas.resetColors": { self.editor.resetColors() },
+            "canvas.smaller": { self.editor.adjustToolSize(larger: false) }, "canvas.larger": { self.editor.adjustToolSize(larger: true) },
+        ]
     }
 
     private func nudge(dx: Int, dy: Int, _ event: NSEvent) {

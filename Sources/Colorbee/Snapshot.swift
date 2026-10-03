@@ -28,7 +28,11 @@ enum Snapshot {
         if let name = defaults.string(forKey: "ColorbeeSnapshotTool"), let tool = Tool.allCases.first(where: { "\($0)" == name }) {
             editor.selectTool(tool)
         }
+        // `-ColorbeeSnapshotSettings YES` photographs the Settings window instead.
+        let settings = defaults.bool(forKey: "ColorbeeSnapshotSettings")
+        if settings { SettingsWindowController.shared.showWindow(nil) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            let window = settings ? SettingsWindowController.shared.window! : window
             guard let frame = window.contentView?.superview,
                   let rep = frame.bitmapImageRepForCachingDisplay(in: frame.bounds) else { return }
             frame.cacheDisplay(in: frame.bounds, to: rep)

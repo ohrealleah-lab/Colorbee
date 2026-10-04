@@ -11,6 +11,7 @@ enum MainMenu {
         main.addItem(submenu(viewMenu()))
         main.addItem(submenu(imageMenu()))
         main.addItem(submenu(layerMenu()))
+        main.addItem(submenu(pageMenu()))
         main.addItem(submenu(adjustmentsMenu()))
         main.addItem(submenu(effectsMenu()))
 
@@ -60,6 +61,14 @@ enum MainMenu {
         "runPageLayout:": "Choose the paper size and orientation for printing.",
         "printDocument:": "Print the image, scaled to fit the page.",
         "toggleLayers:": "Show or hide the Layers panel.",
+        "togglePageSidebar:": "Show or hide the pages, down the left side.",
+        "newPage:": "Add a blank page after this one, the same size, filled with Color 2.",
+        "duplicatePage:": "Copy this page, with its layers, just after it.",
+        "deletePage:": "Remove this page from the document.",
+        "movePageUp:": "Move this page one place earlier.",
+        "movePageDown:": "Move this page one place later.",
+        "previousPage:": "Show the page before this one.",
+        "nextPage:": "Show the page after this one.",
         "toggleAdjustmentsPanel:": "Show or hide the Adjustments panel, where an adjustment layer's settings live.",
         "newAdjustmentLayer:": "Add an adjustment layer: it changes how the layers below look, without changing their pixels.",
         "applyAdjustment:": "Turn the active adjustment layer into pixels on the layer below.",
@@ -218,6 +227,7 @@ enum MainMenu {
         menu.addItem(item("Adjustments Panel", "toggleAdjustmentsPanel:"))
         menu.addItem(item("History", "toggleHistoryPanel:", "y"))
         menu.addItem(item("Clipboard History", "toggleClipboardPanel:", "v", [.command, .option]))
+        menu.addItem(item("Page Sidebar", "togglePageSidebar:", "2", [.command, .option]))
         menu.addItem(.separator())
         menu.addItem(item("Show Rulers", "toggleRulers:", "r"))
         menu.addItem(item("Hide Status Bar", "toggleStatusBar:"))
@@ -256,6 +266,22 @@ enum MainMenu {
             symmetry.addItem(modeItem)
         }
         menu.addItem(submenu(symmetry))
+        return menu
+    }
+
+    /// Pages (FR-11.6). Next and Previous Page use Preview's keys.
+    private static func pageMenu() -> NSMenu {
+        let menu = NSMenu(title: "Page")
+        menu.addItem(item("New Page", "newPage:"))
+        menu.addItem(item("Duplicate Page", "duplicatePage:"))
+        menu.addItem(item("Delete Page", "deletePage:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Move Page Up", "movePageUp:"))
+        menu.addItem(item("Move Page Down", "movePageDown:"))
+        menu.addItem(.separator())
+        let up = String(Character(UnicodeScalar(NSUpArrowFunctionKey)!)), down = String(Character(UnicodeScalar(NSDownArrowFunctionKey)!))
+        menu.addItem(item("Previous Page", "previousPage:", up, [.command, .option]))
+        menu.addItem(item("Next Page", "nextPage:", down, [.command, .option]))
         return menu
     }
 

@@ -354,8 +354,12 @@ struct DragModifiers {
 final class Editor {
     static let eraserSizes = Array(stride(from: 2, through: 20, by: 2)) + [30, 40]
 
-    let canvas: Canvas
-    @ObservationIgnored let history: History
+    /// The document's pages (FR-11.6); the canvas and history are the shown page's.
+    @ObservationIgnored let pages: PageStack
+    /// The page shown. Setting it (through `pageDidChange`) refreshes everything that shows the canvas.
+    private(set) var page: Page
+    var canvas: Canvas { page.canvas }
+    var history: History { page.history }
 
     private(set) var tool: Tool = .pencil
     var brush: Brush = .round
@@ -449,9 +453,11 @@ final class Editor {
     /// The document at the last explicit save, as it was written.
     private(set) var lastSavedSnapshot: SaveSnapshot?
     @ObservationIgnored private var lastSavedImage: PixelBuffer?
-    var hasLastSaved: Bool { lastSavedSnapshot != nil }
+    /// "Last Saved" is for the page shown at the last save (FR-11.6).
+    var hasLastSaved: Bool { lastSavedSnapshot?.pageID == page.id }
     /// The image at the last explicit save, flattened the first time Before/After needs it.
     var lastSaved: PixelBuffer? {
+        guard hasLastSaved else { return nil }
         if lastSavedImage == nil, let snapshot = lastSavedSnapshot {
             lastSavedImage = snapshot.canvas.flattened(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling)
         }
@@ -548,15 +554,139 @@ final class Editor {
         case resize(edit: Edit?, handle: SelectionHandle, original: IntRect, grab: Point2D)
     }
 
-    init(canvas: Canvas) {
-        self.canvas = canvas
-        canvasSize = canvas.size
-        asOpened = canvas.flattened()
-        history = History(byteBudget: Editor.historyByteBudget)
+    convenience init(canvas: Canvas) {
+        self.init(pages: PageStack(pages: [Page(canvas: canvas, history: Editor.makeHistory())]))
+    }
+
+    /// Every page but the current one should be parked.
+    init(pages: PageStack) {
+        self.pages = pages
+        page = pages.current
+        canvasSize = pages.current.canvas.size
+        asOpened = pages.current.canvas.flattened()
+        rememberLayersAsSaved(sharingSingleLayerWith: asOpened)
+    }
+
+    /// A page's undo history, as the app keeps it.
+    nonisolated static func makeHistory() -> History {
+        let history = History(byteBudget: Editor.historyByteBudget)
         history.makeThumbnail = { $0.thumbnail(maxSide: 64) }
         // Flatten and Merge don't wait for replaced layers to be written out (AC-27).
         history.evictsInBackground = true
-        rememberLayersAsSaved(sharingSingleLayerWith: asOpened)
+        return history
+    }
+
+    // MARK: Pages (FR-11.6)
+
+    /// What the Editor remembers about a page while another is shown.
+    private struct PageMemory {
+        var viewport: Viewport
+        var asOpened: PixelBuffer
+        var savedLayers: [LayerID: PixelBuffer]
+        var savedSize: IntSize
+        var savedGeometrySteps: [ObjectIdentifier]
+        /// Saved since the page was hidden: its saved state is what it holds now.
+        var savedIsStale = false
+    }
+
+    @ObservationIgnored private var pageMemory: [UUID: PageMemory] = [:]
+    /// The newest undos, oldest first: page changes and page edits redo in the order they were undone.
+    private enum Undone { case pageChange, pageEdit }
+    @ObservationIgnored private var undone: [Undone] = []
+    var showsPageSidebar = true {
+        didSet { onViewStateChange() }
+    }
+
+    var pageCount: Int {
+        _ = layersRevision
+        return pages.pages.count
+    }
+
+    var currentPageIndex: Int {
+        _ = layersRevision
+        return pages.currentIndex
+    }
+
+    /// A page's small picture for the page sidebar.
+    func pageThumbnail(at index: Int) -> Thumbnail? {
+        _ = layersRevision
+        guard pages.pages.indices.contains(index) else { return nil }
+        return pages.pages[index].thumbnail()
+    }
+
+    func showPage(at index: Int) {
+        guard index != pages.currentIndex else { return }
+        changePages { try pages.show(index) }
+    }
+
+    /// New Page: blank, the size of the shown page, filled with Color 2, after it.
+    func newPage() {
+        let size = canvas.size
+        let blank = Canvas(size: size, colorSpace: canvas.colorSpace, background: color2)
+        let added = Page(canvas: blank, history: Editor.makeHistory(), resolution: page.resolution)
+        changePages(recorded: true) { try pages.insert(added, at: pages.currentIndex + 1) }
+    }
+
+    func duplicatePage() {
+        finishInteractions()
+        placeFloatingSelection()
+        let copy = Page(canvas: canvas.copy(), history: Editor.makeHistory(), resolution: page.resolution)
+        changePages(recorded: true) { try pages.insert(copy, at: pages.currentIndex + 1) }
+    }
+
+    func deletePage() {
+        guard pages.pages.count > 1 else { return onRefused() }
+        changePages(recorded: true) { try pages.remove(at: pages.currentIndex) }
+    }
+
+    func movePage(from source: Int, to destination: Int) {
+        guard source != destination, pages.pages.indices.contains(destination) else { return }
+        changePages(recorded: true) { pages.move(from: source, to: destination) }
+    }
+
+    /// Runs a page change: what's under way on the shown page is finished first, then the Editor follows the
+    /// page now shown. `recorded` changes are steps (undoable, and they mark the document edited).
+    private func changePages(recorded: Bool = false, _ body: () throws -> Void) {
+        finishInteractions()
+        placeFloatingSelection()
+        comparison = nil
+        do { try body() } catch { return onRefused() }
+        if recorded {
+            undone = []
+            onDocumentChange(.done)
+        }
+        pageDidChange()
+    }
+
+    /// After the shown page changed (or the page list did): remembers the old page's view and saved state, and
+    /// brings back the new one's.
+    private func pageDidChange() {
+        if pages.current !== page {
+            pageMemory[page.id] = PageMemory(viewport: viewport, asOpened: asOpened, savedLayers: savedLayers, savedSize: savedSize,
+                                             savedGeometrySteps: savedGeometrySteps)
+            page = pages.current
+            canvasSize = canvas.size
+            if let memory = pageMemory.removeValue(forKey: page.id) {
+                asOpened = memory.asOpened
+                if memory.savedIsStale {
+                    rememberLayersAsSaved()
+                } else {
+                    savedLayers = memory.savedLayers
+                    savedSize = memory.savedSize
+                    savedGeometrySteps = memory.savedGeometrySteps
+                }
+                updateViewport { $0 = Viewport(zoom: memory.viewport.zoom, center: memory.viewport.center, viewSize: $0.viewSize) }
+            } else {
+                asOpened = canvas.flattened()
+                rememberLayersAsSaved(sharingSingleLayerWith: asOpened)
+                zoomToFit()
+            }
+        }
+        // Pages taken out of the document (deleted) are forgotten once the undo can't bring them back.
+        pageMemory = pageMemory.filter { id, _ in pages.pages.contains { $0.id == id } }
+        layersRevision += 1
+        selectionDidChange()
+        onRender()
     }
 
     // MARK: History panel (FR-13.2)
@@ -675,7 +805,7 @@ final class Editor {
         selectionDidChange()
     }
 
-    private static var historyByteBudget: Int {
+    nonisolated private static var historyByteBudget: Int {
         Int(min(UInt64(512 << 20), ProcessInfo.processInfo.physicalMemory / 10))
     }
 
@@ -1667,6 +1797,9 @@ final class Editor {
         let revision = history.revision
         body()
         if history.revision != revision {
+            // A page edit: page changes made before it can't be undone any more, as edits work in an image.
+            pages.noteEdit()
+            undone = []
             onDocumentChange(.done)
             layersRevision += 1
         }
@@ -2330,33 +2463,6 @@ final class Editor {
         if redacting, committed { noteRedaction() }
     }
 
-    // MARK: Files with several frames (review J, finding 2)
-
-    /// An animated GIF or multi-page TIFF: the file's frames, and which one this copy shows.
-    struct Frames {
-        enum Kind { case frames, pages }
-        let data: Data
-        let count: Int
-        let index: Int
-        let kind: Kind
-
-        var word: String { kind == .pages ? "page" : "frame" }
-    }
-
-    @ObservationIgnored var frames: Frames?
-    var isChoosingFrame = false
-    @ObservationIgnored var onChooseFrame: (Int) -> Void = { _ in }
-
-    /// Whether switching frames would throw away changes, so the chooser asks first.
-    var hasChanges: Bool { history.canUndo }
-
-    /// Choose Frame…: another frame replaces this copy.
-    func chooseFrame(_ index: Int) {
-        isChoosingFrame = false
-        guard let frames, index != frames.index else { return }
-        onChooseFrame(index)
-    }
-
     // MARK: After a redaction (review H, findings 1 and 2)
 
     /// A redaction step to report: why one couldn't be done.
@@ -2667,8 +2773,8 @@ final class Editor {
 
     // MARK: Undo
 
-    var undoActionName: String? { history.undoActionName }
-    var redoActionName: String? { history.redoActionName }
+    var undoActionName: String? { pages.undoName ?? history.undoActionName }
+    var redoActionName: String? { undone.last == .pageChange ? pages.redoName : history.redoActionName }
 
     func undo() {
         // Undo first discards a shape that hasn't been placed yet.
@@ -2677,7 +2783,15 @@ final class Editor {
             return
         }
         finishInteractions()
+        // Adding, deleting or moving a page is undone while it's the newest thing done (FR-11.6).
+        if pages.undoName != nil {
+            changePages { try pages.undo() }
+            undone.append(.pageChange)
+            onDocumentChange(.undone)
+            return
+        }
         guard history.undo(on: canvas) != nil else { return }
+        undone.append(.pageEdit)
         undoRedoCount += 1
         layersRevision += 1
         onDocumentChange(.undone)
@@ -2686,7 +2800,14 @@ final class Editor {
 
     func redo() {
         finishInteractions()
+        if undone.last == .pageChange, pages.redoName != nil {
+            changePages { try pages.redo() }
+            undone.removeLast()
+            onDocumentChange(.redone)
+            return
+        }
         guard history.redo(on: canvas) != nil else { return }
+        if undone.last == .pageEdit { undone.removeLast() }
         undoRedoCount += 1
         layersRevision += 1
         onDocumentChange(.redone)
@@ -2894,6 +3015,9 @@ final class Editor {
     /// Records the image as of an explicit save, for "Last Saved".
     /// `snapshot` is the copy that was written; nothing else changes it, so its buffers are kept as they are.
     func markSaved(_ snapshot: SaveSnapshot) {
+        // Other pages work out their saved state again when shown: what's saved now is what they hold.
+        for id in pageMemory.keys { pageMemory[id]?.savedIsStale = true }
+        guard snapshot.pageID == page.id else { return }
         lastSavedSnapshot = snapshot
         lastSavedImage = nil
         // Flattened ahead in the background, so Before/After doesn't pause the first time (review E, finding 6).
@@ -2930,13 +3054,20 @@ final class Editor {
     }
 
     private func snapshot(of canvas: ColorbeeCore.Canvas) -> SaveSnapshot {
-        SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, resampling: selectionContext.resampling, matte: color2,
-                     geometrySteps: history.geometrySteps)
+        // Other pages are parked, so their bytes are taken as they are: no copying (FR-11.6).
+        let others = pages.pages.enumerated().compactMap { index, other -> (index: Int, page: ProjectFile.StoredPage)? in
+            guard other !== page, let parked = other.parked else { return nil }
+            return (index, ProjectFile.StoredPage(project: parked, resolution: other.resolution, thumbnail: other.thumbnail()))
+        }
+        return SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, resampling: selectionContext.resampling, matte: color2,
+                            geometrySteps: history.geometrySteps, pageID: page.id, pageResolution: page.resolution, otherPages: others,
+                            currentIndex: pages.currentIndex)
     }
 
     /// More than one layer, or an adjustment layer: something only a project file can keep.
+    /// More than one layer, an adjustment layer, or more than one page: something only a project file can keep.
     var isLayered: Bool {
-        canvas.layers.count > 1 || canvas.layers.contains { $0.adjustment != nil }
+        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains { $0.adjustment != nil }
     }
 
     /// An effect's live preview is drawn into the layer before it's applied; an autosave in the

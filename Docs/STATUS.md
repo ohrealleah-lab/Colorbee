@@ -39,6 +39,8 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 7c. Shortcut editor | ✅ Done | **High** |
 | 8. Hardening | ✅ Done | Medium |
 | 9. Photo editing | ✅ Done | High |
+| 10a. Pages | Built, waiting for Leah's hand test | High |
+| 10b. PDF output, Auto-Redact on every page | Next | High |
 
 ## What's built
 
@@ -127,7 +129,9 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
 - Polish done 2026-10-03: effect previews in the background (`EffectPreview`), Copy in the background (`ClipboardImage`). Tested by hand 2026-10-03.
 
-**10 PDF documents (FR-11.6)** — planned, after the soak and the review fixes. Decisions made 2026-10-04 (§23).
+**10 Pages and PDF documents (FR-11.6)** — decisions made 2026-10-04 (§23).
+- 10a built 2026-10-04: pages in core (`Page`, `PageStack`, project format 2, `PDFPages`), the page sidebar (`PageSidebar`), the Page menu, and PDFs, multi-page TIFFs and animated GIFs opening with every page. The frame bar is gone.
+- 10b next: File ▸ Export as PDF…, Auto-Redact on every page (one list grouped by page), and the PDF resolution setting in Settings (150, 200 or 300 DPI; 200 for now).
 
 **9 Photo editing and presentation (FR-9.5)** — done; tested by hand 2026-10-03.
 - 9a tone adjustments and effects (`Levels`, `Curves`, `Histogram`, `ColorLookup`, `Effects+Texture`); 9b Adjust Photo, Auto and filters (`PhotoAdjustments`, `PhotoAuto`, `PhotoFilter`, `FilterStore`, `adjust_photo_fragment`); 9c Drop Shadow, Border, Spotlight (`Decorations`); 9d Straighten, Perspective Correction, Crop… (`Warp`, `CropBox`, `CropOptions`, canvas-tool drags in `CanvasView`); 9e Remove Background, Lift Subject, Select Subject (`Subjects`, Vision instance masks).
@@ -159,6 +163,21 @@ Logs in `build/soak-results*.txt` (not committed).
 7. **Warning on quit.** Open two duplicated copies of E1 Screenshot.png, Auto-Redact each (Solid Fill, Apply), then ⌘Q. Expect the message on each window in turn; after the second answer, Colorbee quits. Reopen both: the redactions are there.
 
 ## Not yet checked by hand
+
+**Stage 10a pages (2026-10-04): not yet tested.** Test files: `TestImages/Stage 10/Three Page Test.pdf`
+(made up names, emails and phone numbers, one person per page), `TestImages/Round 3/Two Pages.tiff`, and
+`catslap.gif` from `~/Downloads/colorbee tests/`.
+1. **Open a PDF.** Open Three Page Test.pdf. Expect a window titled "Three Page Test", Edited, with a Pages sidebar on the left showing 3 thumbnails, page 1 outlined in blue. The status bar says 1700 × 2200 px (letter size at 200 DPI).
+2. **Change pages.** Click thumbnail 2: the canvas shows "page 2 of 3". Press ⌥⌘↓: page 3. Press ⌥⌘↑ twice: page 1. Page ▸ Previous Page is greyed out on page 1.
+3. **Each page keeps its own undo.** On page 1, draw a red line. Go to page 2, draw a blue line. ⌘Z: only the blue line goes. Go back to page 1: the red line is still there; ⌘Z removes it.
+4. **Zoom is per page.** On page 1, zoom to 200%. Go to page 2: it fits the window. Back to page 1: 200% again.
+5. **New, Duplicate, Delete.** On page 2, Page ▸ New Page: a blank page 3 appears, filled with Color 2, and the old page 3 becomes 4. ⌘Z: it's gone. Page ▸ Duplicate Page: a copy appears just after. Page ▸ Delete Page: it's removed. The + / copy / trash buttons at the bottom of the sidebar do the same.
+6. **Reorder.** Drag thumbnail 3 to the top: it becomes page 1. Page ▸ Move Page Down moves the shown page one place later. ⌘Z undoes a move, as long as you haven't drawn on the page since.
+7. **Save and reopen.** Draw something on page 2, ⌘S. It asks where to save a .colorproj. Close and reopen it: 3 pages, your drawing on page 2, and the page you were on is shown.
+8. **Hide the sidebar.** View ▸ Page Sidebar (⌥⌘2) hides it; again shows it. Quit and relaunch with the window open: it stays as you left it.
+9. **Pages in any image.** Open any PNG (Stage 5a Practice.png), Page ▸ New Page. The sidebar appears with 2 pages, and ⌘S asks where to save a project (the PNG is left as it was).
+10. **TIFF and GIF.** Open Two Pages.tiff: 2 pages in the sidebar, "Page 1" and "Page 2". Open catslap.gif: every frame is a page. Neither original file changes.
+11. **Right-click a thumbnail.** It offers New Page, Duplicate Page and Delete Page.
 
 **Round 3 fixes (reviews H, I and J, 2026-10-04): all 33 steps, and 11a, passed Leah's hand test on 2026-10-04.** Details in `Docs/Review/RESULTS.md`.
 Test images: the review ones in `~/Downloads/colorbee tests/` (E1 Screenshot.png, E3 Mixed Text Sizes.png,

@@ -23,9 +23,10 @@ final class DocumentWindow: NSWindow {
     // MARK: Restoring (FR-12; review J, finding 28)
 
     private static let panelKeys = ["isSidebarOpen", "showsLayersPanel", "showsAdjustmentsPanel", "showsHistoryPanel",
-                                    "showsClipboardPanel", "showsRulers", "showsStatusBar"]
+                                    "showsClipboardPanel", "showsRulers", "showsStatusBar", "showsPageSidebar"]
     private static let panelPaths: [ReferenceWritableKeyPath<Editor, Bool>] = [\.isSidebarOpen, \.showsLayersPanel, \.showsAdjustmentsPanel,
-                                                                             \.showsHistoryPanel, \.showsClipboardPanel, \.showsRulers, \.showsStatusBar]
+                                                                             \.showsHistoryPanel, \.showsClipboardPanel, \.showsRulers, \.showsStatusBar,
+                                                                             \.showsPageSidebar]
 
     override func encodeRestorableState(with coder: NSCoder) {
         super.encodeRestorableState(with: coder)
@@ -212,6 +213,29 @@ final class DocumentWindow: NSWindow {
         }
     }
 
+    // MARK: Pages (FR-11.6)
+
+    @objc func newPage(_ sender: Any?) { editor?.newPage() }
+    @objc func duplicatePage(_ sender: Any?) { editor?.duplicatePage() }
+    @objc func deletePage(_ sender: Any?) { editor?.deletePage() }
+    @objc func movePageUp(_ sender: Any?) {
+        guard let editor else { return }
+        editor.movePage(from: editor.currentPageIndex, to: editor.currentPageIndex - 1)
+    }
+    @objc func movePageDown(_ sender: Any?) {
+        guard let editor else { return }
+        editor.movePage(from: editor.currentPageIndex, to: editor.currentPageIndex + 1)
+    }
+    @objc func previousPage(_ sender: Any?) {
+        guard let editor else { return }
+        editor.showPage(at: editor.currentPageIndex - 1)
+    }
+    @objc func nextPage(_ sender: Any?) {
+        guard let editor else { return }
+        editor.showPage(at: editor.currentPageIndex + 1)
+    }
+    @objc func togglePageSidebar(_ sender: Any?) { editor?.showsPageSidebar.toggle() }
+
     @objc func toggleLayerVisibility(_ sender: Any?) {
         guard let editor else { return }
         editor.setLayerVisible(!editor.canvas.activeLayer.isVisible, at: editor.activeLayerIndex)
@@ -388,6 +412,17 @@ final class DocumentWindow: NSWindow {
             return LayerActions.canMergeVisible(editor.canvas)
         case #selector(flattenImage(_:)):
             return LayerActions.canFlatten(editor.canvas)
+        case #selector(deletePage(_:)):
+            return editor.pageCount > 1
+        case #selector(movePageUp(_:)), #selector(previousPage(_:)):
+            return editor.currentPageIndex > 0
+        case #selector(movePageDown(_:)), #selector(nextPage(_:)):
+            return editor.currentPageIndex < editor.pageCount - 1
+        case #selector(newPage(_:)), #selector(duplicatePage(_:)):
+            return true
+        case #selector(togglePageSidebar(_:)):
+            menuItem.state = editor.showsPageSidebar && editor.pageCount > 1 ? .on : .off
+            return editor.pageCount > 1
         case #selector(toggleLayerVisibility(_:)):
             menuItem.title = editor.canvas.activeLayer.isVisible ? "Hide Layer" : "Show Layer"
             return true
@@ -409,6 +444,7 @@ final class DocumentWindow: NSWindow {
         #selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)), #selector(zoomToFit(_:)),
         #selector(togglePixelGrid(_:)), #selector(toggleRulers(_:)), #selector(toggleStatusBar(_:)), #selector(toggleLayers(_:)),
         #selector(toggleAdjustmentsPanel(_:)), #selector(toggleHistoryPanel(_:)), #selector(toggleClipboardPanel(_:)),
+        #selector(togglePageSidebar(_:)),
     ]
 
     private static let pixelCommands: Set<Selector> = [

@@ -59,27 +59,15 @@ final class ImageDocument: NSDocument {
             }
             self?.becomeProjectIfLayered()
         }
-        editor.onChooseFrame = { [weak self] frame in self?.showFrame(frame) }
         if editor.canvas.layers.count > 1 { editor.isSidebarOpen = true }
         addWindowController(DocumentWindowController(editor: editor))
         if opensAsCopy, let fileURL {
             opensAsCopy = false
             projectName = fileURL.deletingPathExtension().lastPathComponent
             self.fileURL = nil
-            fileType = UTType.png.identifier
+            fileType = editor.isLayered ? UTType.colorbeeProject.identifier : UTType.png.identifier
             updateChangeCount(.changeDone)
         }
-    }
-
-    /// Choose Frame…: that frame of the original file replaces this copy.
-    private func showFrame(_ frame: Int) {
-        guard let editor, let frames = editor.frames,
-              let decoded = try? ImageCodec.decode(frames.data, frame: frame) else { return NSSound.beep() }
-        let next = Editor(canvas: Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)],
-                                         hasTransparentBackground: decoded.buffer.hasTransparency))
-        next.frames = Editor.Frames(data: frames.data, count: frames.count, index: frame, kind: frames.kind)
-        self.editor = next
-        replaceWindows()
     }
 
     /// Puts a new window in place of the old ones (same frame and tab), for a new editor.
@@ -99,28 +87,58 @@ final class ImageDocument: NSDocument {
     }
 
     override func read(from data: Data, ofType typeName: String) throws {
-        if UTType(typeName)?.conforms(to: .colorbeeProject) == true {
-            let canvas = try ProjectFile.decode(data)
-            MainActor.assumeIsolated { editor = Editor(canvas: canvas) }
+        let type = UTType(typeName)
+        if type?.conforms(to: .colorbeeProject) == true {
+            // Every page but the shown one stays parked: its pixels are decoded when it's shown (FR-11.6).
+            let (stored, current) = try ProjectFile.storedPages(data)
+            try open(stored, showing: current)
+            return
+        }
+        if type?.conforms(to: .pdf) == true {
+            // Every page, as pixels, at the resolution in Settings (FR-11.6). A PDF can't be saved back.
+            let resolution = Self.pdfResolution
+            let stored = try ProjectFile.storedPages(count: try PDFPages.pageCount(data)) { index in
+                try PDFPages.render(data, page: index, resolution: resolution)
+            }
+            opensAsCopy = true
+            try open(stored, showing: 0)
             return
         }
         let decoded = try ImageCodec.decode(data)
         // A format Colorbee can't write (WebP) opens as a copy too, so saving asks where (review J, WebP check).
-        let writable = UTType(typeName).flatMap(ImageFileFormat.init(type:))?.canWrite ?? true
+        let writable = type.flatMap(ImageFileFormat.init(type:))?.canWrite ?? true
         opensAsCopy = decoded.opensAsCopy || !writable
+        if decoded.frameCount > 1 {
+            // Animated GIFs and multi-page TIFFs: every frame as a page (FR-11.6).
+            let stored = try ProjectFile.storedPages(count: decoded.frameCount) { index in
+                let frame = try ImageCodec.decode(data, frame: index)
+                return (Canvas(colorSpace: frame.colorSpace, layers: [Layer(name: "Background", buffer: frame.buffer)],
+                               hasTransparentBackground: frame.buffer.hasTransparency), Page.defaultResolution)
+            }
+            try open(stored, showing: 0)
+            return
+        }
         // AppKit reads on the main thread unless canConcurrentlyReadDocuments is overridden.
         MainActor.assumeIsolated {
-            let editor = Editor(canvas: Canvas(
+            editor = Editor(canvas: Canvas(
                 colorSpace: decoded.colorSpace,
                 layers: [Layer(name: "Background", buffer: decoded.buffer)],
                 hasTransparentBackground: decoded.buffer.hasTransparency
             ))
-            if decoded.frameCount > 1 {
-                let kind: Editor.Frames.Kind = UTType(typeName)?.conforms(to: .tiff) == true ? .pages : .frames
-                editor.frames = Editor.Frames(data: data, count: decoded.frameCount, index: 0, kind: kind)
-            }
-            self.editor = editor
         }
+    }
+
+    /// The PDF resolution set in Settings, in pixels per inch.
+    nonisolated static var pdfResolution: Double {
+        let stored = UserDefaults.standard.double(forKey: "PDFResolution")
+        return [150, 200, 300].contains(stored) ? stored : 200
+    }
+
+    /// Makes the document's pages from stored ones, all parked but the one shown.
+    private func open(_ stored: [ProjectFile.StoredPage], showing current: Int) throws {
+        let pages = try stored.map { try Page(stored: $0, history: Editor.makeHistory()) }
+        try pages[current].unpark()
+        MainActor.assumeIsolated { editor = Editor(pages: PageStack(pages: pages, currentIndex: current)) }
     }
 
     override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,

@@ -20,10 +20,6 @@ struct DocumentView: View {
                 CompareBar(editor: editor)
                 Divider()
             }
-            if let frames = editor.frames {
-                FrameBar(editor: editor, frames: frames)
-                Divider()
-            }
             CanvasHost(view: canvasView)
                 .overlay { RedactionBadges(editor: editor) }
                 .overlay(alignment: .top) {
@@ -43,6 +39,13 @@ struct DocumentView: View {
                 }
                 .overlay {
                     if editor.showsRulers { Rulers(editor: editor) }
+                }
+                // The pages, down the left (FR-11.6), once there's more than one.
+                .overlay(alignment: .leading) {
+                    if editor.pageCount > 1, editor.showsPageSidebar {
+                        PageSidebar(editor: editor)
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                    }
                 }
                 // Floats over the gray surround rather than narrowing the canvas, as in the mockups.
                 .overlay(alignment: .trailing) {

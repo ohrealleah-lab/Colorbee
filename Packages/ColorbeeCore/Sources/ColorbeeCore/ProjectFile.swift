@@ -137,21 +137,35 @@ public enum ProjectFile {
     }
 
     /// A page read from a project, its pixels still compressed: `Page(parked:)` makes it without decoding them.
-    public struct StoredPage {
+    public struct StoredPage: Sendable {
         public let project: Data
         public let resolution: Double
         public let thumbnail: Thumbnail?
+
+        public init(project: Data, resolution: Double, thumbnail: Thumbnail?) {
+            self.project = project
+            self.resolution = resolution
+            self.thumbnail = thumbnail
+        }
     }
 
     /// Writes `pages`; one page is written as a one-page project, which older versions read too. A parked page's
     /// bytes are used as they are.
     public static func encode(pages: [Page], currentIndex: Int, transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) throws -> Data {
-        if pages.count == 1 { return try pages[0].projectData(transparentKey: transparentKey, resampling: resampling) }
+        try encode(stored: pages.map { page in
+            StoredPage(project: try page.projectData(transparentKey: transparentKey, resampling: resampling), resolution: page.resolution,
+                       thumbnail: page.thumbnail())
+        }, currentIndex: currentIndex)
+    }
+
+    /// Writes pages already in one-page project form (a save copy holds them like this).
+    public static func encode(stored pages: [StoredPage], currentIndex: Int) throws -> Data {
+        if pages.count == 1 { return pages[0].project }
         var projects = Data()
         var entries: [PageEntry] = []
         for page in pages {
-            let project = try page.projectData(transparentKey: transparentKey, resampling: resampling)
-            let thumbnail = page.thumbnail().map { thumbnail in
+            let project = page.project
+            let thumbnail = page.thumbnail.map { thumbnail in
                 ThumbnailEntry(width: thumbnail.width, height: thumbnail.height,
                                pixels: thumbnail.pixels.withUnsafeBytes { Data($0) })
             }
@@ -165,6 +179,18 @@ public enum ProjectFile {
         data.append(json)
         data.append(projects)
         return data
+    }
+
+    /// Makes `count` pages on all cores (PDF pages, image frames) and stores each at once as a one-page project
+    /// with its thumbnail, so a long document never holds more than a few pages' pixels at a time.
+    public static func storedPages(count: Int, make: (Int) throws -> (canvas: Canvas, resolution: Double)) throws -> [StoredPage] {
+        let made = ParallelRows.map(count) { index -> Result<StoredPage, Error> in
+            Result {
+                let (canvas, resolution) = try make(index)
+                return StoredPage(project: try encode(canvas), resolution: resolution, thumbnail: canvas.thumbnail(maxSide: 160))
+            }
+        }
+        return try made.map { try $0.get() }
     }
 
     /// The pages of a project, one-page or several, without decoding their pixels.

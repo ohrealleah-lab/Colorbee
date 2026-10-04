@@ -238,11 +238,7 @@ enum EffectKind: CaseIterable {
     }
 }
 
-enum RedactionTreatment: CaseIterable {
-    case blur
-    case pixelate
-    case solidFill
-
+extension RedactionTreatment {
     var title: String {
         switch self {
         case .blur: "Blur"
@@ -254,8 +250,15 @@ enum RedactionTreatment: CaseIterable {
 
 /// An Auto-Redact review in progress (FR-9.3).
 struct AutoRedactSession {
+    /// Tells this run's scan from an earlier run's that finishes late.
+    let id = UUID()
     /// The area searched: the selection, or nil for the whole image.
     let region: SelectionMask?
+    /// The image as it was read; Apply refuses if it has changed since (review E, finding 2).
+    let revision: Int
+    let canvasSize: IntSize
+    /// Why Apply couldn't redact (the image changed, or a layer is locked).
+    var problem: String?
     var scan: TextScan?
     var failure: String?
     var matches: [RedactionMatch] = []
@@ -2578,42 +2581,40 @@ final class Editor {
 
     /// Reads the text in the selection (or the whole image) on this Mac and opens the review.
     func beginAutoRedact() {
-        guard !refusedBecauseLocked() else { return }
+        // Every layer is redacted, so the active one being locked doesn't matter here; Apply checks the layers
+        // under the boxes.
         finishInteractions()
         placeFloatingKeepingOutline()
         let region = canvas.selection.marquee
         let area = region?.bounds ?? canvas.bounds
-        let image = canvas.flattened()
-        let cropped = PixelBuffer(width: area.width, height: area.height)
-        cropped.setPixels(image.pixels(in: area), in: cropped.bounds)
-        autoRedact = AutoRedactSession(region: region)
+        let session = AutoRedactSession(region: region, revision: history.revision, canvasSize: canvas.size)
+        autoRedact = session
         onRender()
-        do {
-            let cgImage = try ImageCodec.makeCGImage(cropped, colorSpace: canvas.colorSpace)
-            Task { [weak self] in
-                do {
-                    let scan = try await TextScan.read(cgImage, offset: IntPoint(x: area.minX, y: area.minY))
-                    guard let self, self.autoRedact != nil else { return }
-                    self.autoRedact?.scan = scan
-                    self.refreshAutoRedactMatches()
-                } catch {
-                    self?.autoRedact?.failure = error.localizedDescription
-                }
+        // The image is flattened from a copy in the background, not on the main thread (review E, finding 6).
+        let copy = UnsafeTransfer(canvas.copy())
+        Task { [weak self] in
+            do {
+                let image = try await Task.detached(priority: .userInitiated) {
+                    let flattened = copy.value.flattened()
+                    let cropped = PixelBuffer(width: area.width, height: area.height)
+                    cropped.setPixels(flattened.pixels(in: area), in: cropped.bounds)
+                    return UnsafeTransfer(try ImageCodec.makeCGImage(cropped, colorSpace: copy.value.colorSpace))
+                }.value
+                let scan = try await TextScan.read(image.value, offset: IntPoint(x: area.minX, y: area.minY))
+                // A scan from a run that was cancelled mustn't fill in a newer one (review E, finding 2).
+                guard let self, self.autoRedact?.id == session.id else { return }
+                self.autoRedact?.scan = scan
+                self.refreshAutoRedactMatches()
+            } catch {
+                guard self?.autoRedact?.id == session.id else { return }
+                self?.autoRedact?.failure = error.localizedDescription
             }
-        } catch {
-            autoRedact?.failure = error.localizedDescription
         }
     }
 
     private func refreshAutoRedactMatches() {
         guard let session = autoRedact, let scan = session.scan else { return }
-        var matches = scan.matches(for: redactionPatterns)
-        if let region = session.region {
-            matches = matches.filter { match in
-                let center = IntPoint(x: match.rect.minX + match.rect.width / 2, y: match.rect.minY + match.rect.height / 2)
-                return region.contains(center)
-            }
-        }
+        let matches = AutoRedact.matches(scan.matches(for: redactionPatterns), touching: session.region)
         autoRedact?.matches = matches
         autoRedact?.keptVisible.formIntersection(matches.map(\.id))
         onRender()
@@ -2628,29 +2629,22 @@ final class Editor {
         autoRedact?.treatment = treatment
     }
 
-    /// Redacts every checked match in one step. Each match is treated on its own, scaled to its text size.
+    /// Redacts every checked match in one step, on every layer under it (review E, findings 1, 3 and 4).
     func applyAutoRedact() {
         guard let session = autoRedact else { return }
-        autoRedact = nil
-        let selected = session.selectedMatches
-        guard var mask = AutoRedact.mask(covering: selected.map(\.rect), in: canvas.bounds) else {
-            onRender()
+        guard history.revision == session.revision, canvas.size == session.canvasSize else {
+            autoRedact?.problem = "The image changed after it was read. Cancel and run Auto-Redact again."
             return
         }
-        if let region = session.region, let clipped = SelectionMask.combine(mask, with: region, mode: .intersect) {
-            mask = clipped
+        var outcome = AutoRedact.Outcome.nothingChanged
+        recordingChanges {
+            outcome = AutoRedact.apply(session.selectedMatches, treatment: session.treatment, fill: color1, canvas: canvas, history: history)
         }
-        let heights = selected.map(\.rect.height).sorted()
-        let textHeight = Double(heights[heights.count / 2])
-        let strength = max(6, textHeight / 3)
-        let effect: Effect = switch session.treatment {
-        case .blur: .gaussianBlur(radius: strength)
-        case .pixelate: .pixelate(cellSize: Int(strength.rounded()))
-        case .solidFill: .solidFill(color1)
+        if case .locked(let name) = outcome {
+            autoRedact?.problem = "“\(name)” is locked. Cancel, unlock it and run Auto-Redact again; nothing was redacted."
+            return
         }
-        let edit = history.beginEdit("Auto-Redact", on: canvas)
-        Effects.apply(effect, to: canvas.activeLayer, selection: mask, edit: edit)
-        recordingChanges { history.commit(edit) }
+        autoRedact = nil
         onRender()
     }
 
@@ -2714,6 +2708,15 @@ final class Editor {
     func markSaved(_ snapshot: SaveSnapshot) {
         lastSavedSnapshot = snapshot
         lastSavedImage = nil
+        // Flattened ahead in the background, so Before/After doesn't pause the first time (review E, finding 6).
+        let saved = UnsafeTransfer(snapshot)
+        Task { [weak self] in
+            let image = await Task.detached(priority: .utility) {
+                UnsafeTransfer(saved.value.canvas.flattened(transparentKey: saved.value.transparentKey))
+            }.value
+            guard let self, self.lastSavedSnapshot?.canvas === saved.value.canvas, self.lastSavedImage == nil else { return }
+            self.lastSavedImage = image.value
+        }
         savedSize = snapshot.canvas.size
         savedLayers = Dictionary(uniqueKeysWithValues: snapshot.canvas.layers.filter { $0.adjustment == nil }.map { ($0.id, $0.buffer) })
     }

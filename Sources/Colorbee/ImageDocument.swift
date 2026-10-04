@@ -159,32 +159,42 @@ final class ImageDocument: NSDocument {
 
     @IBAction func shareDocument(_ sender: Any?) {
         guard let editor, let view = windowForSheet?.contentView else { return }
-        do {
-            let folder = FileManager.default.temporaryDirectory.appending(path: "Colorbee Share \(UUID().uuidString)", directoryHint: .isDirectory)
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let url = folder.appending(path: "\((displayName as NSString).deletingPathExtension).png")
-            try editor.flattenedPNG().write(to: url)
+        let folder = FileManager.default.temporaryDirectory.appending(path: "Colorbee Share \(UUID().uuidString)", directoryHint: .isDirectory)
+        let url = folder.appending(path: "\((displayName as NSString).deletingPathExtension).png")
+        writePNGInBackground(of: editor, to: url) { [weak view] in
+            guard let view else { return }
             let picker = NSSharingServicePicker(items: [url])
             picker.show(relativeTo: NSRect(x: view.bounds.midX, y: view.bounds.maxY - 1, width: 1, height: 1), of: view, preferredEdge: .minY)
-        } catch {
-            presentError(error)
+        }
+    }
+
+    /// Writes the image as a PNG from a copy, encoded off the main thread like saving (review E, finding 6),
+    /// then calls `done` on the main thread.
+    private func writePNGInBackground(of editor: Editor, to url: URL, then done: @escaping @MainActor () throws -> Void) {
+        let snapshot = editor.saveSnapshot()
+        Task { [weak self] in
+            do {
+                try await Task.detached(priority: .userInitiated) {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try snapshot.encoded(as: .png).write(to: url)
+                }.value
+                try done()
+            } catch {
+                self?.presentError(error)
+            }
         }
     }
 
     /// Saves a PNG copy in Application Support (the desktop needs a file that stays put) and shows it on every screen.
     @IBAction func setDesktopPicture(_ sender: Any?) {
         guard let editor else { return }
-        do {
-            let folder = URL.applicationSupportDirectory.appending(path: "Colorbee/Desktop Pictures", directoryHint: .isDirectory)
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let stamp = Date.now.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false)).replacingOccurrences(of: ":", with: ".")
-            let url = folder.appending(path: "\((displayName as NSString).deletingPathExtension) \(stamp).png")
-            try editor.flattenedPNG().write(to: url)
+        let folder = URL.applicationSupportDirectory.appending(path: "Colorbee/Desktop Pictures", directoryHint: .isDirectory)
+        let stamp = Date.now.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false)).replacingOccurrences(of: ":", with: ".")
+        let url = folder.appending(path: "\((displayName as NSString).deletingPathExtension) \(stamp).png")
+        writePNGInBackground(of: editor, to: url) {
             for screen in NSScreen.screens {
                 try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
             }
-        } catch {
-            presentError(error)
         }
     }
 

@@ -95,4 +95,20 @@ were checked. Most get values already bounded (slider ranges, pointer positions,
 | Found | Outcome |
 |---|---|
 | Cut on a locked layer copied to the clipboard, then refused to delete | **Fixed.** It beeps before copying. |
-| Pixel commands (effects, adjustments, Delete, Cut) stay enabled on a locked or adjustment layer and beep when chosen; Select Subject and friends are greyed out on an adjustment layer (review D, finding 6) | **Question for Leah:** grey them out everywhere, or keep the beep? |
+| Pixel commands (effects, adjustments, Delete, Cut) stay enabled on a locked or adjustment layer and beep when chosen; Select Subject and friends are greyed out on an adjustment layer (review D, finding 6) | **Fixed (Leah: grey them out).** Commands that change the active layer's pixels, Paste included, are greyed out on a locked or adjustment layer; whole-image commands stay. |
+
+## Session E: stale results, and Auto-Redact ([findings](findings-E.md))
+
+Reviewed at `918ce67`; Leah confirmed findings 1–5 and 7 by hand. All seven were real. Fixed on 2026-10-04;
+tests in `Packages/ColorbeeCore/Tests/ColorbeeCoreTests/ReviewETests.swift`. Leah chose the behavior for
+1, 2 and 4 (§23). The redaction itself moved into core (`AutoRedact.apply`), so it's tested.
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | Auto-Redact read every layer but redacted only the active one | **Fixed.** Each box is redacted on every layer with pixels under it, as one step. A locked layer with pixels under a box stops it, naming the layer. |
+| 2 | Critical | The image could change (menus still worked behind the sheet) between reading and Apply; a cancelled run's scan could fill in a new one | **Fixed.** Menus are greyed out while the sheet is open; Apply refuses if the image changed; each run ignores scans that aren't its own. |
+| 3 | High | Blur and Pixelate used the median strength, so large text among small text stayed readable | **Fixed.** Each item at the strength for its own height. |
+| 4 | High | With a selection, items were clipped to it (or dropped when their center was outside) | **Fixed.** Any item touching the selection is listed and redacted whole. |
+| 5 | High | Text was missed on tall images and transparent backgrounds | **Fixed.** Text is read over white, with no minimum text height, and long images are read in overlapping pieces; matches read twice are merged. 10 of 10 found on a 1200 × 10,000 test image (was 0). |
+| 6 | Medium | Several commands flatten or encode on the main thread | **Fixed:** Auto-Redact's start, Share, Set as Desktop Picture, and "Last Saved" for Before/After (prepared after each save). **Deferred:** Print, and the Auto buttons for Auto Contrast and an Adjust Photo layer, which need the result at once (like round 1's D2). |
+| 7 | High | A Stripe-style key wasn't found | **Fixed.** The key patterns allow the underscores to be read as spaces or not at all. In Menlo, Vision reads the key fine; the test screenshot's DejaVu Sans Mono likely lost the underscores. |

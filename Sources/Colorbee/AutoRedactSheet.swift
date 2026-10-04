@@ -39,6 +39,7 @@ struct AutoRedactSheet: View {
 
     private var status: String {
         guard let session = editor.autoRedact else { return "" }
+        if let problem = session.problem { return problem }
         if session.isReading { return "Reading text…" }
         if let failure = session.failure { return "Couldn't read the text: \(failure)" }
         if session.matches.isEmpty { return "No sensitive text found" + (session.region == nil ? "." : " in the selection.") }
@@ -102,7 +103,7 @@ struct AutoRedactSheet: View {
             let count = editor.autoRedact?.selectedMatches.count ?? 0
             Button("Apply to \(count) Item\(count == 1 ? "" : "s")") { editor.applyAutoRedact() }
                 .keyboardShortcut(.defaultAction)
-                .disabled(count == 0)
+                .disabled(count == 0 || editor.autoRedact?.problem != nil)
         }
     }
 }

@@ -219,10 +219,17 @@ final class DocumentWindow: NSWindow {
 
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let editor else { return super.validateMenuItem(menuItem) }
-        // While an effect's bar is open, only viewing commands work; Apply or Cancel comes first.
-        if editor.activeEffect != nil {
+        // While an effect's bar or Auto-Redact is open, only viewing commands work; Apply or Cancel comes first.
+        // Auto-Redact's sheet doesn't stop menu commands reaching the window (review E, finding 2).
+        if editor.activeEffect != nil || editor.autoRedact != nil {
             return [#selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)),
                     #selector(zoomToFit(_:)), #selector(togglePixelGrid(_:))].contains(menuItem.action)
+        }
+        // Commands that change the active layer's pixels are greyed out on a locked or adjustment layer, rather
+        // than beeping when chosen (Leah, §23). Whole-image commands work on every layer, so they stay.
+        if !editor.activeLayerTakesEdits, let action = menuItem.action {
+            if Self.pixelCommands.contains(action) { return false }
+            if editor.hasSelection, [#selector(applyOrientation(_:)), #selector(showResizeSkew(_:))].contains(action) { return false }
         }
         switch menuItem.action {
         case #selector(showSpotlight(_:)):
@@ -317,6 +324,16 @@ final class DocumentWindow: NSWindow {
             return super.validateMenuItem(menuItem)
         }
     }
+
+    private static let pixelCommands: Set<Selector> = [
+        #selector(cut(_:)), #selector(delete(_:)), #selector(paste(_:)), #selector(applySolidFill(_:)),
+        #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showSharpen(_:)), #selector(showLevels(_:)),
+        #selector(showAdjustPhoto(_:)), #selector(showCurves(_:)), #selector(showSepia(_:)), #selector(showPosterize(_:)),
+        #selector(autoContrast(_:)), #selector(showAddNoise(_:)), #selector(showMotionBlur(_:)), #selector(showEmboss(_:)),
+        #selector(showVignette(_:)), #selector(showDropShadow(_:)), #selector(showBorder(_:)), #selector(showSpotlight(_:)),
+        #selector(showHueSaturation(_:)), #selector(invertColors(_:)), #selector(desaturate(_:)),
+        #selector(removeBackground(_:)), #selector(liftSubject(_:)),
+    ]
 
     private static func imageDataOnPasteboard() -> Data? {
         PasteboardImages.imageData()

@@ -49,7 +49,8 @@ public struct RedactionPattern: Codable, Hashable, Identifiable, Sendable {
             id: UUID(uuidString: "C0B1EE00-0000-4000-8000-000000000004")!,
             name: "API key",
             expression: [
-                #"\b[spr]k_(?:live|test)_[A-Z0-9]{8,}"#,
+                // Vision can read a key's underscores as spaces, or drop them (review E, finding 7).
+                #"\b[spr]k[_ ]?(?:live|test)[_ ]?[A-Z0-9]{8,}"#,
                 #"\bgh[pousr]_[A-Z0-9]{20,}"#,
                 #"\bgithub_pat_[A-Z0-9_]{20,}"#,
                 #"\bxox[abprs]-[A-Z0-9-]{10,}"#,
@@ -98,6 +99,8 @@ public final class TextScan: @unchecked Sendable {
     private struct Line {
         let text: VNRecognizedText
         let string: String
+        /// The part of the image Vision read this line in; its boxes are relative to it.
+        let tile: IntRect
     }
 
     private let lines: [Line]
@@ -119,19 +122,68 @@ public final class TextScan: @unchecked Sendable {
     /// Reads the text in `image`. `offset` is where the image's top-left sits on the canvas.
     public static func read(_ image: CGImage, offset: IntPoint = IntPoint(x: 0, y: 0)) async throws -> TextScan {
         try await Task.detached(priority: .userInitiated) {
-            let request = VNRecognizeTextRequest()
-            request.recognitionLevel = .accurate
-            // Correction would "fix" tokens and keys into words, hiding exactly what needs redacting.
-            request.usesLanguageCorrection = false
-            // Without a language, Vision sometimes reads Latin letters in keys as Cyrillic look-alikes.
-            request.recognitionLanguages = ["en-US"]
-            try VNImageRequestHandler(cgImage: image).perform([request])
-            let lines = (request.results ?? []).compactMap { observation -> Line? in
-                guard let candidate = observation.topCandidates(1).first else { return nil }
-                return Line(text: candidate, string: candidate.string)
+            // Over white, so dark text on a transparent background isn't read as dark on black
+            // (review E, finding 5).
+            let opaque = try opaqueCopy(of: image)
+            let size = IntSize(width: image.width, height: image.height)
+            var lines: [Line] = []
+            for tile in tiles(for: size) {
+                guard let part = opaque.cropping(to: CGRect(x: tile.minX, y: tile.minY, width: tile.width, height: tile.height)) else { continue }
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate
+                // Correction would "fix" tokens and keys into words, hiding exactly what needs redacting.
+                request.usesLanguageCorrection = false
+                // Without a language, Vision sometimes reads Latin letters in keys as Cyrillic look-alikes.
+                request.recognitionLanguages = ["en-US"]
+                // The default skips text under 1/32 of the image's height: most text in a tall screenshot.
+                request.minimumTextHeight = Float(6) / Float(tile.height)
+                try VNImageRequestHandler(cgImage: part).perform([request])
+                lines += (request.results ?? []).compactMap { observation -> Line? in
+                    guard let candidate = observation.topCandidates(1).first else { return nil }
+                    return Line(text: candidate, string: candidate.string, tile: tile)
+                }
             }
-            return TextScan(lines: lines, imageSize: IntSize(width: image.width, height: image.height), offset: offset, gray: grayscale(image))
+            return TextScan(lines: lines, imageSize: size, offset: offset, gray: grayscale(opaque))
         }.value
+    }
+
+    /// Vision shrinks a large image to read it, so small text in a long screenshot gets too small to read.
+    /// Long images are read in overlapping pieces about as long as they're wide; text in an overlap is read
+    /// twice, and the matches are merged.
+    static func tiles(for size: IntSize) -> [IntRect] {
+        func spans(_ length: Int, piece: Int) -> [Range<Int>] {
+            guard length > piece * 3 / 2 else { return [0..<length] }
+            let overlap = piece / 8, step = piece - overlap
+            var spans: [Range<Int>] = []
+            var start = 0
+            while true {
+                let end = min(length, start + piece)
+                spans.append(max(0, end - piece)..<end)
+                if end == length { break }
+                start += step
+            }
+            return spans
+        }
+        let piece = max(1600, min(size.width, size.height))
+        return spans(size.height, piece: piece).flatMap { rows in
+            spans(size.width, piece: piece).map { columns in
+                IntRect(x: columns.lowerBound, y: rows.lowerBound, width: columns.count, height: rows.count)
+            }
+        }
+    }
+
+    private static func opaqueCopy(of image: CGImage) throws -> CGImage {
+        let space = image.colorSpace.flatMap { $0.model == .rgb ? $0 : nil } ?? CGColorSpace(name: CGColorSpace.sRGB)!
+        guard let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
+            throw ImageCodecError.unsupportedColorSpace
+        }
+        let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        context.fill(bounds)
+        context.draw(image, in: bounds)
+        guard let opaque = context.makeImage() else { throw ImageCodecError.unsupportedColorSpace }
+        return opaque
     }
 
     /// Every match of the enabled patterns, in reading order.
@@ -146,7 +198,14 @@ public final class TextScan: @unchecked Sendable {
                 let lower = line.string.index(line.string.startIndex, offsetBy: start)
                 let range = lower..<line.string.index(lower, offsetBy: length)
                 guard let rect = rect(for: range, in: line) else { continue }
-                results.append(RedactionMatch(patternName: found.name, text: String(folded[found.range]), rect: rect))
+                let match = RedactionMatch(patternName: found.name, text: String(folded[found.range]), rect: rect)
+                // Read twice where pieces overlap (not always the same way): one item, covering both boxes.
+                if let twin = results.firstIndex(where: { $0.patternName == match.patternName && !$0.rect.intersection(match.rect).isEmpty }) {
+                    results[twin] = RedactionMatch(id: results[twin].id, patternName: match.patternName, text: results[twin].text,
+                                                   rect: results[twin].rect.union(match.rect))
+                } else {
+                    results.append(match)
+                }
             }
         }
         return results
@@ -158,11 +217,11 @@ public final class TextScan: @unchecked Sendable {
     /// next word; where there's no space (as in "key=sk_live…"), the full padding is kept.
     private func rect(for range: Range<String.Index>, in line: Line) -> IntRect? {
         guard let box = try? line.text.boundingBox(for: range)?.boundingBox else { return nil }
-        // Vision's boxes are normalized with the origin at the bottom-left.
-        let width = Double(imageSize.width), height = Double(imageSize.height)
-        let minY = (1 - box.maxY) * height, maxY = (1 - box.minY) * height
+        // Vision's boxes are normalized to the piece read, with the origin at the bottom-left.
+        let width = Double(line.tile.width), height = Double(line.tile.height)
+        let minY = Double(line.tile.minY) + (1 - box.maxY) * height, maxY = Double(line.tile.minY) + (1 - box.minY) * height
         let padding = 2 + (maxY - minY) * 0.1
-        let rawMinX = box.minX * width, rawMaxX = box.maxX * width
+        let rawMinX = Double(line.tile.minX) + box.minX * width, rawMaxX = Double(line.tile.minX) + box.maxX * width
         var minX = rawMinX - padding, maxX = rawMaxX + padding
         let band = Int(minY.rounded(.down))..<Int(maxY.rounded(.up))
         let lineHeight = maxY - minY

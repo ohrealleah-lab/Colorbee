@@ -589,48 +589,50 @@ Everything ships. This is only the order work happens in, and each stage builds 
 
 ## 21. Acceptance criteria
 
-- [ ] AC-1 Cold launch shows a drawable canvas on screen in under 500ms.
-- [ ] AC-2 Left-click draws with Color 1 and right-click with Color 2 for Pencil, all brushes, Fill, Shapes and Gradient.
-- [ ] AC-3 X swaps the colors. D resets them.
-- [ ] AC-4 Right-drag with the Eraser changes only Color 1 pixels.
-- [ ] AC-5 Magic Wand respects Tolerance and Contiguous.
-- [ ] AC-6 Shift, Option and Shift+Option combine selections as FR-3.2 describes.
-- [ ] AC-7 Shift-drag of a selection leaves the smear trail.
-- [ ] AC-7a Dragging a pasted image's handle stretches it freely. Shift keeps the proportions. Shrinking and then enlarging again before committing looks identical to the original.
-- [ ] AC-8 Blur, Pixelate and Fill affect only the selection. Batch redaction handles each separate region on its own, as one undo step.
-- [ ] AC-9 Auto-Redact finds emails, phone numbers, card numbers and API keys in a test screenshot, entirely offline.
-- [ ] AC-10 Before/After compares the current image with either "As Opened" or "Last Saved", and switching between them works.
-- [ ] AC-11 Export presets produce the right width, keep the aspect ratio and never enlarge.
-- [ ] AC-12 Cmd+V paste keeps full resolution and alpha. Cmd+C puts a PNG with transparency on the system clipboard.
-- [ ] AC-13 Clipboard History shows the last 10 images. Clicking one pastes it and leaves the system clipboard unchanged.
-- [ ] AC-14 Pixel grid at 400% and above. Pixels stay sharp at every zoom level on Retina screens.
-- [ ] AC-15 Every file format in FR-11.1 opens and saves again with no unexpected loss. Color profiles are kept.
-- [ ] AC-16 .colorproj saves and reopens layers, opacity, blend modes, visibility and adjustment layers exactly.
-- [ ] AC-17 Undo on Active Layer reverts only the active layer.
-- [ ] AC-18 Adjustment layers stay editable. Apply Adjustment turns them into pixels.
-- [ ] AC-19 Undo history survives a save.
-- [ ] AC-20 Quit and relaunch brings back open documents, including untitled ones, with no prompt.
-- [ ] AC-21 Symmetry mirrors strokes live in every mode.
-- [ ] AC-22 Measure shows the distance, ΔX, ΔY and angle.
-- [ ] AC-23 Pressure changes brush size on a Force Touch trackpad.
-- [ ] AC-24 "Open in Colorbee" works from Finder.
-- [ ] AC-25 A clipboard screenshot (Cmd+Ctrl+Shift+4) opens with Paste into New Image at its full size, and appears in Clipboard History.
-- [ ] AC-26 Palettes and text styles are kept between launches.
-- [ ] AC-27 8000×8000: draw, blur, undo 50 steps and export with no stall over 1s and no crash.
-- [ ] AC-27a A locked layer rejects every pixel edit, move, merge and delete, and can still be hidden and reordered.
-- [ ] AC-27b All 17 blend modes render the same on screen and in export.
-- [ ] AC-27c Picking a color with Edit Colors… fills the next custom slot. The slots survive a relaunch.
-- [ ] AC-28 The shortcut editor changes a command's shortcut, and the menus update immediately.
-- [ ] AC-29 The shortcut editor blocks every macOS-owned shortcut (including ones customized in System Settings) and names the owner.
-- [ ] AC-30 Assigning a shortcut already used in Colorbee offers Reassign or Cancel. Reset All brings back the defaults.
-- [ ] AC-31 Auto Contrast (and Levels → Auto) makes the darkest pixel black and the lightest white, per the image, in one undo step.
-- [ ] AC-32 Every FR-9.5 adjustment and effect previews live, applies only inside a selection when there is one, and undoes exactly.
-- [ ] AC-33 Drop Shadow and Border grow the canvas to fit, follow a cutout's shape, and undo restores the original size.
-- [ ] AC-34 Straighten levels a line drawn along a tilted horizon. With Crop to Fit on, no empty corners remain.
-- [ ] AC-35 Adjust Photo's Auto moves only the sliders it lists and shows which; the whole panel is one undo step and also works as an adjustment layer.
-- [ ] AC-36 A filter at 50% intensity gives the same result as its slider values halved. A saved filter survives a relaunch and round-trips through a .colorbeefilter file.
-- [ ] AC-37 Remove Background leaves soft edges in transparency; Select Subject picks only the clicked subject; an image with no subject says "No subject found" and changes nothing.
-- [ ] AC-38 Crop with a pixel-size preset produces exactly that size; Perspective Correction turns a photographed rectangle into a rectangle.
+Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, all by 2026-10-03), or, for AC-1, when measured.
+
+- [x] AC-1 Cold launch shows a drawable canvas on screen in under 500ms.
+- [x] AC-2 Left-click draws with Color 1 and right-click with Color 2 for Pencil, all brushes, Fill, Shapes and Gradient.
+- [x] AC-3 X swaps the colors. D resets them.
+- [x] AC-4 Right-drag with the Eraser changes only Color 1 pixels.
+- [x] AC-5 Magic Wand respects Tolerance and Contiguous.
+- [x] AC-6 Shift, Option and Shift+Option combine selections as FR-3.2 describes.
+- [x] AC-7 Shift-drag of a selection leaves the smear trail.
+- [x] AC-7a Dragging a pasted image's handle stretches it freely. Shift keeps the proportions. Shrinking and then enlarging again before committing looks identical to the original.
+- [x] AC-8 Blur, Pixelate and Fill affect only the selection. Batch redaction handles each separate region on its own, as one undo step.
+- [x] AC-9 Auto-Redact finds emails, phone numbers, card numbers and API keys in a test screenshot, entirely offline.
+- [x] AC-10 Before/After compares the current image with either "As Opened" or "Last Saved", and switching between them works.
+- [x] AC-11 Export presets produce the right width, keep the aspect ratio and never enlarge.
+- [ ] AC-12 Cmd+V paste keeps full resolution and alpha. Cmd+C puts a PNG with transparency on the system clipboard. _(Pending: re-test after the 2026-10-03 polish (Copy now prepares the PNG in the background).)_
+- [x] AC-13 Clipboard History shows the last 10 images. Clicking one pastes it and leaves the system clipboard unchanged.
+- [x] AC-14 Pixel grid at 400% and above. Pixels stay sharp at every zoom level on Retina screens.
+- [x] AC-15 Every file format in FR-11.1 opens and saves again with no unexpected loss. Color profiles are kept.
+- [x] AC-16 .colorproj saves and reopens layers, opacity, blend modes, visibility and adjustment layers exactly.
+- [x] AC-17 Undo on Active Layer reverts only the active layer.
+- [x] AC-18 Adjustment layers stay editable. Apply Adjustment turns them into pixels.
+- [x] AC-19 Undo history survives a save.
+- [x] AC-20 Quit and relaunch brings back open documents, including untitled ones, with no prompt.
+- [x] AC-21 Symmetry mirrors strokes live in every mode.
+- [x] AC-22 Measure shows the distance, ΔX, ΔY and angle.
+- [x] AC-23 Pressure changes brush size on a Force Touch trackpad.
+- [x] AC-24 "Open in Colorbee" works from Finder.
+- [ ] AC-25 A clipboard screenshot (Cmd+Ctrl+Shift+4) opens with Paste into New Image at its full size, and appears in Clipboard History. _(Pending: re-test after the 2026-10-03 clipboard fix.)_
+- [x] AC-26 Palettes and text styles are kept between launches.
+- [ ] AC-27 8000×8000: draw, blur, undo 50 steps and export with no stall over 1s and no crash. _(Pending: waiting for the heavy 8000×8000 check.)_
+- [x] AC-27a A locked layer rejects every pixel edit, move, merge and delete, and can still be hidden and reordered.
+- [x] AC-27b All 17 blend modes render the same on screen and in export.
+- [x] AC-27c Picking a color with Edit Colors… fills the next custom slot. The slots survive a relaunch.
+- [x] AC-28 The shortcut editor changes a command's shortcut, and the menus update immediately.
+- [x] AC-29 The shortcut editor blocks every macOS-owned shortcut (including ones customized in System Settings) and names the owner.
+- [x] AC-30 Assigning a shortcut already used in Colorbee offers Reassign or Cancel. Reset All brings back the defaults.
+- [x] AC-31 Auto Contrast (and Levels → Auto) makes the darkest pixel black and the lightest white, per the image, in one undo step.
+- [x] AC-32 Every FR-9.5 adjustment and effect previews live, applies only inside a selection when there is one, and undoes exactly.
+- [x] AC-33 Drop Shadow and Border grow the canvas to fit, follow a cutout's shape, and undo restores the original size.
+- [x] AC-34 Straighten levels a line drawn along a tilted horizon. With Crop to Fit on, no empty corners remain.
+- [x] AC-35 Adjust Photo's Auto moves only the sliders it lists and shows which; the whole panel is one undo step and also works as an adjustment layer.
+- [x] AC-36 A filter at 50% intensity gives the same result as its slider values halved. A saved filter survives a relaunch and round-trips through a .colorbeefilter file.
+- [x] AC-37 Remove Background leaves soft edges in transparency; Select Subject picks only the clicked subject; an image with no subject says "No subject found" and changes nothing.
+- [x] AC-38 Crop with a pixel-size preset produces exactly that size; Perspective Correction turns a photographed rectangle into a rectangle.
 
 ---
 

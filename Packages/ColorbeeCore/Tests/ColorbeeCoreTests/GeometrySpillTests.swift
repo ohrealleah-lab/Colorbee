@@ -117,3 +117,27 @@ struct BackgroundEvictionTests {
         #expect(canvas.flattened().contentHash() == original)
     }
 }
+
+/// Leah, 2026-10-04: after removing a redacted file's earlier versions, its undo history goes too.
+struct ForgettingHistoryTests {
+    @Test func forgettingTheHistoryLeavesNothingToUndoOrRedo() {
+        let canvas = Canvas(size: IntSize(width: 64, height: 64), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: 1)
+        history.evictsInBackground = true
+        for value in [UInt8(10), 90, 170] {
+            LayerActions.add(canvas: canvas, history: history, context: SelectionContext(color2: .white))
+            let edit = history.beginEdit("Paint", on: canvas)
+            edit.willModify(IntRect(x: 0, y: 0, width: 30, height: 30), in: canvas.activeLayer)
+            canvas.activeLayer.buffer.fill(Pixel(r: value, g: 0, b: 0), in: IntRect(x: 0, y: 0, width: 30, height: 30))
+            history.commit(edit)
+        }
+        history.undo(on: canvas)
+        let shown = canvas.flattened().contentHash()
+        let revision = history.revision
+        history.removeAll()
+        #expect(!history.canUndo && !history.canRedo)
+        #expect(history.byteCount == 0 && history.spillFileSize == 0)
+        #expect(history.revision != revision)
+        #expect(canvas.flattened().contentHash() == shown)
+    }
+}

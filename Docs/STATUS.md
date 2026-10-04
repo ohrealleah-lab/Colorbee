@@ -148,12 +148,14 @@ Five 30-minute 8000×8000 soaks. The fifth ran 108 rounds with no crash and exac
 (parallel fingerprints), Flatten compositing, and replaced layers written out in the background on one core.
 Logs in `build/soak-results*.txt` (not committed).
 
-**Next (agreed with Leah 2026-10-04):**
-- Done: Auto-Redact missed the `sk_test_` key in E1 Screenshot.png because Vision read it as two pieces ("sk test", "_FAKE…"); pieces side by side on a line are now matched together. Re-test with step 2.
-- Remove Earlier Versions also clears undo history up to that save (§23).
-- The Clipboard History offer's Remove also clears the Mac clipboard if it still holds that same image (§23).
-- Batch Redact ▸ Blur… and Pixelate… preview every layer under the selection, as Apply does (§23; Leah found the preview showed nothing when the active layer was empty).
-- Possibly: the versions warning when a window with an unwarned redaction closes without ⌘S (proposed, not yet decided).
+**Done 2026-10-04 (agreed with Leah), to test by hand** (`make run` first):
+1. **API key.** Open `~/Downloads/colorbee tests/E1 Screenshot.png`, Effects ▸ Auto-Redact…: the list has the `sk test _FAKE…` key, and its orange box covers the whole key. Solid Fill, Apply: all of it is black.
+2. **Batch Redact preview.** Open E1 Screenshot.png, Layer ▸ New Layer, marquee around the email, Effects ▸ Batch Redact ▸ Blur…: the email blurs as you drag the Radius slider. Apply: it stays as previewed. Cancel instead: everything comes back.
+3. **Batch Redact on a locked layer.** Lock Background, marquee the email, Batch Redact ▸ Pixelate…: a message names "Background" and the bar doesn't open.
+4. **Clipboard cleared too.** Open E1 Screenshot.png in Preview, ⌘A, ⌘C. In Colorbee, ⇧⌘V, Auto-Redact, Solid Fill, Apply, then choose Remove. Press ⌘V in TextEdit or Colorbee: nothing is pasted. Repeat, but copy some text in TextEdit before choosing Remove: that text is still on the clipboard.
+5. **Undo history cleared.** Duplicate E1 Screenshot.png in Finder and open the copy. Auto-Redact, Solid Fill, Apply, ⌘S. Choose "Remove Earlier Versions and Undo History". Edit ▸ Undo is greyed out, the History panel (⌘Y) shows only "Opened", and View ▸ Before/After with As Opened shows the redacted image.
+
+Still Leah's call: the earlier-versions warning when a window with an unwarned redaction closes without ⌘S.
 
 ## Not yet checked by hand
 

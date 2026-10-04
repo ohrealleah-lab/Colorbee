@@ -73,13 +73,13 @@ struct DocumentView: View {
             Text(editor.redactionMessage ?? "")
         }
         // After a redaction, the image as it was pasted is still in Clipboard History (Leah; review H, finding 2).
-        .alert("Remove the unredacted image from Clipboard History?",
+        .alert("Remove the unredacted image from Clipboard History and the clipboard?",
                isPresented: Binding(get: { editor.clipboardCleanup != nil }, set: { if !$0 { editor.clipboardCleanup = nil } })) {
             Button("Remove") { editor.removeClipboardSources() }
                 .keyboardShortcut(.defaultAction)
             Button("Keep", role: .cancel) { editor.clipboardCleanup = nil }
         } message: {
-            Text("Clipboard History still has the image this was pasted from, before the redaction.")
+            Text("Clipboard History still has the image this was pasted from, before the redaction. If it's still on the clipboard, that's cleared too; anything you've copied since is left alone.")
         }
     }
 }

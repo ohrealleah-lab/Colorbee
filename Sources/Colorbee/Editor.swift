@@ -443,7 +443,7 @@ final class Editor {
         didSet { if oldValue?.layout != comparison?.layout { fitComparison() } else { renderSoon() } }
     }
     /// The image when the document was opened or created.
-    @ObservationIgnored let asOpened: PixelBuffer
+    @ObservationIgnored private(set) var asOpened: PixelBuffer
     /// The document at the last explicit save, as it was written.
     private(set) var lastSavedSnapshot: SaveSnapshot?
     @ObservationIgnored private var lastSavedImage: PixelBuffer?
@@ -466,8 +466,11 @@ final class Editor {
     static let comparisonGap = 40
     /// The effect whose dialog is open, if any.
     private(set) var activeEffect: EffectKind?
-    /// Batch Redact's Blur and Pixelate: Apply covers every layer under the selection (review H, finding 3).
+    /// Batch Redact's Blur and Pixelate: the preview and Apply cover every layer under the selection
+    /// (review H, finding 3; Leah, 2026-10-04).
     private(set) var effectCoversAllLayers = false
+    /// The layers a Batch Redact bar previews and changes.
+    @ObservationIgnored private var effectLayers: [Layer] = []
     var effectValues: [Double] = []
 
     @ObservationIgnored var onRender: () -> Void = {}
@@ -1789,6 +1792,16 @@ final class Editor {
             perspectiveCorners = [Point2D(x: w * inset, y: h * inset), Point2D(x: w * (1 - inset), y: h * inset),
                                   Point2D(x: w * (1 - inset), y: h * (1 - inset)), Point2D(x: w * inset, y: h * (1 - inset))]
         }
+        if coveringAllLayers {
+            let (layers, locked) = AutoRedact.layersWithPixels(in: canvas.selection.marquee, canvas: canvas)
+            if let locked {
+                effectCoversAllLayers = false
+                onRefused()
+                redactionMessage = "“\(locked.name)” is locked, so nothing can be redacted there. Unlock it and try again."
+                return
+            }
+            effectLayers = layers
+        }
         effectEdit = kind.previewsAsStep || kind.isCanvasTool ? nil : history.beginEdit(kind.title, on: canvas)
         if kind == .spotlight {
             effectRegions = canvas.selection.marquee?.inverted(in: canvas.bounds).map { [$0] } ?? []
@@ -1797,7 +1810,8 @@ final class Editor {
         }
         activeEffect = kind
         shownEffect = nil
-        effectSource = effectEdit == nil ? nil : canvas.activeLayer.buffer.copy()
+        // Batch Redact previews several layers, so it's worked out here rather than from a copy of one.
+        effectSource = effectEdit == nil || coveringAllLayers ? nil : canvas.activeLayer.buffer.copy()
         if effectSource != nil { previewEffect() } else { renderEffectPreview() }
     }
 
@@ -2099,10 +2113,12 @@ final class Editor {
         guard let edit = effectEdit else { return }
         edit.restoreOriginals()
         let effect = kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
-        if let regions = effectRegions {
-            Effects.apply(effect, to: canvas.activeLayer, regions: regions, edit: edit)
-        } else {
-            Effects.apply(effect, to: canvas.activeLayer, selection: nil, edit: edit)
+        for layer in effectCoversAllLayers ? effectLayers : [canvas.activeLayer] {
+            if let regions = effectRegions {
+                Effects.apply(effect, to: layer, regions: regions, edit: edit)
+            } else {
+                Effects.apply(effect, to: layer, selection: nil, edit: edit)
+            }
         }
         shownEffect = effect
         onRender()
@@ -2302,18 +2318,13 @@ final class Editor {
             renderEffectPreview()
         }
         guard let edit = effectEdit else { return }
-        if effectCoversAllLayers, let kind = activeEffect {
-            // The preview showed the active layer; the redaction itself covers every layer under the selection.
-            let effect = shownEffect ?? kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
-            edit.restoreOriginals()
-            endEffectSession()
-            activeEffect = nil
-            redactEveryLayer(with: effect)
-            return
-        }
+        // Batch Redact's preview already covers every layer under the selection; Apply keeps what's shown.
+        let redacting = effectCoversAllLayers
         endEffectSession()
         activeEffect = nil
-        recordingChanges { history.commit(edit) }
+        var committed = false
+        recordingChanges { committed = history.commit(edit) }
+        if redacting, committed { noteRedaction() }
     }
 
     // MARK: Files with several frames (review J, finding 2)
@@ -2354,6 +2365,17 @@ final class Editor {
     /// A redaction was applied since the last explicit save, so the save warns about earlier versions.
     @ObservationIgnored var redactedSinceSave = false
 
+    /// After a redacted file's earlier versions are removed: the undo history goes too, so the redaction can't
+    /// be undone and then saved back, and Before/After's "As Opened" becomes the image as it is now (Leah, 2026-10-04).
+    func forgetHistory() {
+        finishInteractions()
+        history.removeAll()
+        asOpened = canvas.flattened()
+        savedGeometrySteps = history.geometrySteps
+        layersRevision += 1
+        onRender()
+    }
+
     func noteClipboardSource(_ id: ClipboardHistory.Item.ID?) {
         if let id { clipboardSources.insert(id) }
     }
@@ -2365,7 +2387,7 @@ final class Editor {
     }
 
     func removeClipboardSources() {
-        clipboardCleanup?.forEach(ClipboardHistory.shared.remove)
+        clipboardCleanup?.forEach { ClipboardHistory.shared.remove($0, clearingClipboard: true) }
         clipboardSources.subtract(clipboardCleanup ?? [])
         clipboardCleanup = nil
     }
@@ -2387,6 +2409,7 @@ final class Editor {
     /// Drops the background preview state; a render still running finds a newer generation and is ignored.
     private func endEffectSession() {
         effectCoversAllLayers = false
+        effectLayers = []
         effectEdit = nil
         effectSource = nil
         shownEffect = nil
@@ -2926,10 +2949,11 @@ final class Editor {
         guard let edit = effectEdit else { return try body() }
         // The preview's pixels are put back as they were, not worked out again on the main thread
         // (review B, finding 3).
-        let shown = edit.dirtyRect, layer = canvas.activeLayer
-        let pixels = layer.buffer.pixels(in: shown)
+        let shown = edit.dirtyRect
+        let layers = effectCoversAllLayers ? effectLayers : [canvas.activeLayer]
+        let pixels = layers.map { $0.buffer.pixels(in: shown) }
         edit.restoreOriginals()
-        defer { layer.buffer.setPixels(pixels, in: shown) }
+        defer { for (layer, values) in zip(layers, pixels) { layer.buffer.setPixels(values, in: shown) } }
         return try body()
     }
 

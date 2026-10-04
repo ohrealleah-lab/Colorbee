@@ -213,6 +213,23 @@ public final class History {
     private let evictionQueue = DispatchQueue(label: "Colorbee history eviction", qos: .utility)
     private let finishedEvictions = FinishedEvictions()
 
+    /// Forgets every step, so nothing can be undone or redone, and lets go of everything kept for them,
+    /// the spill file included (Leah, 2026-10-04: after a redacted file's earlier versions are removed).
+    /// The canvas stays as it is.
+    public func removeAll() {
+        evictionQueue.sync {}
+        _ = finishedEvictions.take()
+        evicting = [:]
+        undoStack = []
+        redoStack = []
+        evicted = [:]
+        diskCopies = [:]
+        spillStore = nil
+        tileBytes = 0
+        layerBytes = 0
+        revision += 1
+    }
+
     /// Waits for background eviction and files it, for tests and for measuring.
     public func finishBackgroundWork() {
         evictionQueue.sync {}

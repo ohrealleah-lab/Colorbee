@@ -20,20 +20,28 @@ extension AutoRedact {
         }
     }
 
-    /// Batch Redact (FR-9.4): `effect` in `selection` on every layer with pixels under it, as one step, like
-    /// Auto-Redact (Leah; review H, finding 3). If a locked layer has pixels there, nothing is changed.
-    public static func apply(_ effect: Effect, in selection: SelectionMask, canvas: Canvas, history: History) -> Outcome {
-        let area = selection.bounds.intersection(canvas.bounds)
-        guard !area.isEmpty else { return .nothingChanged }
+    /// The pixel layers with anything in `selection` (or anywhere, with none), bottom to top, and the first of
+    /// them that's locked. Batch Redact changes all of them, so a locked one stops it.
+    public static func layersWithPixels(in selection: SelectionMask?, canvas: Canvas) -> (layers: [Layer], locked: Layer?) {
+        let area = (selection?.bounds ?? canvas.bounds).intersection(canvas.bounds)
+        guard !area.isEmpty else { return ([], nil) }
         func hasPixels(_ layer: Layer) -> Bool {
             for y in area.minY..<area.maxY {
                 let row = layer.buffer.row(y)
-                for x in area.minX..<area.maxX where row[x].a > 0 && selection[x, y] > 0 { return true }
+                for x in area.minX..<area.maxX where row[x].a > 0 && (selection.map { $0[x, y] > 0 } ?? true) { return true }
             }
             return false
         }
         let layers = canvas.layers.filter { $0.adjustment == nil && hasPixels($0) }
-        if let locked = layers.first(where: \.isLocked) { return .locked(layerName: locked.name) }
+        return (layers, layers.first(where: \.isLocked))
+    }
+
+    /// Batch Redact (FR-9.4): `effect` in `selection` on every layer with pixels under it, as one step, like
+    /// Auto-Redact (Leah; review H, finding 3). If a locked layer has pixels there, nothing is changed.
+    public static func apply(_ effect: Effect, in selection: SelectionMask, canvas: Canvas, history: History) -> Outcome {
+        let (layers, locked) = layersWithPixels(in: selection, canvas: canvas)
+        if let locked { return .locked(layerName: locked.name) }
+        guard !layers.isEmpty else { return .nothingChanged }
         let edit = history.beginEdit(effect.name, on: canvas)
         for layer in layers {
             Effects.apply(effect, to: layer, selection: selection, edit: edit)

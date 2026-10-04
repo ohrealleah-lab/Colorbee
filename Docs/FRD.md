@@ -663,6 +663,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | (veto any) Remove Earlier Versions and Undo History also makes Before/After's "As Opened" the image as it is then, since it would otherwise still show the unredacted original. A Batch Redact bar doesn't open if a locked layer has pixels under the selection; a message names the layer. |
 | 2026-10-04 | AC-27 accepted (Leah): the rare whole-image steps a little over a second at 8000×8000 (13 in about 6,500 in the fifth soak) are acceptable. |
 | 2026-10-04 | Batch Redact (Leah): Blur… and Pixelate… preview every layer under the selection, exactly as Apply changes them. This replaces the earlier "preview on the active layer" choice. (To build after the fourth soak.) |
 | 2026-10-04 | After a redaction (Leah): Remove in the Clipboard History offer also clears the Mac clipboard when it still holds that same image; anything copied since is left alone. Copies in other clipboard apps, or passed on by Universal Clipboard, are out of reach. (To build after the fourth soak.) |

@@ -156,12 +156,17 @@ final class ImageDocument: NSDocument {
         guard let versions = NSFileVersion.otherVersionsOfItem(at: url), !versions.isEmpty, let window = windowForSheet else { return }
         let alert = NSAlert()
         alert.messageText = "Earlier versions of this file still show what you redacted."
-        alert.informativeText = "File ▸ Revert To can bring them back on this Mac. They don't travel with the file if you send it."
+        alert.informativeText = "File ▸ Revert To can bring them back on this Mac, and Undo can take the redaction back. "
+            + "They don't travel with the file if you send it. Removing them also clears this window's undo history."
         alert.addButton(withTitle: "Keep Earlier Versions")
-        alert.addButton(withTitle: "Remove Earlier Versions")
+        alert.addButton(withTitle: "Remove Earlier Versions and Undo History")
         alert.beginSheetModal(for: window) { response in
             guard response == .alertSecondButtonReturn else { return }
-            do { try NSFileVersion.removeOtherVersionsOfItem(at: url) } catch { self.presentError(error) }
+            do {
+                try NSFileVersion.removeOtherVersionsOfItem(at: url)
+                // Undoing the redaction would let autosave write the original back (Leah, 2026-10-04).
+                editor.forgetHistory()
+            } catch { self.presentError(error) }
         }
     }
 

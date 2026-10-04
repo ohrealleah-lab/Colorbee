@@ -24,6 +24,8 @@ final class ClipboardHistory {
     private(set) var items: [Item] = []
     @ObservationIgnored private var thumbnails: [UUID: NSImage] = [:]
     @ObservationIgnored private let folder: URL
+    /// The Mac clipboard's change count when each item was added: unchanged since means the clipboard still holds it.
+    @ObservationIgnored private var clipboardChangeCounts: [Item.ID: Int] = [:]
 
     private init() {
         folder = URL.applicationSupportDirectory.appending(path: "Colorbee/Clipboard History", directoryHint: .isDirectory)
@@ -59,6 +61,7 @@ final class ClipboardHistory {
             id = item.id
         }
         save()
+        clipboardChangeCounts[id] = NSPasteboard.general.changeCount
         return id
     }
 
@@ -66,8 +69,13 @@ final class ClipboardHistory {
         items.contains { $0.id == id }
     }
 
-    /// Forgets one image, file and all (review H, finding 2).
-    func remove(_ id: Item.ID) {
+    /// Forgets one image, file and all (review H, finding 2). With `clearingClipboard`, the Mac clipboard is
+    /// cleared too if it still holds that image; anything copied since is left alone (Leah, 2026-10-04).
+    func remove(_ id: Item.ID, clearingClipboard: Bool = false) {
+        if clearingClipboard, let count = clipboardChangeCounts[id], NSPasteboard.general.changeCount == count {
+            NSPasteboard.general.clearContents()
+        }
+        clipboardChangeCounts[id] = nil
         guard let index = items.firstIndex(where: { $0.id == id }) else { return }
         forget(items.remove(at: index))
         save()

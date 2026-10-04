@@ -456,21 +456,40 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 
 ---
 
-### FR-11.6 PDF documents (stage 10, planned)
+### FR-11.6 Pages and PDF documents (stage 10, planned)
 Bee edits typical documents (letter or A4, 10–50 pages) and needs to annotate or redact most pages in one session.
-- **Opening:** File ▸ Open or drag-and-drop a PDF. Every page opens at once, rasterized at 200 DPI by default
-  (150 or 300 can be chosen when opening). Fonts, vectors and form fields aren't kept: pages become pixels.
-  A PDF can't be saved back without that loss, so it opens as an untitled copy (§23, 2026-10-04).
-- **Pages:** the document holds a list of pages, shown in their own sidebar as thumbnails, like Preview's.
-  Clicking a page edits it in the canvas. Each page has its own canvas and its own layers, so every tool,
-  layer feature and adjustment works on a page as it does now. Pages can be added, deleted and reordered.
-- **Auto-Redact on all pages:** one scan of every page, one review list for the whole document, applied to
-  each page (part of the first version).
-- **Export as PDF:** a new PDF with one page per page, in order, at each page's original size. Pixels only,
-  so no hidden text survives under a redaction; the text isn't selectable or searchable.
-- **Saving work in progress:** `.colorproj` holds the pages.
+Any Colorbee document can have pages, so Colorbee can also make its own PDFs from images.
+
+- **Pages:** a document is a list of pages. Each page is like an image of its own: its own size, layers,
+  selection and undo history. A new document has one page.
+- **Page sidebar:** on the left, like Preview's: a thumbnail per page, in order. Clicking a page edits it in
+  the canvas; the right sidebar (Layers and the rest) shows that page's layers. The sidebar appears once a
+  document has more than one page, and View ▸ Page Sidebar shows or hides it.
+- **Page commands:** New Page (blank, the size of the current page, filled with Color 2), Duplicate Page,
+  Delete Page, and moving pages by dragging thumbnails (or Move Page Up and Down, for VoiceOver).
+- **Undo:** ⌘Z undoes the last change on the page being viewed; each page remembers its own edits. Adding,
+  duplicating, deleting and moving pages can be undone too: ⌘Z undoes such a change when it's the newest thing
+  done in the document.
+- **Opening a PDF:** File ▸ Open or drag-and-drop. Every page opens at once, rasterized at the resolution set in
+  Settings (200 DPI by default; 150 and 300 offered). Fonts, vectors and form fields aren't kept. A PDF can't be
+  saved back without that loss, so it opens as an untitled copy.
+- **Multi-page TIFFs and animated GIFs** open the same way, every frame as a page; this replaces the frame bar
+  and Choose Frame… (§23, 2026-10-04). They open as untitled copies; saving back as an animated GIF is out of
+  scope.
+- **Export as PDF…** (File menu): a new PDF with one page per page, in order. Each page is its layers flattened
+  (visible layers, as shown), at its resolution: a PDF's pages keep the resolution they were opened at; other
+  pages count as 144 DPI (Retina screenshots), so a 1440-pixel-wide screenshot makes a 10-inch-wide page.
+  Pixels only, so no hidden text survives under a redaction; the text isn't selectable or searchable.
+- **Image export** (Export, export presets, Copy, Share, Print) works on the page being viewed.
+- **Saving:** `.colorproj` holds every page; projects saved before pages open as one page.
+- **Auto-Redact** scans every page (or just the selection, if there is one), with one review list grouped by
+  page ("Page 3: 2 items"); Apply redacts every checked item on every page, as one step per page.
+  Batch Redact works on the page being viewed.
 - **Memory:** a letter page at 300 DPI is about 34 MB, so pages not on screen are kept compressed, as history
   does with layers it holds.
+- **Built in two parts:** 10a pages (the document of pages, the page sidebar, page commands and undo, opening
+  PDFs, TIFFs and GIFs, saving projects, memory); 10b output (Export as PDF, Auto-Redact on every page, the
+  resolution setting).
 
 ## 15. FR-12 — Saving and restoring (standard Mac behavior)
 
@@ -600,7 +619,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 7. **Integration:** Clipboard History, History panel, palettes, text styles, shortcut editor, Finder, share, print, desktop picture.
 8. **Hardening:** performance, 8000×8000 soak tests, polish.
 9. **Photo editing and presentation (later phase):** the FR-9.5 adjustments and effects, with their own performance and soak checks.
-10. **PDF documents (planned):** FR-11.6, after the stage 8 soak and the review fixes. Probably in two parts: opening, the page sidebar and editing pages; then Export as PDF and Auto-Redact on all pages.
+10. **Pages and PDF documents:** FR-11.6. 10a pages: the document of pages, the page sidebar, page commands and undo, opening PDFs, TIFFs and GIFs, projects, memory. 10b output: Export as PDF, Auto-Redact on every page, the resolution setting.
 
 ---
 
@@ -663,6 +682,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | Pages (Leah): the page sidebar is on the left; the PDF resolution is a setting (200 DPI by default); ⌘Z undoes the last change on the page being viewed, each page keeping its own edits; any document can have pages, so Colorbee can make PDFs from images; Auto-Redact on every page has one review list grouped by page. Multi-page TIFFs and animated GIFs open with every frame as a page, replacing the frame bar. See FR-11.6. (Veto any, Claude's choices: New Page is filled with Color 2; non-PDF pages export at 144 DPI; Batch Redact works on the page being viewed.) |
 | 2026-10-04 | Flatten with hidden layers (Leah): asks "Discard hidden layers?", naming how many, with Flatten (default) and Cancel. Merge Visible doesn't ask, since it keeps hidden layers. |
 | 2026-10-04 | Color Eraser switch (Leah): the Eraser's options have a Color Eraser switch, off by default. When on, a plain drag color-erases (Color 1 to Color 2, within the tolerance); a right-drag always does. Easier on a trackpad. |
 | 2026-10-04 | Closing a window (Leah): a redaction not yet saved with ⌘S is saved, and the earlier-versions warning shown, before the window closes (⌘W, File ▸ Close, the close button), and on quitting, one window at a time. |

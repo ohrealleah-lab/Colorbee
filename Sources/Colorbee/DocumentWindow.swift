@@ -7,6 +7,19 @@ final class DocumentWindow: NSWindow {
         didSet { editor?.onViewStateChange = { [weak self] in self?.invalidateRestorableState() } }
     }
 
+    /// ⌘W, File ▸ Close and the close button: an unsaved redaction is saved, and the earlier-versions warning
+    /// shown, before the window goes (Leah, 2026-10-04).
+    override func performClose(_ sender: Any?) {
+        guard let document = windowController?.document as? ImageDocument, document.wantsRedactionCheckBeforeClosing else {
+            return super.performClose(sender)
+        }
+        document.checkRedactionBeforeClosing { [weak self] in self?.closeAfterRedactionCheck(sender) }
+    }
+
+    private func closeAfterRedactionCheck(_ sender: Any?) {
+        super.performClose(sender)
+    }
+
     // MARK: Restoring (FR-12; review J, finding 28)
 
     private static let panelKeys = ["isSidebarOpen", "showsLayersPanel", "showsAdjustmentsPanel", "showsHistoryPanel",

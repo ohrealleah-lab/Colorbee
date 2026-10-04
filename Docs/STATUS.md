@@ -155,7 +155,7 @@ Logs in `build/soak-results*.txt` (not committed).
 4. **Clipboard cleared too.** Open E1 Screenshot.png in Preview, ⌘A, ⌘C. In Colorbee, ⇧⌘V, Auto-Redact, Solid Fill, Apply, then choose Remove. Press ⌘V in TextEdit or Colorbee: nothing is pasted. Repeat, but copy some text in TextEdit before choosing Remove: that text is still on the clipboard.
 5. **Undo history cleared.** Duplicate E1 Screenshot.png in Finder and open the copy. Auto-Redact, Solid Fill, Apply, ⌘S. Choose "Remove Earlier Versions and Undo History". Edit ▸ Undo is greyed out, the History panel (⌘Y) shows only "Opened", and View ▸ Before/After with As Opened shows the redacted image.
 
-Still Leah's call: the earlier-versions warning when a window with an unwarned redaction closes without ⌘S.
+6. **Warning on close.** Duplicate E1 Screenshot.png and open the copy. Auto-Redact, Solid Fill, Apply, then press ⌘W (no ⌘S). Expect the earlier-versions message before the window closes; either button closes it. Reopen the file: the redaction is there. (Quitting with ⌘Q doesn't show it yet.)
 
 ## Not yet checked by hand
 

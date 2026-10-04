@@ -141,7 +141,7 @@ final class ImageDocument: NSDocument {
             if error == nil, explicit, let written {
                 Task { @MainActor in
                     self?.editor?.markSaved(written)
-                    self?.warnAboutEarlierVersions(of: url)
+                    self?.warnAboutEarlierVersions(of: url) {}
                 }
             }
             completionHandler(error)
@@ -150,10 +150,11 @@ final class ImageDocument: NSDocument {
 
     /// After a redaction is saved, the file's earlier versions (File ▸ Revert To) still show what was redacted.
     /// Colorbee says so and offers to remove them; nothing is removed without asking (Leah; review H, finding 1).
-    private func warnAboutEarlierVersions(of url: URL) {
-        guard let editor, editor.redactedSinceSave else { return }
+    /// `then` runs once the person has answered, or at once if there's nothing to say.
+    private func warnAboutEarlierVersions(of url: URL, then done: @escaping () -> Void) {
+        guard let editor, editor.redactedSinceSave else { return done() }
         editor.redactedSinceSave = false
-        guard let versions = NSFileVersion.otherVersionsOfItem(at: url), !versions.isEmpty, let window = windowForSheet else { return }
+        guard let versions = NSFileVersion.otherVersionsOfItem(at: url), !versions.isEmpty, let window = windowForSheet else { return done() }
         let alert = NSAlert()
         alert.messageText = "Earlier versions of this file still show what you redacted."
         alert.informativeText = "File ▸ Revert To can bring them back on this Mac, and Undo can take the redaction back. "
@@ -161,12 +162,29 @@ final class ImageDocument: NSDocument {
         alert.addButton(withTitle: "Keep Earlier Versions")
         alert.addButton(withTitle: "Remove Earlier Versions and Undo History")
         alert.beginSheetModal(for: window) { response in
+            defer { done() }
             guard response == .alertSecondButtonReturn else { return }
             do {
                 try NSFileVersion.removeOtherVersionsOfItem(at: url)
                 // Undoing the redaction would let autosave write the original back (Leah, 2026-10-04).
                 editor.forgetHistory()
             } catch { self.presentError(error) }
+        }
+    }
+
+    /// A redaction not yet saved with ⌘S: closing saves it first, then gives the earlier-versions warning
+    /// (Leah, 2026-10-04).
+    var wantsRedactionCheckBeforeClosing: Bool {
+        editor?.redactedSinceSave == true && fileURL != nil
+    }
+
+    func checkRedactionBeforeClosing(then close: @escaping () -> Void) {
+        autosave(withImplicitCancellability: false) { [weak self] error in
+            DispatchQueue.main.async {
+                // If saving failed, closing as usual reports it.
+                guard let self, error == nil, let url = self.fileURL else { return close() }
+                self.warnAboutEarlierVersions(of: url, then: close)
+            }
         }
     }
 

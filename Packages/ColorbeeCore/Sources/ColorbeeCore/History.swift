@@ -204,6 +204,21 @@ public final class History {
     private var redoStack: [HistoryEntry] = []
     private var spillStore: SpillStore?
 
+    /// When on, a layer moved out of memory to keep within the budget is compressed on another thread, so the
+    /// step that made room (a Flatten or Merge, say) doesn't wait for it (AC-27). Finished work is filed at
+    /// History's next call. Off by default, so tests see each step's full effect at once.
+    public var evictsInBackground = false
+    /// Layers being compressed in the background, until they're filed or taken back by an undo.
+    private var evicting: [ObjectIdentifier: PixelBuffer] = [:]
+    private let evictionQueue = DispatchQueue(label: "Colorbee history eviction", qos: .utility)
+    private let finishedEvictions = FinishedEvictions()
+
+    /// Waits for background eviction and files it, for tests and for measuring.
+    public func finishBackgroundWork() {
+        evictionQueue.sync {}
+        fileFinishedEvictions()
+    }
+
     public init(byteBudget: Int) {
         self.byteBudget = byteBudget
     }
@@ -478,6 +493,7 @@ public final class History {
 
     /// Spills steps furthest from the present first, never the newest undo or redo step.
     private func spillToBudget(canvas: Canvas) {
+        fileFinishedEvictions()
         refreshLayerBytes(canvas: canvas)
         guard byteCount > byteBudget else { return }
         for entry in undoStack.dropLast() + redoStack.dropLast() {
@@ -498,7 +514,8 @@ public final class History {
         for entry in entries {
             for record in entry.layers?.records ?? [] {
                 let id = ObjectIdentifier(record.buffer)
-                guard !inCanvas.contains(id), !isEvicted(record.buffer), seen.insert(id).inserted, !record.buffer.isUntouched else { continue }
+                guard !inCanvas.contains(id), !isEvicted(record.buffer), evicting[id] == nil, seen.insert(id).inserted,
+                      !record.buffer.isUntouched else { continue }
                 buffers.append(record.buffer)
             }
         }
@@ -523,10 +540,49 @@ public final class History {
         if spillStore == nil { spillStore = try? SpillStore() }
         guard let store = spillStore else { return false }
         for buffer in buffers {
-            guard evict(buffer, store: store) else { return false }
+            let id = ObjectIdentifier(buffer)
+            // A layer read back unchanged reuses its copy on disk, which is quick, so only fresh ones go to the background.
+            if evictsInBackground, !(diskCopies[id].map { $0.copy.buffer === buffer } ?? false) {
+                evictInBackground(buffer)
+            } else {
+                guard evict(buffer, store: store) else { return false }
+            }
             layerBytes -= buffer.width * buffer.height * MemoryLayout<Pixel>.stride
         }
         return true
+    }
+
+    private func evictInBackground(_ buffer: PixelBuffer) {
+        evicting[ObjectIdentifier(buffer)] = buffer
+        let job = EvictionJob(buffer: buffer)
+        let finished = finishedEvictions
+        evictionQueue.async {
+            let bands = GeometryChange.bands(of: job.buffer.size)
+            let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(job.buffer.pixels(in: bands[$0])) }
+            finished.add(job.buffer, compressed.allSatisfy { $0 != nil } ? compressed.map { $0! } : nil)
+        }
+    }
+
+    /// Writes background-compressed layers to the spill file and frees them, unless an undo took them back.
+    private func fileFinishedEvictions() {
+        for (buffer, compressed) in finishedEvictions.take() {
+            let id = ObjectIdentifier(buffer)
+            guard evicting[id] === buffer else { continue }
+            evicting[id] = nil
+            // If compressing failed, the layer stays in memory and is counted again.
+            guard let compressed else { continue }
+            if spillStore == nil { spillStore = try? SpillStore() }
+            guard let store = spillStore else { continue }
+            var locations: [SpillStore.Location] = []
+            for data in compressed {
+                guard let location = try? store.append(data) else { break }
+                locations.append(location)
+            }
+            guard locations.count == compressed.count else { continue }
+            diskCopies[id] = nil
+            buffer.discardContents()
+            evicted[id] = EvictedBuffer(buffer: buffer, locations: locations)
+        }
     }
 
     /// Writes `buffer` to the spill file (or reuses its copy there, if its pixels haven't changed since it was
@@ -553,6 +609,12 @@ public final class History {
     /// Reads an evicted layer buffer back from the spill file.
     private func restore(_ buffer: PixelBuffer) -> Bool {
         let id = ObjectIdentifier(buffer)
+        if evicting[id] === buffer {
+            // Still in memory: wait for the compression to stop reading it, then keep it.
+            evictionQueue.sync {}
+            evicting[id] = nil
+            return true
+        }
         guard let stored = evicted[id], stored.buffer === buffer else { return true }
         guard let store = spillStore else { return false }
         let bands = GeometryChange.bands(of: buffer.size)
@@ -703,5 +765,27 @@ final class SpillStore {
             throw Failure.corrupt
         }
         return compressed
+    }
+}
+
+/// A layer handed to the eviction queue. History doesn't touch it while it's there: an undo that needs it waits.
+private struct EvictionJob: @unchecked Sendable {
+    let buffer: PixelBuffer
+}
+
+/// Compressed layers waiting to be filed by History on its own thread.
+private final class FinishedEvictions: @unchecked Sendable {
+    private let lock = NSLock()
+    private var items: [(PixelBuffer, [Data]?)] = []
+
+    func add(_ buffer: PixelBuffer, _ compressed: [Data]?) {
+        lock.withLock { items.append((buffer, compressed)) }
+    }
+
+    func take() -> [(PixelBuffer, [Data]?)] {
+        lock.withLock {
+            defer { items = [] }
+            return items
+        }
     }
 }

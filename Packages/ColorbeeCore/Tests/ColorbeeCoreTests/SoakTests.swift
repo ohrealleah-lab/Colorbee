@@ -38,6 +38,8 @@ struct SoakTests {
         // The app's budget, so old steps spill to disk as they would in use.
         let history = History(byteBudget: 512 << 20)
         history.makeThumbnail = { $0.thumbnail(maxSide: 64) }
+        // As in the app: layers moved out of memory are compressed without holding up the step.
+        history.evictsInBackground = true
         let original = canvas.flattened().contentHash()
         let originalLayers = canvas.layers.count
         var random = SplitMix64(seed: seed)
@@ -65,12 +67,22 @@ struct SoakTests {
                     history.commit(edit)
                 }
             case 1:
-                timed("Brush") {
-                    let edit = history.beginEdit("Brush", on: canvas)
-                    let stroke = Brush.round.makeStroke(diameter: Double(random.int(5..<200)), color: color, layer: canvas.activeLayer, edit: edit)
-                    for _ in 0..<30 {
-                        stroke.move(to: Point2D(x: Double(random.int(0..<Self.side)), y: Double(random.int(0..<Self.side))))
+                // Painted as a fast drag is: one move per mouse event, at most 24 px apart (3,000 px a second at
+                // 120 events a second). Each event, and placing the stroke, is a step the person waits for.
+                let edit = history.beginEdit("Brush", on: canvas)
+                let stroke = Brush.round.makeStroke(diameter: Double(random.int(5..<200)), color: color, layer: canvas.activeLayer, edit: edit)
+                var last: Point2D?
+                for _ in 0..<30 {
+                    let next = Point2D(x: Double(random.int(0..<Self.side)), y: Double(random.int(0..<Self.side)))
+                    let from = last ?? next
+                    let count = max(1, Int((hypot(next.x - from.x, next.y - from.y) / 24).rounded(.up)))
+                    for index in 1...count {
+                        let t = Double(index) / Double(count)
+                        timed("Brush move") { stroke.move(to: Point2D(x: from.x + (next.x - from.x) * t, y: from.y + (next.y - from.y) * t)) }
                     }
+                    last = next
+                }
+                timed("Brush finish") {
                     _ = stroke.finish()
                     history.commit(edit)
                 }
@@ -112,6 +124,8 @@ struct SoakTests {
         timed("Export flatten") { _ = canvas.flattened() }
         let final = canvas.flattened().contentHash()
 
+        // The pause before undoing, in which background work finishes; an undo right away would wait for it.
+        history.finishBackgroundWork()
         while history.canUndo { timed("Undo") { history.undo(on: canvas) } }
         #expect(canvas.layers.count == originalLayers)
         #expect(canvas.flattened().contentHash() == original)

@@ -84,3 +84,36 @@ struct TransformIdentityTests {
         #expect(canvas.flattened().contentHash() == final)
     }
 }
+
+/// AC-27: layers moved out of memory in the background come back exactly, whether or not the background
+/// work has finished when they're needed.
+struct BackgroundEvictionTests {
+    private let context = SelectionContext(color2: .white)
+
+    @Test(arguments: [false, true])
+    func layerStepsUndoAndRedoExactlyWithBackgroundEviction(waitBetweenSteps: Bool) {
+        let canvas = Canvas(size: IntSize(width: 300, height: 300), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: 1)
+        history.evictsInBackground = true
+        let original = canvas.flattened().contentHash()
+        for round in 0..<6 {
+            LayerActions.add(canvas: canvas, history: history, context: context)
+            let edit = history.beginEdit("Paint", on: canvas)
+            let rect = IntRect(x: round * 20, y: round * 30, width: 120, height: 90)
+            edit.willModify(rect, in: canvas.activeLayer)
+            canvas.activeLayer.buffer.fill(Pixel(r: UInt8(round * 40), g: 100, b: 200, a: 200), in: rect)
+            history.commit(edit)
+            if round % 2 == 1 { LayerActions.mergeDown(canvas: canvas, history: history, context: context) }
+            if waitBetweenSteps { history.finishBackgroundWork() }
+        }
+        LayerActions.flatten(canvas: canvas, history: history, context: context)
+        let final = canvas.flattened().contentHash()
+        while history.canUndo { history.undo(on: canvas) }
+        #expect(canvas.flattened().contentHash() == original)
+        while history.canRedo { history.redo(on: canvas) }
+        #expect(canvas.flattened().contentHash() == final)
+        history.finishBackgroundWork()
+        while history.canUndo { history.undo(on: canvas) }
+        #expect(canvas.flattened().contentHash() == original)
+    }
+}

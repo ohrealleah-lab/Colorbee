@@ -549,6 +549,8 @@ final class Editor {
         asOpened = canvas.flattened()
         history = History(byteBudget: Editor.historyByteBudget)
         history.makeThumbnail = { $0.thumbnail(maxSide: 64) }
+        // Flatten and Merge don't wait for replaced layers to be written out (AC-27).
+        history.evictsInBackground = true
         rememberLayersAsSaved(sharingSingleLayerWith: asOpened)
     }
 

@@ -140,19 +140,15 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 
 ## Soak re-run pending (AC-27)
 
-Second 30-minute soak (2026-10-04, 78 rounds, log in `build/soak-results.txt`): undo and redo were never over a
-second (206 times before), but it failed two ways, both fixed the same day:
+Third 30-minute soak (2026-10-04, 67 rounds): undo and redo exact in every round (the rotation fix worked),
+but 228 steps over a second, mostly Brush (132) and Flatten (48). Leah chose (2026-10-04, §23):
+- **Flatten and Merge** no longer wait for replaced layers to be written out: `History.evictsInBackground`
+  (on in the app) compresses them on another thread, and an undo that needs one waits for it.
+  1,000 small soak rounds and `BackgroundEvictionTests` are exact.
+- **The soak's Brush step** is painted as a fast drag is (moves at most 24 px apart, each timed, then placing
+  the stroke), since a stroke's work is spread over its mouse events.
 
-1. **Undo or redo not exact in 6 rounds.** A flip or rotation gave every layer a new buffer object, so a
-   layer-settings step made before it (a blend mode change, say) put back a buffer that later edits had
-   changed. Rotations and flips now turn the pixels inside the same buffer (`PixelBuffer.swapContents`).
-   Reproduced at 256 × 256 (19 of 400 rounds failed, with or without spilling); now 0 of 1,000 at three
-   budgets. `TransformIdentityTests`.
-2. **98 editing steps just over a second** (Flatten 31, Brush 47). Round 2's floating-selection compositing
-   checked every pixel of every layer; split into plain loops, a 4000 × 4000 five-layer flatten went from
-   0.26 s to 0.09 s. Brush steps were already over a second 17 times in the first soak; check them in the re-run.
-
-Needs one more soak (with Leah's OK, about 35 minutes) before AC-27 is ticked.
+Needs one more soak (with Leah's OK, about 35 minutes, the Mac left alone) before AC-27 is ticked.
 
 ## Not yet checked by hand
 

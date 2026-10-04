@@ -597,11 +597,14 @@ final class Editor {
 
     /// Each pixel layer as of the last explicit save (or as opened), for Revert Layer (FR-8.3).
     @ObservationIgnored private var savedLayers: [LayerID: PixelBuffer] = [:]
+    /// The crop, resize, rotation and flip steps in effect at the last save; Revert Layer needs the same ones.
+    @ObservationIgnored private var savedGeometrySteps: [ObjectIdentifier] = []
     @ObservationIgnored private var savedSize: IntSize = .init(width: 0, height: 0)
 
     /// A lone opaque layer looks exactly like the flattened image, so it can share that copy.
     private func rememberLayersAsSaved(sharingSingleLayerWith flattened: PixelBuffer? = nil) {
         savedSize = canvas.size
+        savedGeometrySteps = history.geometrySteps
         let pixelLayers = canvas.layers.filter { $0.adjustment == nil }
         if let flattened, canvas.layers.count == 1, let only = pixelLayers.first, only.opacity >= 1, only.isVisible {
             savedLayers = [only.id: flattened]
@@ -612,7 +615,9 @@ final class Editor {
 
     var canRevertLayer: Bool {
         let layer = canvas.activeLayer
-        return layer.adjustment == nil && !layer.isLocked && canvas.size == savedSize && savedLayers[layer.id] != nil
+        // After a flip or rotation since the save, the saved pixels would come back unturned (review G, finding 4).
+        return layer.adjustment == nil && !layer.isLocked && canvas.size == savedSize && history.geometrySteps == savedGeometrySteps
+            && savedLayers[layer.id] != nil
     }
 
     /// Revert Layer: the active layer's pixels go back to how they were at the last save, as one step.
@@ -633,7 +638,9 @@ final class Editor {
 
     /// The step Undo on Active Layer would take back, for the menu; nil when it isn't available.
     var undoOnActiveLayerName: String? {
-        history.undoOnLayerActionName(canvas.activeLayer.id, canvas: canvas)
+        // Placing a pending shape or text makes a newer step, so the step isn't known yet (review G, finding 1).
+        guard pendingShape == nil, pendingText == nil else { return nil }
+        return history.undoOnLayerActionName(canvas.activeLayer.id, canvas: canvas)
     }
 
     /// Undo on Active Layer (⌘⌥Z, FR-8.3): takes back the active layer's last change only.
@@ -2737,7 +2744,9 @@ final class Editor {
             self.lastSavedImage = image.value
         }
         savedSize = snapshot.canvas.size
-        savedLayers = Dictionary(uniqueKeysWithValues: snapshot.canvas.layers.filter { $0.adjustment == nil }.map { ($0.id, $0.buffer) })
+        savedGeometrySteps = snapshot.geometrySteps
+        // With any floating selection drawn in, as the file has it (review G, finding 3).
+        savedLayers = snapshot.canvas.layerBuffersAsSaved(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling)
     }
 
     // MARK: Files
@@ -2759,7 +2768,8 @@ final class Editor {
     }
 
     private func snapshot(of canvas: ColorbeeCore.Canvas) -> SaveSnapshot {
-        SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, resampling: selectionContext.resampling, matte: color2)
+        SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, resampling: selectionContext.resampling, matte: color2,
+                     geometrySteps: history.geometrySteps)
     }
 
     /// More than one layer, or an adjustment layer: something only a project file can keep.

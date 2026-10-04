@@ -240,6 +240,29 @@ public final class Canvas {
     }
 
 
+    /// Each pixel layer's buffer as a save writes it: a floating selection is drawn into a copy of its layer, so
+    /// a project, and Revert Layer, get the layer as the screen shows it (review G, finding 3). Other buffers
+    /// are the layers' own.
+    public func layerBuffersAsSaved(transparentKey: Pixel?, resampling: Resampling) -> [LayerID: PixelBuffer] {
+        var buffers: [LayerID: PixelBuffer] = [:]
+        for layer in layers where layer.adjustment == nil {
+            guard let floating = selection.floating, floating.layerID == layer.id else {
+                buffers[layer.id] = layer.buffer
+                continue
+            }
+            let buffer = layer.buffer.copy()
+            let pixels = floating.rendered(using: resampling, transparentKey: transparentKey)
+            let origin = IntPoint(x: floating.destination.minX, y: floating.destination.minY)
+            let area = IntRect(x: origin.x, y: origin.y, width: pixels.width, height: pixels.height).intersection(buffer.bounds)
+            for y in area.minY..<area.maxY {
+                let source = pixels.row(y - origin.y), target = buffer.row(y)
+                for x in area.minX..<area.maxX { target[x] = Compositing.over(target[x], source[x - origin.x]) }
+            }
+            buffers[layer.id] = buffer
+        }
+        return buffers
+    }
+
     /// The visible layers from the bottom up to and including `index`, as they look together.
     /// What an adjustment layer added above `index` would see.
     public func composited(through index: Int) -> PixelBuffer {

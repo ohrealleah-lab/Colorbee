@@ -646,6 +646,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | From review G (veto any): Undo on Active Layer is greyed out while a paste, shape or text on the layer isn't placed yet (press Return first). Revert Layer is unavailable while a flip or rotation made since the save is in effect, as it already was after a size change. Layers are reordered by dragging their row; it lands where it's let go. |
 | 2026-10-04 | From review F (Leah): a shape, text or paste that isn't placed yet looks exactly as it will once placed, including its layer's blend mode and opacity; placing changes nothing on screen. While typing, the canvas draws the text itself; the text box shows the caret and selection. |
 | 2026-10-04 | Auto-Redact, from review E (Leah): it redacts each item's box on **every layer** with pixels under it, as one step, whichever layer is active. If a **locked** layer has pixels under a box, nothing is redacted and the sheet names the layer to unlock. With a **selection**, every item that touches it is listed and redacted **whole**. Blur and Pixelate are as strong as each item's own text needs. While the sheet is open, menus are greyed out, and Apply refuses if the image changed since it was read. |
 | 2026-10-04 | Commands that change the active layer's pixels (effects, adjustments, Cut, Delete, Paste, Remove Background) are **greyed out** on a locked or adjustment layer, instead of beeping (Leah). Whole-image commands (crop, resize, rotate, straighten, perspective) stay available. |

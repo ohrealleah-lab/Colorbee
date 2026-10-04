@@ -127,6 +127,8 @@ public final class PixelBuffer {
 
     public func copy() -> PixelBuffer {
         let result = PixelBuffer(width: width, height: height)
+        // A buffer that holds nothing (an empty or adjustment layer) stays free of memory (review G, finding 5).
+        if isUntouched { return result }
         result.baseAddress.copyMemory(from: baseAddress, byteCount: bytesPerRow * height)
         return result
     }

@@ -124,3 +124,16 @@ Leah also found that dragging layers to reorder them doesn't work; session G cov
 | 1 | High | Shapes, text and pastes on a layer that isn't Normal at 100% changed when placed | **Fixed: they preview the placed look.** On screen, such a layer is drawn with its unplaced object in it, then blended once (`blend_isolated_fragment`); exports do the same (`Canvas.compositePixels`). Text being typed is drawn by the canvas exactly as placing draws it; the text view shows only the caret and selection. |
 | 2 | Medium | Saving or exporting with a stretched paste still floating wrote it blocky | **Fixed.** Saves, exports, copies and projects use the same Smooth or Sharp setting as the screen and placing. |
 | 3 | Medium | Zoomed out, or for a smoothly stretched paste, transparent edges showed dark or colored fringes | **Fixed.** Smooth sampling in the shaders mixes premultiplied colors. Checked by hand only (no headless shader test). |
+
+## Session G: undo restoring the wrong layer copies ([findings](findings-G.md))
+
+Reviewed at `37959d2`; Leah confirmed 1–4 by hand. All five were real. Fixed on 2026-10-04; core tests in
+`Packages/ColorbeeCore/Tests/ColorbeeCoreTests/ReviewGTests.swift`. Choices for 1 and 4 are in §23 (veto any).
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Medium | Undo on Active Layer undid a floating paste or pending shape instead of the step its menu named | **Fixed.** It's greyed out while something on the layer isn't placed yet. |
+| 2 | Medium | Dragging a layer row to reorder it didn't work | **Fixed (`199c881`).** The row follows the pointer and moves where it's let go, without the system drag (which never landed over the canvas). |
+| 3 | Medium | Revert Layer went back to the layer without a paste that was floating at the save | **Fixed.** The layers as saved are built the way the project file is (`Canvas.layerBuffersAsSaved`), floating selection drawn in. |
+| 4 | Low | Revert Layer after a flip or 180° rotation put one layer back unturned | **Fixed.** Revert Layer is unavailable while a crop, resize, rotation or flip made since the save is in effect (undoing it makes Revert available again). |
+| 5 | Low | Duplicating an adjustment or empty layer used full-size memory | **Fixed.** Copying an untouched buffer keeps it untouched (no memory). |

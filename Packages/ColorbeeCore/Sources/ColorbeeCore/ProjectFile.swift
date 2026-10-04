@@ -49,20 +49,10 @@ public enum ProjectFile {
     public static func encode(_ canvas: Canvas, transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) throws -> Data {
         var blobs = Data()
         var entries: [LayerEntry] = []
+        let saved = canvas.layerBuffersAsSaved(transparentKey: transparentKey, resampling: resampling)
         for layer in canvas.layers {
             var range: Range<Int>?
-            if layer.adjustment == nil {
-                var buffer = layer.buffer
-                if let floating = canvas.selection.floating, floating.layerID == layer.id {
-                    buffer = buffer.copy()
-                    let pixels = floating.rendered(using: resampling, transparentKey: transparentKey)
-                    let origin = IntPoint(x: floating.destination.minX, y: floating.destination.minY)
-                    let area = IntRect(x: origin.x, y: origin.y, width: pixels.width, height: pixels.height).intersection(buffer.bounds)
-                    for y in area.minY..<area.maxY {
-                        let source = pixels.row(y - origin.y), target = buffer.row(y)
-                        for x in area.minX..<area.maxX { target[x] = Compositing.over(target[x], source[x - origin.x]) }
-                    }
-                }
+            if layer.adjustment == nil, let buffer = saved[layer.id] {
                 let compressed = try (rows(of: buffer) as NSData).compressed(using: .lz4) as Data
                 range = blobs.count..<(blobs.count + compressed.count)
                 blobs.append(compressed)

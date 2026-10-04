@@ -10,6 +10,8 @@ struct SaveSnapshot: @unchecked Sendable {
     let resampling: Resampling
     /// What formats without transparency are flattened over (Color 2).
     let matte: Pixel
+    /// History's crop, resize, rotation and flip steps when the copy was made, for Revert Layer.
+    let geometrySteps: [ObjectIdentifier]
 
     func encoded(as format: ImageFileFormat, quality: Double = 0.9, tiffLZW: Bool = false) throws -> Data {
         try ImageCodec.encode(canvas.flattened(transparentKey: transparentKey, resampling: resampling), colorSpace: canvas.colorSpace, as: format, quality: quality,

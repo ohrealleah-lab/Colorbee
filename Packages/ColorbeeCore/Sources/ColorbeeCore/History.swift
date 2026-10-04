@@ -396,7 +396,16 @@ public final class History {
 
     /// The step Undo on Active Layer would take back for `layer`, or nil if it isn't available.
     public func undoOnLayerActionName(_ layer: LayerID, canvas: Canvas) -> String? {
-        candidate(for: layer, canvas: canvas).map { undoStack[$0].name }
+        // Placing a floating selection would make a newer step on the layer, so which step would be taken back
+        // isn't known until it's placed (review G, finding 1).
+        guard canvas.selection.floating?.layerID != layer else { return nil }
+        return candidate(for: layer, canvas: canvas).map { undoStack[$0].name }
+    }
+
+    /// The crop, resize, rotation and flip steps that brought the canvas to how it is now. Equal lists mean the
+    /// same geometry, so Revert Layer can tell whether the image was turned since the save (review G, finding 4).
+    public var geometrySteps: [ObjectIdentifier] {
+        undoStack.filter { $0.geometry != nil || $0.transform != nil }.map(ObjectIdentifier.init)
     }
 
     /// Takes back the most recent step that changed `layer`, leaving later steps on other layers in place.

@@ -112,3 +112,15 @@ tests in `Packages/ColorbeeCore/Tests/ColorbeeCoreTests/ReviewETests.swift`. Lea
 | 5 | High | Text was missed on tall images and transparent backgrounds | **Fixed.** Text is read over white, with no minimum text height, and long images are read in overlapping pieces; matches read twice are merged. 10 of 10 found on a 1200 × 10,000 test image (was 0). |
 | 6 | Medium | Several commands flatten or encode on the main thread | **Fixed:** Auto-Redact's start, Share, Set as Desktop Picture, and "Last Saved" for Before/After (prepared after each save). **Deferred:** Print, and the Auto buttons for Auto Contrast and an Adjust Photo layer, which need the result at once (like round 1's D2). |
 | 7 | High | A Stripe-style key wasn't found | **Fixed.** The key patterns allow the underscores to be read as spaces or not at all. In Menlo, Vision reads the key fine; the test screenshot's DejaVu Sans Mono likely lost the underscores. |
+
+## Session F: the screen versus the saved file ([findings](findings-F.md))
+
+Reviewed at `4df0688`; Leah confirmed all three by hand. All real. Fixed on 2026-10-04; core tests in
+`Packages/ColorbeeCore/Tests/ColorbeeCoreTests/ReviewFTests.swift`. Leah chose the behavior for 1 (§23).
+Leah also found that dragging layers to reorder them doesn't work; session G covers it.
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | Shapes, text and pastes on a layer that isn't Normal at 100% changed when placed | **Fixed: they preview the placed look.** On screen, such a layer is drawn with its unplaced object in it, then blended once (`blend_isolated_fragment`); exports do the same (`Canvas.compositePixels`). Text being typed is drawn by the canvas exactly as placing draws it; the text view shows only the caret and selection. |
+| 2 | Medium | Saving or exporting with a stretched paste still floating wrote it blocky | **Fixed.** Saves, exports, copies and projects use the same Smooth or Sharp setting as the screen and placing. |
+| 3 | Medium | Zoomed out, or for a smoothly stretched paste, transparent edges showed dark or colored fringes | **Fixed.** Smooth sampling in the shaders mixes premultiplied colors. Checked by hand only (no headless shader test). |

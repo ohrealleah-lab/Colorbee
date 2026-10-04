@@ -177,14 +177,15 @@ public final class Canvas {
     }
 
     /// `layers` composited bottom to top with their blend modes and opacity, onto `base` if given.
-    /// An adjustment layer changes everything composited so far. The floating selection is drawn just
-    /// above its layer, as on screen.
-    func composite(_ stack: [Layer], onto base: PixelBuffer? = nil, transparentKey: Pixel? = nil) -> PixelBuffer {
+    /// An adjustment layer changes everything composited so far. The floating selection is drawn into its
+    /// layer before the layer is blended, as it will be once placed (review F, finding 1), at `resampling`
+    /// when it's stretched.
+    func composite(_ stack: [Layer], onto base: PixelBuffer? = nil, transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) -> PixelBuffer {
         var current = base
         var segment: [Layer] = []
         for layer in stack {
             if let adjustment = layer.adjustment {
-                let below = segment.isEmpty && current != nil ? current! : compositePixels(segment, onto: current, transparentKey: transparentKey)
+                let below = segment.isEmpty && current != nil ? current! : compositePixels(segment, onto: current, transparentKey: transparentKey, resampling: resampling)
                 current = Compositing.adjust(below, by: adjustment, opacity: layer.opacity, mode: layer.blendMode)
                 segment = []
             } else {
@@ -192,15 +193,15 @@ public final class Canvas {
             }
         }
         if segment.isEmpty, let current, current !== base { return current }
-        return compositePixels(segment, onto: current, transparentKey: transparentKey)
+        return compositePixels(segment, onto: current, transparentKey: transparentKey, resampling: resampling)
     }
 
     /// Pixel layers only, composited row by row in premultiplied floats.
-    private func compositePixels(_ stack: [Layer], onto base: PixelBuffer?, transparentKey: Pixel?) -> PixelBuffer {
+    private func compositePixels(_ stack: [Layer], onto base: PixelBuffer?, transparentKey: Pixel?, resampling: Resampling) -> PixelBuffer {
         let result = PixelBuffer(width: size.width, height: size.height)
         let floating = selection.floating
         let floatingPixels = floating.flatMap { floating in
-            stack.contains { $0.id == floating.layerID } ? floating.rendered(using: .nearestNeighbor, transparentKey: transparentKey) : nil
+            stack.contains { $0.id == floating.layerID } ? floating.rendered(using: resampling, transparentKey: transparentKey) : nil
         }
         let width = size.width
         // Rows are independent, so bands of them composite on all cores (NFR-6).
@@ -218,16 +219,17 @@ public final class Canvas {
                     let source = layer.buffer.row(y)
                     let opacity = Float(layer.opacity)
                     let mode = layer.blendMode
-                    for x in 0..<width {
-                        Compositing.blend(&row[x], source[x], opacity: opacity, mode: mode)
+                    // The floating selection's pixels over the layer's, as placing will make them.
+                    var floatingSpan = 0..<0
+                    var floatingRow: UnsafeMutablePointer<Pixel>?
+                    if let floating, let floatingPixels, floating.layerID == layer.id,
+                       y >= floating.destination.minY, y < floating.destination.maxY {
+                        floatingSpan = max(0, floating.destination.minX)..<min(width, floating.destination.maxX)
+                        floatingRow = floatingPixels.row(y - floating.destination.minY) - floating.destination.minX
                     }
-                    if let floating, let floatingPixels, floating.layerID == layer.id {
-                        let destination = floating.destination
-                        guard y >= destination.minY, y < destination.maxY else { continue }
-                        let floatingRow = floatingPixels.row(y - destination.minY)
-                        for x in max(0, destination.minX)..<min(width, destination.maxX) {
-                            Compositing.blend(&row[x], floatingRow[x - destination.minX], opacity: opacity, mode: mode)
-                        }
+                    for x in 0..<width {
+                        let pixel = floatingSpan.contains(x) ? Compositing.over(source[x], floatingRow![x]) : source[x]
+                        Compositing.blend(&row[x], pixel, opacity: opacity, mode: mode)
                     }
                 }
                 let target = result.row(y)
@@ -246,12 +248,12 @@ public final class Canvas {
 
     /// All visible layers composited bottom to top with their blend modes, in straight alpha, with any
     /// floating selection shown above its layer. This is what's exported.
-    public func flattened(transparentKey: Pixel? = nil) -> PixelBuffer {
+    public func flattened(transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) -> PixelBuffer {
         let visible = layers.filter { $0.isVisible && $0.opacity > 0 }
         if selection.floating == nil, visible.count == 1, visible[0].opacity >= 1 {
             return visible[0].buffer.copy()
         }
-        return composite(visible, transparentKey: transparentKey)
+        return composite(visible, transparentKey: transparentKey, resampling: resampling)
     }
 }
 

@@ -6,21 +6,23 @@ import Foundation
 struct SaveSnapshot: @unchecked Sendable {
     let canvas: ColorbeeCore.Canvas
     let transparentKey: Pixel?
+    /// How a stretched floating selection is drawn, as it will be placed (review F, finding 2).
+    let resampling: Resampling
     /// What formats without transparency are flattened over (Color 2).
     let matte: Pixel
 
     func encoded(as format: ImageFileFormat, quality: Double = 0.9, tiffLZW: Bool = false) throws -> Data {
-        try ImageCodec.encode(canvas.flattened(transparentKey: transparentKey), colorSpace: canvas.colorSpace, as: format, quality: quality,
+        try ImageCodec.encode(canvas.flattened(transparentKey: transparentKey, resampling: resampling), colorSpace: canvas.colorSpace, as: format, quality: quality,
                               matte: matte, tiffLZW: tiffLZW)
     }
 
     func encodedProject() throws -> Data {
-        try ProjectFile.encode(canvas, transparentKey: transparentKey)
+        try ProjectFile.encode(canvas, transparentKey: transparentKey, resampling: resampling)
     }
 
     /// A PNG scaled by an export preset, with the chosen scaling or the one that suits the image's size.
     func encoded(using preset: ExportPreset, scaling: Resampling? = nil) throws -> Data {
-        let image = canvas.flattened(transparentKey: transparentKey)
+        let image = canvas.flattened(transparentKey: transparentKey, resampling: resampling)
         let scaled = image.resampled(to: preset.targetSize(for: image.size), using: scaling ?? ExportPreset.resampling(for: image.size))
         return try ImageCodec.encode(scaled, colorSpace: canvas.colorSpace, as: .png)
     }

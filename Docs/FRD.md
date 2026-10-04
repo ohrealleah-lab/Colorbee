@@ -646,6 +646,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | From review F (Leah): a shape, text or paste that isn't placed yet looks exactly as it will once placed, including its layer's blend mode and opacity; placing changes nothing on screen. While typing, the canvas draws the text itself; the text box shows the caret and selection. |
 | 2026-10-04 | Auto-Redact, from review E (Leah): it redacts each item's box on **every layer** with pixels under it, as one step, whichever layer is active. If a **locked** layer has pixels under a box, nothing is redacted and the sheet names the layer to unlock. With a **selection**, every item that touches it is listed and redacted **whole**. Blur and Pixelate are as strong as each item's own text needs. While the sheet is open, menus are greyed out, and Apply refuses if the image changed since it was read. |
 | 2026-10-04 | Commands that change the active layer's pixels (effects, adjustments, Cut, Delete, Paste, Remove Background) are **greyed out** on a locked or adjustment layer, instead of beeping (Leah). Whole-image commands (crop, resize, rotate, straighten, perspective) stay available. |
 | 2026-10-04 | From the local sweeps after review round 1 (veto any): images over 30,000 px a side or 256 megapixels don't open, paste or drop ("too large to edit"), the same limits as Resize and new canvases. Export presets never make an image over 30,000 px a side. A custom crop ratio runs up to 1000:1. Cut on a locked layer beeps without copying anything. |

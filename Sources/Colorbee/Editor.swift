@@ -446,7 +446,7 @@ final class Editor {
     /// The image at the last explicit save, flattened the first time Before/After needs it.
     var lastSaved: PixelBuffer? {
         if lastSavedImage == nil, let snapshot = lastSavedSnapshot {
-            lastSavedImage = snapshot.canvas.flattened(transparentKey: snapshot.transparentKey)
+            lastSavedImage = snapshot.canvas.flattened(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling)
         }
         return lastSavedImage
     }
@@ -501,6 +501,7 @@ final class Editor {
         let selection: SelectionMask?
     }
     @ObservationIgnored private var shapeRenderCache: (spec: ShapeSpec, pixels: PixelBuffer, origin: IntPoint)?
+    @ObservationIgnored private var textRenderCache: (spec: TextSpec, pixels: PixelBuffer, origin: IntPoint)?
     /// Textured shapes take too long to draw on every drag event, so they're drawn in the background;
     /// these track the drawing under way and the newest spec waiting for it.
     @ObservationIgnored private var shapeRenderInFlight = false
@@ -1357,6 +1358,24 @@ final class Editor {
 
     func endTextBoxDrag() {
         textBoxDrag = nil
+    }
+
+    /// The text being typed, drawn by the renderer exactly as placing will draw it, so it sits in its layer at
+    /// the layer's blend mode and opacity (Leah; review F, finding 1). The text view shows only the caret
+    /// and selection.
+    func renderedPendingText() -> (pixels: PixelBuffer, origin: IntPoint)? {
+        guard let text = pendingText else {
+            textRenderCache = nil
+            return nil
+        }
+        let spec = textSpec(for: text)
+        if let cache = textRenderCache, cache.spec == spec { return (cache.pixels, cache.origin) }
+        guard let rendered = TextRenderer.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) else {
+            textRenderCache = nil
+            return nil
+        }
+        textRenderCache = (spec, rendered.pixels, rendered.origin)
+        return rendered
     }
 
     func updatePendingText(_ string: String) {
@@ -2712,7 +2731,7 @@ final class Editor {
         let saved = UnsafeTransfer(snapshot)
         Task { [weak self] in
             let image = await Task.detached(priority: .utility) {
-                UnsafeTransfer(saved.value.canvas.flattened(transparentKey: saved.value.transparentKey))
+                UnsafeTransfer(saved.value.canvas.flattened(transparentKey: saved.value.transparentKey, resampling: saved.value.resampling))
             }.value
             guard let self, self.lastSavedSnapshot?.canvas === saved.value.canvas, self.lastSavedImage == nil else { return }
             self.lastSavedImage = image.value
@@ -2740,7 +2759,7 @@ final class Editor {
     }
 
     private func snapshot(of canvas: ColorbeeCore.Canvas) -> SaveSnapshot {
-        SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, matte: color2)
+        SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, resampling: selectionContext.resampling, matte: color2)
     }
 
     /// More than one layer, or an adjustment layer: something only a project file can keep.

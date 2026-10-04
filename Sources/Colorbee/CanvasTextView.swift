@@ -2,7 +2,8 @@ import AppKit
 import ColorbeeCore
 
 /// The in-place editor for the text tool: a borderless text view laid over the canvas and scaled to its zoom.
-/// What's typed here is rasterized by `TextRenderer` when it's placed.
+/// It shows only the caret and selection: the canvas draws the text itself with `TextRenderer`, in its layer,
+/// as placing it will (review F, finding 1).
 final class CanvasTextView: NSTextView {
     var onCommit: () -> Void = {}
     /// Layout managers don't retain their storage, so the view has to.
@@ -52,7 +53,7 @@ final class CanvasTextView: NSTextView {
         }
         var attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: spec.color.nsColor(in: colorSpace),
+            .foregroundColor: NSColor.clear,
             .paragraphStyle: paragraph,
         ]
         if spec.underline { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }
@@ -61,12 +62,7 @@ final class CanvasTextView: NSTextView {
         typingAttributes = attributes
         textStorage?.setAttributes(attributes, range: NSRange(location: 0, length: textStorage?.length ?? 0))
         insertionPointColor = spec.color.nsColor(in: colorSpace)
-        if let background = spec.background {
-            drawsBackground = true
-            backgroundColor = background.nsColor(in: colorSpace)
-        } else {
-            drawsBackground = false
-        }
+        drawsBackground = false
     }
 
     /// Sizes the view to its text. `wrapWidth` and `boxWidth` (the width of the box that will be placed)

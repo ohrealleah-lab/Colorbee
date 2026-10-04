@@ -46,7 +46,7 @@ public enum ProjectFile {
     }
 
     /// Encodes `canvas`. A floating selection is stamped into a copy of its layer, so what's saved is what's seen.
-    public static func encode(_ canvas: Canvas, transparentKey: Pixel? = nil) throws -> Data {
+    public static func encode(_ canvas: Canvas, transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) throws -> Data {
         var blobs = Data()
         var entries: [LayerEntry] = []
         for layer in canvas.layers {
@@ -55,7 +55,7 @@ public enum ProjectFile {
                 var buffer = layer.buffer
                 if let floating = canvas.selection.floating, floating.layerID == layer.id {
                     buffer = buffer.copy()
-                    let pixels = floating.rendered(using: .nearestNeighbor, transparentKey: transparentKey)
+                    let pixels = floating.rendered(using: resampling, transparentKey: transparentKey)
                     let origin = IntPoint(x: floating.destination.minX, y: floating.destination.minY)
                     let area = IntRect(x: origin.x, y: origin.y, width: pixels.width, height: pixels.height).intersection(buffer.bounds)
                     for y in area.minY..<area.maxY {

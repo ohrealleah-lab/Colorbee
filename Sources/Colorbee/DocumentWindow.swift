@@ -34,7 +34,7 @@ final class DocumentWindow: NSWindow {
             ClipboardImage.copy(colorSpace: colorSpace) { pixels.value }
         } else {
             let snapshot = editor.saveSnapshot()
-            ClipboardImage.copy(colorSpace: colorSpace) { snapshot.canvas.flattened(transparentKey: snapshot.transparentKey) }
+            ClipboardImage.copy(colorSpace: colorSpace) { snapshot.canvas.flattened(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling) }
         }
     }
 

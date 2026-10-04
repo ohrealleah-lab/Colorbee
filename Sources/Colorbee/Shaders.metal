@@ -16,6 +16,7 @@ struct QuadUniforms {
     float4 adjustParams;  // the adjustment's settings (see Renderer.adjustmentUniforms)
     float adjustKind;     // 0 none, 1 invert, 2 desaturate, 3 brightness/contrast, 4 hue/saturation, 5 blur, 6 sharpen
     float4 photoParams;   // Adjust Photo's vignette (x)
+    float smooth;         // 1 when layers are sampled smoothly (zoomed out, or a stretched selection)
 };
 
 struct QuadOut {
@@ -47,12 +48,32 @@ vertex QuadOut line_vertex(uint vid [[vertex_id]], constant QuadUniforms &u [[bu
     return out;
 }
 
+// Layer pixels are stored with straight alpha. Smooth sampling mixes them premultiplied, so the color
+// kept in fully transparent pixels can't bleed into the edges as a fringe (review F, finding 3).
+// Returns straight alpha, like a plain sample.
+static float4 sampleLayer(texture2d<float> layer, sampler layerSampler, float2 uv, float smooth) {
+    if (smooth < 0.5) return layer.sample(layerSampler, uv);
+    float2 size = float2(layer.get_width(), layer.get_height());
+    float2 position = uv * size - 0.5;
+    float2 f = fract(position);
+    int2 base = int2(floor(position));
+    int2 last = int2(size) - 1;
+    float4 taps[4];
+    const int2 offsets[4] = { {0, 0}, {1, 0}, {0, 1}, {1, 1} };
+    for (int i = 0; i < 4; i++) {
+        float4 texel = layer.read(uint2(clamp(base + offsets[i], int2(0), last)));
+        taps[i] = float4(texel.rgb * texel.a, texel.a);
+    }
+    float4 mixed = mix(mix(taps[0], taps[1], f.x), mix(taps[2], taps[3], f.x), f.y);
+    return mixed.a > 0 ? float4(mixed.rgb / mixed.a, mixed.a) : float4(0);
+}
+
 // Layer pixels are stored with straight alpha; premultiply here for blending.
 fragment float4 layer_fragment(QuadOut in [[stage_in]],
                                texture2d<float> layer [[texture(0)]],
                                sampler layerSampler [[sampler(0)]],
                                constant QuadUniforms &u [[buffer(0)]]) {
-    float4 color = layer.sample(layerSampler, in.uv);
+    float4 color = sampleLayer(layer, layerSampler, in.uv, u.smooth);
     if (u.keyEnabled > 0.5 && color.a > 0 && all(abs(color.rgb - u.keyColor.rgb) < 0.5 / 255.0)) {
         discard_fragment();
     }
@@ -157,6 +178,17 @@ static float3 blendColor(int mode, float3 b, float3 s) {
     }
 }
 
+// A straight color at `sourceAlpha`, blended in `mode` onto the premultiplied backdrop (Compositing.blend).
+static float4 blendOnto(float4 backdrop, float3 color, float sourceAlpha, int mode) {
+    float backdropAlpha = backdrop.a;
+    float3 blended = color;
+    if (mode != 0 && backdropAlpha > 0) {
+        float3 b = backdrop.rgb / backdropAlpha;
+        blended = (1 - backdropAlpha) * color + backdropAlpha * blendColor(mode, b, color);
+    }
+    return float4(sourceAlpha * blended + (1 - sourceAlpha) * backdrop.rgb, sourceAlpha + backdropAlpha * (1 - sourceAlpha));
+}
+
 // Composites a straight-alpha layer onto the premultiplied layers already drawn beneath it, read
 // straight from the render target (Apple GPUs allow this without a second texture).
 fragment float4 blend_layer_fragment(QuadOut in [[stage_in]],
@@ -164,20 +196,24 @@ fragment float4 blend_layer_fragment(QuadOut in [[stage_in]],
                                      sampler layerSampler [[sampler(0)]],
                                      constant QuadUniforms &u [[buffer(0)]],
                                      float4 backdrop [[color(0)]]) {
-    float4 color = layer.sample(layerSampler, in.uv);
+    float4 color = sampleLayer(layer, layerSampler, in.uv, u.smooth);
     if (u.keyEnabled > 0.5 && color.a > 0 && all(abs(color.rgb - u.keyColor.rgb) < 0.5 / 255.0)) {
         discard_fragment();
     }
     float sourceAlpha = color.a * u.opacity;
     if (sourceAlpha <= 0) discard_fragment();
-    float backdropAlpha = backdrop.a;
-    float3 blended = color.rgb;
-    int mode = int(u.blendMode + 0.5);
-    if (mode != 0 && backdropAlpha > 0) {
-        float3 b = backdrop.rgb / backdropAlpha;
-        blended = (1 - backdropAlpha) * color.rgb + backdropAlpha * blendColor(mode, b, color.rgb);
-    }
-    return float4(sourceAlpha * blended + (1 - sourceAlpha) * backdrop.rgb, sourceAlpha + backdropAlpha * (1 - sourceAlpha));
+    return blendOnto(backdrop, color.rgb, sourceAlpha, int(u.blendMode + 0.5));
+}
+
+// A layer with its floating selection or pending shape already drawn in (premultiplied, at the drawable's
+// pixels), blended at the layer's mode and opacity, as it will look once placed (review F, finding 1).
+fragment float4 blend_isolated_fragment(QuadOut in [[stage_in]],
+                                        texture2d<float> isolated [[texture(0)]],
+                                        constant QuadUniforms &u [[buffer(0)]],
+                                        float4 backdrop [[color(0)]]) {
+    float4 premultiplied = isolated.read(uint2(in.position.xy));
+    if (premultiplied.a <= 0) discard_fragment();
+    return blendOnto(backdrop, premultiplied.rgb / premultiplied.a, premultiplied.a * u.opacity, int(u.blendMode + 0.5));
 }
 
 // The composited layers, already premultiplied, drawn 1:1 over the checkerboard.

@@ -138,6 +138,24 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - Subject (on-device Vision): Remove Background, Select Subject.
 - The photo adjustments, Adjust Photo and filters also come as adjustment layers. Clean Up is out of scope.
 
+## Open problems (found 2026-10-03 night, not yet fixed)
+
+The 30-minute 8000×8000 soak (NFR-7, AC-27) ran 53 rounds with no crash, but failed two ways
+(full log: `build/soak-results.txt`, not committed):
+
+1. **Redo isn't always exact (correctness, fix first).** In 4 of 53 rounds, undo-all restored the original
+   exactly, but redo-all didn't reproduce the final image. Likely cause: when a geometry step (crop, resize,
+   Drop Shadow growth, straighten, perspective) is spilled, `History.load` makes *new* buffer objects for
+   it, while later layer steps still hold the *old* objects; redoing such a layer step restores the old
+   buffer, without the edits made after the geometry step. Likely fix: spill geometry buffers the way
+   history-only layers are evicted (`evictLayers`/`restore`: keep the same objects, `discardContents`, read
+   back in place) and drop `GeometryChange.spillLocations`. Write a small failing test first: geometry step,
+   layer step, tile edits, a budget small enough to spill the geometry step, undo all, redo all.
+2. **Undo and redo over 1 s at 8000×8000 (228 of the steps; average 1.25 s, worst 2.5 s).** Mostly reading
+   back several evicted 256 MB layers. Review A's fix 3 also hashes a whole layer on every read-back
+   (`diskCopies`), which adds time; consider hashing lazily (only when the layer is evicted again) or
+   tracking writes instead. Then re-run `make perf` and the soak.
+
 ## Not yet checked by hand
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 

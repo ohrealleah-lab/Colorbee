@@ -160,7 +160,7 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
-**Round 3 fixes (reviews H, I and J, 2026-10-04), not yet tried by hand.** Details in `Docs/Review/RESULTS.md`.
+**Round 3 fixes (reviews H, I and J, 2026-10-04): all 33 steps, and 11a, passed Leah's hand test on 2026-10-04.** Details in `Docs/Review/RESULTS.md`.
 Test images: the review ones in `~/Downloads/colorbee tests/` (E1 Screenshot.png, E3 Mixed Text Sizes.png,
 E5 Tall Scroll.png, E5 Transparent Background.png, catslap.gif), plus three new ones in `TestImages/Round 3/`
 (Sideways Photo.jpg, Deep 16-bit.png, Two Pages.tiff).

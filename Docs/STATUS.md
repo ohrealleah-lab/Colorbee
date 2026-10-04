@@ -152,15 +152,53 @@ Needs one more soak (with Leah's OK, about 35 minutes, the Mac left alone) befor
 
 ## Not yet checked by hand
 
-**Round 3 fixes (reviews H, I and J, 2026-10-04), not yet tried by hand.** See `Docs/Review/RESULTS.md`. Most worth trying:
-- Save a redacted file: the earlier-versions warning. Paste a screenshot (⇧⌘V), Auto-Redact: the offer to remove it from Clipboard History. Right-click a Clipboard History item: Remove.
-- Batch Redact with an empty layer active: the layer below is redacted.
-- File ▸ Revert To Saved: the window shows and keeps editing the reverted image.
-- Open an animated GIF: an untitled copy with the frame bar; Choose Frame…. An iPhone portrait photo opens upright.
-- Symmetry with the round brush and the eraser near the center line; the Color Eraser tolerance; Sample All Layers.
-- ⌘V, then W or P from the keyboard: the tool changes. ⌘⌫ while typing text deletes text.
-- Settings ▸ Shortcuts: give Undo ⌘I, give Pencil Space, clear ⌘Z.
-- Quit and relaunch with a zoomed-in window and History open: they come back.
+**Round 3 fixes (reviews H, I and J, 2026-10-04), not yet tried by hand.** Details in `Docs/Review/RESULTS.md`.
+Test images: the review ones in `~/Downloads/colorbee tests/` (E1 Screenshot.png, E3 Mixed Text Sizes.png,
+E5 Tall Scroll.png, E5 Transparent Background.png, catslap.gif), plus three new ones in `TestImages/Round 3/`
+(Sideways Photo.jpg, Deep 16-bit.png, Two Pages.tiff).
+
+*Privacy and redaction*
+1. **Earlier versions warning.** Duplicate E1 Screenshot.png in Finder and open the copy. Effects ▸ Auto-Redact…, Solid Fill, Apply, then ⌘S. Expect a message that earlier versions still show what you redacted, with Keep and Remove buttons. Choose Remove, then File ▸ Revert To: no unredacted version is offered.
+2. **Clipboard History offer.** Open E1 Screenshot.png in Preview, ⌘A, ⌘C. In Colorbee, ⇧⌘V. Auto-Redact with Solid Fill, Apply. Expect "Remove the unredacted image from Clipboard History?" with Remove highlighted. Choose Remove: the screenshot is gone from the Clipboard History panel (⌥⌘V).
+3. **Remove one item.** In the Clipboard History panel, right-click (or Control-click) a thumbnail ▸ Remove. Only that one goes.
+4. **Batch Redact on every layer.** Open E1 Screenshot.png. Layer ▸ New Layer (it's empty and active). Marquee around the email, then Effects ▸ Batch Redact ▸ Solid Fill with Color 1. Expect the email covered. Undo, then try Batch Redact ▸ Pixelate…: the bar says "Redacts every layer in the selection", and Apply pixelates the email.
+5. **Locked layer.** Same image, lock the Background layer, then Batch Redact ▸ Solid Fill. Expect a message naming "Background" and nothing changed.
+6. **Visible layers note.** With two layers, open Auto-Redact: the sheet says only visible layers were checked.
+
+*Drawing*
+7. **Wand with a floating paste.** File ▸ New. Copy E1 Screenshot.png (from Preview) and ⌘V. Press W. Click the white area away from the paste. Expect the white selected with the outline going around the paste. Press Delete: the paste stays.
+8. **Tool keys after a paste.** ⌘V any image, then press P, then W, then B: each switches the tool, with no beep.
+9. **Symmetry overlap.** File ▸ New, Canvas Properties 20 × 20, zoom to 3200%, Pixel Grid on. Symmetry: Vertical, round brush size 9, black. Click just left of the center line. Expect one solid black blob, the same on both sides.
+10. **Symmetry eraser.** Fill the 20 × 20 canvas black. Eraser size 4, Symmetry: Vertical. Click in the middle of column 5. Expect the two erased squares to mirror each other exactly (3 black columns at each edge).
+11. **Color Eraser tolerance.** Choose the Eraser: the palette bar shows "Color Eraser tolerance". Type black text and place it, set the tolerance to 30%, right-drag over the text with Color 1 black and Color 2 white: the gray edges go too.
+12. **Sample All Layers.** Open E1 Screenshot.png, Layer ▸ New Layer. Fill tool, turn on Sample All Layers, click inside a box in the screenshot: only that box's shape fills, on the new layer. Same idea with the Magic Wand's Sample All Layers.
+13. **Eyedropper as shown.** On a white image, Layer ▸ New Adjustment Layer ▸ Invert. Eyedropper, Option-click: Color 1 becomes black.
+14. **Shift marquee.** At 3200%, Rectangle Select with Shift from the corner of a pixel: the status bar always shows N × N.
+15. **Huge handle drag.** Open any image, zoom to 12.5%, select 200 × 200 and drag it so it floats. Drag a corner handle to the far screen corner, release, press Return: no long freeze.
+16. **[ and ] with Shapes.** Shapes tool, press ] three times: the Size shown goes up by 3.
+
+*Documents*
+17. **Revert To Saved.** Open a copy of Stage 5a Practice.png, draw a red line, ⌘S, draw a blue line. File ▸ Revert To Saved: the blue line disappears from the screen. Draw a green line, close (it asks to save), choose Save, reopen: red and green, no blue.
+18. **Animated GIF.** Open catslap.gif. Expect an untitled copy ("catslap — Edited") with a bar: "This GIF has N frames · Showing frame 1 · Choose Frame…". Choose Frame…, click frame 5: it shows frame 5. Draw something, then Choose Frame… again and pick another: it asks before discarding. The original file is untouched.
+19. **Two-page TIFF.** Open TestImages/Round 3/Two Pages.tiff: the bar says pages, and Choose Page… shows two.
+20. **16-bit image.** Open TestImages/Round 3/Deep 16-bit.png: it opens as an untitled copy, so saving asks where.
+21. **Sideways photo.** Open TestImages/Round 3/Sideways Photo.jpg: the word "UP" reads upright, and the arrow points up.
+22. **Paste into New Image is kept safe.** ⇧⌘V a screenshot, then ⌘W: it asks whether to save.
+23. **⌘⌫ while typing.** Layer ▸ New Layer, Text tool, type "hello world", press ⌘⌫: the text is deleted, the layer stays.
+24. **Menus behind dialogs.** Select an area, Image ▸ Resize and Skew…; with it open, the Edit menu's Deselect is greyed out.
+25. **Panels.** ⌘L to show Layers, ⌘Y to show History, then ⌘L again: History stays open.
+26. **⌘Z on a shape.** New document, draw a rectangle without placing it: Edit ▸ Undo reads "Undo Shape", and ⌘Z removes it.
+27. **Relaunch.** Open Stage 5a Practice.png, add a layer (it becomes a project), zoom to 200%, open History. Quit and relaunch: same title, zoom and panels.
+28. **A damaged file.** Make a copy of any text file and rename it "broken.png". File ▸ Open it: a plain message, not an error code. Drag it onto the gray area: the same message.
+
+*Shortcuts (Settings ▸ Shortcuts)*
+29. Click Undo's ⌘Z, press ⌘I: the message says ⌘Z is Undo's standard shortcut and that Invert Colors will lose ⌘I.
+30. Click Pencil's P, press Space: refused ("kept by the canvas").
+31. Click Undo's ⌘Z, press Delete: it asks before clearing.
+32. Change Pencil to Q, then hover over the Pencil in the toolbar: the tooltip says (Q). Reset All afterwards.
+
+*Speed (AC-27)*
+33. **Flatten.** Open Stage 6b Practice.colorproj (or any image with several layers), Image ▸ Flatten, then ⌘Z: both are quick, and the undo brings every layer back exactly.
 
 Earlier: the cloud review fixes (rounds 1 and 2, `Docs/Review/RESULTS.md`), the greyed-out
 pixel commands, the shape colour swatches and layer dragging were tested by hand by Leah on 2026-10-04.

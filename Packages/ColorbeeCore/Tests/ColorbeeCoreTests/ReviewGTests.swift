@@ -62,3 +62,45 @@ struct ReviewGTests {
         #expect(canvas.activeLayer.buffer.isUntouched)
     }
 }
+
+/// Leah's crash on 2026-10-04: Delete with a marquee reaching past the canvas wrote outside the layer.
+struct SelectionPastTheEdgeTests {
+    @Test func deletingAMarqueeThatReachesPastTheCanvasOnlyChangesTheCanvas() throws {
+        let canvas = Canvas(size: IntSize(width: 16, height: 16), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: 512 << 20)
+        let wide = IntRect(x: 10, y: 10, width: 12, height: 12)
+        let mask = SelectionMask(bounds: wide, values: [UInt8](repeating: 255, count: wide.area))
+        canvas.selection = .marquee(mask)
+        SelectionActions.deleteSelection(canvas: canvas, history: history, context: SelectionContext(color2: Pixel(r: 1, g: 2, b: 3)))
+        #expect(canvas.layers[0].buffer.row(15)[15] == Pixel(r: 1, g: 2, b: 3))
+        #expect(canvas.layers[0].buffer.row(9)[9] == .white)
+        history.undo(on: canvas)
+        #expect(canvas.layers[0].buffer.row(15)[15] == .white)
+    }
+}
+
+extension SelectionPastTheEdgeTests {
+    @Test(arguments: [-40, 40])
+    func aPasteEntirelyOffTheCanvasStillFlattens(x: Int) {
+        let canvas = Canvas(size: IntSize(width: 16, height: 16), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: 512 << 20)
+        SelectionActions.paste(PixelBuffer(width: 4, height: 4, fill: .black), at: IntPoint(x: x, y: 4), canvas: canvas, history: history,
+                               context: SelectionContext(color2: .white))
+        // Held in a variable: a row pointer must not outlive its buffer.
+        let flattened = canvas.flattened()
+        #expect(flattened.row(5)[5] == .white)
+    }
+}
+
+extension SelectionPastTheEdgeTests {
+    @Test func addingToAPasteHangingOffTheCanvasSelectsOnlyTheCanvas() throws {
+        let canvas = Canvas(size: IntSize(width: 16, height: 16), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: 512 << 20)
+        let context = SelectionContext(color2: .white)
+        SelectionActions.paste(PixelBuffer(width: 8, height: 8, fill: .black), at: IntPoint(x: 12, y: 12), canvas: canvas, history: history, context: context)
+        SelectionActions.select(.rectangle(IntRect(x: 0, y: 0, width: 4, height: 4), clippedTo: canvas.bounds), mode: .add,
+                                canvas: canvas, history: history, context: context)
+        let mask = try #require(canvas.selection.marquee)
+        #expect(canvas.bounds.contains(mask.bounds))
+    }
+}

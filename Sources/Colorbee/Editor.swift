@@ -747,7 +747,12 @@ final class Editor {
     private func placeFloatingKeepingOutline() {
         guard let outline = canvas.selection.outline, canvas.selection.floating != nil else { return }
         placeFloatingSelection()
-        canvas.selection = .marquee(outline)
+        // The paste may hang past the canvas; the outline kept is only the part on it (Leah's crash, 2026-10-04).
+        if let clipped = SelectionMask.combine(outline, with: .rectangle(canvas.bounds, clippedTo: canvas.bounds), mode: .intersect) {
+            canvas.selection = .marquee(clipped)
+        } else {
+            canvas.selection = .none
+        }
         selectionDidChange()
     }
 
@@ -2612,7 +2617,9 @@ final class Editor {
         finishInteractions()
         placeFloatingKeepingOutline()
         let region = canvas.selection.marquee
-        let area = region?.bounds ?? canvas.bounds
+        // A selection can reach past the canvas; only the canvas is read (Leah's crash, 2026-10-04).
+        let area = (region?.bounds ?? canvas.bounds).intersection(canvas.bounds)
+        guard !area.isEmpty else { return onRefused() }
         let session = AutoRedactSession(region: region, revision: history.revision, canvasSize: canvas.size)
         autoRedact = session
         onRender()

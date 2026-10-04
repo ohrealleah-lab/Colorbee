@@ -51,7 +51,10 @@ public enum SelectionActions {
     public static func select(_ mask: SelectionMask?, mode: SelectionCombineMode, canvas: Canvas, history: History, context: SelectionContext) {
         let existing = canvas.selection.outline
         placeFloating(canvas: canvas, history: history, context: context)
-        canvas.selection = SelectionMask.combine(existing, with: mask, mode: mode).map(SelectionState.marquee) ?? .none
+        // A floating paste's outline can hang past the canvas; a selection never does (Leah's crash, 2026-10-04).
+        let combined = SelectionMask.combine(existing, with: mask, mode: mode)
+        let clipped = combined.flatMap { SelectionMask.combine($0, with: .rectangle(canvas.bounds, clippedTo: canvas.bounds), mode: .intersect) }
+        canvas.selection = clipped.map(SelectionState.marquee) ?? .none
     }
 
     public static func selectAll(canvas: Canvas, history: History, context: SelectionContext) {
@@ -200,10 +203,14 @@ public enum SelectionActions {
         case .marquee(let mask):
             let layer = canvas.activeLayer
             let fill = canvas.vacatedFill(for: layer, color2: context.color2)
-            edit.willModify(mask.bounds, in: layer)
-            for y in mask.bounds.minY..<mask.bounds.maxY {
+            // A marquee can reach past the canvas (a placed paste's outline); only the layer's pixels change
+            // (Leah's crash, 2026-10-04).
+            let area = mask.bounds.intersection(layer.buffer.bounds)
+            guard !area.isEmpty else { return false }
+            edit.willModify(area, in: layer)
+            for y in area.minY..<area.maxY {
                 let row = layer.buffer.row(y)
-                for x in mask.bounds.minX..<mask.bounds.maxX where mask[x, y] > 0 {
+                for x in area.minX..<area.maxX where mask[x, y] > 0 {
                     row[x] = fill
                 }
             }

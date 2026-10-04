@@ -178,7 +178,8 @@ final class HistoryEntry {
 /// Linear undo/redo with no step limit. Entries hold tile pre-images; once they use more memory
 /// than `byteBudget`, the entries furthest from the present are compressed to a scratch file.
 public final class History {
-    public let byteBudget: Int
+    /// A parked page's history keeps less in memory (FR-11.6); `keepWithinBudget` applies a lower one at once.
+    public var byteBudget: Int
     /// Bytes of pixel data history holds in memory: tile pre-images, replaced buffers, and layers that
     /// only undo or redo can bring back.
     public var byteCount: Int { tileBytes + layerBytes }
@@ -238,6 +239,11 @@ public final class History {
 
     public init(byteBudget: Int) {
         self.byteBudget = byteBudget
+    }
+
+    /// Moves steps out of memory until history fits `byteBudget`, as it does after each step.
+    public func keepWithinBudget(canvas: Canvas) {
+        spillToBudget(canvas: canvas)
     }
 
     public var canUndo: Bool { !undoStack.isEmpty }

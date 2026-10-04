@@ -259,6 +259,25 @@ public final class Canvas {
     }
 
 
+    /// One pixel of the visible layers as they look together: blend modes, opacity and adjustment layers
+    /// included, for the Eyedropper's Option-click (review I, finding 8). Blur and Sharpen adjustments, which
+    /// need the neighbors, see just this pixel.
+    public func pixelAsShown(at point: IntPoint) -> Pixel? {
+        guard bounds.contains(point) else { return nil }
+        let one = layers.filter { $0.isVisible && $0.opacity > 0 }.map { layer -> Layer in
+            let buffer = PixelBuffer(width: 1, height: 1)
+            if layer.adjustment == nil { buffer.row(0)[0] = layer.buffer.row(point.y)[point.x] }
+            let copy = Layer(name: layer.name, buffer: buffer, id: layer.id)
+            copy.opacity = layer.opacity
+            copy.blendMode = layer.blendMode
+            copy.adjustment = layer.adjustment
+            return copy
+        }
+        let shown = Canvas(colorSpace: colorSpace, layers: one.isEmpty ? [Layer(name: "Empty", buffer: PixelBuffer(width: 1, height: 1))] : one,
+                           hasTransparentBackground: true).flattened()
+        return shown.row(0)[0]
+    }
+
     /// Each pixel layer's buffer as a save writes it: a floating selection is drawn into a copy of its layer, so
     /// a project, and Revert Layer, get the layer as the screen shows it (review G, finding 3). Other buffers
     /// are the layers' own.

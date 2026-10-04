@@ -41,21 +41,25 @@ public enum Gradients {
         let unitX = dx / length, unitY = dy / length
 
         edit.willModify(region, in: layer)
-        for y in region.minY..<region.maxY {
-            let row = layer.buffer.row(y)
-            let py = Double(y) + 0.5 - start.y
-            for x in region.minX..<region.maxX where selection.map({ $0[x, y] > 0 }) ?? true {
-                let px = Double(x) + 0.5 - start.x
-                let along = px * unitX + py * unitY
-                let across = px * -unitY + py * unitX
-                let t: Double = switch mode {
-                case .linear: along / length
-                case .reflected: abs(along) / length
-                case .radial: (px * px + py * py).squareRoot() / length
-                case .diamond: (abs(along) + abs(across)) / length
-                case .conical: (atan2(across, along) + .pi) / (2 * .pi)
+        let buffer = layer.buffer
+        // Rows on all cores; each band writes only its own rows (review I, finding 12).
+        ParallelRows.forEach(region.minY..<region.maxY) { rows in
+            for y in rows {
+                let row = buffer.row(y)
+                let py = Double(y) + 0.5 - start.y
+                for x in region.minX..<region.maxX where selection.map({ $0[x, y] > 0 }) ?? true {
+                    let px = Double(x) + 0.5 - start.x
+                    let along = px * unitX + py * unitY
+                    let across = px * -unitY + py * unitX
+                    let t: Double = switch mode {
+                    case .linear: along / length
+                    case .reflected: abs(along) / length
+                    case .radial: (px * px + py * py).squareRoot() / length
+                    case .diamond: (abs(along) + abs(across)) / length
+                    case .conical: (atan2(across, along) + .pi) / (2 * .pi)
+                    }
+                    row[x] = Compositing.over(row[x], mix(startColor, endColor, min(1, max(0, t))))
                 }
-                row[x] = Compositing.over(row[x], mix(startColor, endColor, min(1, max(0, t))))
             }
         }
         return region

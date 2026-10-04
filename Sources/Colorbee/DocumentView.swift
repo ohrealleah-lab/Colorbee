@@ -106,14 +106,24 @@ private struct ToolOptions: View {
         case .brush:
             hint("\(editor.brush.name) · Shift has no effect · pressure \(editor.usesPressure ? "on" : "off")")
         case .eraser:
-            hint("Right-drag replaces only Color 1 with Color 2 · [ and ] change the size")
+            Text("Color Eraser tolerance")
+            Slider(value: $editor.colorEraserTolerance, in: 0...1)
+                .frame(width: 100)
+                .accessibilityLabel("Color Eraser tolerance")
+            Text("\(Int((editor.colorEraserTolerance * 100).rounded()))%")
+                .monospacedDigit()
+                .frame(width: 36, alignment: .trailing)
+            hint("Right-drag replaces Color 1 with Color 2 · [ and ] change the size")
         case .fill:
             Text("Tolerance")
             Slider(value: $editor.fillTolerance, in: 0...1)
                 .frame(width: 120)
+                .accessibilityLabel("Fill tolerance")
             Text("\(Int((editor.fillTolerance * 100).rounded()))%")
                 .monospacedDigit()
                 .frame(width: 36, alignment: .trailing)
+            Toggle("Sample All Layers", isOn: $editor.fillSamplesAllLayers)
+                .help("Find the area to fill in all visible layers together, and fill it on this layer")
         case .eyedropper:
             hint("Click: Color 1 · Right-click: Color 2 · Option: all layers")
             Button("Add Color 1 to Custom Colors") { CustomColors.shared.add(editor.color1) }
@@ -139,6 +149,8 @@ private struct ToolOptions: View {
                 .frame(width: 36, alignment: .trailing)
             Toggle("Contiguous", isOn: $editor.wandContiguous)
                 .help("Contiguous selects only the connected area; off selects every matching pixel")
+            Toggle("Sample All Layers", isOn: $editor.wandSamplesAllLayers)
+                .help("Select by the colors of all visible layers together, not just this layer")
             selectionOptions
         case .rectangleSelect, .ellipseSelect, .lassoSelect:
             selectionOptions

@@ -57,6 +57,15 @@ public enum SelectionHandle: CaseIterable, Sendable {
                 maxX = centerX + newWidth / 2
             }
         }
+        // No bigger than Colorbee edits; the side being dragged gives way (review I, finding 7).
+        let limit = Double(ResizeSkew.maxSide)
+        var scale = min(1, limit / (maxX - minX), limit / (maxY - minY))
+        scale = min(scale, (Double(ResizeSkew.maxArea) / ((maxX - minX) * (maxY - minY))).squareRoot())
+        if scale < 1 {
+            let width = (maxX - minX) * scale, height = (maxY - minY) * scale
+            if movesLeft { minX = maxX - width } else { maxX = minX + width }
+            if movesTop { minY = maxY - height } else { maxY = minY + height }
+        }
         let x = Int(minX.rounded()), y = Int(minY.rounded())
         return IntRect(x: x, y: y, width: max(1, Int(maxX.rounded()) - x), height: max(1, Int(maxY.rounded()) - y))
     }

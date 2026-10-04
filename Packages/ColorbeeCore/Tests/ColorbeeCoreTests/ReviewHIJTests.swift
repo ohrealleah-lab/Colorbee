@@ -126,3 +126,100 @@ struct DecodingTests {
         #expect(ImageCodec.frameThumbnails(data, maxSide: 32).count == 2)
     }
 }
+
+/// I4 and I5: Symmetry's mirrored strokes.
+struct SymmetryStrokeTests {
+    private func whiteLayer() -> (Canvas, Edit) {
+        let canvas = Canvas(size: IntSize(width: 20, height: 20), colorSpace: Canvas.defaultColorSpace, background: .white)
+        return (canvas, History(byteBudget: .max).beginEdit("Stroke", on: canvas))
+    }
+
+    /// I4: where a stroke and its mirror overlap, neither overwrites the other's paint.
+    @Test func mirroredBrushDabsOverlapCleanly() {
+        let (canvas, edit) = whiteLayer()
+        let layer = canvas.layers[0]
+        let first = Brush.round.makeStroke(diameter: 9, color: .black, layer: layer, edit: edit)
+        let mirror = Brush.round.makeStroke(diameter: 9, color: .black, layer: layer, edit: edit, sharingPainterWith: first)
+        first.move(to: Point2D(x: 8.5, y: 10.5))
+        mirror.move(to: Point2D(x: 11.5, y: 10.5))
+        for y in 0..<20 {
+            for x in 0..<10 { #expect(layer.buffer.row(y)[x] == layer.buffer.row(y)[19 - x], "(\(x), \(y))") }
+        }
+        #expect(layer.buffer.row(13)[8] == .black)
+    }
+
+    /// I5: an even-sized eraser square is mirrored as a square of pixels, not by its pointer.
+    @Test(arguments: [4, 5, 8])
+    func mirroredEraserSquaresAreExactReflections(size: Int) {
+        let (canvas, edit) = whiteLayer()
+        let layer = canvas.layers[0]
+        let mirror = StrokeMirror(canvasSize: canvas.size, flipsX: true, flipsY: false)
+        let first = EraserStroke(size: size, effect: .replace(.black), layer: layer, edit: edit)
+        let second = EraserStroke(size: size, effect: .replace(.black), layer: layer, edit: edit, mirror: mirror, sharingPainterWith: first)
+        for stroke in [first, second] { stroke.move(to: Point2D(x: 5.5, y: 10.5)) }
+        for x in 0..<10 { #expect(layer.buffer.row(10)[x] == layer.buffer.row(10)[19 - x], "size \(size), x \(x)") }
+    }
+}
+
+/// Leah's decision on review I's question: Fill and the wand can look at all layers together.
+struct SampleAllLayersTests {
+    @Test func fillCanFindItsAreaInTheLayersBelow() throws {
+        let canvas = Canvas(size: IntSize(width: 10, height: 10), colorSpace: Canvas.defaultColorSpace, background: .white)
+        canvas.layers[0].buffer.fill(Pixel(r: 255, g: 0, b: 0), in: IntRect(x: 2, y: 2, width: 4, height: 4))
+        let history = History(byteBudget: 512 << 20)
+        LayerActions.add(canvas: canvas, history: history, context: SelectionContext(color2: .white))
+        let edit = history.beginEdit("Fill", on: canvas)
+        let flattened = canvas.flattened()
+        FloodFill.fill(layer: canvas.activeLayer, at: IntPoint(x: 3, y: 3), with: .black, tolerance: 0, selection: nil, edit: edit, sampling: flattened)
+        #expect(canvas.activeLayer.buffer.row(3)[3] == .black)
+        #expect(canvas.activeLayer.buffer.row(0)[0] == .clear)
+        let wand = try #require(SelectionMask.magicWand(in: flattened, at: IntPoint(x: 3, y: 3), tolerance: 0, contiguous: true))
+        #expect(wand.bounds == IntRect(x: 2, y: 2, width: 4, height: 4))
+    }
+}
+
+/// I8: Option-click with the Eyedropper picks the color shown, blend modes and adjustment layers included.
+struct ShownPixelTests {
+    @Test func anInvertLayerOverWhiteShowsBlack() {
+        let canvas = Canvas(size: IntSize(width: 4, height: 4), colorSpace: Canvas.defaultColorSpace, background: .white)
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: History(byteBudget: .max), context: SelectionContext(color2: .white))
+        #expect(canvas.pixelAsShown(at: IntPoint(x: 1, y: 1)) == .black)
+    }
+
+    @Test func aMultiplyLayerIsBlended() {
+        let canvas = Canvas(size: IntSize(width: 4, height: 4), colorSpace: Canvas.defaultColorSpace, background: Pixel(r: 0, g: 0, b: 255))
+        LayerActions.add(canvas: canvas, history: History(byteBudget: .max), context: SelectionContext(color2: .white))
+        canvas.activeLayer.buffer.fill(Pixel(r: 255, g: 0, b: 0), in: canvas.bounds)
+        canvas.activeLayer.blendMode = .multiply
+        let flattened = canvas.flattened()
+        #expect(canvas.pixelAsShown(at: IntPoint(x: 2, y: 2)) == flattened.row(2)[2])
+    }
+}
+
+/// I7, I11 and I13: selection and shape geometry.
+struct SelectionGeometryTests {
+    /// I13: a Shift-constrained marquee is square in pixels, wherever the drag starts within a pixel.
+    @Test func aConstrainedMarqueeIsSquareInPixels() throws {
+        let bounds = IntRect(x: 0, y: 0, width: 100, height: 100)
+        for (start, end) in [((0.9, 0.1), (3.0, 2.0)), ((5.2, 5.9), (9.7, 7.1)), ((10.0, 10.0), (4.4, 2.2))] {
+            let mask = try #require(SelectionActions.marquee(.rectangle, from: Point2D(x: start.0, y: start.1), to: Point2D(x: end.0, y: end.1),
+                                                             constrain: true, in: bounds))
+            #expect(mask.bounds.width == mask.bounds.height, "\(start) → \(end): \(mask.bounds)")
+        }
+    }
+
+    /// I7: dragging a handle can't make a selection bigger than Colorbee edits.
+    @Test func aHandleDragIsLimitedToAnEditableSize() {
+        let rect = SelectionHandle.bottomRight.resize(IntRect(x: 0, y: 0, width: 200, height: 200), by: Point2D(x: 90_000, y: 90_000), keepProportions: false)
+        #expect(rect.width <= ResizeSkew.maxSide && rect.height <= ResizeSkew.maxSide && rect.width * rect.height <= ResizeSkew.maxArea)
+    }
+
+    /// I11: every shape's painted area holds all of its outline.
+    @Test(arguments: ShapeKind.allCases.filter(\.isBoxShape))
+    func paintedBoundsHoldTheWholeShape(kind: ShapeKind) {
+        let spec = ShapeSpec(kind: kind, start: Point2D(x: 100, y: 100), end: Point2D(x: 700, y: 700), lineWidth: 4, outline: .black, fill: nil)
+        let path = ShapePaths.path(kind, in: CGRect(x: 100, y: 100, width: 600, height: 600)).boundingBoxOfPath.insetBy(dx: -2, dy: -2)
+        let painted = spec.paintedBounds
+        #expect(Double(painted.minX) <= path.minX && Double(painted.maxX) >= path.maxX && Double(painted.minY) <= path.minY && Double(painted.maxY) >= path.maxY, "\(kind)")
+    }
+}

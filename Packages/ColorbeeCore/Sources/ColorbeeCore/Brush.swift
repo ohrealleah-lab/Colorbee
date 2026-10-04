@@ -42,16 +42,18 @@ public enum Brush: CaseIterable, Sendable {
     }
 
     /// A stroke of this brush. `seed` fixes the airbrush spray and oil bristles; pass one in tests.
-    public func makeStroke(diameter: Double, color: Pixel, layer: Layer, edit: Edit, seed: UInt64 = .random(in: 0...UInt64.max)) -> Stroke {
+    /// `sharingPainterWith` is another stroke of the same brush (a Symmetry mirror), whose painting this one joins.
+    public func makeStroke(diameter: Double, color: Pixel, layer: Layer, edit: Edit, seed: UInt64 = .random(in: 0...UInt64.max),
+                           sharingPainterWith other: Stroke? = nil) -> Stroke {
         switch self {
         case .round:
-            return RoundBrushStroke(diameter: diameter, color: color, layer: layer, edit: edit)
+            return RoundBrushStroke(diameter: diameter, color: color, layer: layer, edit: edit, sharingPainterWith: other)
         case .marker:
             var translucent = color
             translucent.a = UInt8((Double(color.a) * Self.markerOpacity).rounded())
-            return RoundBrushStroke(diameter: diameter, color: translucent, layer: layer, edit: edit)
+            return RoundBrushStroke(diameter: diameter, color: translucent, layer: layer, edit: edit, sharingPainterWith: other)
         default:
-            return BrushStroke(brush: self, diameter: diameter, color: color, layer: layer, edit: edit, seed: seed)
+            return BrushStroke(brush: self, diameter: diameter, color: color, layer: layer, edit: edit, seed: seed, sharingPainterWith: other)
         }
     }
 }

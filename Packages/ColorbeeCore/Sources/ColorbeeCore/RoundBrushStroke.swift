@@ -1,16 +1,45 @@
+/// Reflects a stroke's pixels across the canvas's center lines, for Symmetry (FR-7.3). Pixel tools mirror
+/// whole pixel areas, so even sizes land exactly (review I, finding 5).
+public struct StrokeMirror: Sendable, Equatable {
+    public let canvasSize: IntSize
+    public let flipsX: Bool
+    public let flipsY: Bool
+
+    public init(canvasSize: IntSize, flipsX: Bool, flipsY: Bool) {
+        self.canvasSize = canvasSize
+        self.flipsX = flipsX
+        self.flipsY = flipsY
+    }
+
+    func reflect(_ rect: IntRect) -> IntRect {
+        IntRect(x: flipsX ? canvasSize.width - rect.maxX : rect.minX, y: flipsY ? canvasSize.height - rect.maxY : rect.minY,
+                width: rect.width, height: rect.height)
+    }
+}
+
+/// A stroke that paints through a `CoveragePainter`. Symmetry's mirrored copies share one, so where they
+/// overlap the strongest coverage wins instead of the last copy painted (review I, finding 4).
+protocol CoveragePainting: Stroke {
+    var painter: CoveragePainter { get }
+}
+
+extension Stroke {
+    func sharedPainter() -> CoveragePainter? { (self as? CoveragePainting)?.painter }
+}
+
 /// One anti-aliased round-brush stroke (also used for the marker, with a translucent color).
 /// Pressure scales the size.
-public final class RoundBrushStroke: Stroke {
+public final class RoundBrushStroke: CoveragePainting {
     public let diameter: Double
     public let color: Pixel
 
-    private let painter: CoveragePainter
+    let painter: CoveragePainter
     private var walker = DabWalker()
 
-    public init(diameter: Double, color: Pixel, layer: Layer, edit: Edit) {
+    public init(diameter: Double, color: Pixel, layer: Layer, edit: Edit, sharingPainterWith other: Stroke? = nil) {
         self.diameter = max(1, diameter)
         self.color = color
-        painter = CoveragePainter(layer: layer, edit: edit, effect: .over(color))
+        painter = other?.sharedPainter() ?? CoveragePainter(layer: layer, edit: edit, effect: .over(color))
     }
 
     public var dirtyRect: IntRect { painter.dirtyRect }
@@ -45,12 +74,14 @@ public final class RoundBrushStroke: Stroke {
 }
 
 /// A 1-pixel hard-edged line with no anti-aliasing (FR-4.1).
-public final class PencilStroke: Stroke {
-    private let painter: CoveragePainter
+public final class PencilStroke: CoveragePainting {
+    let painter: CoveragePainter
+    private let mirror: StrokeMirror?
     private var lastPixel: IntPoint?
 
-    public init(color: Pixel, layer: Layer, edit: Edit) {
-        painter = CoveragePainter(layer: layer, edit: edit, effect: .over(color))
+    public init(color: Pixel, layer: Layer, edit: Edit, mirror: StrokeMirror? = nil, sharingPainterWith other: Stroke? = nil) {
+        self.mirror = mirror
+        painter = other?.sharedPainter() ?? CoveragePainter(layer: layer, edit: edit, effect: .over(color))
     }
 
     @discardableResult
@@ -59,21 +90,24 @@ public final class PencilStroke: Stroke {
         defer { lastPixel = pixel }
         var changed = IntRect.zero
         for step in Line.pixels(from: lastPixel ?? pixel, to: pixel) {
-            changed = changed.union(painter.paint(IntRect(x: step.x, y: step.y, width: 1, height: 1)) { _, _ in 255 })
+            let pixel = IntRect(x: step.x, y: step.y, width: 1, height: 1)
+            changed = changed.union(painter.paint(mirror?.reflect(pixel) ?? pixel) { _, _ in 255 })
         }
         return changed
     }
 }
 
 /// A square eraser (FR-4.3). The effect decides between plain erasing and the color eraser.
-public final class EraserStroke: Stroke {
+public final class EraserStroke: CoveragePainting {
     public let size: Int
-    private let painter: CoveragePainter
+    let painter: CoveragePainter
+    private let mirror: StrokeMirror?
     private var lastPixel: IntPoint?
 
-    public init(size: Int, effect: StrokeEffect, layer: Layer, edit: Edit) {
+    public init(size: Int, effect: StrokeEffect, layer: Layer, edit: Edit, mirror: StrokeMirror? = nil, sharingPainterWith other: Stroke? = nil) {
         self.size = max(1, size)
-        painter = CoveragePainter(layer: layer, edit: edit, effect: effect)
+        self.mirror = mirror
+        painter = other?.sharedPainter() ?? CoveragePainter(layer: layer, edit: edit, effect: effect)
     }
 
     /// The square of pixels the eraser covers with the pointer at `point`.
@@ -90,7 +124,7 @@ public final class EraserStroke: Stroke {
         var changed = IntRect.zero
         for center in Line.pixels(from: lastPixel ?? pixel, to: pixel) {
             let square = Self.footprint(at: Point2D(x: Double(center.x), y: Double(center.y)), size: size)
-            changed = changed.union(painter.paint(square) { _, _ in 255 })
+            changed = changed.union(painter.paint(mirror?.reflect(square) ?? square) { _, _ in 255 })
         }
         return changed
     }

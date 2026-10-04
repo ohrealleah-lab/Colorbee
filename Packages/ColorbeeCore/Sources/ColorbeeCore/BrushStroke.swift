@@ -3,12 +3,12 @@ import Foundation
 /// A stroke of one of the textured or shaped brushes: calligraphy, airbrush, oil, crayon, natural pencil
 /// and watercolor (FR-4.2). Round and Marker use `RoundBrushStroke`. Pressure scales the size, and also
 /// the strength where a real tool would get stronger with pressure (crayon, pencil).
-public final class BrushStroke: Stroke {
+public final class BrushStroke: CoveragePainting {
     public let brush: Brush
     public let diameter: Double
     public let color: Pixel
 
-    private let painter: CoveragePainter
+    let painter: CoveragePainter
     private var walker = DabWalker()
     private var random: SplitMix64
     private let bristles: [Bristle]
@@ -22,13 +22,13 @@ public final class BrushStroke: Stroke {
         let width: Double
     }
 
-    public init(brush: Brush, diameter: Double, color: Pixel, layer: Layer, edit: Edit, seed: UInt64) {
+    public init(brush: Brush, diameter: Double, color: Pixel, layer: Layer, edit: Edit, seed: UInt64, sharingPainterWith other: Stroke? = nil) {
         precondition(brush != .round && brush != .marker, "Round and Marker use RoundBrushStroke")
         self.brush = brush
         self.diameter = max(1, diameter)
         self.color = color
         var generator = SplitMix64(seed: seed)
-        painter = CoveragePainter(
+        painter = other?.sharedPainter() ?? CoveragePainter(
             layer: layer, edit: edit, effect: .over(color),
             transfer: brush == .watercolor ? Self.watercolorTransfer : nil
         )

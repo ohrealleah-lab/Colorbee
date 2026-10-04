@@ -8,9 +8,12 @@ public enum FloodFill {
         with color: Pixel,
         tolerance: Double,
         selection: SelectionMask?,
-        edit: Edit
+        edit: Edit,
+        sampling source: PixelBuffer? = nil
     ) -> IntRect {
-        let region = connectedRegion(in: layer.buffer, from: seed, tolerance: tolerance, selection: selection)
+        // `source` is the image the region is found in when it isn't the layer: all layers together, for
+        // Sample All Layers (Leah, 2026-10-04).
+        let region = connectedRegion(in: source ?? layer.buffer, from: seed, tolerance: tolerance, selection: selection)
         guard !region.bounds.isEmpty else { return .zero }
         edit.willModify(region.bounds, in: layer)
         for span in region.spans {

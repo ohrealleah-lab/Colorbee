@@ -36,10 +36,16 @@ public enum SelectionActions {
                 y: start.y + (end.y < start.y ? -side : side)
             )
         }
-        let minX = Int(min(start.x, end.x).rounded(.down))
-        let minY = Int(min(start.y, end.y).rounded(.down))
-        let maxX = Int(max(start.x, end.x).rounded(.down)) + 1
-        let maxY = Int(max(start.y, end.y).rounded(.down)) + 1
+        var minX = Int(min(start.x, end.x).rounded(.down))
+        var minY = Int(min(start.y, end.y).rounded(.down))
+        var maxX = Int(max(start.x, end.x).rounded(.down)) + 1
+        var maxY = Int(max(start.y, end.y).rounded(.down)) + 1
+        if constrain {
+            // Square in whole pixels, grown away from where the drag started (review I, finding 13).
+            let side = max(maxX - minX, maxY - minY)
+            if end.x < start.x { minX = maxX - side } else { maxX = minX + side }
+            if end.y < start.y { minY = maxY - side } else { maxY = minY + side }
+        }
         let rect = IntRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
         switch shape {
         case .rectangle: return .rectangle(rect, clippedTo: canvasBounds)

@@ -378,6 +378,11 @@ final class Editor {
     /// Magic Wand tolerance, 0...1.
     var wandTolerance = 0.1
     var wandContiguous = true
+    /// Fill and the wand find their area in all visible layers together, not just the active one (Leah, 2026-10-04).
+    var fillSamplesAllLayers = false
+    var wandSamplesAllLayers = false
+    /// The Color Eraser's tolerance, 0...1; 0 replaces only exact Color 1 (FR-4.3; review I, finding 6).
+    var colorEraserTolerance = 0.0
     var transparentSelection = false {
         didSet { renderSoon() }
     }
@@ -668,6 +673,7 @@ final class Editor {
     // MARK: Tools
 
     func selectTool(_ newTool: Tool) {
+        onFocusCanvas()
         guard newTool != tool else { return }
         finishInteractions()
         measurement = nil
@@ -710,6 +716,9 @@ final class Editor {
         switch tool {
         case .eraser:
             eraserSize = max(1, min(100, eraserSize + (larger ? 2 : -2)))
+        case .shape:
+            // The Shapes tool's size is its line width (review I, finding 10).
+            shapeLineWidth = max(1, min(50, shapeLineWidth + (larger ? 1 : -1)))
         default:
             brushDiameter = max(1, min(50, brushDiameter + (larger ? 1 : -1)))
         }
@@ -767,34 +776,46 @@ final class Editor {
         let layer = canvas.activeLayer
         let color = secondary ? color2 : color1
         let name: String
-        // The flag says whether this copy is mirrored across one axis only, which turns a `/` nib into `\`.
-        let makeStroke: (Edit, Bool) -> Stroke
+        // Each copy gets whether it's mirrored across one axis only (which turns a `/` nib into `\`), how its
+        // pixels are reflected, and the first copy, whose painting it shares so overlaps don't fight
+        // (review I, findings 4 and 5).
+        let makeStroke: (Edit, Bool, StrokeMirror?, Stroke?) -> Stroke
         switch tool {
         case .pencil:
             name = "Pencil"
-            makeStroke = { edit, _ in PencilStroke(color: color, layer: layer, edit: edit) }
+            makeStroke = { edit, _, mirror, first in PencilStroke(color: color, layer: layer, edit: edit, mirror: mirror, sharingPainterWith: first) }
         case .brush:
             name = brush == .round ? "Brush Stroke" : brush.name
-            makeStroke = { [brush, brushDiameter] edit, mirrored in
-                (mirrored ? brush.mirrored : brush).makeStroke(diameter: brushDiameter, color: color, layer: layer, edit: edit)
+            makeStroke = { [brush, brushDiameter] edit, mirrored, _, first in
+                (mirrored ? brush.mirrored : brush).makeStroke(diameter: brushDiameter, color: color, layer: layer, edit: edit, sharingPainterWith: first)
             }
         case .eraser:
-            // Right-drag is the Color Eraser: only Color 1 pixels become Color 2.
+            // Right-drag is the Color Eraser: only Color 1 pixels (within the tolerance) become Color 2.
+            let tolerance = UInt8((min(max(colorEraserTolerance, 0), 1) * 255).rounded())
             let effect: StrokeEffect = secondary
-                ? .replaceMatching(target: color1, tolerance: 0, with: color2)
+                ? .replaceMatching(target: color1, tolerance: tolerance, with: color2)
                 : .replace(canvas.vacatedFill(for: layer, color2: color2))
             name = secondary ? "Color Erase" : "Erase"
-            makeStroke = { [eraserSize] edit, _ in EraserStroke(size: eraserSize, effect: effect, layer: layer, edit: edit) }
+            makeStroke = { [eraserSize] edit, _, mirror, first in
+                EraserStroke(size: eraserSize, effect: effect, layer: layer, edit: edit, mirror: mirror, sharingPainterWith: first)
+            }
         default:
             return
         }
         let edit = history.beginEdit(name, on: canvas)
-        let mirroredOnce: [Bool] = switch symmetry {
-        case .off: [false]
-        case .vertical, .horizontal: [false, true]
-        case .both: [false, true, true, false]
+        let copies: [(mirroredOnce: Bool, flipsX: Bool, flipsY: Bool)] = switch symmetry {
+        case .off: [(false, false, false)]
+        case .vertical: [(false, false, false), (true, true, false)]
+        case .horizontal: [(false, false, false), (true, false, true)]
+        case .both: [(false, false, false), (true, true, false), (true, false, true), (false, true, true)]
         }
-        let strokes = mirroredOnce.map { makeStroke(edit, $0) }
+        // Pixel tools reflect their pixels, so they're all fed the same point; brushes are fed mirrored points.
+        let size = canvas.size
+        var strokes: [Stroke] = []
+        for copy in copies {
+            let mirror = pixelToolMirrors && (copy.flipsX || copy.flipsY) ? StrokeMirror(canvasSize: size, flipsX: copy.flipsX, flipsY: copy.flipsY) : nil
+            strokes.append(makeStroke(edit, copy.mirroredOnce, mirror, strokes.first))
+        }
         activeStroke = ActiveStroke(edit: edit, strokes: strokes, axisLock: AxisLock(start: point), pressureRange: pressure...pressure)
         moveStrokes(strokes, to: point, pressure: pressure)
     }
@@ -812,8 +833,13 @@ final class Editor {
         }
     }
 
+    /// The Pencil and Eraser mirror whole pixel squares themselves (`StrokeMirror`).
+    private var pixelToolMirrors: Bool { tool == .pencil || tool == .eraser }
+
     private func moveStrokes(_ strokes: [Stroke], to point: Point2D, pressure: Double) {
         var changed = false
+        let same: (Point2D) -> Point2D = { $0 }
+        let mirrors = pixelToolMirrors ? Array(repeating: same, count: strokes.count) : self.mirrors
         for (stroke, mirror) in zip(strokes, mirrors) where !stroke.move(to: mirror(point), pressure: pressure).isEmpty {
             changed = true
         }
@@ -872,7 +898,8 @@ final class Editor {
             with: secondary ? color2 : color1,
             tolerance: fillTolerance,
             selection: canvas.selection.marquee,
-            edit: edit
+            edit: edit,
+            sampling: fillSamplesAllLayers ? canvas.flattened() : nil
         )
         recordingChanges { history.commit(edit) }
         onRender()
@@ -884,10 +911,8 @@ final class Editor {
         guard canvas.bounds.contains(pixel) else { return }
         var picked: Pixel
         if allLayers {
-            picked = .clear
-            for layer in canvas.layers where layer.isVisible {
-                picked = Compositing.over(picked, layer.buffer[pixel.x, pixel.y], coverage: Float(layer.opacity))
-            }
+            // As shown: blend modes and adjustment layers included (review I, finding 8).
+            picked = canvas.pixelAsShown(at: pixel) ?? .clear
         } else {
             picked = canvas.activeLayer.buffer[pixel.x, pixel.y]
         }
@@ -1438,6 +1463,8 @@ final class Editor {
     /// The handle under a view point, if the selection's handles are showing there.
     func selectionHandle(atView point: Point2D) -> SelectionHandle? {
         guard tool.isSelectionTool, marqueePreview == nil, let rect = canvas.selection.bounds else { return nil }
+        // On a selection small on screen, the handles would cover it all; inside it, a press moves it (review I, finding 15).
+        if min(Double(rect.width), Double(rect.height)) * viewport.zoom < 24, selectionContains(viewport.imagePoint(fromView: point)) { return nil }
         return nearestHandle(SelectionHandle.allCases.map { ($0, $0.point(on: rect)) }, to: point)
     }
 
@@ -1480,8 +1507,11 @@ final class Editor {
         }
         switch tool {
         case .magicWand:
+            // A floating paste is placed first, so the wand sees it rather than what's under it (review I, finding 2).
+            placeFloatingKeepingOutline()
             let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-            let mask = SelectionMask.magicWand(in: canvas.activeLayer.buffer, at: seed, tolerance: wandTolerance, contiguous: wandContiguous)
+            let sampled = wandSamplesAllLayers ? canvas.flattened() : canvas.activeLayer.buffer
+            let mask = SelectionMask.magicWand(in: sampled, at: seed, tolerance: wandTolerance, contiguous: wandContiguous)
             recordingChanges {
                 SelectionActions.select(mask, mode: mode, canvas: canvas, history: history, context: selectionContext)
             }
@@ -1543,7 +1573,9 @@ final class Editor {
         selectionDrag = nil
         switch drag {
         case .marquee(_, let start, let mode, _, _):
-            let clicked = point.map { abs($0.x - start.x) < 1 && abs($0.y - start.y) < 1 } ?? false
+            // A click is a press that moves under 2 points on screen, at any zoom (review I, finding 14).
+            let reach = 2 / viewport.zoom
+            let clicked = point.map { abs($0.x - start.x) < reach && abs($0.y - start.y) < reach } ?? false
             commitSelectionPreview(deselecting: clicked && mode == .replace)
         case .lasso(let points, let mode):
             commitSelectionPreview(deselecting: points.count < 3 && mode == .replace)
@@ -1684,6 +1716,7 @@ final class Editor {
         performSelectionCommand {
             SelectionActions.paste(image, at: origin, canvas: canvas, history: history, context: selectionContext)
         }
+        onFocusCanvas()
     }
 
     private func selectionDidChange() {
@@ -1971,7 +2004,7 @@ final class Editor {
 
     /// A click while picking: that subject, or a beep on the background.
     private func pickSubject(at point: Point2D) {
-        guard let pick = subjectPick, let index = pick.scan.subject(at: IntPoint(x: Int(point.x), y: Int(point.y))) else { return onRefused() }
+        guard let pick = subjectPick, let index = pick.scan.subject(at: IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))) else { return onRefused() }
         subjectPick = nil
         activeEffect = nil
         perform(pick.action, mask: pick.scan.mask(for: [index]))
@@ -2377,6 +2410,8 @@ final class Editor {
     var showsAdjustmentsPanel = true
     /// Called when a command can't be carried out, such as painting on a locked layer; the view beeps.
     @ObservationIgnored var onRefused: () -> Void = {}
+    /// Gives the canvas the keyboard, so tool keys work after a toolbar click or a paste (review I, finding 2).
+    @ObservationIgnored var onFocusCanvas: () -> Void = {}
     @ObservationIgnored private var layerSettingsEdit: Edit?
 
     /// ⌘L and the toolbar's Layers button: show the Layers panel (opening the sidebar), or hide it.

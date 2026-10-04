@@ -153,7 +153,12 @@ public struct ShapeSpec: Equatable, Sendable {
             corners = points.isEmpty ? [start, end] : points
         } else if kind.isBoxShape {
             let minX = min(start.x, end.x), maxX = max(start.x, end.x), minY = min(start.y, end.y), maxY = max(start.y, end.y)
-            corners = [Point2D(x: minX, y: minY), Point2D(x: maxX, y: minY), Point2D(x: maxX, y: maxY), Point2D(x: minX, y: maxY)].map(rotated)
+            // The path's own box: a cloud's puffs reach past the box it's drawn in (review I, finding 11).
+            let path = ShapePaths.path(kind, in: CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)).boundingBoxOfPath
+            let box = path.isNull ? CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+                : path.union(CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY))
+            corners = [Point2D(x: box.minX, y: box.minY), Point2D(x: box.maxX, y: box.minY), Point2D(x: box.maxX, y: box.maxY),
+                       Point2D(x: box.minX, y: box.maxY)].map(rotated)
         } else {
             corners = [start, end]
         }

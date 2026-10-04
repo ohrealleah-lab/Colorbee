@@ -688,7 +688,8 @@ final class CanvasView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        trackpadPressure = nil
+        // A Force Touch press already carries its pressure; starting at full size made a blob (review I, finding 9).
+        trackpadPressure = event.subtype != .tabletPoint && event.pressure > 0 && event.pressure < 1 ? Double(event.pressure) : nil
         // Ctrl-click is the Mac's context-menu click (FR-14.1); right-click stays Color 2.
         if event.modifierFlags.contains(.control) {
             NSMenu.popUpContextMenu(contextMenu, with: event, for: self)

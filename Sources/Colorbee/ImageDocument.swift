@@ -19,13 +19,17 @@ final class ImageDocument: NSDocument {
         hasUndoManager = false
     }
 
-    /// Opens `canvas` as a new untitled document in its own window (Paste into New Image).
-    static func open(_ canvas: ColorbeeCore.Canvas) {
+    /// Opens `canvas` as a new untitled document in its own window (Paste into New Image, or a drop).
+    static func open(_ canvas: ColorbeeCore.Canvas, clipboardSource: ClipboardHistory.Item.ID? = nil) {
         let document = ImageDocument()
-        document.editor = Editor(canvas: canvas)
+        let editor = Editor(canvas: canvas)
+        editor.noteClipboardSource(clipboardSource)
+        document.editor = editor
         document.fileType = UTType.png.identifier
         NSDocumentController.shared.addDocument(document)
         document.makeWindowControllers()
+        // Unsaved from the start, so closing asks and autosave keeps it safe (FR-12; review J, finding 6).
+        document.updateChangeCount(.changeDone)
         document.showWindows()
     }
 
@@ -87,10 +91,48 @@ final class ImageDocument: NSDocument {
                 return self?.encodedSnapshot ?? snapshot
             } ?? nil
             if error == nil, explicit, let written {
-                Task { @MainActor in self?.editor?.markSaved(written) }
+                Task { @MainActor in
+                    self?.editor?.markSaved(written)
+                    self?.warnAboutEarlierVersions(of: url)
+                }
             }
             completionHandler(error)
         }
+    }
+
+    /// After a redaction is saved, the file's earlier versions (File ▸ Revert To) still show what was redacted.
+    /// Colorbee says so and offers to remove them; nothing is removed without asking (Leah; review H, finding 1).
+    private func warnAboutEarlierVersions(of url: URL) {
+        guard let editor, editor.redactedSinceSave else { return }
+        editor.redactedSinceSave = false
+        guard let versions = NSFileVersion.otherVersionsOfItem(at: url), !versions.isEmpty, let window = windowForSheet else { return }
+        let alert = NSAlert()
+        alert.messageText = "Earlier versions of this file still show what you redacted."
+        alert.informativeText = "File ▸ Revert To can bring them back on this Mac. They don't travel with the file if you send it."
+        alert.addButton(withTitle: "Keep Earlier Versions")
+        alert.addButton(withTitle: "Remove Earlier Versions")
+        alert.beginSheetModal(for: window) { response in
+            guard response == .alertSecondButtonReturn else { return }
+            do { try NSFileVersion.removeOtherVersionsOfItem(at: url) } catch { self.presentError(error) }
+        }
+    }
+
+    /// Revert To (Saved, Last Opened, or a version) reads the file into a new editor; the window is rebuilt
+    /// around it, so what's on screen is what's saved (review J, finding 1).
+    override func revert(toContentsOf url: URL, ofType typeName: String) throws {
+        let old = windowControllers
+        let oldWindow = old.first?.window
+        try super.revert(toContentsOf: url, ofType: typeName)
+        makeWindowControllers()
+        if let oldWindow, let newWindow = windowControllers.last?.window {
+            newWindow.setFrame(oldWindow.frame, display: false)
+            if oldWindow.tabbedWindows != nil { oldWindow.addTabbedWindow(newWindow, ordered: .above) }
+        }
+        for controller in old {
+            removeWindowController(controller)
+            controller.close()
+        }
+        showWindows()
     }
 
     /// Saving and exporting wait until an open effect is applied or cancelled.
@@ -159,6 +201,8 @@ final class ImageDocument: NSDocument {
 
     @IBAction func shareDocument(_ sender: Any?) {
         guard let editor, let view = windowForSheet?.contentView else { return }
+        // Earlier shares' copies go first; each can show what's since been redacted (review H, finding 6).
+        Self.removeShareFolders()
         let folder = FileManager.default.temporaryDirectory.appending(path: "Colorbee Share \(UUID().uuidString)", directoryHint: .isDirectory)
         let url = folder.appending(path: "\((displayName as NSString).deletingPathExtension).png")
         writePNGInBackground(of: editor, to: url) { [weak view] in
@@ -166,6 +210,13 @@ final class ImageDocument: NSDocument {
             let picker = NSSharingServicePicker(items: [url])
             picker.show(relativeTo: NSRect(x: view.bounds.midX, y: view.bounds.maxY - 1, width: 1, height: 1), of: view, preferredEdge: .minY)
         }
+    }
+
+    /// Removes the copies earlier shares left in the temporary folder. Also run at launch.
+    static func removeShareFolders() {
+        let temporary = FileManager.default.temporaryDirectory
+        let folders = (try? FileManager.default.contentsOfDirectory(at: temporary, includingPropertiesForKeys: nil)) ?? []
+        for folder in folders where folder.lastPathComponent.hasPrefix("Colorbee Share ") { try? FileManager.default.removeItem(at: folder) }
     }
 
     /// Writes the image as a PNG from a copy, encoded off the main thread like saving (review E, finding 6),
@@ -195,6 +246,9 @@ final class ImageDocument: NSDocument {
             for screen in NSScreen.screens {
                 try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
             }
+            // Only the picture in use is kept (review H, finding 6).
+            let others = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+            for other in others where other.lastPathComponent != url.lastPathComponent { try? FileManager.default.removeItem(at: other) }
         }
     }
 

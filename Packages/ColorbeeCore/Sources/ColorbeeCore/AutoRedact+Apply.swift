@@ -20,6 +20,27 @@ extension AutoRedact {
         }
     }
 
+    /// Batch Redact (FR-9.4): `effect` in `selection` on every layer with pixels under it, as one step, like
+    /// Auto-Redact (Leah; review H, finding 3). If a locked layer has pixels there, nothing is changed.
+    public static func apply(_ effect: Effect, in selection: SelectionMask, canvas: Canvas, history: History) -> Outcome {
+        let area = selection.bounds.intersection(canvas.bounds)
+        guard !area.isEmpty else { return .nothingChanged }
+        func hasPixels(_ layer: Layer) -> Bool {
+            for y in area.minY..<area.maxY {
+                let row = layer.buffer.row(y)
+                for x in area.minX..<area.maxX where row[x].a > 0 && selection[x, y] > 0 { return true }
+            }
+            return false
+        }
+        let layers = canvas.layers.filter { $0.adjustment == nil && hasPixels($0) }
+        if let locked = layers.first(where: \.isLocked) { return .locked(layerName: locked.name) }
+        let edit = history.beginEdit(effect.name, on: canvas)
+        for layer in layers {
+            Effects.apply(effect, to: layer, selection: selection, edit: edit)
+        }
+        return history.commit(edit) ? .redacted : .nothingChanged
+    }
+
     /// Redacts each item's whole box on every layer with pixels under it, as one step, so text is covered
     /// whichever layer holds it (review E, finding 1). Blur and Pixelate are as strong as each item's own
     /// text needs (finding 3). If a locked layer has pixels under a box, nothing is redacted.

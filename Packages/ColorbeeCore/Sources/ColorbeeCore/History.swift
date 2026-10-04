@@ -658,7 +658,12 @@ final class SpillStore {
             throw CocoaError(.fileWriteUnknown)
         }
         handle = try FileHandle(forUpdating: url)
+        // The open handle keeps working without a name on disk, and the data goes when Colorbee does, even
+        // after a crash: it can hold pixels from before a redaction (review H, finding 5).
+        try? FileManager.default.removeItem(at: url)
     }
+
+    var path: String { url.path }
 
     deinit {
         try? handle.close()

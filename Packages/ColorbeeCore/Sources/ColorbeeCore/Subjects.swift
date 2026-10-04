@@ -114,7 +114,9 @@ public enum SubjectActions {
                 let row = buffer.row(y)
                 for x in 0..<width {
                     let keep = UInt16(mask[y * width + x])
-                    row[x].a = UInt8((UInt16(row[x].a) * keep + 127) / 255)
+                    let alpha = UInt8((UInt16(row[x].a) * keep + 127) / 255)
+                    // Fully cut away means gone: no hidden color for an editor to bring back (review H, finding 7).
+                    row[x] = alpha == 0 ? .clear : Pixel(r: row[x].r, g: row[x].g, b: row[x].b, a: alpha)
                 }
             }
         }

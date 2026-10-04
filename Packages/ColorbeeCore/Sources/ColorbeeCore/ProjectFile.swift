@@ -87,6 +87,8 @@ public enum ProjectFile {
         guard data.endIndex >= jsonStart + length else { throw Failure.damaged }
         let manifest = try JSONDecoder().decode(Manifest.self, from: data[jsonStart..<(jsonStart + length)])
         let blobs = data[(jsonStart + length)...]
+        // Repeated layer ids would make two layers one (review J, finding 19).
+        guard Set(manifest.layers.map(\.id)).count == manifest.layers.count else { throw Failure.damaged }
         guard manifest.width > 0, manifest.height > 0, manifest.width <= ResizeSkew.maxSide, manifest.height <= ResizeSkew.maxSide,
               manifest.width * manifest.height <= ResizeSkew.maxArea, !manifest.layers.isEmpty else { throw Failure.damaged }
 
@@ -98,8 +100,9 @@ public enum ProjectFile {
         let layers = try manifest.layers.map { entry -> Layer in
             let buffer = PixelBuffer(width: manifest.width, height: manifest.height)
             if let range = entry.pixels {
+                // Checked against the size before adding, so a huge offset can't overflow (review J, finding 20).
+                guard range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
                 let start = blobs.startIndex + range.lowerBound, end = blobs.startIndex + range.upperBound
-                guard range.lowerBound >= 0, end <= blobs.endIndex else { throw Failure.damaged }
                 let raw = try (blobs[start..<end] as NSData).decompressed(using: .lz4) as Data
                 guard raw.count == manifest.width * manifest.height * 4 else { throw Failure.damaged }
                 fill(buffer, from: raw)

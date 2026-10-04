@@ -98,6 +98,11 @@ struct ClipboardPanel: View {
                             }
                             .buttonStyle(.plain)
                             .help("\(item.date.formatted(date: .abbreviated, time: .shortened)) · \(item.width) × \(item.height) px")
+                            .contextMenu {
+                                Button("Remove") { history.remove(item.id) }
+                            }
+                            .accessibilityLabel("Clipboard image, \(item.width) by \(item.height) pixels, \(item.date.formatted(date: .omitted, time: .shortened))")
+                            .accessibilityAction(named: "Remove") { history.remove(item.id) }
                         }
                     }
                     .padding(.horizontal, 10)
@@ -119,5 +124,6 @@ struct ClipboardPanel: View {
         guard let data = history.data(for: item),
               let decoded = try? ImageCodec.decode(data, convertingTo: editor.canvas.colorSpace) else { return }
         editor.paste(decoded.buffer)
+        editor.noteClipboardSource(item.id)
     }
 }

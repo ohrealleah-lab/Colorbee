@@ -70,6 +70,8 @@ final class DocumentWindow: NSWindow {
         editor?.beginEffect(.gaussianBlur)
     }
 
+    @objc func batchRedactBlur(_ sender: Any?) { editor?.beginBatchRedact(.gaussianBlur) }
+    @objc func batchRedactPixelate(_ sender: Any?) { editor?.beginBatchRedact(.pixelate) }
     @objc func showPixelate(_ sender: Any?) {
         editor?.beginEffect(.pixelate)
     }
@@ -167,10 +169,11 @@ final class DocumentWindow: NSWindow {
         guard let editor, let data = Self.imageDataOnPasteboard() else { return }
         do {
             let decoded = try ImageCodec.decode(data, convertingTo: editor.canvas.colorSpace)
-            ClipboardHistory.shared.add(data)
+            let source = ClipboardHistory.shared.add(data)
             let image = decoded.buffer, canvas = editor.canvasSize
             guard image.width > canvas.width || image.height > canvas.height else {
                 editor.paste(image)
+                editor.noteClipboardSource(source)
                 return
             }
             // Like Paint: a paste bigger than the canvas offers to enlarge the canvas to fit (FR-10.1).
@@ -187,6 +190,7 @@ final class DocumentWindow: NSWindow {
                     // At the top-left, shown only where it falls on the canvas; drag it to choose what shows.
                     editor.paste(image, at: IntPoint(x: 0, y: 0))
                 }
+                editor.noteClipboardSource(source)
             }
         } catch {
             presentError(error)
@@ -198,9 +202,9 @@ final class DocumentWindow: NSWindow {
         guard let data = Self.imageDataOnPasteboard() else { return }
         do {
             let decoded = try ImageCodec.decode(data)
-            ClipboardHistory.shared.add(data)
+            let source = ClipboardHistory.shared.add(data)
             ImageDocument.open(Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)],
-                                      hasTransparentBackground: decoded.buffer.hasTransparency))
+                                      hasTransparentBackground: decoded.buffer.hasTransparency), clipboardSource: source)
         } catch {
             presentError(error)
         }

@@ -461,6 +461,8 @@ final class Editor {
     static let comparisonGap = 40
     /// The effect whose dialog is open, if any.
     private(set) var activeEffect: EffectKind?
+    /// Batch Redact's Blur and Pixelate: Apply covers every layer under the selection (review H, finding 3).
+    private(set) var effectCoversAllLayers = false
     var effectValues: [Double] = []
 
     @ObservationIgnored var onRender: () -> Void = {}
@@ -1711,10 +1713,16 @@ final class Editor {
     // MARK: Effects
 
     /// Opens an effect's dialog and shows its preview. It applies to the selection, or the whole layer.
-    func beginEffect(_ kind: EffectKind) {
+    /// Batch Redact ▸ Blur… and Pixelate…: chosen with the bar like the effects, applied to every layer.
+    func beginBatchRedact(_ kind: EffectKind) {
+        beginEffect(kind, coveringAllLayers: true)
+    }
+
+    func beginEffect(_ kind: EffectKind, coveringAllLayers: Bool = false) {
         // Whole-image tools apply to every layer, locked or not (§23), and picking a subject was already
         // checked by findSubject, since selecting one doesn't change pixels (review B, findings 4 and 5).
-        guard kind.appliesToWholeImage || kind == .pickSubject || !refusedBecauseLocked() else { return }
+        guard coveringAllLayers || kind.appliesToWholeImage || kind == .pickSubject || !refusedBecauseLocked() else { return }
+        effectCoversAllLayers = coveringAllLayers
         finishInteractions()
         placeFloatingKeepingOutline()
         // Spotlight changes what's around the selection, so it needs one.
@@ -2200,14 +2208,10 @@ final class Editor {
 
     /// Batch redaction with a solid color: every selected region becomes Color 1 in one step (FR-9.4).
     func applySolidFill() {
-        guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
-        guard let selection = canvas.selection.marquee else { return }
-        let edit = history.beginEdit("Solid Fill", on: canvas)
-        Effects.apply(.solidFill(color1), to: canvas.activeLayer, selection: selection, edit: edit)
-        recordingChanges { history.commit(edit) }
-        onRender()
+        guard canvas.selection.marquee != nil else { return }
+        redactEveryLayer(with: .solidFill(color1))
     }
 
     func applyEffect() {
@@ -2255,13 +2259,64 @@ final class Editor {
             renderEffectPreview()
         }
         guard let edit = effectEdit else { return }
+        if effectCoversAllLayers, let kind = activeEffect {
+            // The preview showed the active layer; the redaction itself covers every layer under the selection.
+            let effect = shownEffect ?? kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
+            edit.restoreOriginals()
+            endEffectSession()
+            activeEffect = nil
+            redactEveryLayer(with: effect)
+            return
+        }
         endEffectSession()
         activeEffect = nil
         recordingChanges { history.commit(edit) }
     }
 
+    // MARK: After a redaction (review H, findings 1 and 2)
+
+    /// A redaction step to report: why one couldn't be done.
+    var redactionMessage: String?
+    /// Clipboard History items this document was pasted from, which still hold the image before redaction.
+    @ObservationIgnored private var clipboardSources: Set<ClipboardHistory.Item.ID> = []
+    /// After a redaction, the Clipboard History items to offer to remove (Remove is the default).
+    var clipboardCleanup: [ClipboardHistory.Item.ID]?
+    /// A redaction was applied since the last explicit save, so the save warns about earlier versions.
+    @ObservationIgnored var redactedSinceSave = false
+
+    func noteClipboardSource(_ id: ClipboardHistory.Item.ID?) {
+        if let id { clipboardSources.insert(id) }
+    }
+
+    private func noteRedaction() {
+        redactedSinceSave = true
+        let remaining = clipboardSources.filter(ClipboardHistory.shared.contains)
+        if !remaining.isEmpty { clipboardCleanup = Array(remaining) }
+    }
+
+    func removeClipboardSources() {
+        clipboardCleanup?.forEach(ClipboardHistory.shared.remove)
+        clipboardSources.subtract(clipboardCleanup ?? [])
+        clipboardCleanup = nil
+    }
+
+    /// Batch Redact on every layer under the selection, or the whole image, as one step.
+    private func redactEveryLayer(with effect: Effect) {
+        guard let area = canvas.selection.marquee ?? SelectionMask.rectangle(canvas.bounds, clippedTo: canvas.bounds) else { return }
+        var outcome = AutoRedact.Outcome.nothingChanged
+        recordingChanges { outcome = AutoRedact.apply(effect, in: area, canvas: canvas, history: history) }
+        if case .locked(let name) = outcome {
+            onRefused()
+            redactionMessage = "“\(name)” is locked, so nothing was redacted. Unlock it and try again."
+        } else if outcome == .redacted {
+            noteRedaction()
+        }
+        onRender()
+    }
+
     /// Drops the background preview state; a render still running finds a newer generation and is ignored.
     private func endEffectSession() {
+        effectCoversAllLayers = false
         effectEdit = nil
         effectSource = nil
         shownEffect = nil
@@ -2677,6 +2732,7 @@ final class Editor {
             autoRedact?.problem = "“\(name)” is locked. Cancel, unlock it and run Auto-Redact again; nothing was redacted."
             return
         }
+        if outcome == .redacted { noteRedaction() }
         autoRedact = nil
         onRender()
     }

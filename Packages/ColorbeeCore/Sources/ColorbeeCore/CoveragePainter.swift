@@ -132,6 +132,8 @@ extension Pixel {
     /// Whether every channel, including alpha, is within `tolerance` of `other`.
     @inlinable @inline(__always)
     public func matches(_ other: Pixel, tolerance: UInt8) -> Bool {
+        // Fully transparent pixels are one color, whatever their hidden channels (review I, finding 3).
+        if a | other.a == 0 { return true }
         // All four channels at once, without branches, since fill and the magic wand test every pixel.
         let lhs = SIMD4(b, g, r, a), rhs = SIMD4(other.b, other.g, other.r, other.a)
         let difference = pointwiseMax(lhs, rhs) &- pointwiseMin(lhs, rhs)

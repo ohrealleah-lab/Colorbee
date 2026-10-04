@@ -36,23 +36,40 @@ final class ClipboardHistory {
     private var indexURL: URL { folder.appending(path: "index.json") }
     private func imageURL(_ item: Item) -> URL { folder.appending(path: "\(item.id.uuidString).image") }
 
-    /// Remembers an image (PNG, TIFF or any format macOS reads) that was just copied or pasted.
-    func add(_ data: Data) {
+    /// Remembers an image (PNG, TIFF or any format macOS reads) that was just copied or pasted, and returns
+    /// its item, so a document can offer to remove it once it's redacted.
+    @discardableResult
+    func add(_ data: Data) -> Item.ID? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
-              let height = properties[kCGImagePropertyPixelHeight] as? Int else { return }
+              let height = properties[kCGImagePropertyPixelHeight] as? Int else { return nil }
         // A hash that's the same on every launch (Swift's own hashValue isn't).
         let fingerprint = SHA256.hash(data: data).withUnsafeBytes { $0.loadUnaligned(as: Int.self) }
+        let id: Item.ID
         if let existing = items.firstIndex(where: { $0.fingerprint == fingerprint }) {
             let item = items.remove(at: existing)
             items.insert(Item(id: item.id, date: .now, width: item.width, height: item.height, fingerprint: fingerprint), at: 0)
+            id = item.id
         } else {
             let item = Item(id: UUID(), date: .now, width: width, height: height, fingerprint: fingerprint)
-            guard (try? data.write(to: imageURL(item), options: .atomic)) != nil else { return }
+            guard (try? data.write(to: imageURL(item), options: .atomic)) != nil else { return nil }
             items.insert(item, at: 0)
             while items.count > Self.capacity { forget(items.removeLast()) }
+            id = item.id
         }
+        save()
+        return id
+    }
+
+    func contains(_ id: Item.ID) -> Bool {
+        items.contains { $0.id == id }
+    }
+
+    /// Forgets one image, file and all (review H, finding 2).
+    func remove(_ id: Item.ID) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        forget(items.remove(at: index))
         save()
     }
 

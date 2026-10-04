@@ -8,6 +8,14 @@ struct AutoRedactSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
+            // Hiding a layer is how a part is kept out of redaction (Leah; review H, finding 4).
+            if editor.canvas.layers.count > 1 {
+                Label("Only visible layers were checked. Text on a hidden layer, or covered by another layer, isn't found.",
+                      systemImage: "eye")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let session = editor.autoRedact {
                 content(session)
                 treatment(session)

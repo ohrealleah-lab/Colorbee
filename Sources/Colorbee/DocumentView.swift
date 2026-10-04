@@ -32,7 +32,7 @@ struct DocumentView: View {
                             .padding(.top, 12)
                     }
                 }
-                .alert("No subject found", isPresented: Binding(get: { editor.subjectMessage != nil }, set: { if !$0 { editor.subjectMessage = nil } })) {
+                .alert("Couldn't use the subject", isPresented: Binding(get: { editor.subjectMessage != nil }, set: { if !$0 { editor.subjectMessage = nil } })) {
                     Button("OK") { editor.subjectMessage = nil }
                 } message: {
                     Text(editor.subjectMessage ?? "")
@@ -62,6 +62,20 @@ struct DocumentView: View {
         }
         .sheet(isPresented: $editor.isResizeSkewOpen) {
             ResizeSkewSheet(editor: editor, base: editor.resizeSkewBaseSize, appliesToSelection: editor.hasSelection)
+        }
+        .alert("Nothing was redacted", isPresented: Binding(get: { editor.redactionMessage != nil }, set: { if !$0 { editor.redactionMessage = nil } })) {
+            Button("OK") { editor.redactionMessage = nil }
+        } message: {
+            Text(editor.redactionMessage ?? "")
+        }
+        // After a redaction, the image as it was pasted is still in Clipboard History (Leah; review H, finding 2).
+        .alert("Remove the unredacted image from Clipboard History?",
+               isPresented: Binding(get: { editor.clipboardCleanup != nil }, set: { if !$0 { editor.clipboardCleanup = nil } })) {
+            Button("Remove") { editor.removeClipboardSources() }
+                .keyboardShortcut(.defaultAction)
+            Button("Keep", role: .cancel) { editor.clipboardCleanup = nil }
+        } message: {
+            Text("Clipboard History still has the image this was pasted from, before the redaction.")
         }
     }
 }
@@ -224,7 +238,9 @@ private struct EffectBar: View {
             }
             Spacer(minLength: 0)
             if kind != .pickSubject {
-                Text(kind.appliesToWholeImage ? "Applies to every layer" : editor.hasSelection ? "Applies to the selection" : "Applies to the whole layer")
+                Text(kind.appliesToWholeImage ? "Applies to every layer"
+                     : editor.effectCoversAllLayers ? (editor.hasSelection ? "Redacts every layer in the selection" : "Redacts every layer")
+                     : editor.hasSelection ? "Applies to the selection" : "Applies to the whole layer")
                     .foregroundStyle(.secondary)
                     .fixedSize()
             }

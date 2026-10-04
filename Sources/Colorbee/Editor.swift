@@ -2273,6 +2273,33 @@ final class Editor {
         recordingChanges { history.commit(edit) }
     }
 
+    // MARK: Files with several frames (review J, finding 2)
+
+    /// An animated GIF or multi-page TIFF: the file's frames, and which one this copy shows.
+    struct Frames {
+        enum Kind { case frames, pages }
+        let data: Data
+        let count: Int
+        let index: Int
+        let kind: Kind
+
+        var word: String { kind == .pages ? "page" : "frame" }
+    }
+
+    @ObservationIgnored var frames: Frames?
+    var isChoosingFrame = false
+    @ObservationIgnored var onChooseFrame: (Int) -> Void = { _ in }
+
+    /// Whether switching frames would throw away changes, so the chooser asks first.
+    var hasChanges: Bool { history.canUndo }
+
+    /// Choose Frame…: another frame replaces this copy.
+    func chooseFrame(_ index: Int) {
+        isChoosingFrame = false
+        guard let frames, index != frames.index else { return }
+        onChooseFrame(index)
+    }
+
     // MARK: After a redaction (review H, findings 1 and 2)
 
     /// A redaction step to report: why one couldn't be done.

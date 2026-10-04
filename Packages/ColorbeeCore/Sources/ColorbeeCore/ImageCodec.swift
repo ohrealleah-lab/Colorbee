@@ -26,22 +26,70 @@ extension ImageCodecError: LocalizedError {
 public struct DecodedImage {
     public let buffer: PixelBuffer
     public let colorSpace: CGColorSpace
+    /// Frames (an animated GIF) or pages (a multi-page TIFF) in the file; only one is decoded.
+    public var frameCount = 1
+    /// More than 8 bits per channel in the file; Colorbee keeps 8.
+    public var isDeep = false
+
+    /// Saving back over the file would lose frames or precision, so it opens as an untitled copy
+    /// (Leah; review J, finding 2).
+    public var opensAsCopy: Bool { frameCount > 1 || isDeep }
 }
 
 /// Converts between image files and straight-alpha BGRA8 buffers, preserving color profiles.
 public enum ImageCodec {
-    /// Decodes the first image in `data`. With no target, the image keeps its own RGB color space.
-    public static func decode(_ data: Data, convertingTo target: CGColorSpace? = nil) throws -> DecodedImage {
+    /// Decodes one frame (the first, by default) of `data`, upright. With no target, the image keeps its own
+    /// RGB color space.
+    public static func decode(_ data: Data, convertingTo target: CGColorSpace? = nil, frame: Int = 0) throws -> DecodedImage {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { throw ImageCodecError.unreadableData }
+        let frameCount = CGImageSourceGetCount(source)
+        guard frame >= 0, frame < max(frameCount, 1) else { throw ImageCodecError.unreadableData }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, frame, nil) as? [CFString: Any] ?? [:]
         // The header's size is checked before anything is decoded, so a file claiming a huge size can't use up
         // memory (local sweep after review round 1).
-        if let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-           let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int,
+        if let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int,
            !fitsEditing(width: width, height: height) {
             throw ImageCodecError.tooLarge
         }
-        guard let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw ImageCodecError.unreadableData }
-        return try decode(image, convertingTo: target)
+        guard let image = CGImageSourceCreateImageAtIndex(source, frame, nil) else { throw ImageCodecError.unreadableData }
+        var decoded = try decode(image, convertingTo: target)
+        // Photos are often stored turned, with a tag saying how to show them (review J, finding 3).
+        let tag = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+        let turns = uprightingTurns(forOrientationTag: tag)
+        if !turns.isEmpty {
+            var buffer = decoded.buffer
+            for turn in turns { buffer = buffer.transformed(turn) }
+            decoded = DecodedImage(buffer: buffer, colorSpace: decoded.colorSpace)
+        }
+        decoded.frameCount = frameCount
+        decoded.isDeep = image.bitsPerComponent > 8
+        return decoded
+    }
+
+    /// The turns that show an image stored with EXIF orientation `tag` (1–8) the right way up.
+    static func uprightingTurns(forOrientationTag tag: Int) -> [Orientation] {
+        switch tag {
+        case 2: [.flipHorizontal]
+        case 3: [.rotate180]
+        case 4: [.flipVertical]
+        case 5: [.rotate90Clockwise, .flipHorizontal]
+        case 6: [.rotate90Clockwise]
+        case 7: [.rotate90Clockwise, .flipVertical]
+        case 8: [.rotate90CounterClockwise]
+        default: []
+        }
+    }
+
+    /// A small picture of each frame, for Choose Frame… (review J, finding 2).
+    public static func frameThumbnails(_ data: Data, maxSide: Int, limit: Int = 300) -> [CGImage] {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return [] }
+        return (0..<min(CGImageSourceGetCount(source), limit)).compactMap { index in
+            CGImageSourceCreateThumbnailAtIndex(source, index, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxSide,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+            ] as CFDictionary)
+        }
     }
 
     static func fitsEditing(width: Int, height: Int) -> Bool {

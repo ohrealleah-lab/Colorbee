@@ -18,12 +18,14 @@ private struct SelectingGroups: ToolbarContent {
     let editor: Editor
 
     var body: some ToolbarContent {
+        // Tools wait while an effect's bar is open: Apply or Cancel first (§23, 2026-10-02; review J, finding 17).
         ToolbarItemGroup {
             ToolButton(tool: .rectangleSelect, editor: editor)
             ToolButton(tool: .ellipseSelect, editor: editor)
             ToolButton(tool: .lassoSelect, editor: editor)
             ToolButton(tool: .magicWand, editor: editor)
             TransparentSelectionButton(editor: editor)
+                .disabled(editor.activeEffect != nil)
         }
         ToolbarSpacer(.fixed)
         ToolbarItemGroup {
@@ -42,11 +44,14 @@ private struct PaintingGroups: ToolbarContent {
     var body: some ToolbarContent {
         ToolbarItemGroup {
             BrushGalleryButton(editor: editor)
+                .disabled(editor.activeEffect != nil)
             ShapeGalleryButton(editor: editor)
+                .disabled(editor.activeEffect != nil)
         }
         ToolbarSpacer(.fixed)
         ToolbarItem {
             SizeControl(editor: editor)
+                .disabled(editor.activeEffect != nil)
         }
         ToolbarSpacer(.fixed)
         ToolbarItem {
@@ -86,6 +91,7 @@ private struct ToolButton: View {
             ToolbarGlyph(symbol: tool.symbol, selected: editor.tool == tool)
         }
         .buttonStyle(.plain)
+        .disabled(editor.activeEffect != nil)
         .help("\(tool.title): \(tool.summary)")
         .accessibilityLabel(tool.name)
     }

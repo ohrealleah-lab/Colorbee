@@ -13,6 +13,9 @@ final class ImageDocument: NSDocument {
     /// An image that gained layers becomes an unsaved project so the original file is never flattened;
     /// this keeps its name in the title until the project is saved somewhere.
     private var projectName: String?
+    /// The file can't be saved back without losing frames or precision, so it opens as an untitled copy
+    /// (Leah; review J, finding 2).
+    private var opensAsCopy = false
 
     override init() {
         super.init()
@@ -54,8 +57,43 @@ final class ImageDocument: NSDocument {
             }
             self?.becomeProjectIfLayered()
         }
+        editor.onChooseFrame = { [weak self] frame in self?.showFrame(frame) }
         if editor.canvas.layers.count > 1 { editor.isSidebarOpen = true }
         addWindowController(DocumentWindowController(editor: editor))
+        if opensAsCopy, let fileURL {
+            opensAsCopy = false
+            projectName = fileURL.deletingPathExtension().lastPathComponent
+            self.fileURL = nil
+            fileType = UTType.png.identifier
+            updateChangeCount(.changeDone)
+        }
+    }
+
+    /// Choose Frame…: that frame of the original file replaces this copy.
+    private func showFrame(_ frame: Int) {
+        guard let editor, let frames = editor.frames,
+              let decoded = try? ImageCodec.decode(frames.data, frame: frame) else { return NSSound.beep() }
+        let next = Editor(canvas: Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)],
+                                         hasTransparentBackground: decoded.buffer.hasTransparency))
+        next.frames = Editor.Frames(data: frames.data, count: frames.count, index: frame, kind: frames.kind)
+        self.editor = next
+        replaceWindows()
+    }
+
+    /// Puts a new window in place of the old ones (same frame and tab), for a new editor.
+    private func replaceWindows() {
+        let old = windowControllers
+        let oldWindow = old.first?.window
+        makeWindowControllers()
+        if let oldWindow, let newWindow = windowControllers.last?.window {
+            newWindow.setFrame(oldWindow.frame, display: false)
+            if oldWindow.tabbedWindows != nil { oldWindow.addTabbedWindow(newWindow, ordered: .above) }
+        }
+        for controller in old {
+            removeWindowController(controller)
+            controller.close()
+        }
+        showWindows()
     }
 
     override func read(from data: Data, ofType typeName: String) throws {
@@ -65,13 +103,19 @@ final class ImageDocument: NSDocument {
             return
         }
         let decoded = try ImageCodec.decode(data)
+        opensAsCopy = decoded.opensAsCopy
         // AppKit reads on the main thread unless canConcurrentlyReadDocuments is overridden.
         MainActor.assumeIsolated {
-            editor = Editor(canvas: Canvas(
+            let editor = Editor(canvas: Canvas(
                 colorSpace: decoded.colorSpace,
                 layers: [Layer(name: "Background", buffer: decoded.buffer)],
                 hasTransparentBackground: decoded.buffer.hasTransparency
             ))
+            if decoded.frameCount > 1 {
+                let kind: Editor.Frames.Kind = UTType(typeName)?.conforms(to: .tiff) == true ? .pages : .frames
+                editor.frames = Editor.Frames(data: data, count: decoded.frameCount, index: 0, kind: kind)
+            }
+            self.editor = editor
         }
     }
 
@@ -120,19 +164,8 @@ final class ImageDocument: NSDocument {
     /// Revert To (Saved, Last Opened, or a version) reads the file into a new editor; the window is rebuilt
     /// around it, so what's on screen is what's saved (review J, finding 1).
     override func revert(toContentsOf url: URL, ofType typeName: String) throws {
-        let old = windowControllers
-        let oldWindow = old.first?.window
         try super.revert(toContentsOf: url, ofType: typeName)
-        makeWindowControllers()
-        if let oldWindow, let newWindow = windowControllers.last?.window {
-            newWindow.setFrame(oldWindow.frame, display: false)
-            if oldWindow.tabbedWindows != nil { oldWindow.addTabbedWindow(newWindow, ordered: .above) }
-        }
-        for controller in old {
-            removeWindowController(controller)
-            controller.close()
-        }
-        showWindows()
+        replaceWindows()
     }
 
     /// Saving and exporting wait until an open effect is applied or cancelled.

@@ -20,6 +20,10 @@ struct DocumentView: View {
                 CompareBar(editor: editor)
                 Divider()
             }
+            if let frames = editor.frames {
+                FrameBar(editor: editor, frames: frames)
+                Divider()
+            }
             CanvasHost(view: canvasView)
                 .overlay { RedactionBadges(editor: editor) }
                 .overlay(alignment: .top) {

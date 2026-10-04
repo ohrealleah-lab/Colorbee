@@ -75,3 +75,54 @@ extension ReviewHIJTests {
         #expect(AutoRedact.apply(.solidFill(.black), in: selection, canvas: canvas, history: history) == .locked(layerName: "Background"))
     }
 }
+
+import ImageIO
+import UniformTypeIdentifiers
+
+/// J2 and J3: what decoding a file says about it, and photos the right way up.
+struct DecodingTests {
+    private func file(_ type: UTType, frames: [PixelBuffer], orientation: Int? = nil) throws -> Data {
+        let data = NSMutableData()
+        let destination = try #require(CGImageDestinationCreateWithData(data, type.identifier as CFString, frames.count, nil))
+        for frame in frames {
+            let image = try ImageCodec.makeCGImage(frame, colorSpace: Canvas.defaultColorSpace)
+            let properties = orientation.map { [kCGImagePropertyOrientation: $0] as CFDictionary }
+            CGImageDestinationAddImage(destination, image, properties)
+        }
+        #expect(CGImageDestinationFinalize(destination))
+        return data as Data
+    }
+
+    @Test func aPhotoTaggedAsTurnedOpensUpright() throws {
+        let stored = PixelBuffer(width: 2, height: 1)
+        stored.row(0)[0] = Pixel(r: 255, g: 0, b: 0)
+        stored.row(0)[1] = Pixel(r: 0, g: 0, b: 255)
+        let decoded = try ImageCodec.decode(file(.tiff, frames: [stored], orientation: 6))
+        #expect(decoded.buffer.size == IntSize(width: 1, height: 2))
+        #expect(decoded.buffer.row(0)[0] == Pixel(r: 255, g: 0, b: 0))
+        #expect(decoded.buffer.row(1)[0] == Pixel(r: 0, g: 0, b: 255))
+        #expect(!decoded.opensAsCopy)
+    }
+
+    @Test func everyOrientationTagIsUndone() {
+        let stored = PixelBuffer(width: 3, height: 2)
+        for y in 0..<2 { for x in 0..<3 { stored.row(y)[x] = Pixel(r: UInt8(x * 40), g: UInt8(y * 90), b: 0) } }
+        // Each tag's turns, applied to the image as it should look, give what's stored; uprighting undoes them.
+        for tag in 1...8 {
+            var buffer = stored
+            for turn in ImageCodec.uprightingTurns(forOrientationTag: tag) { buffer = buffer.transformed(turn) }
+            #expect(tag < 5 ? buffer.size == stored.size : buffer.size == IntSize(width: 2, height: 3), "tag \(tag)")
+        }
+    }
+
+    @Test func aFileWithSeveralFramesOpensAsACopy() throws {
+        let frames = [PixelBuffer(width: 4, height: 4, fill: .black), PixelBuffer(width: 4, height: 4, fill: .white)]
+        let data = try file(.tiff, frames: frames)
+        let first = try ImageCodec.decode(data)
+        #expect(first.frameCount == 2)
+        #expect(first.opensAsCopy)
+        let second = try ImageCodec.decode(data, frame: 1)
+        #expect(second.buffer.row(0)[0] == .white)
+        #expect(ImageCodec.frameThumbnails(data, maxSide: 32).count == 2)
+    }
+}

@@ -42,7 +42,10 @@ struct CanvasPropertiesSheet: View {
             Toggle("Transparent background", isOn: $transparent)
                 .help("What erasing and new canvas area leave behind on the background. Existing pixels don't change.")
             if !valid {
-                Label("Sizes run from 1 to \(ResizeSkew.maxSide.formatted()) px.", systemImage: "exclamationmark.triangle")
+                // Says which limit was hit (review J, finding 26).
+                Label(width >= 1 && height >= 1 && width <= ResizeSkew.maxSide && height <= ResizeSkew.maxSide
+                      ? "That's over \(ResizeSkew.maxArea / 1_000_000) megapixels, the most Colorbee edits."
+                      : "Sizes run from 1 to \(ResizeSkew.maxSide.formatted()) px.", systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
             }
             HStack {

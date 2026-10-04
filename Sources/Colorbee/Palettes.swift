@@ -61,6 +61,17 @@ final class PaletteStore {
 
     /// Saves the current swatches and custom colors under `name`, replacing a saved palette of that name.
     func saveCurrent(as name: String) {
+        // A built-in palette's name gets a number, like an import, so it doesn't make a second one that can't be
+        // renamed or deleted (review J, finding 23).
+        var name = name
+        if name == Palette.classic.name {
+            let base = name
+            var number = 2
+            while all.contains(where: { $0.name == name }) {
+                name = "\(base) \(number)"
+                number += 1
+            }
+        }
         let palette = Palette(name: name, swatches: swatches, custom: CustomColors.shared.packed)
         if let index = saved.firstIndex(where: { $0.name == name }) { saved[index] = palette } else { saved.append(palette) }
         activeName = name
@@ -76,8 +87,8 @@ final class PaletteStore {
 
     func delete(_ name: String) {
         saved.removeAll { $0.name == name }
-        if activeName == name { activeName = Palette.classic.name }
-        persist()
+        // The palette in use goes back to Paint Classic's colors too, not just its name (review J, finding 24).
+        if activeName == name { load(Palette.classic) } else { persist() }
     }
 
     func resetToClassic() {

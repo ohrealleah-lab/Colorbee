@@ -58,8 +58,38 @@ struct ShortcutTests {
 
     @Test func standardShortcutsAskFirst() {
         let book = book()
-        #expect(book.check(KeyShortcut("y", .command), for: "undo") == .standard(name: "Undo"))
-        #expect(book.check(KeyShortcut("c", .command), for: "flatten") == .standard(name: "Copy"))
+        #expect(book.check(KeyShortcut("y", .command), for: "undo") == .givesUpStandard(name: "Undo", standard: KeyShortcut("z", .command), alsoTakenFrom: nil))
+        #expect(book.check(KeyShortcut("c", .command), for: "flatten") == .takesStandard(name: "Copy"))
+    }
+
+    /// Review J, finding 5: moving a standard command onto a key in use names both the standard key given up and
+    /// the command losing its key.
+    @Test func movingAStandardCommandOntoAUsedKeyNamesBoth() throws {
+        let book = book()
+        let merge = try #require(book.command(withID: "merge"))
+        #expect(book.check(KeyShortcut("e", [.command, .shift]), for: "undo")
+                == .givesUpStandard(name: "Undo", standard: KeyShortcut("z", .command), alsoTakenFrom: merge))
+        #expect(book.check(KeyShortcut("c", .command), for: "undo") == .takesStandard(name: "Copy"))
+    }
+
+    /// Review J, findings 9 and 10: keys the canvas keeps, and macOS's tab shortcuts, can't be assigned.
+    @Test func canvasKeysAndTabShortcutsAreRefused() {
+        let book = book()
+        for key in ["space", "left", "right", "up", "down", "return", "escape", "delete"] {
+            #expect(book.check(KeyShortcut(key), for: "pencil") == .keptByCanvas, "\(key)")
+        }
+        #expect(book.check(KeyShortcut("left", .command), for: "flatten") == .keptByCanvas)
+        #expect(book.check(KeyShortcut("tab", .control), for: "flatten") == .reserved(owner: "macOS to show the next tab"))
+        #expect(book.check(KeyShortcut("\\", [.command, .shift]), for: "flatten") == .reserved(owner: "macOS to show all tabs"))
+    }
+
+    /// Review J, finding 13: an imported file can't set up a clash quietly, and keys are normalized.
+    @Test func importingReportsWhatItCouldntKeep() throws {
+        var book = book()
+        let file = Data(#"{"version":1,"shortcuts":{"copy":{"key":"K","modifiers":8},"flatten":{"key":"k","modifiers":8},"pencil":{"key":"space","modifiers":0}}}"#.utf8)
+        let problems = try book.importChanges(from: file)
+        #expect(book.shortcut(for: "flatten") == KeyShortcut("k", .command) || book.shortcut(for: "copy") == KeyShortcut("k", .command))
+        #expect(problems.count == 2, "\(problems)")
     }
 
     @Test func resettingAndClearing() {

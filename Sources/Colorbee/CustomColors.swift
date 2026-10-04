@@ -52,7 +52,8 @@ final class CustomColors {
     /// Replaces every slot, as when a palette is loaded.
     func replace(with packed: [Int]) {
         slots = (0..<Self.slotCount).map { index in
-            guard packed.indices.contains(index), packed[index] >= 0 else { return nil }
+            // A palette file can hold any number; out of range means an empty slot (review J, finding 21).
+            guard packed.indices.contains(index), packed[index] >= 0, packed[index] <= Int(UInt32.max) else { return nil }
             let v = UInt32(packed[index])
             return Pixel(r: UInt8(v >> 24 & 0xFF), g: UInt8(v >> 16 & 0xFF), b: UInt8(v >> 8 & 0xFF), a: UInt8(v & 0xFF))
         }

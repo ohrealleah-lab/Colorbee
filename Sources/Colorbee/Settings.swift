@@ -157,7 +157,10 @@ final class ServicesProvider: NSObject {
         let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
         NSApp.activate()
         for url in urls {
-            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
+                // A file that can't be opened says why, rather than nothing happening (review J, finding 27).
+                if let error { NSApp.presentError(error) }
+            }
         }
     }
 }

@@ -43,7 +43,8 @@ final class TextStyleStore {
     }
 
     func rename(_ style: SavedTextStyle, to name: String) {
-        guard let index = styles.firstIndex(of: style) else { return }
+        // A name in use is refused, as for palettes (review J, finding 25).
+        guard let index = styles.firstIndex(of: style), !styles.contains(where: { $0.name == name && $0.id != style.id }) else { return }
         styles[index].name = name
         persist()
     }

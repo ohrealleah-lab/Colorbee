@@ -17,7 +17,7 @@ struct BrushGalleryButton: View {
             GalleryLabel(symbol: "paintbrush.pointed", selected: editor.tool == .brush || isOpen)
         }
         .buttonStyle(.plain)
-        .help("Brushes (B): \(editor.brush.name)")
+        .help(ShortcutStore.shared.hint("Brushes", command: "canvas.brush") + ": \(editor.brush.name)")
         .accessibilityLabel("Brushes")
         .popover(isPresented: $isOpen, arrowEdge: .bottom) {
             BrushGallery(editor: editor) { isOpen = false }
@@ -123,7 +123,7 @@ struct ShapeGalleryButton: View {
             GalleryLabel(symbol: editor.shapeKind.symbol, selected: editor.tool == .shape || isOpen)
         }
         .buttonStyle(.plain)
-        .help("Shapes (U): \(editor.shapeKind.name)")
+        .help(ShortcutStore.shared.hint("Shapes", command: "canvas.shape") + ": \(editor.shapeKind.name)")
         .accessibilityLabel("Shapes")
         .popover(isPresented: $isOpen, arrowEdge: .bottom) {
             ShapeGallery(editor: editor) { isOpen = false }
@@ -152,6 +152,8 @@ private struct ShapeGallery: View {
                     }
                     .buttonStyle(.plain)
                     .help(kind.name)
+                    .accessibilityLabel(kind.name)
+                    .accessibilityAddTraits(editor.shapeKind == kind ? .isSelected : [])
                 }
             }
             .focusEffectDisabled()

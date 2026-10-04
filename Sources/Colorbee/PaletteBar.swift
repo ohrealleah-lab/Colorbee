@@ -19,6 +19,8 @@ struct PaletteBar<Options: View>: View {
                 Slider(value: alpha, in: 0...100)
                     .controlSize(.small)
                     .frame(width: 120)
+                    .accessibilityLabel("Alpha")
+                    .accessibilityValue("\(Int(alpha.wrappedValue)) percent")
                 Text("\(Int(alpha.wrappedValue))%")
                     .monospacedDigit()
                     .frame(minWidth: 30, alignment: .trailing)
@@ -209,15 +211,26 @@ final class SwatchGridView: NSView, NSViewToolTipOwner {
     override func accessibilityChildren() -> [Any]? {
         let classic = (0..<28).map { index in
             SwatchElement(parent: self, frame: rect(.classic(index)), label: "Swatch \(index + 1)",
-                          value: color(of: .classic(index))?.spokenDescription(in: editor.canvas.colorSpace)) { [weak self] in
+                          value: color(of: .classic(index))?.spokenDescription(in: editor.canvas.colorSpace),
+                          actions: [("Set Color 2", { [weak self] in
+                              guard let self, let pixel = color(of: .classic(index)) else { return }
+                              editor.applySwatch(pixel, secondary: true)
+                          })]) { [weak self] in
                 guard let self, let pixel = color(of: .classic(index)) else { return }
                 editor.applySwatch(pixel, secondary: false)
             }
         }
         let customs = (0..<CustomColors.slotCount).map { index in
             let pixel = color(of: .custom(index))
+            let actions: [(String, () -> Void)] = pixel == nil ? [] : [
+                ("Set Color 2", { [weak self] in
+                    guard let self, let pixel = color(of: .custom(index)) else { return }
+                    editor.applySwatch(pixel, secondary: true)
+                }),
+                ("Remove", { CustomColors.shared.remove(at: index) }),
+            ]
             return SwatchElement(parent: self, frame: rect(.custom(index)), label: "Custom color \(index + 1)",
-                                 value: pixel?.spokenDescription(in: editor.canvas.colorSpace) ?? "Empty") { [weak self] in
+                                 value: pixel?.spokenDescription(in: editor.canvas.colorSpace) ?? "Empty", actions: actions) { [weak self] in
                 guard let self else { return }
                 if let pixel = color(of: .custom(index)) {
                     editor.applySwatch(pixel, secondary: false)
@@ -242,9 +255,13 @@ final class SwatchGridView: NSView, NSViewToolTipOwner {
 private final class SwatchElement: NSAccessibilityElement {
     private let press: () -> Void
 
-    init(parent: NSView, frame: NSRect, label: String, value: String?, press: @escaping () -> Void) {
+    /// Right-click and Control-click actions, for VoiceOver (review J, finding 29: A8).
+    init(parent: NSView, frame: NSRect, label: String, value: String?, actions: [(String, () -> Void)] = [], press: @escaping () -> Void) {
         self.press = press
         super.init()
+        setAccessibilityCustomActions(actions.map { name, handler in
+            NSAccessibilityCustomAction(name: name) { handler(); return true }
+        })
         setAccessibilityParent(parent)
         setAccessibilityRole(.button)
         setAccessibilityLabel(label)

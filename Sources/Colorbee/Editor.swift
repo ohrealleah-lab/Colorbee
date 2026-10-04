@@ -569,10 +569,18 @@ final class Editor {
     // MARK: Canvas (FR-1.4)
 
     var isCanvasPropertiesOpen = false
-    var showsRulers = false
-    var showsStatusBar = true
-    var showsHistoryPanel = false
-    var showsClipboardPanel = false
+    var showsRulers = false {
+        didSet { onViewStateChange() }
+    }
+    var showsStatusBar = true {
+        didSet { onViewStateChange() }
+    }
+    var showsHistoryPanel = false {
+        didSet { onViewStateChange() }
+    }
+    var showsClipboardPanel = false {
+        didSet { onViewStateChange() }
+    }
 
     var hasTransparentBackground: Bool {
         _ = layersRevision
@@ -2405,9 +2413,15 @@ final class Editor {
     /// Bumped whenever the layers or their pixels may have changed, so the Layers panel refreshes.
     private(set) var layersRevision = 0
     /// Whether the right sidebar is showing (FR-1.3, FR-8.1), and which of its panels.
-    var isSidebarOpen = false
-    var showsLayersPanel = true
-    var showsAdjustmentsPanel = true
+    var isSidebarOpen = false {
+        didSet { onViewStateChange() }
+    }
+    var showsLayersPanel = true {
+        didSet { onViewStateChange() }
+    }
+    var showsAdjustmentsPanel = true {
+        didSet { onViewStateChange() }
+    }
     /// Called when a command can't be carried out, such as painting on a locked layer; the view beeps.
     @ObservationIgnored var onRefused: () -> Void = {}
     /// Gives the canvas the keyboard, so tool keys work after a toolbar click or a paste (review I, finding 2).
@@ -2415,14 +2429,9 @@ final class Editor {
     @ObservationIgnored private var layerSettingsEdit: Edit?
 
     /// ⌘L and the toolbar's Layers button: show the Layers panel (opening the sidebar), or hide it.
+    /// Each panel shows or hides on its own; the sidebar closes only when none is left (FR-1.3; review J, finding 15).
     func toggleLayersPanel() {
-        if isSidebarOpen && showsLayersPanel {
-            showsLayersPanel = false
-            if !showsAdjustmentsPanel { isSidebarOpen = false }
-        } else {
-            showsLayersPanel = true
-            isSidebarOpen = true
-        }
+        togglePanel(\.showsLayersPanel)
     }
 
     /// Shows a sidebar panel (opening the sidebar), or hides it if it's already showing.
@@ -2437,13 +2446,7 @@ final class Editor {
     }
 
     func toggleAdjustmentsPanel() {
-        if isSidebarOpen && showsAdjustmentsPanel {
-            showsAdjustmentsPanel = false
-            if !showsLayersPanel { isSidebarOpen = false }
-        } else {
-            showsAdjustmentsPanel = true
-            isSidebarOpen = true
-        }
+        togglePanel(\.showsAdjustmentsPanel)
     }
 
     var layers: [Layer] {
@@ -2694,7 +2697,13 @@ final class Editor {
         guard updated != viewport else { return }
         viewport = updated
         onRender()
+        onViewStateChange()
     }
+
+    /// Zoom and scroll position to show instead of fitting the window, after a relaunch (review J, finding 28).
+    @ObservationIgnored var restoredView: (zoom: Double, center: Point2D)?
+    /// Tells the window its restorable state (zoom, scroll, panels) changed.
+    @ObservationIgnored var onViewStateChange: () -> Void = {}
 
     private var viewCenter: Point2D {
         Point2D(x: viewport.viewSize.width / 2, y: viewport.viewSize.height / 2)

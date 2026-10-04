@@ -21,28 +21,30 @@ extension Tool {
         }
     }
 
+    /// The tool's name with its current key, for tooltips.
+    @MainActor
     var title: String {
-        switch self {
-        case .pencil: "Pencil (P)"
-        case .brush: "Brush (B)"
-        case .eraser: "Eraser (E)"
-        case .fill: "Fill (G)"
-        case .eyedropper: "Eyedropper (I)"
-        case .measure: "Measure (R)"
-        case .gradient: "Gradient"
-        case .shape: "Shapes (U)"
-        case .text: "Text (T)"
-        case .rectangleSelect: "Rectangle Select (M)"
-        case .ellipseSelect: "Ellipse Select"
-        case .lassoSelect: "Free-Form Select (L)"
-        case .magicWand: "Magic Wand (W)"
-        case .magnifier: "Magnifier (Z)"
-        }
+        ShortcutStore.shared.hint(name, command: "canvas.\(self)")
     }
 
     /// The name without its shortcut, as VoiceOver says it ("Pencil").
     var name: String {
-        title.components(separatedBy: " (").first ?? title
+        switch self {
+        case .pencil: "Pencil"
+        case .brush: "Brush"
+        case .eraser: "Eraser"
+        case .fill: "Fill"
+        case .eyedropper: "Eyedropper"
+        case .measure: "Measure"
+        case .gradient: "Gradient"
+        case .shape: "Shapes"
+        case .text: "Text"
+        case .rectangleSelect: "Rectangle Select"
+        case .ellipseSelect: "Ellipse Select"
+        case .lassoSelect: "Free-Form Select"
+        case .magicWand: "Magic Wand"
+        case .magnifier: "Magnifier"
+        }
     }
 
     var symbol: String {

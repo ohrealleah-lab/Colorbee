@@ -21,6 +21,14 @@ public struct KeyShortcut: Hashable, Codable, Sendable {
         self.modifiers = modifiers
     }
 
+    private enum CodingKeys: String, CodingKey { case key, modifiers }
+
+    /// Through `init`, so a hand-edited "Z" is the same key as "z" (review J, finding 13).
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(try container.decode(String.self, forKey: .key), try container.decode(Modifiers.self, forKey: .modifiers))
+    }
+
     /// As macOS writes shortcuts: ⌃⌥⇧⌘ then the key.
     public var display: String {
         var text = ""
@@ -95,7 +103,21 @@ public struct ShortcutBook: Sendable {
         KeyShortcut("4", [.command, .shift]): "macOS for screenshots",
         KeyShortcut("5", [.command, .shift]): "macOS for screenshots",
         KeyShortcut("q", [.command, .control]): "macOS to Lock Screen",
+        // Window tabs (review J, finding 10).
+        KeyShortcut("\\", [.command, .shift]): "macOS to show all tabs",
+        KeyShortcut("tab", .control): "macOS to show the next tab",
+        KeyShortcut("tab", [.control, .shift]): "macOS to show the previous tab",
     ]
+
+    /// Keys the canvas handles itself, before any shortcut (§23, stage 7c; review J, finding 9): Space pans, the
+    /// arrows nudge, Return and Esc place, Delete deletes, and ⌘- or ⇧⌘-arrows resize a selection (FR-3.3).
+    static func isKeptByCanvas(_ shortcut: KeyShortcut, kind: ShortcutCommand.Kind) -> Bool {
+        let arrows = ["left", "right", "up", "down"]
+        switch kind {
+        case .canvas: return arrows.contains(shortcut.key) || ["space", "return", "escape", "delete", "forwardDelete"].contains(shortcut.key)
+        case .menu: return arrows.contains(shortcut.key) && shortcut.modifiers.isSubset(of: [.command, .shift])
+        }
+    }
 
     public init(commands: [ShortcutCommand]) {
         self.commands = commands
@@ -130,8 +152,13 @@ public struct ShortcutBook: Sendable {
         case reserved(owner: String)
         /// Already another Colorbee command's; can be reassigned.
         case usedBy(ShortcutCommand)
-        /// Changing ⌘Z/X/C/V/A/S away from (or onto) a standard command asks first.
-        case standard(name: String)
+        /// The canvas uses this key itself, so the command would never get it.
+        case keptByCanvas
+        /// The command gives up its standard key (⌘Z/X/C/V/A/S) for this one, which `alsoTakenFrom` loses if
+        /// set. Asks first (review J, finding 5).
+        case givesUpStandard(name: String, standard: KeyShortcut, alsoTakenFrom: ShortcutCommand?)
+        /// The key is the standard one for `name`, which would lose it. Asks first.
+        case takesStandard(name: String)
     }
 
     /// What happens if `shortcut` is given to the command `id`. `system` holds the shortcuts set in
@@ -146,15 +173,15 @@ public struct ShortcutBook: Sendable {
             guard shortcut.modifiers.subtracting(.shift).isEmpty else { return .canvasKeysCantUseModifiers }
         }
         if let owner = Self.reservedByMac[shortcut] ?? system[shortcut] { return .reserved(owner: owner) }
+        if Self.isKeptByCanvas(shortcut, kind: command.kind) { return .keptByCanvas }
         if let current = self.shortcut(for: id), current == shortcut { return .allowed }
+        let other = commands.first { $0.id != id && self.shortcut(for: $0.id) == shortcut }
+        // Taking ⌘C (say) from Copy asks with the stronger warning.
+        if let other, let name = Self.standard[shortcut], other.defaultShortcut == shortcut { return .takesStandard(name: name) }
         if let current = self.shortcut(for: id), let name = Self.standard[current], command.defaultShortcut == current {
-            return .standard(name: name)
+            return .givesUpStandard(name: name, standard: current, alsoTakenFrom: other)
         }
-        if let other = commands.first(where: { $0.id != id && self.shortcut(for: $0.id) == shortcut }) {
-            // Taking ⌘C (say) from Copy asks with the stronger warning.
-            if let name = Self.standard[shortcut], other.defaultShortcut == shortcut { return .standard(name: name) }
-            return .usedBy(other)
-        }
+        if let other { return .usedBy(other) }
         return .allowed
     }
 
@@ -204,19 +231,30 @@ public struct ShortcutBook: Sendable {
     }
 
     /// Replaces your changes with those in `data`. Unknown commands, and shortcuts that are now reserved
-    /// or break the rules, are skipped.
-    public mutating func importChanges(from data: Data, system: [KeyShortcut: String] = [:]) throws {
+    /// or break the rules, are skipped. Returns what couldn't be kept, to tell the person (review J, finding 13).
+    @discardableResult
+    public mutating func importChanges(from data: Data, system: [KeyShortcut: String] = [:]) throws -> [String] {
         let stored = try JSONDecoder().decode(Stored.self, from: data)
         overrides = [:]
-        for (id, shortcut) in stored.shortcuts.sorted(by: { $0.key < $1.key }) where command(withID: id)?.isEditable == true {
-            if let shortcut {
-                switch check(shortcut, for: id, system: system) {
-                case .allowed, .usedBy, .standard: assign(shortcut, to: id)
-                default: continue
-                }
-            } else {
+        var problems: [String] = []
+        var givenByFile: [KeyShortcut: String] = [:]
+        for (id, shortcut) in stored.shortcuts.sorted(by: { $0.key < $1.key }) {
+            guard let command = command(withID: id), command.isEditable else { continue }
+            guard let shortcut else {
                 assign(nil, to: id)
+                continue
+            }
+            switch check(shortcut, for: id, system: system) {
+            case .allowed, .usedBy, .givesUpStandard, .takesStandard:
+                if let earlier = givenByFile[shortcut], let earlierCommand = self.command(withID: earlier) {
+                    problems.append("\(earlierCommand.title) lost \(shortcut.display), which the file also gives \(command.title).")
+                }
+                givenByFile[shortcut] = id
+                assign(shortcut, to: id)
+            default:
+                problems.append("\(command.title) kept its shortcut: \(shortcut.display) can't be used.")
             }
         }
+        return problems
     }
 }

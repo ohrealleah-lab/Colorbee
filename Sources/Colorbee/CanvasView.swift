@@ -174,9 +174,16 @@ final class CanvasView: NSView {
         let canvasSize = editor.canvas.size
         let shouldFit = !hasFitted
         hasFitted = true
+        let restored = shouldFit ? editor.restoredView : nil
+        editor.restoredView = nil
         editor.updateViewport { viewport in
             viewport.viewSize = size
-            if shouldFit { viewport.fit(canvasSize, margin: 40) }
+            if let restored {
+                viewport.setZoom(restored.zoom, anchor: Point2D(x: size.width / 2, y: size.height / 2))
+                viewport.center = restored.center
+            } else if shouldFit {
+                viewport.fit(canvasSize, margin: 40)
+            }
         }
         if inLiveResize, isWindowVisible { render() } else { setNeedsRender() }
     }
@@ -942,11 +949,18 @@ extension CanvasView {
         let point = editor.viewport.imagePoint(fromView: Point2D(x: location.x, y: location.y))
         let onCanvas = point.x >= 0 && point.y >= 0 && point.x < Double(editor.canvasSize.width) && point.y < Double(editor.canvasSize.height)
         if !onCanvas, let url = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])?.first as? URL {
-            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
+                // A file that can't be opened says why, rather than nothing happening (review J, finding 27).
+                if let error { NSApp.presentError(error) }
+            }
             return true
         }
-        guard let data = Self.imageData(from: pasteboard),
-              let decoded = try? ImageCodec.decode(data, convertingTo: onCanvas ? editor.canvas.colorSpace : nil) else { return false }
+        guard let data = Self.imageData(from: pasteboard) else { return false }
+        let decoded: DecodedImage
+        do { decoded = try ImageCodec.decode(data, convertingTo: onCanvas ? editor.canvas.colorSpace : nil) } catch {
+            window?.presentError(error)
+            return false
+        }
         if onCanvas {
             let origin = IntPoint(x: Int(point.x) - decoded.buffer.width / 2, y: Int(point.y) - decoded.buffer.height / 2)
             editor.paste(decoded.buffer, at: origin)

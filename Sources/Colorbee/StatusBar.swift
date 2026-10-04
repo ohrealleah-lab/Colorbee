@@ -83,6 +83,9 @@ private struct Chip: View {
         .foregroundStyle(on ? Color.accentColor : Theme.secondaryInk)
         .background(on ? Theme.accentSoft : Theme.field, in: Capsule())
         .contentShape(Capsule())
+        // On and off aren't only a color for VoiceOver (review J, finding 29: A7).
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(on ? "On" : "Off")
     }
 }
 
@@ -97,7 +100,7 @@ private struct PixelGridChip: View {
         .buttonStyle(.plain)
         .disabled(!available)
         .opacity(available ? 1 : 0.5)
-        .help("Pixel grid (⌘'). Shown at 400% and above.")
+        .help(ShortcutStore.shared.hint("Pixel grid", command: "togglePixelGrid:") + ". Shown at 400% and above.")
     }
 }
 
@@ -142,11 +145,13 @@ private struct ZoomControl: View {
             .controlSize(.mini)
             .frame(width: 100)
             .help("Zoom")
+            .accessibilityLabel("Zoom")
+            .accessibilityValue("\(Int((editor.viewport.zoom * 100).rounded())) percent")
             HStack(spacing: 2) {
                 Button("Zoom Out", systemImage: "minus.magnifyingglass") { editor.zoomOut() }
                     .labelStyle(.iconOnly)
                     .disabled(editor.viewport.zoom <= Viewport.minZoom)
-                    .help("Zoom out (⌘-)")
+                    .help(ShortcutStore.shared.hint("Zoom out", command: "zoomOut:"))
                 Menu("\(Int((editor.viewport.zoom * 100).rounded()))%") {
                     ForEach(Self.presets, id: \.self) { scale in
                         Button("\(Int(scale * 100))%") { editor.zoom(to: scale) }
@@ -160,7 +165,7 @@ private struct ZoomControl: View {
                 Button("Zoom In", systemImage: "plus.magnifyingglass") { editor.zoomIn() }
                     .labelStyle(.iconOnly)
                     .disabled(editor.viewport.zoom >= Viewport.maxZoom)
-                    .help("Zoom in (⌘=)")
+                    .help(ShortcutStore.shared.hint("Zoom in", command: "zoomIn:"))
             }
             .buttonStyle(.borderless)
             .controlSize(.small)

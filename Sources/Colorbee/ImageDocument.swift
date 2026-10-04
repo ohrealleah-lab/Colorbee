@@ -12,7 +12,9 @@ final class ImageDocument: NSDocument {
     private var editor: Editor?
     /// An image that gained layers becomes an unsaved project so the original file is never flattened;
     /// this keeps its name in the title until the project is saved somewhere.
-    private var projectName: String?
+    private var projectName: String? {
+        didSet { invalidateRestorableState() }
+    }
     /// The file can't be saved back without losing frames or precision, so it opens as an untitled copy
     /// (Leah; review J, finding 2).
     private var opensAsCopy = false
@@ -103,7 +105,9 @@ final class ImageDocument: NSDocument {
             return
         }
         let decoded = try ImageCodec.decode(data)
-        opensAsCopy = decoded.opensAsCopy
+        // A format Colorbee can't write (WebP) opens as a copy too, so saving asks where (review J, WebP check).
+        let writable = UTType(typeName).flatMap(ImageFileFormat.init(type:))?.canWrite ?? true
+        opensAsCopy = decoded.opensAsCopy || !writable
         // AppKit reads on the main thread unless canConcurrentlyReadDocuments is overridden.
         MainActor.assumeIsolated {
             let editor = Editor(canvas: Canvas(
@@ -185,6 +189,20 @@ final class ImageDocument: NSDocument {
         }
         self.fileType = UTType.colorbeeProject.identifier
         windowControllers.forEach { $0.synchronizeWindowTitleWithDocumentName() }
+    }
+
+    /// The name of an image that became a project, so the title survives a relaunch (review J, finding 28).
+    override func encodeRestorableState(with coder: NSCoder) {
+        super.encodeRestorableState(with: coder)
+        coder.encode(projectName, forKey: "ColorbeeProjectName")
+    }
+
+    override func restoreState(with coder: NSCoder) {
+        super.restoreState(with: coder)
+        if let name = coder.decodeObject(of: NSString.self, forKey: "ColorbeeProjectName") as String? {
+            projectName = name
+            windowControllers.forEach { $0.synchronizeWindowTitleWithDocumentName() }
+        }
     }
 
     override var displayName: String! {

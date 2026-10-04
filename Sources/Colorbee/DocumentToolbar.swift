@@ -133,6 +133,8 @@ private struct SizeControl: View {
                 }
                 .buttonStyle(.plain)
                 .help("\(preset) px")
+                .accessibilityLabel("Size \(preset) pixels")
+                .accessibilityAddTraits(size == preset ? .isSelected : [])
             }
             HStack(spacing: 2) {
                 TextField("Size", value: Binding(get: { size ?? 1 }, set: { editor.toolSize = $0 }), format: .number)
@@ -282,7 +284,7 @@ struct ColorWells: View {
             }
             .buttonStyle(.plain)
             .offset(x: 34, y: -2)
-            .help("Swap Color 1 and Color 2 (X)")
+            .help(ShortcutStore.shared.hint("Swap Color 1 and Color 2", command: "canvas.swapColors"))
             .accessibilityLabel("Swap Colors")
         }
         .frame(width: 48, height: 30, alignment: .topLeading)
@@ -354,7 +356,7 @@ private struct LayersButton: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help("Layers (⌘L)")
+        .help(ShortcutStore.shared.hint("Layers", command: "toggleLayers:"))
         .accessibilityLabel("Layers")
         .disabled(editor.activeEffect == .adjustPhoto)
     }

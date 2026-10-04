@@ -36,6 +36,8 @@ struct ResizeSkewSheet: View {
     }
 
     private var problem: String? {
+        // A typed "NaN" or "inf" isn't a size (review J, finding 22).
+        guard [horizontal, vertical, horizontalSkew, verticalSkew].allSatisfy(\.isFinite) else { return "Enter a number." }
         if byPercentage, !(1...500).contains(horizontal) || !(1...500).contains(vertical) {
             return "Percentages run from 1% to 500%."
         }

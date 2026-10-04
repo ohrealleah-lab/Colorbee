@@ -120,6 +120,8 @@ struct ShortcutSettings: View {
         message = nil
         recording = id
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Only keys typed in Settings are recorded; a document window keeps its own (review J, finding 8).
+            guard event.window === SettingsWindowController.shared.window else { return event }
             MainActor.assumeIsolated { handle(event) }
             return nil
         }
@@ -138,8 +140,14 @@ struct ShortcutSettings: View {
             return
         }
         if shortcut == KeyShortcut("delete") {
-            store.assign(nil, to: id)
             stopRecording()
+            // Clearing ⌘Z, ⌘C and the other standard shortcuts asks first, like changing them (review J, finding 12).
+            if let current = store.book.shortcut(for: id), let name = ShortcutBook.standard[current],
+               store.book.command(withID: id)?.defaultShortcut == current,
+               !confirm("\(current.display) is the standard shortcut for \(name).", detail: "Every Mac app expects it. Clear it anyway?", action: "Clear") {
+                return
+            }
+            store.assign(nil, to: id)
             return
         }
         if event.modifierFlags.contains(.function), !shortcut.key.hasPrefix("f"), !["left", "right", "up", "down", "forwardDelete"].contains(shortcut.key) {
@@ -158,12 +166,22 @@ struct ShortcutSettings: View {
             message = "This standard macOS shortcut can't be changed."
         case .reserved(let owner):
             message = "\(shortcut.display) is used by \(owner)."
+        case .keptByCanvas:
+            message = "\(shortcut.display) is kept by the canvas (panning, nudging, placing or deleting)."
         case .usedBy(let other):
             if confirm("\(shortcut.display) is used by \(other.title).", detail: "Reassign it? \(other.title) will have no shortcut.", action: "Reassign") {
                 store.assign(shortcut, to: id)
             }
-        case .standard(let name):
-            if confirm("\(shortcut.display) is the standard shortcut for \(name).", detail: "Every Mac app expects it. Change it anyway?", action: "Change") {
+        case .givesUpStandard(let name, let standard, let other):
+            // Says what's given up and, if the new key is in use, who loses it (review J, finding 5).
+            let losing = other.map { " \($0.title) will lose \(shortcut.display)." } ?? ""
+            if confirm("\(standard.display) is the standard shortcut for \(name).",
+                       detail: "Every Mac app expects it. Give \(name) \(shortcut.display) instead?\(losing)", action: "Change") {
+                store.assign(shortcut, to: id)
+            }
+        case .takesStandard(let name):
+            if confirm("\(shortcut.display) is the standard shortcut for \(name).",
+                       detail: "Every Mac app expects it. Take it anyway? \(name) will have no shortcut.", action: "Take It") {
                 store.assign(shortcut, to: id)
             }
         }
@@ -184,7 +202,15 @@ struct ShortcutSettings: View {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(exportedAs: "com.leah.colorbee.colorbeekeys")]
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do { try store.importChanges(from: url) } catch { NSAlert(error: error).runModal() }
+        do {
+            let problems = try store.importChanges(from: url)
+            if !problems.isEmpty {
+                let alert = NSAlert()
+                alert.messageText = "Some shortcuts in the file weren't used."
+                alert.informativeText = problems.joined(separator: "\n")
+                alert.runModal()
+            }
+        } catch { NSAlert(error: error).runModal() }
     }
 
     private func exportShortcuts() {

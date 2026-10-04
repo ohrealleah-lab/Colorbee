@@ -18,7 +18,11 @@ extension ImageCodecError: LocalizedError {
         switch self {
         case .tooLarge:
             "This image is too large to edit. Colorbee edits images up to \(ResizeSkew.maxSide.formatted()) pixels on a side and \(ResizeSkew.maxArea / 1_000_000) megapixels."
-        default: nil
+        // Plain words instead of an error code (review J, finding 27).
+        case .unreadableData: "This file isn't an image Colorbee can read, or it's damaged."
+        case .unsupportedColorSpace: "This image uses colors Colorbee can't read."
+        case .conversionFailed: "This image couldn't be read."
+        case .encodingFailed: "The image couldn't be written in this format."
         }
     }
 }

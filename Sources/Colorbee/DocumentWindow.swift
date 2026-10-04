@@ -3,7 +3,44 @@ import ColorbeeCore
 
 /// Handles document-level editing commands for whichever view in the window has focus.
 final class DocumentWindow: NSWindow {
-    weak var editor: Editor?
+    weak var editor: Editor? {
+        didSet { editor?.onViewStateChange = { [weak self] in self?.invalidateRestorableState() } }
+    }
+
+    // MARK: Restoring (FR-12; review J, finding 28)
+
+    private static let panelKeys = ["isSidebarOpen", "showsLayersPanel", "showsAdjustmentsPanel", "showsHistoryPanel",
+                                    "showsClipboardPanel", "showsRulers", "showsStatusBar"]
+    private static let panelPaths: [ReferenceWritableKeyPath<Editor, Bool>] = [\.isSidebarOpen, \.showsLayersPanel, \.showsAdjustmentsPanel,
+                                                                             \.showsHistoryPanel, \.showsClipboardPanel, \.showsRulers, \.showsStatusBar]
+
+    override func encodeRestorableState(with coder: NSCoder) {
+        super.encodeRestorableState(with: coder)
+        guard let editor else { return }
+        coder.encode(editor.viewport.zoom, forKey: "ColorbeeZoom")
+        coder.encode(editor.viewport.center.x, forKey: "ColorbeeCenterX")
+        coder.encode(editor.viewport.center.y, forKey: "ColorbeeCenterY")
+        for (key, path) in zip(Self.panelKeys, Self.panelPaths) { coder.encode(editor[keyPath: path], forKey: "Colorbee." + key) }
+    }
+
+    override func restoreState(with coder: NSCoder) {
+        super.restoreState(with: coder)
+        guard let editor else { return }
+        for (key, path) in zip(Self.panelKeys, Self.panelPaths) where coder.containsValue(forKey: "Colorbee." + key) {
+            editor[keyPath: path] = coder.decodeBool(forKey: "Colorbee." + key)
+        }
+        guard coder.containsValue(forKey: "ColorbeeZoom") else { return }
+        let zoom = coder.decodeDouble(forKey: "ColorbeeZoom")
+        let center = Point2D(x: coder.decodeDouble(forKey: "ColorbeeCenterX"), y: coder.decodeDouble(forKey: "ColorbeeCenterY"))
+        if editor.viewport.viewSize.width > 0 {
+            editor.updateViewport { viewport in
+                viewport.setZoom(zoom, anchor: Point2D(x: viewport.viewSize.width / 2, y: viewport.viewSize.height / 2))
+                viewport.center = center
+            }
+        } else {
+            editor.restoredView = (zoom, center)
+        }
+    }
 
 
     /// While text is being typed, undo belongs to the text box.
@@ -223,11 +260,18 @@ final class DocumentWindow: NSWindow {
 
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let editor else { return super.validateMenuItem(menuItem) }
-        // While an effect's bar or Auto-Redact is open, only viewing commands work; Apply or Cancel comes first.
-        // Auto-Redact's sheet doesn't stop menu commands reaching the window (review E, finding 2).
-        if editor.activeEffect != nil || editor.autoRedact != nil {
-            return [#selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)),
-                    #selector(zoomToFit(_:)), #selector(togglePixelGrid(_:))].contains(menuItem.action)
+        // While an effect's bar, Auto-Redact, Resize and Skew or Canvas Properties is open, only viewing and window
+        // commands work; Apply or Cancel comes first. Sheets don't stop menu commands reaching the window (review E,
+        // finding 2; review J, findings 7 and 18).
+        if editor.activeEffect != nil || editor.autoRedact != nil || editor.isResizeSkewOpen || editor.isCanvasPropertiesOpen {
+            return Self.viewingCommands.contains(menuItem.action)
+                || [#selector(performClose(_:)), #selector(performMiniaturize(_:)), #selector(performZoom(_:)),
+                    #selector(toggleFullScreen(_:))].contains(menuItem.action)
+        }
+        // While text is typed, menu shortcuts give way to the text box, so ⌘⌫ deletes text rather than the layer
+        // (review J, finding 4). The text box handles Cut, Copy, Paste, Select All, Undo and Redo itself.
+        if firstResponder is CanvasTextView {
+            return Self.viewingCommands.contains(menuItem.action)
         }
         // Commands that change the active layer's pixels are greyed out on a locked or adjustment layer, rather
         // than beeping when chosen (Leah, §23). Whole-image commands work on every layer, so they stay.
@@ -248,6 +292,10 @@ final class DocumentWindow: NSWindow {
         case #selector(redo(_:)) where textUndoManager != nil:
             menuItem.title = textUndoManager!.redoMenuItemTitle
             return textUndoManager!.canRedo
+        case #selector(undo(_:)) where editor.pendingShape != nil:
+            // ⌘Z discards a shape that isn't placed yet (§23, stage 3b; review J, finding 16).
+            menuItem.title = "Undo Shape"
+            return true
         case #selector(undo(_:)):
             menuItem.title = editor.undoActionName.map { "Undo \($0)" } ?? "Undo"
             return editor.undoActionName != nil
@@ -328,6 +376,13 @@ final class DocumentWindow: NSWindow {
             return super.validateMenuItem(menuItem)
         }
     }
+
+    /// Commands that only change the view.
+    private static let viewingCommands: Set<Selector?> = [
+        #selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)), #selector(zoomToFit(_:)),
+        #selector(togglePixelGrid(_:)), #selector(toggleRulers(_:)), #selector(toggleStatusBar(_:)), #selector(toggleLayers(_:)),
+        #selector(toggleAdjustmentsPanel(_:)), #selector(toggleHistoryPanel(_:)), #selector(toggleClipboardPanel(_:)),
+    ]
 
     private static let pixelCommands: Set<Selector> = [
         #selector(cut(_:)), #selector(delete(_:)), #selector(paste(_:)), #selector(applySolidFill(_:)),

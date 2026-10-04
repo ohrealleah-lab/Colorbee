@@ -54,6 +54,8 @@ struct HistoryPanel: View {
         }
         .buttonStyle(.plain)
         .help(isUndone ? "Undone: click to redo up to here" : "Click to go back to this point")
+        .accessibilityLabel(name)
+        .accessibilityValue(isCurrent ? "Current step" : isUndone ? "Undone" : "")
     }
 
     private func image(for thumbnail: Thumbnail) -> NSImage? {

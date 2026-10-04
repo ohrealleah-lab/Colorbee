@@ -10,10 +10,10 @@ struct Sidebar: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 2) {
-                switcherButton("square.3.layers.3d", "Layers", "Layers panel (⌘L)", isOn: $editor.showsLayersPanel)
+                switcherButton("square.3.layers.3d", "Layers", ShortcutStore.shared.hint("Layers panel", command: "toggleLayers:"), isOn: $editor.showsLayersPanel)
                 switcherButton("slider.horizontal.3", "Adjustments", "Adjustments panel", isOn: $editor.showsAdjustmentsPanel)
-                switcherButton("clock.arrow.circlepath", "History", "History panel (⌘Y)", isOn: $editor.showsHistoryPanel)
-                switcherButton("list.clipboard", "Clipboard History", "Clipboard History panel (⌥⌘V)", isOn: $editor.showsClipboardPanel)
+                switcherButton("clock.arrow.circlepath", "History", ShortcutStore.shared.hint("History panel", command: "toggleHistoryPanel:"), isOn: $editor.showsHistoryPanel)
+                switcherButton("list.clipboard", "Clipboard History", ShortcutStore.shared.hint("Clipboard History panel", command: "toggleClipboardPanel:"), isOn: $editor.showsClipboardPanel)
             }
             .padding(2)
             .background(Theme.field, in: Capsule())
@@ -141,11 +141,11 @@ private struct LayersPanel: View {
             .frame(minHeight: 120, maxHeight: .infinity)
 
             HStack(spacing: 2) {
-                footerButton("plus", "New Layer", "New Layer (⇧⌘N)") { editor.addLayer() }
-                footerButton("plus.square.on.square", "Duplicate Layer", "Duplicate Layer (⌘J)") { editor.duplicateLayer() }
-                footerButton("trash", "Delete Layer", "Delete Layer (⌘⌫)") { editor.deleteLayer() }
+                footerButton("plus", "New Layer", ShortcutStore.shared.hint("New Layer", command: "newLayer:")) { editor.addLayer() }
+                footerButton("plus.square.on.square", "Duplicate Layer", ShortcutStore.shared.hint("Duplicate Layer", command: "duplicateLayer:")) { editor.duplicateLayer() }
+                footerButton("trash", "Delete Layer", ShortcutStore.shared.hint("Delete Layer", command: "deleteLayer:")) { editor.deleteLayer() }
                     .disabled(!LayerActions.canDelete(editor.canvas))
-                footerButton("arrow.down.to.line", "Merge Down", "Merge Down (⇧⌘E), or Apply Adjustment on an adjustment layer") { editor.mergeDown() }
+                footerButton("arrow.down.to.line", "Merge Down", ShortcutStore.shared.hint("Merge Down", command: "mergeDown:") + ", or Apply Adjustment on an adjustment layer") { editor.mergeDown() }
                     .disabled(!LayerActions.canMergeDown(editor.canvas))
                 Spacer()
                 AddAdjustmentMenu(editor: editor)
@@ -228,6 +228,9 @@ private struct LayersPanel: View {
         .help("Click to make active · double-click to rename · drag to reorder")
         .accessibilityAddTraits(isActive ? [.isSelected] : [])
         .accessibilityAction(named: "Make Active") { editor.selectLayer(at: index) }
+        // Reordering without dragging (review J, finding 29: A6).
+        .accessibilityAction(named: "Move Up") { if index + 1 < editor.layers.count { editor.moveLayer(from: index, to: index + 1) } }
+        .accessibilityAction(named: "Move Down") { if index > 0 { editor.moveLayer(from: index, to: index - 1) } }
         .accessibilityAction(named: "Rename") {
             newName = layer.name
             renaming = layer

@@ -34,7 +34,10 @@ final class ShortcutStore {
     /// Commands told apart by their menu item's tag rather than their action.
     private static let taggedActions: Set<String> = ["applyOrientation:", "setSymmetry:", "newAdjustmentLayer:"]
     /// Menus filled in as they open, or owned by macOS.
-    private static let skippedMenus: Set<String> = ["Export As", "Open Recent", "Services", "Window", "Help"]
+    private static let skippedMenus: Set<String> = ["Export As", "Open Recent", "Services", "Help"]
+    /// Menus whose own window commands are listed (with a padlock), without the window list macOS adds
+    /// (§23, stage 7c; review J, finding 11).
+    private static let fixedOnlyMenus: Set<String> = ["Window"]
 
     private init() {}
 
@@ -45,6 +48,7 @@ final class ShortcutStore {
         var seen = Set<String>()
         func walk(_ menu: NSMenu, group: String, path: String) {
             for item in menu.items where !item.isSeparatorItem {
+                if Self.fixedOnlyMenus.contains(menu.title), item.action.map({ !Self.fixedActions.contains(NSStringFromSelector($0)) }) ?? true { continue }
                 if let submenu = item.submenu {
                     guard !Self.skippedMenus.contains(submenu.title) else { continue }
                     let nested = path.isEmpty ? "" : "\(path) ▸ "
@@ -79,6 +83,13 @@ final class ShortcutStore {
         book.shortcut(for: id).flatMap { system[$0] ?? ShortcutBook.reservedByMac[$0] }
     }
 
+    /// "Title (key)" with the command's current shortcut, or just the title if it has none, for tooltips that
+    /// follow shortcut changes (review J, finding 14). `id` is a canvas key's id ("canvas.pencil") or a menu
+    /// command's selector name ("toggleLayers:").
+    func hint(_ title: String, command id: String) -> String {
+        book.shortcut(for: id).map { "\(title) (\($0.display))" } ?? title
+    }
+
     func check(_ shortcut: KeyShortcut, for id: String) -> ShortcutBook.Check {
         book.check(shortcut, for: id, system: system)
     }
@@ -98,9 +109,11 @@ final class ShortcutStore {
         changed()
     }
 
-    func importChanges(from url: URL) throws {
-        try book.importChanges(from: Data(contentsOf: url), system: system)
+    /// Returns what the file asked for that couldn't be kept.
+    func importChanges(from url: URL) throws -> [String] {
+        let problems = try book.importChanges(from: Data(contentsOf: url), system: system)
         changed()
+        return problems
     }
 
     func export(to url: URL) throws {
@@ -125,7 +138,7 @@ final class ShortcutStore {
         func walk(_ menu: NSMenu) {
             for item in menu.items {
                 if let submenu = item.submenu {
-                    if !Self.skippedMenus.contains(submenu.title) { walk(submenu) }
+                    if !Self.skippedMenus.contains(submenu.title), !Self.fixedOnlyMenus.contains(submenu.title) { walk(submenu) }
                     continue
                 }
                 guard let id = Self.id(of: item), let command = book.command(withID: id), command.isEditable else { continue }

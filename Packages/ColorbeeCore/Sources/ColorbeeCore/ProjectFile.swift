@@ -8,9 +8,16 @@ public enum ProjectFile {
     public static let fileExtension = "colorproj"
     static let magic = Data("COLORBEE PROJECT 1\n".utf8)
 
-    public enum Failure: Error {
+    public enum Failure: Error, LocalizedError {
         case notAProject
         case damaged
+
+        public var errorDescription: String? {
+            switch self {
+            case .notAProject: "This file isn't a Colorbee project."
+            case .damaged: "This project is damaged and can't be opened."
+            }
+        }
     }
 
     struct Manifest: Codable {

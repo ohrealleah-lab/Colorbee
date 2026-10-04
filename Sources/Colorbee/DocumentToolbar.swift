@@ -166,7 +166,8 @@ private struct OutlineFillControl: View {
                     Button(style.name) { editor.shapeOutline = style }
                 }
             } label: {
-                StyleLabel(title: "Outline", value: open ? (editor.shapeOutline ?? .solid).name : editor.shapeOutline?.name ?? "None", filled: false)
+                StyleLabel(title: "Outline", value: open ? (editor.shapeOutline ?? .solid).name : editor.shapeOutline?.name ?? "None",
+                           outline: open || editor.shapeOutline != nil ? swatch(editor.color1) : nil, fill: nil)
             }
             .help("How shapes are outlined")
             Rectangle().fill(Theme.separator).frame(width: 1, height: 16)
@@ -176,7 +177,9 @@ private struct OutlineFillControl: View {
                     Button(style.name) { editor.shapeFill = style }
                 }
             } label: {
-                StyleLabel(title: "Fill", value: open ? "None" : editor.shapeFill?.name ?? "None", filled: true)
+                // The swatch shows Color 2, so a white fill on a white canvas isn't a surprise.
+                StyleLabel(title: "Fill", value: open ? "None" : editor.shapeFill?.name ?? "None",
+                           outline: nil, fill: !open && editor.shapeFill != nil ? swatch(editor.color2) : nil)
             }
             .disabled(open)
             .help(open ? "Lines, arrows and curves have no fill" : "How shapes are filled (with Color 2)")
@@ -188,17 +191,26 @@ private struct OutlineFillControl: View {
         .opacity(editor.tool == .shape ? 1 : 0.4)
     }
 
+    private func swatch(_ pixel: Pixel) -> Color {
+        Color(nsColor: pixel.nsColor(in: editor.canvas.colorSpace))
+    }
+
+    /// The swatch is drawn in the colors a shape will get: Color 1 for the outline, Color 2 for the fill.
     private struct StyleLabel: View {
         let title: String
         let value: String
-        let filled: Bool
+        let outline: Color?
+        let fill: Color?
 
         var body: some View {
             HStack(spacing: 6) {
                 RoundedRectangle(cornerRadius: 2.5)
-                    .strokeBorder(lineWidth: 1.6)
-                    .background(filled ? AnyShapeStyle(Color.primary.opacity(0.35)) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 2.5))
-                    .frame(width: 12, height: 12)
+                    .fill(fill ?? .clear)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 2.5)
+                            .strokeBorder(outline ?? Color.secondary.opacity(fill == nil ? 1 : 0.6), lineWidth: outline == nil ? 1 : 2.4)
+                    }
+                    .frame(width: 14, height: 14)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title).font(.system(size: 9.5)).foregroundStyle(Theme.secondaryInk)
                     Text(value).font(.system(size: 12))

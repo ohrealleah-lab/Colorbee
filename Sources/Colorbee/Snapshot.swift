@@ -4,7 +4,7 @@ import ColorbeeCore
 /// Saves a picture of the first document window and quits, for checking the interface without
 /// taking over the screen: `-ColorbeeSnapshot /path/to.png`, optionally with `-ColorbeeSnapshotDark YES`
 /// `-ColorbeeSnapshotTool brush` (any tool's name), `-ColorbeeSnapshotLayers 3` (adds layers, opens the panel),
-/// `-ColorbeeSnapshotEffect levels` and `-ColorbeeSnapshotAdjustment curves`. The Metal canvas and Liquid Glass aren't drawn,
+/// `-ColorbeeSnapshotEffect levels`, `-ColorbeeSnapshotAdjustment curves` and `-ColorbeeSnapshotShapeFill YES`. The Metal canvas and Liquid Glass aren't drawn,
 /// so it checks layout, not the glass.
 @MainActor
 enum Snapshot {
@@ -29,6 +29,11 @@ enum Snapshot {
         }
         if let name = defaults.string(forKey: "ColorbeeSnapshotTool"), let tool = Tool.allCases.first(where: { "\($0)" == name }) {
             editor.selectTool(tool)
+        }
+        // `-ColorbeeSnapshotShapeFill YES`: a solid shape fill in an orange Color 2, to see the Fill swatch.
+        if defaults.bool(forKey: "ColorbeeSnapshotShapeFill") {
+            editor.shapeFill = .solid
+            editor.color2 = Pixel(r: 255, g: 140, b: 0)
         }
         // `-ColorbeeSnapshotEffect levels` opens an effect's bar; `-ColorbeeSnapshotAdjustment curves` adds that
         // adjustment layer and shows its settings.

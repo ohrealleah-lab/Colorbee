@@ -196,7 +196,21 @@ final class DocumentWindow: NSWindow {
     @objc func deleteLayer(_ sender: Any?) { editor?.deleteLayer() }
     @objc func mergeDown(_ sender: Any?) { editor?.mergeDown() }
     @objc func mergeVisible(_ sender: Any?) { editor?.mergeVisible() }
-    @objc func flattenImage(_ sender: Any?) { editor?.flatten() }
+    /// With hidden layers, asks first: flattening keeps only what's visible (Leah, 2026-10-04).
+    @objc func flattenImage(_ sender: Any?) {
+        guard let editor else { return }
+        let hidden = editor.canvas.layers.filter { !$0.isVisible }.count
+        guard hidden > 0 else { return editor.flatten() }
+        let alert = NSAlert()
+        alert.messageText = "Discard hidden layers?"
+        alert.informativeText = hidden == 1 ? "1 layer is hidden. Flattening keeps only what's visible, so it will be discarded."
+            : "\(hidden) layers are hidden. Flattening keeps only what's visible, so they will be discarded."
+        alert.addButton(withTitle: "Flatten")
+        alert.addButton(withTitle: "Cancel")
+        alert.beginSheetModal(for: self) { response in
+            if response == .alertFirstButtonReturn { editor.flatten() }
+        }
+    }
 
     @objc func toggleLayerVisibility(_ sender: Any?) {
         guard let editor else { return }

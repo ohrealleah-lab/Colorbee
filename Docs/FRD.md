@@ -663,6 +663,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | Flatten with hidden layers (Leah): asks "Discard hidden layers?", naming how many, with Flatten (default) and Cancel. Merge Visible doesn't ask, since it keeps hidden layers. |
 | 2026-10-04 | Color Eraser switch (Leah): the Eraser's options have a Color Eraser switch, off by default. When on, a plain drag color-erases (Color 1 to Color 2, within the tolerance); a right-drag always does. Easier on a trackpad. |
 | 2026-10-04 | Closing a window (Leah): a redaction not yet saved with ⌘S is saved, and the earlier-versions warning shown, before the window closes (⌘W, File ▸ Close, the close button), and on quitting, one window at a time. |
 | 2026-10-04 | (veto any) Remove Earlier Versions and Undo History also makes Before/After's "As Opened" the image as it is then, since it would otherwise still show the unredacted original. A Batch Redact bar doesn't open if a locked layer has pixels under the selection; a message names the layer. |

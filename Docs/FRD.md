@@ -603,7 +603,7 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [x] AC-9 Auto-Redact finds emails, phone numbers, card numbers and API keys in a test screenshot, entirely offline.
 - [x] AC-10 Before/After compares the current image with either "As Opened" or "Last Saved", and switching between them works.
 - [x] AC-11 Export presets produce the right width, keep the aspect ratio and never enlarge.
-- [ ] AC-12 Cmd+V paste keeps full resolution and alpha. Cmd+C puts a PNG with transparency on the system clipboard. _(Pending: re-test after the 2026-10-03 polish (Copy now prepares the PNG in the background).)_
+- [x] AC-12 Cmd+V paste keeps full resolution and alpha. Cmd+C puts a PNG with transparency on the system clipboard.
 - [x] AC-13 Clipboard History shows the last 10 images. Clicking one pastes it and leaves the system clipboard unchanged.
 - [x] AC-14 Pixel grid at 400% and above. Pixels stay sharp at every zoom level on Retina screens.
 - [x] AC-15 Every file format in FR-11.1 opens and saves again with no unexpected loss. Color profiles are kept.
@@ -616,7 +616,7 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [x] AC-22 Measure shows the distance, ΔX, ΔY and angle.
 - [x] AC-23 Pressure changes brush size on a Force Touch trackpad.
 - [x] AC-24 "Open in Colorbee" works from Finder.
-- [ ] AC-25 A clipboard screenshot (Cmd+Ctrl+Shift+4) opens with Paste into New Image at its full size, and appears in Clipboard History. _(Pending: re-test after the 2026-10-03 clipboard fix.)_
+- [x] AC-25 A clipboard screenshot (Cmd+Ctrl+Shift+4) opens with Paste into New Image at its full size, and appears in Clipboard History.
 - [x] AC-26 Palettes and text styles are kept between launches.
 - [ ] AC-27 8000×8000: draw, blur, undo 50 steps and export with no stall over 1s and no crash. _(Pending: waiting for the heavy 8000×8000 check.)_
 - [x] AC-27a A locked layer rejects every pixel edit, move, merge and delete, and can still be hidden and reordered.

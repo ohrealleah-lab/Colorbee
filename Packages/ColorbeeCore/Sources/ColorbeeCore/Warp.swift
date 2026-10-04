@@ -168,7 +168,10 @@ extension ImageActions {
         let angle = min(max(angle, -45), 45)
         guard abs(angle) >= 0.05 else { return false }
         let size = Warp.straightenedSize(canvas.size, angle: angle, cropToFit: cropToFit)
-        return replaceEveryLayer("Straighten", size: size, canvas: canvas, history: history, context: context) { layer in
+        guard size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return false }
+        // An empty layer still needs drawing when its new corners get Color 2 (review A, finding 8).
+        let needsDrawing = { (layer: Layer) in canvas.vacatedFill(for: layer, color2: context.color2) != .clear }
+        return replaceEveryLayer("Straighten", size: size, canvas: canvas, history: history, context: context, drawsEmptyLayer: needsDrawing) { layer in
             Warp.rotated(layer.buffer, angle: angle, size: size, fill: canvas.vacatedFill(for: layer, color2: context.color2))
         }
     }
@@ -202,13 +205,13 @@ extension ImageActions {
 
     /// A geometry step that gives every layer a new buffer of `size`. Layers with no pixels get an empty one.
     private static func replaceEveryLayer(_ name: String, size: IntSize, canvas: Canvas, history: History, context: SelectionContext,
-                                          _ make: (Layer) -> PixelBuffer) -> Bool {
+                                          drawsEmptyLayer: (Layer) -> Bool = { _ in false }, _ make: (Layer) -> PixelBuffer) -> Bool {
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let edit = history.beginEdit(name, on: canvas)
         edit.willChangeGeometry()
         var buffers: [LayerID: PixelBuffer] = [:]
         for layer in canvas.layers {
-            buffers[layer.id] = layer.holdsNoPixels ? PixelBuffer(size: size) : make(layer)
+            buffers[layer.id] = layer.holdsNoPixels && !drawsEmptyLayer(layer) ? PixelBuffer(size: size) : make(layer)
         }
         canvas.replaceContents(size: size, buffers: buffers)
         canvas.selection = .none

@@ -1932,6 +1932,9 @@ final class Editor {
     private func renderDecorationPreview(_ kind: EffectKind) {
         if decorationPreviewed {
             history.undo(on: canvas)
+            // The undone preview was never applied, so it mustn't be redoable, even if this tick draws nothing
+            // (review A, finding 5).
+            history.forgetRedo()
             decorationPreviewed = false
         }
         let colors = [color1, color2, .black, .white]

@@ -193,6 +193,11 @@ public final class History {
         weak var buffer: PixelBuffer?
         let locations: [SpillStore.Location]
     }
+
+    /// Layers read back from the spill file, with where their copy is and a hash of the pixels it holds.
+    /// If one is moved out again with the same pixels, its copy is reused instead of written again, so
+    /// undoing and redoing across it doesn't keep growing the file (review A, finding 3).
+    private var diskCopies: [ObjectIdentifier: (copy: EvictedBuffer, hash: Int)] = [:]
     /// Increases whenever a step is recorded, merged, undone or redone.
     public private(set) var revision = 0
     private var undoStack: [HistoryEntry] = []
@@ -217,6 +222,8 @@ public final class History {
         undoStack.map { ($0.name, $0.thumbnail, false) } + redoStack.reversed().map { ($0.name, $0.thumbnail, true) }
     }
     public var redoActionName: String? { redoStack.last?.name }
+    /// How much has been written to the spill file, for tests.
+    var spillFileSize: UInt64 { spillStore?.end ?? 0 }
     var spilledEntryCount: Int { (undoStack + redoStack).filter(\.isSpilled).count }
 
     public func beginEdit(_ name: String, on canvas: Canvas) -> Edit {
@@ -279,7 +286,10 @@ public final class History {
         }
         guard !changes.isEmpty || selectionChanged else { return false }
 
-        if mergingIntoPrevious, redoStack.isEmpty, let previous = undoStack.last, load(previous) {
+        // Tile changes can only join a step that undoes tiles: a layer, geometry or transform step undoes
+        // something else and would never put those pixels back (review A, finding 1).
+        if mergingIntoPrevious, redoStack.isEmpty, let previous = undoStack.last,
+           previous.layers == nil, previous.geometry == nil, previous.transform == nil, load(previous) {
             // The previous step already holds the older pre-image for any tile it touched.
             let touched = Set(previous.changes.map(\.key))
             let added = changes.filter { !touched.contains($0.key) }
@@ -344,7 +354,10 @@ public final class History {
             return canvas.bounds
         }
         if let geometry = entry.geometry, let buffers = geometry.buffers {
+            // The step now holds the other size's buffers, so its share of the count changes with it.
+            tileBytes -= geometry.byteCount
             entry.geometry = canvas.currentGeometry
+            tileBytes += entry.geometry?.byteCount ?? 0
             canvas.replaceContents(size: geometry.size, buffers: buffers)
             return canvas.bounds
         }
@@ -468,7 +481,9 @@ public final class History {
     /// Layer buffers that steps hold but the canvas doesn't use, still in memory. Untouched buffers
     /// (new empty layers and adjustment layers) cost nothing and are left out.
     private func heldLayerBuffers(of entries: [HistoryEntry], canvas: Canvas) -> [PixelBuffer] {
-        let inCanvas = Set(canvas.layers.map { ObjectIdentifier($0.buffer) })
+        // Buffers a geometry step holds are already counted in tileBytes (review A, finding 7).
+        let geometryHeld = (undoStack + redoStack).flatMap { $0.geometry?.buffers?.values.map(ObjectIdentifier.init) ?? [] }
+        let inCanvas = Set(canvas.layers.map { ObjectIdentifier($0.buffer) } + geometryHeld)
         var seen = Set<ObjectIdentifier>()
         var buffers: [PixelBuffer] = []
         for entry in entries {
@@ -483,6 +498,7 @@ public final class History {
 
     private func refreshLayerBytes(canvas: Canvas) {
         evicted = evicted.filter { $0.value.buffer != nil }
+        diskCopies = diskCopies.filter { $0.value.copy.buffer != nil }
         layerBytes = heldLayerBuffers(of: undoStack + redoStack, canvas: canvas).reduce(0) { $0 + $1.width * $1.height * MemoryLayout<Pixel>.stride }
     }
 
@@ -498,13 +514,19 @@ public final class History {
         if spillStore == nil { spillStore = try? SpillStore() }
         guard let store = spillStore else { return false }
         for buffer in buffers {
-            let bands = GeometryChange.bands(of: buffer.size)
-            let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(buffer.pixels(in: bands[$0])) }
+            let id = ObjectIdentifier(buffer)
             var locations: [SpillStore.Location] = []
-            for data in compressed {
-                guard let data, let location = try? store.append(data) else { return false }
-                locations.append(location)
+            if let earlier = diskCopies[id], earlier.copy.buffer === buffer, earlier.hash == buffer.contentHash() {
+                locations = earlier.copy.locations
+            } else {
+                let bands = GeometryChange.bands(of: buffer.size)
+                let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(buffer.pixels(in: bands[$0])) }
+                for data in compressed {
+                    guard let data, let location = try? store.append(data) else { return false }
+                    locations.append(location)
+                }
             }
+            diskCopies[id] = nil
             buffer.discardContents()
             evicted[ObjectIdentifier(buffer)] = EvictedBuffer(buffer: buffer, locations: locations)
             layerBytes -= buffer.width * buffer.height * MemoryLayout<Pixel>.stride
@@ -533,6 +555,7 @@ public final class History {
         }
         guard decoded.allSatisfy({ $0 }) else { return false }
         evicted[id] = nil
+        diskCopies[id] = (stored, buffer.contentHash())
         return true
     }
 
@@ -553,7 +576,10 @@ public final class History {
             for buffer in buffers.values {
                 guard restore(buffer) else { return false }
             }
-            let bands = buffers.flatMap { id, buffer in GeometryChange.bands(of: buffer.size).map { (id, buffer, $0) } }
+            // Empty and adjustment layers have nothing to write; they come back as fresh empty buffers, so
+            // undoing a spilled crop doesn't fill them with real memory (review A, finding 4).
+            for (id, buffer) in buffers where buffer.isUntouched { geometryLocations[id] = [] }
+            let bands = buffers.filter { !$0.value.isUntouched }.flatMap { id, buffer in GeometryChange.bands(of: buffer.size).map { (id, buffer, $0) } }
             let compressed = ParallelRows.map(bands.count) { index in
                 let (_, buffer, band) = bands[index]
                 return try? SpillStore.compress(buffer.pixels(in: band))
@@ -601,6 +627,10 @@ public final class History {
         if let geometry = entry.geometry, let locations = geometry.spillLocations {
             let bandRects = GeometryChange.bands(of: geometry.size)
             for (id, layerLocations) in locations {
+                if layerLocations.isEmpty {
+                    buffers[id] = PixelBuffer(width: geometry.size.width, height: geometry.size.height)
+                    continue
+                }
                 guard layerLocations.count == bandRects.count else { return false }
                 var stored: [Data] = []
                 for location in layerLocations {
@@ -645,7 +675,7 @@ final class SpillStore {
 
     private let url: URL
     private let handle: FileHandle
-    private var end: UInt64 = 0
+    private(set) var end: UInt64 = 0
 
     init() throws {
         url = FileManager.default.temporaryDirectory.appending(path: "colorbee-history-\(UUID().uuidString).bin")

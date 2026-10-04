@@ -557,8 +557,9 @@ public final class History {
         let job = EvictionJob(buffer: buffer)
         let finished = finishedEvictions
         evictionQueue.async {
+            // One core, band by band: it isn't waited for, and the other cores stay free for the next step (AC-27).
             let bands = GeometryChange.bands(of: job.buffer.size)
-            let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(job.buffer.pixels(in: bands[$0])) }
+            let compressed = bands.map { try? SpillStore.compress(job.buffer.pixels(in: $0)) }
             finished.add(job.buffer, compressed.allSatisfy { $0 != nil } ? compressed.map { $0! } : nil)
         }
     }

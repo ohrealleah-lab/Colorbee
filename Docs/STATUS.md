@@ -150,6 +150,10 @@ but 228 steps over a second, mostly Brush (132) and Flatten (48). Leah chose (20
 - **The soak's Brush step** is painted as a fast drag is (moves at most 24 px apart, each timed, then placing
   the stroke), since a stroke's work is spread over its mouse events.
 
+Fourth soak (2026-10-04, 102 rounds): exact every round; slow steps down from 228 to 31 (Flatten 19, worst
+2.3 s; Sharpen 7). Background compression then moved to one core (Leah's OK), so it doesn't compete with the
+step after it. The quick speed tests pass on their own (two had failed during that run, from a busy Mac).
+
 Needs one more soak (with Leah's OK, about 35 minutes, the Mac left alone) before AC-27 is ticked.
 
 ## Not yet checked by hand

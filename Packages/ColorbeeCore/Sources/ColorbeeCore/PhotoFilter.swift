@@ -106,3 +106,16 @@ extension Effect {
         }
     }
 }
+
+extension PhotoFilter {
+    private enum CodingKeys: String, CodingKey {
+        case name, steps, isBuiltIn
+    }
+
+    /// Through `init`, so a filter read from a project holds only color and tone steps, like an imported one.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(name: try container.decode(String.self, forKey: .name), steps: try container.decode([Effect].self, forKey: .steps),
+                  isBuiltIn: try container.decode(Bool.self, forKey: .isBuiltIn))
+    }
+}

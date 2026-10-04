@@ -2472,6 +2472,9 @@ final class Editor {
         selectionDidChange()
     }
 
+    /// Whether pixel-changing commands work on the active layer (see `refusedBecauseLocked`).
+    var activeLayerTakesEdits: Bool { !canvas.activeLayer.isLocked && canvas.activeLayer.adjustment == nil }
+
     /// Pixel-changing commands call this first. A locked layer refuses them (FR-8.2), and so does an
     /// adjustment layer, which has no pixels to change.
     private func refusedBecauseLocked() -> Bool {

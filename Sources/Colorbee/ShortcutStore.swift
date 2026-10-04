@@ -182,7 +182,8 @@ final class ShortcutStore {
         case "right": String(Character(UnicodeScalar(NSRightArrowFunctionKey)!))
         case "up": String(Character(UnicodeScalar(NSUpArrowFunctionKey)!))
         case "down": String(Character(UnicodeScalar(NSDownArrowFunctionKey)!))
-        case let name where name.hasPrefix("f") && name.count > 1 && Int(name.dropFirst()) != nil:
+        // F1 to F20 only: a shortcuts file could hold any number (local sweep after review round 1).
+        case let name where name.hasPrefix("f") && Int(name.dropFirst()).map((1...20).contains) == true:
             String(Character(UnicodeScalar(NSF1FunctionKey + Int(name.dropFirst())! - 1)!))
         default: shortcut.key
         }

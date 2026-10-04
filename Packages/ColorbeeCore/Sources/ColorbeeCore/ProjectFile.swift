@@ -100,9 +100,11 @@ public enum ProjectFile {
         guard manifest.width > 0, manifest.height > 0, manifest.width <= ResizeSkew.maxSide, manifest.height <= ResizeSkew.maxSide,
               manifest.width * manifest.height <= ResizeSkew.maxArea, !manifest.layers.isEmpty else { throw Failure.damaged }
 
-        let colorSpace = manifest.iccProfile.flatMap { CGColorSpace(iccData: $0 as CFData) }
-            ?? manifest.colorSpaceName.flatMap { CGColorSpace(name: $0 as CFString) }
-            ?? Canvas.defaultColorSpace
+        // Pixels are RGB, so a profile of another kind (gray or CMYK, from a damaged or edited file) is
+        // ignored; drawing text or shapes in one would fail (local sweep after review round 1).
+        let colorSpace = [manifest.iccProfile.flatMap { CGColorSpace(iccData: $0 as CFData) },
+                          manifest.colorSpaceName.flatMap { CGColorSpace(name: $0 as CFString) }]
+            .compactMap { $0 }.first { $0.model == .rgb } ?? Canvas.defaultColorSpace
         let layers = try manifest.layers.map { entry -> Layer in
             let buffer = PixelBuffer(width: manifest.width, height: manifest.height)
             if let range = entry.pixels {

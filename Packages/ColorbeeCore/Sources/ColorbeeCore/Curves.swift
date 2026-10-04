@@ -106,3 +106,21 @@ public struct Curves: Sendable, Hashable, Codable {
         }
     }
 }
+
+extension Curves {
+    private enum CodingKeys: String, CodingKey {
+        case rgb, red, green, blue
+    }
+
+    /// Points from a file are kept on the graph, so a damaged or hand-edited one draws a sensible curve.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        func curve(_ key: CodingKeys) throws -> [Point] {
+            let points = try container.decode([Point].self, forKey: key)
+                .filter { $0.x.isFinite && $0.y.isFinite }
+                .map { Point(x: min(max($0.x, 0), 255).rounded(), y: min(max($0.y, 0), 255).rounded()) }
+            return points.count >= 2 ? points : Curves.straight
+        }
+        self.init(rgb: try curve(.rgb), red: try curve(.red), green: try curve(.green), blue: try curve(.blue))
+    }
+}

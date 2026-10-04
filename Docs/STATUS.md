@@ -165,6 +165,7 @@ and is fixed (two parts deferred). See `Docs/Review/RESULTS.md`. App-side fixes 
 - During Adjust Photo the toolbar's Sidebar and Layers buttons are greyed out.
 - A Levels layer over a photo: hide the photo: the histogram updates.
 - VoiceOver on the effect bar's sliders reads their names.
+- Round 2 local sweeps (2026-10-04, `RESULTS.md`): Cut on a locked layer beeps and leaves the clipboard alone. Round 2 cloud sessions E, F and G are running.
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
 Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b tested by hand on 2026-10-03. Stage 7a tested by hand on 2026-10-03. Stage 7b tested by hand on 2026-10-03, including the Auto-Redact box fix. Stage 7c tested by hand on 2026-10-03. Stage 8 tested by hand on 2026-10-03. Stage 9 tested by hand on 2026-10-03 (fixes: saved filters applied twice, Spotlight without a selection, clipboard screenshots, zoom after geometry tools). Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).

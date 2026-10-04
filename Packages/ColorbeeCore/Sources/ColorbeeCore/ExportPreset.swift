@@ -31,6 +31,8 @@ public struct ExportPreset: Hashable, Sendable {
         case .fitSquare(let side): Double(side) / max(width, height)
         }
         if !allowEnlarging { scale = min(scale, 1) }
+        // A preset's size is typed in Settings, so it can be anything; no side goes past what Colorbee edits.
+        scale = min(scale, Double(ResizeSkew.maxSide) / max(width, height))
         return IntSize(width: max(1, Int((width * scale).rounded())), height: max(1, Int((height * scale).rounded())))
     }
 

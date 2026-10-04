@@ -40,6 +40,8 @@ final class DocumentWindow: NSWindow {
 
     @objc func cut(_ sender: Any?) {
         guard let editor, editor.hasSelection else { return }
+        // A locked layer refuses the cut before anything is copied, so the clipboard isn't changed either.
+        guard editor.activeLayerTakesEdits else { return editor.onRefused() }
         copy(sender)
         editor.deleteSelection(named: "Cut")
     }

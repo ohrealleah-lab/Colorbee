@@ -71,10 +71,11 @@ struct CropOptions: View {
         .help("The crop box's shape")
         if case .ratio(let w, let h) = editor.cropShape, !CropShape.presets.contains(editor.cropShape), editor.cropPixelSize == nil {
             HStack(spacing: 3) {
-                TextField("Width", value: Binding(get: { w }, set: { set(.ratio(max(1, $0), h)) }), format: .number)
+                // Up to 1000:1, so the box's sums never overflow.
+                TextField("Width", value: Binding(get: { w }, set: { set(.ratio(min(max(1, $0), 1000), h)) }), format: .number)
                     .frame(width: 36)
                 Text(":")
-                TextField("Height", value: Binding(get: { h }, set: { set(.ratio(w, max(1, $0))) }), format: .number)
+                TextField("Height", value: Binding(get: { h }, set: { set(.ratio(w, min(max(1, $0), 1000))) }), format: .number)
                     .frame(width: 36)
             }
             .multilineTextAlignment(.center)

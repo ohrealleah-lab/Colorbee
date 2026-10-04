@@ -194,3 +194,32 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
         return { pixel in own(steps.reduce(pixel) { $1($0) }) }
     }
 }
+
+extension PhotoAdjustments {
+    private enum CodingKeys: String, CodingKey {
+        case values
+    }
+
+    /// Values from a file are kept within each slider's range.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init()
+        for (slider, value) in try container.decode([Slider: Double].self, forKey: .values) where value.isFinite {
+            self[slider] = value
+        }
+    }
+}
+
+extension PhotoEdit {
+    private enum CodingKeys: String, CodingKey {
+        case adjustments, filter, filterIntensity
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let intensity = try container.decode(Double.self, forKey: .filterIntensity)
+        self.init(adjustments: try container.decode(PhotoAdjustments.self, forKey: .adjustments),
+                  filter: try container.decodeIfPresent(PhotoFilter.self, forKey: .filter),
+                  filterIntensity: intensity.isFinite ? min(max(intensity, 0), 100) : 100)
+    }
+}

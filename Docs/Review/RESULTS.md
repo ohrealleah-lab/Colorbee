@@ -64,3 +64,35 @@ so checked by building and by hand.
 | 4 | Low | Renaming or deleting the chosen filter left Adjust Photo on an old copy | **Fixed.** Rename keeps it chosen under the new name; Delete takes it off (None). |
 | 5 | Low | The toolbar could hide Adjust Photo's panel | **Fixed.** The Sidebar and Layers buttons are disabled while Adjust Photo is open. |
 | 6 | Low | Subject commands stayed enabled during a search and did nothing | **Fixed.** Greyed out during a search and on an adjustment layer. |
+
+## Round 2, local sweeps ([plan](PLAN-2.md))
+
+Done on 2026-10-04 at `918ce67`. Core tests in `Packages/ColorbeeCore/Tests/ColorbeeCoreTests/DamagedFileTests.swift`.
+
+**1. Damaged and unusual files.** Every reader of outside data was checked: images (open, paste, drop),
+projects, filters, palettes, shortcuts, redaction patterns, Clipboard History, settings.
+
+| Found | Outcome |
+|---|---|
+| Images had no size limit before decoding; a real file over 30,000 px a side or 256 megapixels was decoded in full (ImageIO refuses some oversized headers itself, but not long thin ones or every format) | **Fixed.** The size in the file's header is checked first; such images give "too large to edit" (§23). |
+| Curves points, Adjust Photo values and filter intensity were read from projects and filters without range checks | **Fixed.** Clamped to their ranges as they're read. They didn't crash, but showed nonsense values. |
+| A filter inside a project could hold steps a filter mustn't (blur, crop) | **Fixed.** Read through the same check as an imported filter. |
+| A project with a gray or CMYK color profile opened, then crashed when text or a shape was drawn | **Fixed.** Only an RGB profile is used; otherwise Display P3. |
+| A shortcuts file with a key like `f99999999999` crashed when the menus were updated | **Fixed.** Only F1 to F20 are function keys. |
+| Palettes, redaction patterns, Clipboard History, settings | No problem: checked counts, invalid patterns skipped, Colorbee's own files. |
+
+**2. Crashes on unusual numbers.** About 100 conversions from decimal to whole numbers, plus forced unwraps,
+were checked. Most get values already bounded (slider ranges, pointer positions, image sizes).
+
+| Found | Outcome |
+|---|---|
+| Export presets: a huge width typed in Settings crashed the File menu (sized with enlarging allowed) | **Fixed.** No preset size goes past 30,000 px a side; test. |
+| Resize and Skew in pixels: a width over about 9.2 quintillion crashed before the size check | **Fixed.** Sizes over 30,000 px are refused first. |
+| Crop's custom ratio: a huge number could overflow the box's sums | **Fixed.** Ratios run up to 1000:1. |
+
+**3. Menus against commands.**
+
+| Found | Outcome |
+|---|---|
+| Cut on a locked layer copied to the clipboard, then refused to delete | **Fixed.** It beeps before copying. |
+| Pixel commands (effects, adjustments, Delete, Cut) stay enabled on a locked or adjustment layer and beep when chosen; Select Subject and friends are greyed out on an adjustment layer (review D, finding 6) | **Question for Leah:** grey them out everywhere, or keep the beep? |

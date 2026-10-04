@@ -40,6 +40,10 @@ struct ResizeSkewSheet: View {
             return "Percentages run from 1% to 500%."
         }
         if !byPercentage, horizontal < 1 || vertical < 1 { return "Sizes must be at least 1 px." }
+        // Checked before anything converts the typed sizes to whole numbers, which a huge one would crash.
+        if !byPercentage, horizontal > Double(ResizeSkew.maxSide) || vertical > Double(ResizeSkew.maxSide) {
+            return "That would be too large (over \(ResizeSkew.maxSide.formatted()) px on a side)."
+        }
         if !(-89...89).contains(horizontalSkew) || !(-89...89).contains(verticalSkew) { return "Skew runs from −89° to 89°." }
         if !settings.fits { return "That would be too large (over \(ResizeSkew.maxSide.formatted()) px on a side)." }
         return nil

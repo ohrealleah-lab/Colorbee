@@ -4,11 +4,23 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-public enum ImageCodecError: Error {
+public enum ImageCodecError: Error, Equatable {
     case unreadableData
+    /// Over the largest size Colorbee edits (`ResizeSkew.maxSide`, `maxArea`).
+    case tooLarge
     case unsupportedColorSpace
     case conversionFailed(Int)
     case encodingFailed
+}
+
+extension ImageCodecError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .tooLarge:
+            "This image is too large to edit. Colorbee edits images up to \(ResizeSkew.maxSide.formatted()) pixels on a side and \(ResizeSkew.maxArea / 1_000_000) megapixels."
+        default: nil
+        }
+    }
 }
 
 public struct DecodedImage {
@@ -20,14 +32,24 @@ public struct DecodedImage {
 public enum ImageCodec {
     /// Decodes the first image in `data`. With no target, the image keeps its own RGB color space.
     public static func decode(_ data: Data, convertingTo target: CGColorSpace? = nil) throws -> DecodedImage {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
-            throw ImageCodecError.unreadableData
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { throw ImageCodecError.unreadableData }
+        // The header's size is checked before anything is decoded, so a file claiming a huge size can't use up
+        // memory (local sweep after review round 1).
+        if let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int,
+           !fitsEditing(width: width, height: height) {
+            throw ImageCodecError.tooLarge
         }
+        guard let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw ImageCodecError.unreadableData }
         return try decode(image, convertingTo: target)
     }
 
+    static func fitsEditing(width: Int, height: Int) -> Bool {
+        width <= ResizeSkew.maxSide && height <= ResizeSkew.maxSide && width * height <= ResizeSkew.maxArea
+    }
+
     public static func decode(_ image: CGImage, convertingTo target: CGColorSpace? = nil) throws -> DecodedImage {
+        guard fitsEditing(width: image.width, height: image.height) else { throw ImageCodecError.tooLarge }
         let colorSpace = target ?? rgbColorSpace(of: image)
         var format = try storageFormat(for: colorSpace)
         let buffer = PixelBuffer(width: image.width, height: image.height)

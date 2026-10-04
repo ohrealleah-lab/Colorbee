@@ -156,6 +156,11 @@ step after it. The quick speed tests pass on their own (two had failed during th
 
 Needs one more soak (with Leah's OK, about 35 minutes, the Mac left alone) before AC-27 is ticked.
 
+**Next, after the soak (agreed with Leah 2026-10-04):**
+- Auto-Redact misses the `sk_test_` key in E1 Screenshot.png (fresh build): check what Vision reads, then propose a fix.
+- Remove Earlier Versions also clears undo history up to that save (§23).
+- Possibly: the versions warning when a window with an unwarned redaction closes without ⌘S (proposed, not yet decided).
+
 ## Not yet checked by hand
 
 **Round 3 fixes (reviews H, I and J, 2026-10-04), not yet tried by hand.** Details in `Docs/Review/RESULTS.md`.

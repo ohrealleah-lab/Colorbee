@@ -148,7 +148,7 @@ Five 30-minute 8000×8000 soaks. The fifth ran 108 rounds with no crash and exac
 (parallel fingerprints), Flatten compositing, and replaced layers written out in the background on one core.
 Logs in `build/soak-results*.txt` (not committed).
 
-**Done 2026-10-04 (agreed with Leah), to test by hand** (`make run` first):
+**Done 2026-10-04 (agreed with Leah): all 7 steps passed Leah's hand test on 2026-10-04.**
 1. **API key.** Open `~/Downloads/colorbee tests/E1 Screenshot.png`, Effects ▸ Auto-Redact…: the list has the `sk test _FAKE…` key, and its orange box covers the whole key. Solid Fill, Apply: all of it is black.
 2. **Batch Redact preview.** Open E1 Screenshot.png, Layer ▸ New Layer, marquee around the email, Effects ▸ Batch Redact ▸ Blur…: the email blurs as you drag the Radius slider. Apply: it stays as previewed. Cancel instead: everything comes back.
 3. **Batch Redact on a locked layer.** Lock Background, marquee the email, Batch Redact ▸ Pixelate…: a message names "Background" and the bar doesn't open.
@@ -165,7 +165,7 @@ Test images: the review ones in `~/Downloads/colorbee tests/` (E1 Screenshot.png
 E5 Tall Scroll.png, E5 Transparent Background.png, catslap.gif), plus three new ones in `TestImages/Round 3/`
 (Sideways Photo.jpg, Deep 16-bit.png, Two Pages.tiff).
 
-*Privacy and redaction*
+*Privacy and redaction*: steps 1–6 passed Leah's hand test on 2026-10-04.
 1. **Earlier versions warning.** Duplicate E1 Screenshot.png in Finder and open the copy. Effects ▸ Auto-Redact…, Solid Fill, Apply, then ⌘S. Expect a message that earlier versions still show what you redacted, with Keep and Remove buttons. Choose Remove, then File ▸ Revert To: no unredacted version is offered.
 2. **Clipboard History offer.** Open E1 Screenshot.png in Preview, ⌘A, ⌘C. In Colorbee, ⇧⌘V. Auto-Redact with Solid Fill, Apply. Expect "Remove the unredacted image from Clipboard History?" with Remove highlighted. Choose Remove: the screenshot is gone from the Clipboard History panel (⌥⌘V).
 3. **Remove one item.** In the Clipboard History panel, right-click (or Control-click) a thumbnail ▸ Remove. Only that one goes.

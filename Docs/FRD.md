@@ -663,6 +663,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | After a redaction (Leah): Remove in the Clipboard History offer also clears the Mac clipboard when it still holds that same image; anything copied since is left alone. Copies in other clipboard apps, or passed on by Universal Clipboard, are out of reach. (To build after the fourth soak.) |
 | 2026-10-04 | Redaction and saving (Leah): choosing Remove Earlier Versions after saving a redaction also clears the undo history up to that save, so the redaction can't be undone and then autosaved back. The button and message say so. (To build after the fourth soak.) |
 | 2026-10-04 | PDF documents, stage 10 (Leah): pages are their own thing, not layers, with their own sidebar of thumbnails; each page has its own layers. All pages open at once, at 200 DPI by default (150 or 300 on request). Pages can be added, deleted and reordered. Auto-Redact on all pages is part of the first version. Export as PDF is pixels only. See FR-11.6. |
 | 2026-10-04 | AC-27 (Leah): Flatten and Merge hand the writing-out of replaced layers to the background, so the step doesn't wait for it. The soak's Brush step is timed per mouse move (moves at most 24 px apart) and for placing the stroke, as a person experiences it, rather than as one 30-jump stroke. |

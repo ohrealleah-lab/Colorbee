@@ -159,6 +159,7 @@ Needs one more soak (with Leah's OK, about 35 minutes, the Mac left alone) befor
 **Next, after the soak (agreed with Leah 2026-10-04):**
 - Auto-Redact misses the `sk_test_` key in E1 Screenshot.png (fresh build): check what Vision reads, then propose a fix.
 - Remove Earlier Versions also clears undo history up to that save (§23).
+- The Clipboard History offer's Remove also clears the Mac clipboard if it still holds that same image (§23).
 - Possibly: the versions warning when a window with an unwarned redaction closes without ⌘S (proposed, not yet decided).
 
 ## Not yet checked by hand

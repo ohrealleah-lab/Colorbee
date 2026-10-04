@@ -156,7 +156,17 @@ Needs one more soak (with Leah's OK, about 35 minutes) before AC-27 is ticked.
 
 ## Not yet checked by hand
 
-Nothing outstanding. The cloud review fixes (rounds 1 and 2, `Docs/Review/RESULTS.md`), the greyed-out
+**Round 3 fixes (reviews H, I and J, 2026-10-04), not yet tried by hand.** See `Docs/Review/RESULTS.md`. Most worth trying:
+- Save a redacted file: the earlier-versions warning. Paste a screenshot (⇧⌘V), Auto-Redact: the offer to remove it from Clipboard History. Right-click a Clipboard History item: Remove.
+- Batch Redact with an empty layer active: the layer below is redacted.
+- File ▸ Revert To Saved: the window shows and keeps editing the reverted image.
+- Open an animated GIF: an untitled copy with the frame bar; Choose Frame…. An iPhone portrait photo opens upright.
+- Symmetry with the round brush and the eraser near the center line; the Color Eraser tolerance; Sample All Layers.
+- ⌘V, then W or P from the keyboard: the tool changes. ⌘⌫ while typing text deletes text.
+- Settings ▸ Shortcuts: give Undo ⌘I, give Pencil Space, clear ⌘Z.
+- Quit and relaunch with a zoomed-in window and History open: they come back.
+
+Earlier: the cloud review fixes (rounds 1 and 2, `Docs/Review/RESULTS.md`), the greyed-out
 pixel commands, the shape colour swatches and layer dragging were tested by hand by Leah on 2026-10-04.
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 

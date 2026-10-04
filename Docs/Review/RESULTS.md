@@ -137,3 +137,77 @@ Reviewed at `37959d2`; Leah confirmed 1–4 by hand. All five were real. Fixed o
 | 3 | Medium | Revert Layer went back to the layer without a paste that was floating at the save | **Fixed.** The layers as saved are built the way the project file is (`Canvas.layerBuffersAsSaved`), floating selection drawn in. |
 | 4 | Low | Revert Layer after a flip or 180° rotation put one layer back unturned | **Fixed.** Revert Layer is unavailable while a crop, resize, rotation or flip made since the save is in effect (undoing it makes Revert available again). |
 | 5 | Low | Duplicating an adjustment or empty layer used full-size memory | **Fixed.** Copying an untouched buffer keeps it untouched (no memory). |
+
+## Session H: where the original pixels survive after redaction ([findings](findings-H.md))
+
+Reviewed at `fc427a1`; Leah confirmed 1, 3 and 4 by hand and chose the behavior for 1–4 (§23). All seven were
+real. Fixed on 2026-10-04 (`9a41bcd`); tests in `ReviewHIJTests.swift`.
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | File ▸ Revert To brought back the unredacted image | **Fixed (warn).** After a save with a redaction, Colorbee says earlier versions still show it, and offers Remove Earlier Versions. |
+| 2 | High | Clipboard History kept the original screenshot | **Fixed.** Items can be removed one by one; after a redaction, Colorbee offers to remove the items this image was pasted from (Remove is the default). |
+| 3 | Medium | Batch Redact changed only the active layer | **Fixed.** Batch Redact covers every layer under the selection, refusing on a locked one, like Auto-Redact. |
+| 4 | Medium | Hidden or covered text isn't found, and survives in a project | **Fixed (note).** The sheet says only visible layers were checked; hiding a layer opts it out. |
+| 5 | Low | The spill file could be left behind | **Fixed.** It's unlinked as soon as it's open, so it never outlives Colorbee. |
+| 6 | Low | Share copies and old desktop pictures piled up | **Fixed.** Old Share folders go at launch and before each share; only the desktop picture in use is kept. |
+| 7 | Low | Remove Background kept hidden colors in transparent pixels | **Fixed.** Fully cut-away pixels are cleared. |
+
+## Session I: drawing tools and selections ([findings](findings-I.md))
+
+Reviewed at `fc427a1`; Leah confirmed 1–5, 8 and 10 by hand. All sixteen were real. Fixed on 2026-10-04
+(`e0e9f1a`, `9a41bcd`, `b5f4294`); tests in `ReviewHIJTests.swift` and `ReviewGTests.swift`.
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | Delete or Cut on a selection past the edge wrote outside the image | **Fixed (`e0e9f1a`).** Selections are clipped to the canvas, and Delete only touches the canvas. |
+| 2 | Medium | The wand read under a floating paste; tool keys beeped after a paste | **Fixed.** The paste is placed first; choosing a tool or pasting gives the canvas the keyboard. |
+| 3 | Medium | Transparent pixels with different hidden colors didn't match | **Fixed.** Fully transparent pixels are one color to Fill, the wand and the Color Eraser. |
+| 4 | Medium | Symmetry's mirrored strokes overwrote each other | **Fixed.** Mirrored strokes share one painter. |
+| 5 | Medium | The mirrored Eraser (and Pencil) landed a pixel off | **Fixed.** Pixel tools mirror whole pixel areas. |
+| 6 | Medium | No Color Eraser tolerance | **Fixed.** A tolerance setting, 0% by default (Leah). |
+| 7 | Medium | A handle drag could make a gigantic selection | **Fixed.** Limited to the Resize/Skew limits. |
+| 8 | Low | Option-click with the Eyedropper ignored blend modes and adjustments | **Fixed.** It picks the pixel as shown. |
+| 9 | Low | A Force Touch stroke started with a full-size dot | **Fixed.** The press's own pressure is used. Not testable headless. |
+| 10 | Low | [ and ] changed the brush, not the shape line width | **Fixed.** |
+| 11 | Low | Tall clouds had a flat top | **Fixed.** Painted bounds come from the shape's path. |
+| 12 | Low | Gradients drew on one core | **Fixed.** Rows on all cores. |
+| 13 | Low | Shift marquees could be one pixel off square | **Fixed.** |
+| 14 | Low | The marquee's "click" was measured in image pixels | **Fixed.** 2 points on screen at any zoom. |
+| 15 | Low | Small selections couldn't be moved | **Fixed.** Inside a small selection, a press moves it. |
+| 16 | Low | The subject pick rounded off-canvas clicks toward the canvas | **Fixed.** |
+| Q | — | Sample All Layers for Fill and the wand | **Added (Leah).** |
+
+## Session J: stages 1–7 against the FRD, and documents ([findings](findings-J.md))
+
+Reviewed at `fc427a1`; Leah confirmed 1, 2, 4–7, 15–17 and 23 by hand, and chose the behavior for 2 and 17
+(§23). All twenty-nine were real. Fixed on 2026-10-04 (`9a41bcd`, `d8faf5d`, `77dda57`); core tests in
+`ReviewHIJTests.swift` and `ShortcutTests.swift`.
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | After Revert To, the window kept editing an unsaved copy | **Fixed.** The window is rebuilt around the reverted document. |
+| 2 | High | Editing a multi-frame or 16-bit file overwrote it with less | **Fixed (Leah).** Such files open as untitled copies; a frame bar and Choose Frame… for GIFs and TIFFs. WebP (which can't be written) opens as a copy too. |
+| 3 | High | Portrait photos opened sideways | **Fixed.** The orientation tag is applied. |
+| 4 | Medium | ⌘⌫ while typing deleted the layer | **Fixed.** Menu commands give way while typing. |
+| 5 | Medium | Moving a standard shortcut named the wrong command | **Fixed.** Both what's given up and who loses the key are named. |
+| 6 | Medium | Pasted and dropped new images weren't kept safe | **Fixed.** They start unsaved. |
+| 7 | Low-Medium | Menus acted behind Resize and Skew and Canvas Properties | **Fixed.** Greyed out while they're open. |
+| 8 | Low | The shortcut recorder caught keys from other windows | **Fixed.** |
+| 9 | Low | Canvas keys could be assigned and then didn't work | **Fixed.** Refused. |
+| 10 | Low | macOS's tab shortcuts weren't protected | **Fixed.** |
+| 11 | Low | Window commands were missing from Settings ▸ Shortcuts | **Fixed.** Listed with a padlock. |
+| 12 | Low | Clearing ⌘Z and the like didn't ask | **Fixed.** |
+| 13 | Low | Imports skipped the checks | **Fixed.** Keys normalized; what couldn't be kept is reported. |
+| 14 | Low | Tooltips showed default keys | **Fixed.** They follow the current shortcuts. |
+| 15 | Low | Hiding Layers or Adjustments closed the whole sidebar | **Fixed.** |
+| 16 | Low | ⌘Z didn't discard an unplaced shape | **Fixed.** |
+| 17 | Low | Tools stayed clickable during an effect | **Fixed (Leah: grey them out).** |
+| 18 | Low | Close, Minimize, Zoom and Full Screen were greyed out during an effect | **Fixed.** They work. |
+| 19–21 | Low | Damaged projects (repeated ids, huge offsets) and palettes crashed | **Fixed.** Refused or ignored. |
+| 22 | Low | "NaN" in Resize and Skew | **Fixed.** |
+| 23–25 | Low | Palette named Paint Classic; deleting the palette in use; duplicate text style names | **Fixed.** |
+| 26 | Low | Canvas Properties gave the wrong reason | **Fixed.** |
+| 27 | Low | Damaged files showed an error code, or nothing | **Fixed.** Plain messages, and drops and Services say why. |
+| 28 | Low | Relaunch lost an image-turned-project's name, zoom and panels | **Fixed.** |
+| 29 | Low | VoiceOver gaps (A1–A8) | **Fixed**, except bare readouts in the status bar (A7, part) and Curves points (round 1, deferred). |

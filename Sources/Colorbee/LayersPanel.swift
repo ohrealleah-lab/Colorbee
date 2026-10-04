@@ -93,6 +93,10 @@ struct SectionHeader: View {
 /// layer first, and buttons to add, duplicate, delete and merge.
 private struct LayersPanel: View {
     @Bindable var editor: Editor
+    /// The layer being dragged to a new place, and how far it has moved.
+    @State private var dragged: (id: LayerID, translation: CGFloat)?
+    /// A row's height plus the gap between rows.
+    private static let rowPitch: CGFloat = 42
     @State private var renaming: Layer?
     @State private var newName = ""
 
@@ -114,13 +118,22 @@ private struct LayersPanel: View {
                 VStack(spacing: 2) {
                     // Top of the stack first, as it's seen.
                     ForEach(Array(layers.enumerated().reversed()), id: \.element.id) { index, layer in
+                        // The row itself follows the pointer and lands where it's let go. The system drag never
+                        // reached the drop target over the canvas (Leah, 2026-10-04).
+                        let isDragged = dragged?.id == layer.id
                         row(layer, index: index, isActive: index == active)
-                            .draggable(String(index))
-                            .dropDestination(for: String.self) { items, _ in
-                                guard let source = items.first.flatMap(Int.init) else { return false }
-                                editor.moveLayer(from: source, to: index)
-                                return true
-                            }
+                            .offset(y: isDragged ? dragged?.translation ?? 0 : 0)
+                            .shadow(color: .black.opacity(isDragged ? 0.25 : 0), radius: 6, y: 2)
+                            .zIndex(isDragged ? 1 : 0)
+                            .gesture(DragGesture(minimumDistance: 4)
+                                .onChanged { dragged = (layer.id, $0.translation.height) }
+                                .onEnded { value in
+                                    dragged = nil
+                                    // Rows are listed top of the stack first, so moving down the list moves down the stack.
+                                    let steps = Int((value.translation.height / Self.rowPitch).rounded())
+                                    let destination = min(max(index - steps, 0), layers.count - 1)
+                                    if destination != index { editor.moveLayer(from: index, to: destination) }
+                                })
                     }
                 }
                 .padding(.horizontal, 6)

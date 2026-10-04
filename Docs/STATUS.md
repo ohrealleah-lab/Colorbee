@@ -154,18 +154,8 @@ is ticked.
 
 ## Not yet checked by hand
 
-**Cloud review fixes (2026-10-03), not yet tried by hand.** Code reviews A–D are done; every finding was real
-and is fixed (two parts deferred). See `Docs/Review/RESULTS.md`. App-side fixes to try:
-- Drop Shadow open, switch to another app (autosave), back, Esc, close, reopen: no shadow in the file.
-- Remove Background on a large photo, then at once Image ▸ Flip ▸ Horizontal: a "try again" message, not a wrong cutout. The subject commands are greyed out while it searches.
-- Lock the layer: Straighten…, Perspective Correction… and Crop… still open. `Stage 9 Practice Cutout.png` with the layer locked: Select Subject asks which subject.
-- Perspective Correction: drag the bottom corners past each other, Return: a beep, the tool stays open.
-- A Posterize adjustment layer at 2–4 levels over a gradient: hard bands on screen, the same as File ▸ Export.
-- Curves: click a point without moving: it stays put. Rename the filter in use: still chosen. Delete it: None.
-- During Adjust Photo the toolbar's Sidebar and Layers buttons are greyed out.
-- A Levels layer over a photo: hide the photo: the histogram updates.
-- VoiceOver on the effect bar's sliders reads their names.
-- Round 2 (2026-10-04, `RESULTS.md`): lock a layer: effects, Cut, Delete and Paste are greyed out; crop and rotate aren't. Session E's test images again: a new empty layer on top, then Auto-Redact with Blur: the email is blurred. Flip is greyed out while the sheet is open. Ten small emails plus one large: the large one is unreadable. A lasso through an email: the whole email goes. The tall capture: all ten found. The transparent image: all five found. The `sk_test_` key: found. Lock the screenshot's layer: the sheet names it and redacts nothing. Session F's steps: a yellow rectangle on a Multiply layer over blue looks dark while pending and doesn't change on Return; the same with text being typed, and with a paste. A paste stretched 4× and exported while still floating is smooth. Lift Subject over a black layer at 50% zoom: no light outline. Session G's fixes and layer dragging: confirmed by Leah on 2026-10-04. All round 2 sessions are done.
+Nothing outstanding. The cloud review fixes (rounds 1 and 2, `Docs/Review/RESULTS.md`), the greyed-out
+pixel commands, the shape colour swatches and layer dragging were tested by hand by Leah on 2026-10-04.
 
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
 Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b tested by hand on 2026-10-03. Stage 7a tested by hand on 2026-10-03. Stage 7b tested by hand on 2026-10-03, including the Auto-Redact box fix. Stage 7c tested by hand on 2026-10-03. Stage 8 tested by hand on 2026-10-03. Stage 9 tested by hand on 2026-10-03 (fixes: saved filters applied twice, Spotlight without a selection, clipboard screenshots, zoom after geometry tools). Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).

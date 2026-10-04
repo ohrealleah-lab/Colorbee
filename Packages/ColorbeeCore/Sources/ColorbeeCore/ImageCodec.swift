@@ -53,13 +53,14 @@ public enum ImageCodec {
     }
 
     /// Encodes in `format`. Formats without transparency are composited over `matte` first (FR-11.1).
-    /// `quality` (0...1) applies to lossy formats.
+    /// `quality` (0...1) applies to lossy formats; `tiffLZW` compresses TIFF losslessly (FR-11.1).
     public static func encode(
         _ buffer: PixelBuffer,
         colorSpace: CGColorSpace,
         as format: ImageFileFormat,
         quality: Double = 0.9,
-        matte: Pixel = .white
+        matte: Pixel = .white,
+        tiffLZW: Bool = false
     ) throws -> Data {
         guard format.canWrite else { throw ImageCodecError.encodingFailed }
         var pixels = buffer
@@ -78,8 +79,13 @@ public enum ImageCodec {
         guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, format.type.identifier as CFString, 1, nil) else {
             throw ImageCodecError.encodingFailed
         }
-        let options = [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary
-        CGImageDestinationAddImage(destination, image, format.isLossy ? options : nil)
+        var options: [CFString: Any] = [:]
+        if format.isLossy { options[kCGImageDestinationLossyCompressionQuality] = quality }
+        if format == .tiff {
+            // TIFF compression tags: 1 is none, 5 is LZW.
+            options[kCGImagePropertyTIFFDictionary] = [kCGImagePropertyTIFFCompression: tiffLZW ? 5 : 1]
+        }
+        CGImageDestinationAddImage(destination, image, options.isEmpty ? nil : options as CFDictionary)
         guard CGImageDestinationFinalize(destination) else { throw ImageCodecError.encodingFailed }
         return data as Data
     }

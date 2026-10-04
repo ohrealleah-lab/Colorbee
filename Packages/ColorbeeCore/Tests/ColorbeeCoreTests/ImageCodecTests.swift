@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import ImageIO
 import Testing
 @testable import ColorbeeCore
 
@@ -35,6 +36,22 @@ struct ImageCodecTests {
     @Test func unreadableDataThrows() {
         #expect(throws: ImageCodecError.self) {
             try ImageCodec.decode(Data([1, 2, 3]))
+        }
+    }
+}
+
+struct TIFFCompressionTests {
+    @Test func tiffCanBeSavedPlainOrWithLZWAndReadsBackExactly() throws {
+        let buffer = PixelBuffer(width: 64, height: 64, fill: Pixel(r: 10, g: 200, b: 90, a: 255))
+        buffer.fill(Pixel(r: 250, g: 20, b: 20, a: 120), in: IntRect(x: 8, y: 8, width: 20, height: 30))
+        let space = Canvas.defaultColorSpace
+        for lzw in [false, true] {
+            let data = try ImageCodec.encode(buffer, colorSpace: space, as: .tiff, tiffLZW: lzw)
+            let source = CGImageSourceCreateWithData(data as CFData, nil)!
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as! [CFString: Any]
+            let tiff = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any]
+            #expect((tiff?[kCGImagePropertyTIFFCompression] as? Int) == (lzw ? 5 : 1))
+            #expect(try ImageCodec.decode(data).buffer.pixels(in: buffer.bounds) == buffer.pixels(in: buffer.bounds))
         }
     }
 }

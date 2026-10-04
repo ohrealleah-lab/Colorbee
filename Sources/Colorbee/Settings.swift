@@ -39,11 +39,22 @@ final class ExportPresetStore {
 
     var presets: [ExportPreset] { items.filter { $0.pixels > 0 && !$0.name.isEmpty }.map(\.preset) }
 
+    /// How presets scale (FR-11.2): nil picks by size (sharp pixels for small pixel art, smooth otherwise).
+    var scaling: Resampling? {
+        didSet { UserDefaults.standard.set(scaling.map { $0 == .smooth ? "smooth" : "sharp" }, forKey: Self.scalingKey) }
+    }
+    private static let scalingKey = "ExportPresetScaling"
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: Self.key), let stored = try? JSONDecoder().decode([Stored].self, from: data) {
             items = stored
         } else {
             items = ExportPreset.defaults.map(Stored.init)
+        }
+        scaling = switch UserDefaults.standard.string(forKey: Self.scalingKey) {
+        case "smooth": .smooth
+        case "sharp": .nearestNeighbor
+        default: nil
         }
     }
 
@@ -76,12 +87,17 @@ final class SettingsWindowController: NSWindowController {
 }
 
 private struct SettingsView: View {
+    /// Settings reopens on the tab you last used.
+    @AppStorage("SettingsTab") private var tab = "shortcuts"
+
     var body: some View {
-        TabView {
+        TabView(selection: $tab) {
             ShortcutSettings(store: ShortcutStore.shared)
                 .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+                .tag("shortcuts")
             ExportPresetSettings(store: ExportPresetStore.shared)
                 .tabItem { Label("Export Presets", systemImage: "square.and.arrow.up") }
+                .tag("exports")
         }
         .padding(20)
         .frame(width: 640, height: 560)
@@ -96,6 +112,13 @@ private struct ExportPresetSettings: View {
             Text("File ▸ Export As saves a PNG at each preset's size. Images are never enlarged.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            Picker("Scaling", selection: $store.scaling) {
+                Text("Automatic").tag(Resampling?.none)
+                Text("Sharp pixels").tag(Resampling?.some(.nearestNeighbor))
+                Text("Smooth").tag(Resampling?.some(.smooth))
+            }
+            .fixedSize()
+            .help("Automatic keeps small pixel art sharp and scales everything else smoothly")
             List {
                 ForEach($store.items) { $item in
                     HStack {

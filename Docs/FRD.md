@@ -428,15 +428,15 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 | JPEG | ✓ | ✓ | Quality 1–100. Transparent areas are placed over Color 2. |
 | BMP | ✓ | ✓ | 24-bit and 32-bit. |
 | GIF | ✓ | ✓ | 256 colors, 1-bit transparency. Opens the first frame. |
-| TIFF | ✓ | ✓ | No compression or LZW. |
+| TIFF | ✓ | ✓ | No compression or LZW (chosen in Export…; LZW by default). |
 | WebP | ✓ | — | Opens only: macOS can't write WebP, and no third-party encoder is used. |
 | HEIC | ✓ | ✓ | |
 | .colorproj | ✓ | ✓ | Native format with layers (FR-8.5). |
 
 ### FR-11.2 Export presets
-- **File → Export As ▸** a preset exports a PNG scaled to a set width. The aspect ratio is kept, and the image is never made larger than its original size unless you allow it.
+- **File → Export As ▸** a preset exports a PNG scaled to a set width (or to fit a square). The aspect ratio is kept, and the image is never made larger than its original size (Leah, 2026-10-03).
 - Presets: Slack (760px), 1280px, 1920px, Mobile (750px), Square 1024.
-- Resampling is chosen automatically: Nearest Neighbor for pixel-art-sized images, Smooth otherwise. You can override it.
+- Resampling is chosen automatically: Nearest Neighbor for pixel-art-sized images, Smooth otherwise. Settings → Export Presets → Scaling overrides it (Sharp pixels or Smooth).
 - Presets can be edited in Settings.
 
 ### FR-11.3 Before/After
@@ -483,7 +483,7 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 
 ### FR-14.1 Input
 - **Right-click and two-finger click** are Color 2 / secondary tool actions. They never open a context menu on the canvas.
-- **Ctrl-click** opens the canvas context menu.
+- **Ctrl-click** opens the canvas context menu: Cut, Copy, Copy Merged, Paste, Delete, Select All, Deselect, Invert Selection, Select Subject, Crop to Selection.
 - Trackpad: two-finger pan, pinch to zoom (sharp nearest-neighbor during the gesture).
 - **Pressure** from a Force Touch trackpad or a pen tablet (FR-4.2).
 
@@ -600,7 +600,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 - [ ] AC-8 Blur, Pixelate and Fill affect only the selection. Batch redaction handles each separate region on its own, as one undo step.
 - [ ] AC-9 Auto-Redact finds emails, phone numbers, card numbers and API keys in a test screenshot, entirely offline.
 - [ ] AC-10 Before/After compares the current image with either "As Opened" or "Last Saved", and switching between them works.
-- [ ] AC-11 Export presets produce the right width, keep the aspect ratio and never enlarge unless allowed.
+- [ ] AC-11 Export presets produce the right width, keep the aspect ratio and never enlarge.
 - [ ] AC-12 Cmd+V paste keeps full resolution and alpha. Cmd+C puts a PNG with transparency on the system clipboard.
 - [ ] AC-13 Clipboard History shows the last 10 images. Clicking one pastes it and leaves the system clipboard unchanged.
 - [ ] AC-14 Pixel grid at 400% and above. Pixels stay sharp at every zoom level on Retina screens.
@@ -644,6 +644,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-03 | From the spec review (veto any): Ctrl-click on the canvas opens a context menu with the everyday selection and clipboard commands (right-click still paints with Color 2). Export… offers TIFF compression, LZW (default) or None. Settings → Export Presets has a Scaling choice (Automatic, Sharp pixels, Smooth) for Export As presets. Settings reopens on the tab last used. FR-11.2 and AC-11 now say presets never enlarge, matching Leah's earlier decision. |
 | 2026-10-03 | Brightness/Contrast removed from the Adjustments menu and the adjustment-layer lists (Leah): Adjust Photo's Brightness (which lifts midtones without clipping) and Contrast replace it. Older projects with a Brightness/Contrast layer needn't keep working; they still open, but the layer has no settings. |
 | 2026-10-03 | The Adjustments panel no longer has a grid of buttons for adding adjustment layers (Leah): it repeated the Layers panel's Adjustment ▾ menu. With no adjustment layer selected, it says how to add one. |
 | 2026-10-03 | Polish choices (veto any): **effect previews** are worked out in the background from a copy of the layer taken when the bar opens, so sliders stay smooth on large images; while one preview is being worked out, only the newest settings are done next, and Apply always commits exactly the settings shown. Drop Shadow, Border and Straighten previews are still worked out on the spot (they change the canvas's size). **Copy, Cut and Copy Merged** put the image on the clipboard at once and make the PNG in the background; an app that pastes in that moment waits for it. Copy Merged now joins Clipboard History like Copy. |

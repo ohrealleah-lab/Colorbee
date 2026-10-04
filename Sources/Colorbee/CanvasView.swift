@@ -689,7 +689,31 @@ final class CanvasView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         trackpadPressure = nil
+        // Ctrl-click is the Mac's context-menu click (FR-14.1); right-click stays Color 2.
+        if event.modifierFlags.contains(.control) {
+            NSMenu.popUpContextMenu(contextMenu, with: event, for: self)
+            return
+        }
         beginDrag(event, secondary: false)
+    }
+
+    /// Right-click paints with Color 2, so it never asks for a menu.
+    override func menu(for event: NSEvent) -> NSMenu? { nil }
+
+    /// The canvas's Ctrl-click menu: the everyday selection and clipboard commands. They go to the
+    /// window like the menu bar's, so they're enabled the same way.
+    private var contextMenu: NSMenu {
+        let menu = NSMenu(title: "Canvas")
+        for entry in [("Cut", "cut:"), ("Copy", "copy:"), ("Copy Merged", "copyMerged:"), ("Paste", "paste:"), ("Delete", "delete:"), ("-", ""),
+                      ("Select All", "selectAll:"), ("Deselect", "deselect:"), ("Invert Selection", "invertSelection:"), ("Select Subject", "selectSubject:"),
+                      ("-", ""), ("Crop to Selection", "cropToSelection:")] {
+            if entry.0 == "-" {
+                menu.addItem(.separator())
+            } else {
+                menu.addItem(NSMenuItem(title: entry.0, action: NSSelectorFromString(entry.1), keyEquivalent: ""))
+            }
+        }
+        return menu
     }
     override func mouseDragged(with event: NSEvent) { continueDrag(event) }
 

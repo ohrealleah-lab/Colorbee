@@ -207,7 +207,8 @@ final class ImageDocument: NSDocument {
         panel.nameFieldStringValue = "\(base) \(size.width)x\(size.height).png"
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
-            self?.export(editor.saveSnapshot(), to: url) { try $0.encoded(using: preset) }
+            let scaling = ExportPresetStore.shared.scaling
+            self?.export(editor.saveSnapshot(), to: url) { try $0.encoded(using: preset, scaling: scaling) }
         }
     }
 
@@ -222,8 +223,8 @@ final class ImageDocument: NSDocument {
         })
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
-            let format = options.format, quality = options.quality
-            self?.export(editor.saveSnapshot(), to: url) { try $0.encoded(as: format, quality: quality) }
+            let format = options.format, quality = options.quality, lzw = options.tiffLZW
+            self?.export(editor.saveSnapshot(), to: url) { try $0.encoded(as: format, quality: quality, tiffLZW: lzw) }
         }
     }
 
@@ -244,6 +245,8 @@ final class ImageDocument: NSDocument {
 private final class ExportOptions {
     var format: ImageFileFormat = .png
     var quality = 0.9
+    /// Lossless and usually much smaller, so it's the default.
+    var tiffLZW = true
 }
 
 private struct ExportAccessory: View {
@@ -267,6 +270,13 @@ private struct ExportAccessory: View {
                             .frame(width: 30, alignment: .trailing)
                     }
                 }
+            }
+            if options.format == .tiff {
+                Picker("Compression", selection: $options.tiffLZW) {
+                    Text("LZW").tag(true)
+                    Text("None").tag(false)
+                }
+                .help("LZW is lossless and smaller; some older apps only read uncompressed TIFF")
             }
             if !options.format.supportsTransparency {
                 Text("Transparent areas are filled with Color 2.")

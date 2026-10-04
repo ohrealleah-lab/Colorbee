@@ -131,9 +131,9 @@ final class TileChange {
 /// A whole-canvas state (size plus every layer's buffer), swapped in and out by undo and redo.
 final class GeometryChange {
     let size: IntSize
+    /// The layers' buffers. When the step is spilled they stay (other steps may hold the same ones) but their
+    /// memory is freed in place; see `History.evict`.
     var buffers: [LayerID: PixelBuffer]?
-    /// Each layer's pixels in bands of rows, so they compress and decompress on all cores.
-    var spillLocations: [LayerID: [SpillStore.Location]]?
 
     init(size: IntSize, buffers: [LayerID: PixelBuffer]) {
         self.size = size
@@ -141,7 +141,7 @@ final class GeometryChange {
     }
 
     var byteCount: Int {
-        (buffers?.count ?? spillLocations?.count ?? 0) * size.width * size.height * MemoryLayout<Pixel>.stride
+        (buffers?.count ?? 0) * size.width * size.height * MemoryLayout<Pixel>.stride
     }
 
     static func bands(of size: IntSize) -> [IntRect] {
@@ -472,7 +472,7 @@ public final class History {
         refreshLayerBytes(canvas: canvas)
         guard byteCount > byteBudget else { return }
         for entry in undoStack.dropLast() + redoStack.dropLast() {
-            if !entry.isSpilled, entry.hasSpillableData, !spill(entry) { return }
+            if !entry.isSpilled, entry.hasSpillableData, !spill(entry, canvas: canvas) { return }
             if entry.layers != nil, !evictLayers(of: entry, canvas: canvas) { return }
             if byteCount <= byteBudget { return }
         }
@@ -482,7 +482,7 @@ public final class History {
     /// (new empty layers and adjustment layers) cost nothing and are left out.
     private func heldLayerBuffers(of entries: [HistoryEntry], canvas: Canvas) -> [PixelBuffer] {
         // Buffers a geometry step holds are already counted in tileBytes (review A, finding 7).
-        let geometryHeld = (undoStack + redoStack).flatMap { $0.geometry?.buffers?.values.map(ObjectIdentifier.init) ?? [] }
+        let geometryHeld = (undoStack + redoStack).filter { !$0.isSpilled }.flatMap { $0.geometry?.buffers?.values.map(ObjectIdentifier.init) ?? [] }
         let inCanvas = Set(canvas.layers.map { ObjectIdentifier($0.buffer) } + geometryHeld)
         var seen = Set<ObjectIdentifier>()
         var buffers: [PixelBuffer] = []
@@ -514,23 +514,30 @@ public final class History {
         if spillStore == nil { spillStore = try? SpillStore() }
         guard let store = spillStore else { return false }
         for buffer in buffers {
-            let id = ObjectIdentifier(buffer)
-            var locations: [SpillStore.Location] = []
-            if let earlier = diskCopies[id], earlier.copy.buffer === buffer, earlier.hash == buffer.contentHash() {
-                locations = earlier.copy.locations
-            } else {
-                let bands = GeometryChange.bands(of: buffer.size)
-                let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(buffer.pixels(in: bands[$0])) }
-                for data in compressed {
-                    guard let data, let location = try? store.append(data) else { return false }
-                    locations.append(location)
-                }
-            }
-            diskCopies[id] = nil
-            buffer.discardContents()
-            evicted[ObjectIdentifier(buffer)] = EvictedBuffer(buffer: buffer, locations: locations)
+            guard evict(buffer, store: store) else { return false }
             layerBytes -= buffer.width * buffer.height * MemoryLayout<Pixel>.stride
         }
+        return true
+    }
+
+    /// Writes `buffer` to the spill file (or reuses its copy there, if its pixels haven't changed since it was
+    /// read back) and frees its memory in place.
+    private func evict(_ buffer: PixelBuffer, store: SpillStore) -> Bool {
+        let id = ObjectIdentifier(buffer)
+        var locations: [SpillStore.Location] = []
+        if let earlier = diskCopies[id], earlier.copy.buffer === buffer, earlier.hash == buffer.fingerprint() {
+            locations = earlier.copy.locations
+        } else {
+            let bands = GeometryChange.bands(of: buffer.size)
+            let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(buffer.pixels(in: bands[$0])) }
+            for data in compressed {
+                guard let data, let location = try? store.append(data) else { return false }
+                locations.append(location)
+            }
+        }
+        diskCopies[id] = nil
+        buffer.discardContents()
+        evicted[id] = EvictedBuffer(buffer: buffer, locations: locations)
         return true
     }
 
@@ -547,19 +554,20 @@ public final class History {
             data.append(compressed)
         }
         buffer.reuseContents()
-        let decoded = ParallelRows.map(bands.count) { index -> Bool in
-            guard let pixels = try? SpillStore.decompress(data[index], count: bands[index].area) else { return false }
-            // Each band writes only its own rows.
+        // Each band writes only its own rows, and hashes them while they're in cache, for `diskCopies`.
+        let decoded = ParallelRows.map(bands.count) { index -> Int? in
+            guard let pixels = try? SpillStore.decompress(data[index], count: bands[index].area) else { return nil }
             buffer.setPixels(pixels, in: bands[index])
-            return true
+            return PixelBuffer.fingerprint(band: pixels, width: buffer.width)
         }
-        guard decoded.allSatisfy({ $0 }) else { return false }
+        let hashes = decoded.compactMap { $0 }
+        guard hashes.count == bands.count else { return false }
         evicted[id] = nil
-        diskCopies[id] = (stored, buffer.contentHash())
+        diskCopies[id] = (stored, PixelBuffer.fingerprint(combining: hashes))
         return true
     }
 
-    private func spill(_ entry: HistoryEntry) -> Bool {
+    private func spill(_ entry: HistoryEntry, canvas: Canvas) -> Bool {
         if spillStore == nil { spillStore = try? SpillStore() }
         guard let store = spillStore else { return false }
         // Compressing is the slow part, so the tiles compress on all cores and are then written in order.
@@ -571,32 +579,19 @@ public final class History {
             guard let data, let location = try? store.append(data) else { return false }
             locations.append(location)
         }
-        var geometryLocations: [LayerID: [SpillStore.Location]] = [:]
-        if let geometry = entry.geometry, let buffers = geometry.buffers {
-            for buffer in buffers.values {
-                guard restore(buffer) else { return false }
-            }
-            // Empty and adjustment layers have nothing to write; they come back as fresh empty buffers, so
-            // undoing a spilled crop doesn't fill them with real memory (review A, finding 4).
-            for (id, buffer) in buffers where buffer.isUntouched { geometryLocations[id] = [] }
-            let bands = buffers.filter { !$0.value.isUntouched }.flatMap { id, buffer in GeometryChange.bands(of: buffer.size).map { (id, buffer, $0) } }
-            let compressed = ParallelRows.map(bands.count) { index in
-                let (_, buffer, band) = bands[index]
-                return try? SpillStore.compress(buffer.pixels(in: band))
-            }
-            for ((id, _, _), data) in zip(bands, compressed) {
-                guard let data, let location = try? store.append(data) else { return false }
-                geometryLocations[id, default: []].append(location)
+        // A crop or resize step keeps its buffers' identity: other steps may hold the same buffers, so they're
+        // written out and freed in place like history-only layers, never replaced by new objects. Empty and
+        // adjustment layers have nothing to write (overnight soak; review A, finding 4).
+        if let buffers = entry.geometry?.buffers {
+            let inCanvas = Set(canvas.layers.map { ObjectIdentifier($0.buffer) })
+            for buffer in buffers.values where !inCanvas.contains(ObjectIdentifier(buffer)) && !isEvicted(buffer) && !buffer.isUntouched {
+                guard evict(buffer, store: store) else { return false }
             }
         }
         let bytes = entry.byteCount
         for (change, location) in zip(entry.changes, locations) {
             change.pixels = nil
             change.spillLocation = location
-        }
-        if let geometry = entry.geometry {
-            geometry.buffers = nil
-            geometry.spillLocations = geometryLocations
         }
         entry.isSpilled = true
         tileBytes -= bytes
@@ -623,38 +618,9 @@ public final class History {
             guard let pixels else { return false }
             loaded.append(pixels)
         }
-        var buffers: [LayerID: PixelBuffer] = [:]
-        if let geometry = entry.geometry, let locations = geometry.spillLocations {
-            let bandRects = GeometryChange.bands(of: geometry.size)
-            for (id, layerLocations) in locations {
-                if layerLocations.isEmpty {
-                    buffers[id] = PixelBuffer(width: geometry.size.width, height: geometry.size.height)
-                    continue
-                }
-                guard layerLocations.count == bandRects.count else { return false }
-                var stored: [Data] = []
-                for location in layerLocations {
-                    guard let data = try? store.readCompressed(location) else { return false }
-                    stored.append(data)
-                }
-                let buffer = PixelBuffer(width: geometry.size.width, height: geometry.size.height)
-                let decoded = ParallelRows.map(stored.count) { index -> Bool in
-                    guard let pixels = try? SpillStore.decompress(stored[index], count: bandRects[index].area) else { return false }
-                    // Each band writes only its own rows.
-                    buffer.setPixels(pixels, in: bandRects[index])
-                    return true
-                }
-                guard decoded.allSatisfy({ $0 }) else { return false }
-                buffers[id] = buffer
-            }
-        }
         for (change, pixels) in zip(entry.changes, loaded) {
             change.pixels = pixels
             change.spillLocation = nil
-        }
-        if let geometry = entry.geometry, geometry.spillLocations != nil {
-            geometry.buffers = buffers
-            geometry.spillLocations = nil
         }
         entry.isSpilled = false
         tileBytes += entry.byteCount

@@ -131,6 +131,37 @@ public final class PixelBuffer {
         return result
     }
 
+    /// A hash of the visible pixels, computed in bands on all cores; for telling whether a large buffer
+    /// changed. Not the same value as `contentHash()`.
+    func fingerprint() -> Int {
+        let bands = GeometryChange.bands(of: size)
+        return Self.fingerprint(combining: ParallelRows.map(bands.count) { index in
+            var hasher = Hasher()
+            for y in bands[index].y..<bands[index].maxY {
+                hasher.combine(bytes: UnsafeRawBufferPointer(start: row(y), count: width * MemoryLayout<Pixel>.stride))
+            }
+            return hasher.finalize()
+        })
+    }
+
+    /// One band's share of `fingerprint()`, from the band's pixels packed row after row.
+    static func fingerprint(band pixels: [Pixel], width: Int) -> Int {
+        var hasher = Hasher()
+        pixels.withUnsafeBytes { bytes in
+            let rowBytes = width * MemoryLayout<Pixel>.stride
+            for start in stride(from: 0, to: bytes.count, by: rowBytes) {
+                hasher.combine(bytes: UnsafeRawBufferPointer(rebasing: bytes[start..<(start + rowBytes)]))
+            }
+        }
+        return hasher.finalize()
+    }
+
+    static func fingerprint(combining bandHashes: [Int]) -> Int {
+        var hasher = Hasher()
+        for hash in bandHashes { hasher.combine(hash) }
+        return hasher.finalize()
+    }
+
     /// A hash of the visible pixels only (row padding is ignored).
     public func contentHash() -> Int {
         var hasher = Hasher()

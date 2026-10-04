@@ -173,11 +173,12 @@ E5 Tall Scroll.png, E5 Transparent Background.png, catslap.gif), plus three new 
 5. **Locked layer.** Same image, lock the Background layer, then Batch Redact ▸ Solid Fill. Expect a message naming "Background" and nothing changed.
 6. **Visible layers note.** With two layers, open Auto-Redact: the sheet says only visible layers were checked.
 
-*Drawing*
+*Drawing*: steps 7–16 passed Leah's hand test on 2026-10-04 (step 17 too).
 7. **Wand with a floating paste.** File ▸ New. Copy E1 Screenshot.png (from Preview) and ⌘V. Press W. Click the white area away from the paste. Expect the white selected with the outline going around the paste. Press Delete: the paste stays.
 8. **Tool keys after a paste.** ⌘V any image, then press P, then W, then B: each switches the tool, with no beep.
 9. **Symmetry overlap.** File ▸ New, Canvas Properties 20 × 20, zoom to 3200%, Pixel Grid on. Symmetry: Vertical, round brush size 9, black. Click just left of the center line. Expect one solid black blob, the same on both sides.
 10. **Symmetry eraser.** Fill the 20 × 20 canvas black. Eraser size 4, Symmetry: Vertical. Click in the middle of column 5. Expect the two erased squares to mirror each other exactly (3 black columns at each edge).
+11a. **Color Eraser switch (new).** Eraser, turn on **Color Eraser** in the palette bar. Type black text and place it, Color 1 black, Color 2 white, tolerance 30%. A plain (left) drag over the text replaces the black and its gray edges with white, and leaves other colors alone. Turn the switch off: a plain drag erases everything again; a right-drag still color-erases.
 11. **Color Eraser tolerance.** Choose the Eraser: the palette bar shows "Color Eraser tolerance". Type black text and place it, set the tolerance to 30%, right-drag over the text with Color 1 black and Color 2 white: the gray edges go too.
 12. **Sample All Layers.** Open E1 Screenshot.png, Layer ▸ New Layer. Fill tool, turn on Sample All Layers, click inside a box in the screenshot: only that box's shape fills, on the new layer. Same idea with the Magic Wand's Sample All Layers.
 13. **Eyedropper as shown.** On a white image, Layer ▸ New Adjustment Layer ▸ Invert. Eyedropper, Option-click: Color 1 becomes black.

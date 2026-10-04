@@ -106,14 +106,17 @@ private struct ToolOptions: View {
         case .brush:
             hint("\(editor.brush.name) · Shift has no effect · pressure \(editor.usesPressure ? "on" : "off")")
         case .eraser:
-            Text("Color Eraser tolerance")
+            Toggle("Color Eraser", isOn: $editor.colorEraserMode)
+                .help("On: dragging replaces only Color 1 with Color 2. Right-drag always does.")
+            Text("Tolerance")
             Slider(value: $editor.colorEraserTolerance, in: 0...1)
                 .frame(width: 100)
                 .accessibilityLabel("Color Eraser tolerance")
             Text("\(Int((editor.colorEraserTolerance * 100).rounded()))%")
                 .monospacedDigit()
                 .frame(width: 36, alignment: .trailing)
-            hint("Right-drag replaces Color 1 with Color 2 · [ and ] change the size")
+            hint(editor.colorEraserMode ? "Drag replaces Color 1 with Color 2 · [ and ] change the size"
+                 : "Right-drag replaces Color 1 with Color 2 · [ and ] change the size")
         case .fill:
             Text("Tolerance")
             Slider(value: $editor.fillTolerance, in: 0...1)

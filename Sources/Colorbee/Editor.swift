@@ -383,6 +383,8 @@ final class Editor {
     var wandSamplesAllLayers = false
     /// The Color Eraser's tolerance, 0...1; 0 replaces only exact Color 1 (FR-4.3; review I, finding 6).
     var colorEraserTolerance = 0.0
+    /// The Eraser color-erases with a plain drag too, not only a right-drag, which is awkward on a trackpad (Leah, 2026-10-04).
+    var colorEraserMode = false
     var transparentSelection = false {
         didSet { renderSoon() }
     }
@@ -805,10 +807,11 @@ final class Editor {
         case .eraser:
             // Right-drag is the Color Eraser: only Color 1 pixels (within the tolerance) become Color 2.
             let tolerance = UInt8((min(max(colorEraserTolerance, 0), 1) * 255).rounded())
-            let effect: StrokeEffect = secondary
+            let colorErasing = secondary || colorEraserMode
+            let effect: StrokeEffect = colorErasing
                 ? .replaceMatching(target: color1, tolerance: tolerance, with: color2)
                 : .replace(canvas.vacatedFill(for: layer, color2: color2))
-            name = secondary ? "Color Erase" : "Erase"
+            name = colorErasing ? "Color Erase" : "Erase"
             makeStroke = { [eraserSize] edit, _, mirror, first in
                 EraserStroke(size: eraserSize, effect: effect, layer: layer, edit: edit, mirror: mirror, sharingPainterWith: first)
             }

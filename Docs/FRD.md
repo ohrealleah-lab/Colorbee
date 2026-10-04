@@ -635,7 +635,7 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [x] AC-24 "Open in Colorbee" works from Finder.
 - [x] AC-25 A clipboard screenshot (Cmd+Ctrl+Shift+4) opens with Paste into New Image at its full size, and appears in Clipboard History.
 - [x] AC-26 Palettes and text styles are kept between launches.
-- [ ] AC-27 8000×8000: draw, blur, undo 50 steps and export with no stall over 1s and no crash. _(Pending: waiting for the heavy 8000×8000 check.)_
+- [x] AC-27 8000×8000: draw, blur, undo 50 steps and export with no stall over 1s and no crash. _(Accepted by Leah 2026-10-04: the fifth 30-minute soak ran 108 rounds with no crash, undo and redo exact every time, and 13 of about 6,500 steps a little over a second (whole-image Flatten, Sharpen and Blur at 8000×8000; worst 1.7 s), which Leah judged rare and acceptable.)_
 - [x] AC-27a A locked layer rejects every pixel edit, move, merge and delete, and can still be hidden and reordered.
 - [x] AC-27b All 17 blend modes render the same on screen and in export.
 - [x] AC-27c Picking a color with Edit Colors… fills the next custom slot. The slots survive a relaunch.
@@ -663,6 +663,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | AC-27 accepted (Leah): the rare whole-image steps a little over a second at 8000×8000 (13 in about 6,500 in the fifth soak) are acceptable. |
 | 2026-10-04 | Batch Redact (Leah): Blur… and Pixelate… preview every layer under the selection, exactly as Apply changes them. This replaces the earlier "preview on the active layer" choice. (To build after the fourth soak.) |
 | 2026-10-04 | After a redaction (Leah): Remove in the Clipboard History offer also clears the Mac clipboard when it still holds that same image; anything copied since is left alone. Copies in other clipboard apps, or passed on by Universal Clipboard, are out of reach. (To build after the fourth soak.) |
 | 2026-10-04 | Redaction and saving (Leah): choosing Remove Earlier Versions after saving a redaction also clears the undo history up to that save, so the redaction can't be undone and then autosaved back. The button and message say so. (To build after the fourth soak.) |

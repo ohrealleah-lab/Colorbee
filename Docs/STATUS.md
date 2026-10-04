@@ -140,24 +140,16 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - Subject (on-device Vision): Remove Background, Select Subject.
 - The photo adjustments, Adjust Photo and filters also come as adjustment layers. Clean Up is out of scope.
 
-## Soak re-run pending (AC-27)
+## AC-27: done (2026-10-04)
 
-Third 30-minute soak (2026-10-04, 67 rounds): undo and redo exact in every round (the rotation fix worked),
-but 228 steps over a second, mostly Brush (132) and Flatten (48). Leah chose (2026-10-04, §23):
-- **Flatten and Merge** no longer wait for replaced layers to be written out: `History.evictsInBackground`
-  (on in the app) compresses them on another thread, and an undo that needs one waits for it.
-  1,000 small soak rounds and `BackgroundEvictionTests` are exact.
-- **The soak's Brush step** is painted as a fast drag is (moves at most 24 px apart, each timed, then placing
-  the stroke), since a stroke's work is spread over its mouse events.
+Five 30-minute 8000×8000 soaks. The fifth ran 108 rounds with no crash and exact undo and redo; 13 of about
+6,500 steps went a little over a second (whole-image Flatten, Sharpen, Blur; worst 1.7 s). Leah accepted that
+(§23). Fixed along the way: redo after spilled crops, flips and rotations giving layers new buffers, slow undo
+(parallel fingerprints), Flatten compositing, and replaced layers written out in the background on one core.
+Logs in `build/soak-results*.txt` (not committed).
 
-Fourth soak (2026-10-04, 102 rounds): exact every round; slow steps down from 228 to 31 (Flatten 19, worst
-2.3 s; Sharpen 7). Background compression then moved to one core (Leah's OK), so it doesn't compete with the
-step after it. The quick speed tests pass on their own (two had failed during that run, from a busy Mac).
-
-Needs one more soak (with Leah's OK, about 35 minutes, the Mac left alone) before AC-27 is ticked.
-
-**Next, after the soak (agreed with Leah 2026-10-04):**
-- Auto-Redact misses the `sk_test_` key in E1 Screenshot.png (fresh build): check what Vision reads, then propose a fix.
+**Next (agreed with Leah 2026-10-04):**
+- Done: Auto-Redact missed the `sk_test_` key in E1 Screenshot.png because Vision read it as two pieces ("sk test", "_FAKE…"); pieces side by side on a line are now matched together. Re-test with step 2.
 - Remove Earlier Versions also clears undo history up to that save (§23).
 - The Clipboard History offer's Remove also clears the Mac clipboard if it still holds that same image (§23).
 - Batch Redact ▸ Blur… and Pixelate… preview every layer under the selection, as Apply does (§23; Leah found the preview showed nothing when the active layer was empty).

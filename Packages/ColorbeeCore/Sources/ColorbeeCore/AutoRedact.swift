@@ -50,7 +50,7 @@ public struct RedactionPattern: Codable, Hashable, Identifiable, Sendable {
             name: "API key",
             expression: [
                 // Vision can read a key's underscores as spaces, or drop them (review E, finding 7).
-                #"\b[spr]k[_ ]?(?:live|test)[_ ]?[A-Z0-9]{8,}"#,
+                #"\b[spr]k[_ ]?(?:live|test)[_ ]{0,2}[A-Z0-9]{8,}"#,
                 #"\bgh[pousr]_[A-Z0-9]{20,}"#,
                 #"\bgithub_pat_[A-Z0-9_]{20,}"#,
                 #"\bxox[abprs]-[A-Z0-9-]{10,}"#,
@@ -189,15 +189,33 @@ public final class TextScan: @unchecked Sendable {
     /// Every match of the enabled patterns, in reading order.
     public func matches(for patterns: [RedactionPattern]) -> [RedactionMatch] {
         var results: [RedactionMatch] = []
-        for line in lines {
+        // Vision can read one line as separate pieces ("sk test" and "_FAKE…"), so pieces side by side on a
+        // line are matched together, joined by a space (Leah's E1 Screenshot; review E, finding 7).
+        let boxes = lines.map { line in (tile: line.tile, box: bounds(of: line)) }
+        for row in Self.rows(boxes) {
+            var joined = ""
+            var starts: [Int] = []
+            for index in row {
+                if !joined.isEmpty { joined += " " }
+                starts.append(joined.count)
+                joined += lines[index].string
+            }
             // Match on Latin-folded text; folding is one character for one, so positions carry over.
-            let folded = AutoRedact.foldingLookalikes(line.string)
+            let folded = AutoRedact.foldingLookalikes(joined)
             for found in AutoRedact.matches(in: folded, patterns: patterns) {
                 let start = folded.distance(from: folded.startIndex, to: found.range.lowerBound)
-                let length = folded.distance(from: found.range.lowerBound, to: found.range.upperBound)
-                let lower = line.string.index(line.string.startIndex, offsetBy: start)
-                let range = lower..<line.string.index(lower, offsetBy: length)
-                guard let rect = rect(for: range, in: line) else { continue }
+                let end = start + folded.distance(from: found.range.lowerBound, to: found.range.upperBound)
+                // The match's part in each piece it reaches into, as one box.
+                var rect: IntRect?
+                for (index, pieceStart) in zip(row, starts) {
+                    let line = lines[index]
+                    let lower = max(start, pieceStart) - pieceStart, upper = min(end, pieceStart + line.string.count) - pieceStart
+                    guard lower < upper else { continue }
+                    let range = line.string.index(line.string.startIndex, offsetBy: lower)..<line.string.index(line.string.startIndex, offsetBy: upper)
+                    guard let box = self.rect(for: range, in: line) else { continue }
+                    rect = rect.map { $0.union(box) } ?? box
+                }
+                guard let rect else { continue }
                 let match = RedactionMatch(patternName: found.name, text: String(folded[found.range]), rect: rect)
                 // Read twice where pieces overlap (not always the same way): one item, covering both boxes.
                 if let twin = results.firstIndex(where: { $0.patternName == match.patternName && !$0.rect.intersection(match.rect).isEmpty }) {
@@ -209,6 +227,43 @@ public final class TextScan: @unchecked Sendable {
             }
         }
         return results
+    }
+
+    /// Where a whole piece of text is in the image, top-left origin.
+    private func bounds(of line: Line) -> CGRect? {
+        guard let box = try? line.text.boundingBox(for: line.string.startIndex..<line.string.endIndex)?.boundingBox else { return nil }
+        let width = Double(line.tile.width), height = Double(line.tile.height)
+        return CGRect(x: Double(line.tile.minX) + box.minX * width, y: Double(line.tile.minY) + (1 - box.maxY) * height,
+                      width: box.width * width, height: box.height * height)
+    }
+
+    /// Pieces of text that sit side by side on one line, left to right: read in the same piece of the image,
+    /// overlapping by at least half their height, and no further apart than twice that height.
+    static func rows(_ pieces: [(tile: IntRect, box: CGRect?)]) -> [[Int]] {
+        var rows: [[Int]] = []
+        var placed = Set<Int>()
+        let order = pieces.indices.sorted { (pieces[$0].box?.minX ?? 0) < (pieces[$1].box?.minX ?? 0) }
+        for first in order where !placed.contains(first) {
+            placed.insert(first)
+            var row = [first]
+            guard var last = pieces[first].box else {
+                rows.append(row)
+                continue
+            }
+            for next in order where !placed.contains(next) && pieces[next].tile == pieces[first].tile {
+                guard let box = pieces[next].box, box.minX >= last.minX else { continue }
+                let height = min(box.height, last.height)
+                let overlap = min(box.maxY, last.maxY) - max(box.minY, last.minY)
+                guard overlap >= height / 2, box.minX - last.maxX <= 2 * max(box.height, last.height) else { continue }
+                row.append(next)
+                placed.insert(next)
+                last = box
+            }
+            rows.append(row)
+        }
+        // In reading order: top to bottom, then left to right.
+        func top(_ row: [Int]) -> (CGFloat, CGFloat) { (pieces[row[0]].box?.minY ?? 0, pieces[row[0]].box?.minX ?? 0) }
+        return rows.sorted { top($0) < top($1) }
     }
 
     /// Where a match is in the image. It never shrinks below Vision's box for the match: for redaction,

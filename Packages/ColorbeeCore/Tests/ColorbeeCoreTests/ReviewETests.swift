@@ -138,3 +138,25 @@ struct AutoRedactApplyTests {
         #expect(canvas.flattened().pixels(in: box).allSatisfy { $0 == Pixel(r: 0, g: 0, b: 255) })
     }
 }
+
+/// Leah's E1 Screenshot (2026-10-04): Vision read "sk test" and "_FAKE0000EXAMPLE1234abcd" as two pieces.
+struct SplitLineTests {
+    @Test func piecesSideBySideFormOneRow() {
+        let tile = IntRect(x: 0, y: 0, width: 1000, height: 400)
+        let rows = TextScan.rows([
+            (tile, CGRect(x: 500, y: 100, width: 300, height: 24)),   // "_FAKE0000EXAMPLE1234abcd"
+            (tile, CGRect(x: 40, y: 100, width: 140, height: 24)),    // "API key:"
+            (tile, CGRect(x: 400, y: 102, width: 90, height: 22)),    // "sk test"
+            (tile, CGRect(x: 40, y: 160, width: 140, height: 24)),    // "Server:", the next line
+        ])
+        // The two key pieces join; the label, a column away, and the next line stay apart.
+        #expect(rows.contains([2, 0]))
+        #expect(rows.contains([1]) && rows.contains([3]))
+        #expect(rows.last == [3])
+    }
+
+    @Test func theKeyMatchesWhenItsPiecesAreJoined() {
+        let found = AutoRedact.matches(in: "API key: sk test _FAKE0000EXAMPLE1234abcd", patterns: RedactionPattern.builtIns)
+        #expect(found.contains { $0.name == "API key" })
+    }
+}

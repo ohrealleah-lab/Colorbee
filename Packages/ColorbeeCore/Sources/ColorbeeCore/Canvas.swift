@@ -84,13 +84,18 @@ public final class Canvas {
         }
     }
 
-    /// Rotates or flips every layer.
+    /// Rotates or flips every layer. A layer with pixels keeps its buffer object and gets the turned pixels
+    /// in it, since history steps (a blend mode change, say) share that object and must see later edits.
     func transform(_ orientation: Orientation) {
         let newSize = orientation.transformedSize(size)
-        let buffers = Dictionary(uniqueKeysWithValues: layers.map { layer in
-            (layer.id, layer.holdsNoPixels ? PixelBuffer(size: newSize) : layer.buffer.transformed(orientation))
-        })
-        replaceContents(size: newSize, buffers: buffers)
+        for layer in layers {
+            if layer.holdsNoPixels {
+                layer.buffer = PixelBuffer(size: newSize)
+            } else {
+                layer.buffer.swapContents(with: layer.buffer.transformed(orientation))
+            }
+        }
+        size = newSize
     }
 
     var currentGeometry: GeometryChange {
@@ -224,12 +229,26 @@ public final class Canvas {
                     var floatingRow: UnsafeMutablePointer<Pixel>?
                     if let floating, let floatingPixels, floating.layerID == layer.id,
                        y >= floating.destination.minY, y < floating.destination.maxY {
-                        floatingSpan = max(0, floating.destination.minX)..<min(width, floating.destination.maxX)
+                        // Empty when the paste is entirely off the canvas's sides.
+                        let lower = min(max(0, floating.destination.minX), width)
+                        floatingSpan = lower..<max(lower, min(width, floating.destination.maxX))
                         floatingRow = floatingPixels.row(y - floating.destination.minY) - floating.destination.minX
                     }
-                    for x in 0..<width {
-                        let pixel = floatingSpan.contains(x) ? Compositing.over(source[x], floatingRow![x]) : source[x]
-                        Compositing.blend(&row[x], pixel, opacity: opacity, mode: mode)
+                    // Plain loops, so the common case (nothing floating) stays as fast as before.
+                    if let floatingRow {
+                        for x in 0..<floatingSpan.lowerBound {
+                            Compositing.blend(&row[x], source[x], opacity: opacity, mode: mode)
+                        }
+                        for x in floatingSpan {
+                            Compositing.blend(&row[x], Compositing.over(source[x], floatingRow[x]), opacity: opacity, mode: mode)
+                        }
+                        for x in floatingSpan.upperBound..<width {
+                            Compositing.blend(&row[x], source[x], opacity: opacity, mode: mode)
+                        }
+                    } else {
+                        for x in 0..<width {
+                            Compositing.blend(&row[x], source[x], opacity: opacity, mode: mode)
+                        }
                     }
                 }
                 let target = result.row(y)

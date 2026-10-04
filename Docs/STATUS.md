@@ -140,17 +140,19 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 
 ## Soak re-run pending (AC-27)
 
-The overnight 30-minute 8000×8000 soak (2026-10-03) ran 53 rounds with no crash, but failed two ways. Both
-are fixed; the soak needs re-running (with Leah's OK: about 35 minutes and several GB of memory) before AC-27
-is ticked.
+Second 30-minute soak (2026-10-04, 78 rounds, log in `build/soak-results.txt`): undo and redo were never over a
+second (206 times before), but it failed two ways, both fixed the same day:
 
-1. **Redo wasn't always exact (4 of 53 rounds).** Spilling a crop or resize step replaced its layer buffers
-   with new objects, so later layer steps restored stale ones. Fixed: a spilled crop or resize now keeps its
-   buffers and frees them in place like history-only layers (`History.evict`). `GeometrySpillTests`.
-2. **Undo and redo over 1 s (average 1.25 s, worst 2.5 s).** About two thirds of it was the single-threaded
-   whole-layer hash `diskCopies` used. Now `PixelBuffer.fingerprint()` hashes bands on all cores, and a read-back
-   hashes each band while decoding it. Profiled at 4000×4000 with the same steps and a quarter of the budget:
-   worst undo 0.30 s → 0.10 s, so about 0.4 s expected at 8000×8000.
+1. **Undo or redo not exact in 6 rounds.** A flip or rotation gave every layer a new buffer object, so a
+   layer-settings step made before it (a blend mode change, say) put back a buffer that later edits had
+   changed. Rotations and flips now turn the pixels inside the same buffer (`PixelBuffer.swapContents`).
+   Reproduced at 256 × 256 (19 of 400 rounds failed, with or without spilling); now 0 of 1,000 at three
+   budgets. `TransformIdentityTests`.
+2. **98 editing steps just over a second** (Flatten 31, Brush 47). Round 2's floating-selection compositing
+   checked every pixel of every layer; split into plain loops, a 4000 × 4000 five-layer flatten went from
+   0.26 s to 0.09 s. Brush steps were already over a second 17 times in the first soak; check them in the re-run.
+
+Needs one more soak (with Leah's OK, about 35 minutes) before AC-27 is ticked.
 
 ## Not yet checked by hand
 

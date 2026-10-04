@@ -6,13 +6,14 @@ public final class PixelBuffer {
     public static let pageSize = Int(getpagesize())
     public static let defaultRowAlignment = 256
 
-    public let width: Int
-    public let height: Int
-    public let bytesPerRow: Int
-    public let byteCount: Int
-    public let baseAddress: UnsafeMutableRawPointer
-    private let pixels: UnsafeMutablePointer<Pixel>
-    private let pixelsPerRow: Int
+    // Variables only so `swapContents(with:)` can trade them; nothing else changes them.
+    public private(set) var width: Int
+    public private(set) var height: Int
+    public private(set) var bytesPerRow: Int
+    public private(set) var byteCount: Int
+    public private(set) var baseAddress: UnsafeMutableRawPointer
+    private var pixels: UnsafeMutablePointer<Pixel>
+    private var pixelsPerRow: Int
 
     public init(width: Int, height: Int, fill: Pixel = .clear, rowAlignment: Int = PixelBuffer.defaultRowAlignment) {
         precondition(width > 0 && height > 0, "PixelBuffer needs a positive size")
@@ -61,6 +62,22 @@ public final class PixelBuffer {
         generation += 1
         madvise(baseAddress, byteCount, MADV_FREE_REUSABLE)
         isDiscarded = true
+    }
+
+    /// Trades memory and size with `other`, so this object holds what `other` held and the reverse. A rotation
+    /// or flip gives a layer its turned pixels this way, keeping the buffer object that history steps share
+    /// with it (second 30-minute soak).
+    func swapContents(with other: PixelBuffer) {
+        swap(&width, &other.width)
+        swap(&height, &other.height)
+        swap(&bytesPerRow, &other.bytesPerRow)
+        swap(&byteCount, &other.byteCount)
+        swap(&baseAddress, &other.baseAddress)
+        swap(&pixels, &other.pixels)
+        swap(&pixelsPerRow, &other.pixelsPerRow)
+        swap(&isDiscarded, &other.isDiscarded)
+        generation += 1
+        other.generation += 1
     }
 
     /// Takes discarded memory back for writing. The caller then writes every pixel.

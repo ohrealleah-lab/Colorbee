@@ -59,3 +59,28 @@ struct FingerprintTests {
         #expect(PixelBuffer.fingerprint(combining: hashes) != buffer.fingerprint())
     }
 }
+
+/// From the second 30-minute soak: a rotation or flip gave layers new buffers, so a layer-settings step made
+/// before it put back a buffer that later edits had changed.
+struct TransformIdentityTests {
+    private let context = SelectionContext(color2: .white)
+
+    @Test(arguments: Orientation.allCases)
+    func undoAndRedoAroundATurnAreExact(orientation: Orientation) {
+        let canvas = Canvas(size: IntSize(width: 24, height: 16), colorSpace: Canvas.defaultColorSpace, background: .white)
+        canvas.layers[0].buffer.fill(Pixel(r: 10, g: 200, b: 90), in: IntRect(x: 0, y: 0, width: 6, height: 16))
+        let history = History(byteBudget: 512 << 20)
+        let original = canvas.flattened().contentHash()
+        LayerActions.update("Blend Mode", layerAt: 0, canvas: canvas, history: history) { $0.blendMode = .multiply }
+        let edit = history.beginEdit("Fill", on: canvas)
+        edit.willModify(IntRect(x: 2, y: 2, width: 8, height: 8), in: canvas.activeLayer)
+        canvas.activeLayer.buffer.fill(.black, in: IntRect(x: 2, y: 2, width: 8, height: 8))
+        history.commit(edit)
+        ImageActions.transform(orientation, canvas: canvas, history: history, context: context)
+        let final = canvas.flattened().contentHash()
+        while history.canUndo { history.undo(on: canvas) }
+        #expect(canvas.flattened().contentHash() == original)
+        while history.canRedo { history.redo(on: canvas) }
+        #expect(canvas.flattened().contentHash() == final)
+    }
+}

@@ -456,6 +456,22 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 
 ---
 
+### FR-11.6 PDF documents (stage 10, planned)
+Bee edits typical documents (letter or A4, 10–50 pages) and needs to annotate or redact most pages in one session.
+- **Opening:** File ▸ Open or drag-and-drop a PDF. Every page opens at once, rasterized at 200 DPI by default
+  (150 or 300 can be chosen when opening). Fonts, vectors and form fields aren't kept: pages become pixels.
+  A PDF can't be saved back without that loss, so it opens as an untitled copy (§23, 2026-10-04).
+- **Pages:** the document holds a list of pages, shown in their own sidebar as thumbnails, like Preview's.
+  Clicking a page edits it in the canvas. Each page has its own canvas and its own layers, so every tool,
+  layer feature and adjustment works on a page as it does now. Pages can be added, deleted and reordered.
+- **Auto-Redact on all pages:** one scan of every page, one review list for the whole document, applied to
+  each page (part of the first version).
+- **Export as PDF:** a new PDF with one page per page, in order, at each page's original size. Pixels only,
+  so no hidden text survives under a redaction; the text isn't selectable or searchable.
+- **Saving work in progress:** `.colorproj` holds the pages.
+- **Memory:** a letter page at 300 DPI is about 34 MB, so pages not on screen are kept compressed, as history
+  does with layers it holds.
+
 ## 15. FR-12 — Saving and restoring (standard Mac behavior)
 
 - Documents save themselves automatically, the standard macOS way. Untitled documents are kept safe too.
@@ -584,6 +600,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 7. **Integration:** Clipboard History, History panel, palettes, text styles, shortcut editor, Finder, share, print, desktop picture.
 8. **Hardening:** performance, 8000×8000 soak tests, polish.
 9. **Photo editing and presentation (later phase):** the FR-9.5 adjustments and effects, with their own performance and soak checks.
+10. **PDF documents (planned):** FR-11.6, after the stage 8 soak and the review fixes. Probably in two parts: opening, the page sidebar and editing pages; then Export as PDF and Auto-Redact on all pages.
 
 ---
 
@@ -646,6 +663,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | PDF documents, stage 10 (Leah): pages are their own thing, not layers, with their own sidebar of thumbnails; each page has its own layers. All pages open at once, at 200 DPI by default (150 or 300 on request). Pages can be added, deleted and reordered. Auto-Redact on all pages is part of the first version. Export as PDF is pixels only. See FR-11.6. |
 | 2026-10-04 | AC-27 (Leah): Flatten and Merge hand the writing-out of replaced layers to the background, so the step doesn't wait for it. The soak's Brush step is timed per mouse move (moves at most 24 px apart) and for placing the stroke, as a person experiences it, rather than as one 30-jump stroke. |
 | 2026-10-04 | From reviews H, I and J (Leah): after saving a redaction, Colorbee warns that earlier versions still show it and offers to remove them; after a redaction, it offers to remove the Clipboard History items the image was pasted from (Remove is the default), and items can be removed one by one. Batch Redact covers every layer, like Auto-Redact; Auto-Redact checks visible layers only and says so. Fill and the Magic Wand have Sample All Layers. The Color Eraser has a tolerance (0% by default). Files Colorbee can't save back without loss (animated GIFs, multi-page TIFFs, 16-bit images, WebP) open as untitled copies; GIFs and TIFFs show a frame bar with Choose Frame…. Toolbar tools are greyed out while an effect's bar is open. |
 | 2026-10-04 | From reviews H, I and J (veto any): Batch Redact ▸ Blur… and Pixelate… preview on the active layer and apply to every layer. Choosing a frame after changing one asks first. Close, Minimize, Zoom and Full Screen work while an effect's bar is open; menus wait behind Resize and Skew and Canvas Properties; while text is typed, menu shortcuts give way to the text box. Tool keys (Space, the arrows, Return, Esc, Delete) and ⌘-arrows can't be assigned. A custom palette named Paint Classic is saved as "Paint Classic 2". Option-click with the Eyedropper picks the color as shown. A Shift marquee is square in pixels; a selection handle drag stops at 30,000 px a side and 256 megapixels. |

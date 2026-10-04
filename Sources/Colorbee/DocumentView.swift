@@ -189,6 +189,8 @@ private struct EffectBar: View {
                         .fixedSize()
                     } else {
                         Slider(value: value(at: index, step: parameter.step), in: parameter.range)
+                            .accessibilityLabel(parameter.label)
+                            .accessibilityValue(EffectBar.formatted(editor.effectValues[safe: index] ?? 0, parameter))
                             .frame(minWidth: 90, maxWidth: 180)
                         Text(EffectBar.formatted(editor.effectValues[safe: index] ?? 0, parameter))
                             .monospacedDigit()

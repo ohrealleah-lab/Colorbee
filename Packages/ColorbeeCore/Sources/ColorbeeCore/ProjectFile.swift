@@ -6,7 +6,7 @@ import Foundation
 /// layer's rows as LZ4-compressed BGRA, exactly as stored in memory (straight alpha, no rounding).
 public enum ProjectFile {
     public static let fileExtension = "colorproj"
-    private static let magic = Data("COLORBEE PROJECT 1\n".utf8)
+    static let magic = Data("COLORBEE PROJECT 1\n".utf8)
 
     public enum Failure: Error {
         case notAProject
@@ -97,7 +97,8 @@ public enum ProjectFile {
         guard data.endIndex >= jsonStart + length else { throw Failure.damaged }
         let manifest = try JSONDecoder().decode(Manifest.self, from: data[jsonStart..<(jsonStart + length)])
         let blobs = data[(jsonStart + length)...]
-        guard manifest.width > 0, manifest.height > 0, !manifest.layers.isEmpty else { throw Failure.damaged }
+        guard manifest.width > 0, manifest.height > 0, manifest.width <= ResizeSkew.maxSide, manifest.height <= ResizeSkew.maxSide,
+              manifest.width * manifest.height <= ResizeSkew.maxArea, !manifest.layers.isEmpty else { throw Failure.damaged }
 
         let colorSpace = manifest.iccProfile.flatMap { CGColorSpace(iccData: $0 as CFData) }
             ?? manifest.colorSpaceName.flatMap { CGColorSpace(name: $0 as CFString) }

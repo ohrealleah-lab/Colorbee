@@ -45,10 +45,12 @@ final class FilterStore {
         return filter.name
     }
 
-    func rename(_ name: String, to newName: String) {
-        guard let index = custom.firstIndex(where: { $0.name == name }), !all.contains(where: { $0.name == newName }) else { return }
+    @discardableResult
+    func rename(_ name: String, to newName: String) -> Bool {
+        guard let index = custom.firstIndex(where: { $0.name == name }), !all.contains(where: { $0.name == newName }) else { return false }
         custom[index].name = newName
         persist()
+        return true
     }
 
     func delete(_ name: String) {

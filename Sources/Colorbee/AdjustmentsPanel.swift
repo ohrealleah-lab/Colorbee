@@ -182,7 +182,7 @@ struct AdjustmentsPanel: View {
                 if choice.kind == .levels {
                     HistogramView(histogram: histogramBelow, black: adjustment.sliderValues[0], white: adjustment.sliderValues[2])
                         .frame(height: 44)
-                        .task(id: editor.canvas.activeLayer.id) { histogramBelow = editor.histogramBelowActiveLayer() }
+                        .task(id: editor.belowActiveLayerKey) { histogramBelow = editor.histogramBelowActiveLayer() }
                         .help("The layers below this one, by brightness")
                 }
                 if let kind = choice.kind {
@@ -246,6 +246,8 @@ struct AdjustmentsPanel: View {
             Slider(value: Binding(get: { value }, set: { set(($0 / parameter.step).rounded() * parameter.step) }), in: parameter.range) { editing in
                 if !editing { editor.finishLayerSettings() }
             }
+            .accessibilityLabel(parameter.label)
+            .accessibilityValue(formatted(value, parameter))
             .controlSize(.small)
         }
     }

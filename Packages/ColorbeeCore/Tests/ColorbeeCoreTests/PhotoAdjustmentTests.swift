@@ -103,7 +103,7 @@ struct ToneEffectTests {
     }
 
     @Test func aColorLookupMatchesTheAdjustmentAtItsGridPoints() {
-        let effect = Effect.levels(Levels(black: 32, white: 224, gamma: 1.4))
+        let effect = Effect.sepia(amount: 60)
         let lookup = ColorLookup(effect)!
         let transform = effect.pointwise!
         #expect(lookup.size == 33)

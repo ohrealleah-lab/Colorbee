@@ -154,6 +154,18 @@ is ticked.
 
 ## Not yet checked by hand
 
+**Cloud review fixes (2026-10-03), not yet tried by hand.** Code reviews A–D are done; every finding was real
+and is fixed (two parts deferred). See `Docs/Review/RESULTS.md`. App-side fixes to try:
+- Drop Shadow open, switch to another app (autosave), back, Esc, close, reopen: no shadow in the file.
+- Remove Background on a large photo, then at once Image ▸ Flip ▸ Horizontal: a "try again" message, not a wrong cutout. The subject commands are greyed out while it searches.
+- Lock the layer: Straighten…, Perspective Correction… and Crop… still open. `Stage 9 Practice Cutout.png` with the layer locked: Select Subject asks which subject.
+- Perspective Correction: drag the bottom corners past each other, Return: a beep, the tool stays open.
+- A Posterize adjustment layer at 2–4 levels over a gradient: hard bands on screen, the same as File ▸ Export.
+- Curves: click a point without moving: it stays put. Rename the filter in use: still chosen. Delete it: None.
+- During Adjust Photo the toolbar's Sidebar and Layers buttons are greyed out.
+- A Levels layer over a photo: hide the photo: the histogram updates.
+- VoiceOver on the effect bar's sliders reads their names.
+
 Leah tested everything through stage 5a by hand on 2026-10-01, and the 2026-10-02 fixes the same day: Shift-pencil axis lock, eraser outline and sizes, zoom menu and ⌘-scroll, docked effect bar, slider tick marks, cancelling a half-drawn selection, and mid-drag edge cases. 
 Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tested by hand on 2026-10-03. Stage 6b tested by hand on 2026-10-03. Stage 7a tested by hand on 2026-10-03. Stage 7b tested by hand on 2026-10-03, including the Auto-Redact box fix. Stage 7c tested by hand on 2026-10-03. Stage 8 tested by hand on 2026-10-03. Stage 9 tested by hand on 2026-10-03 (fixes: saved filters applied twice, Spotlight without a selection, clipboard screenshots, zoom after geometry tools). Stage 5c tested by hand on 2026-10-03 with `TestImages/Stage 5c Practice.png`, plus text box fixes (handles, opaque background width, italic overhang, selection highlight).
 

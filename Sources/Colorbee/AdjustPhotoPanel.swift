@@ -181,10 +181,21 @@ private struct FilterMenu: View {
             }
             Divider()
             if let filter = edit.filter, !filter.isBuiltIn, store.custom.contains(where: { $0.name == filter.name }) {
+                // The chosen filter is a copy, so it follows the rename, and a deleted filter stops applying, the
+                // way palettes behave (review D, finding 4).
                 Button("Rename “\(filter.name)”…") {
-                    if let name = askForName("Rename Filter", defaultName: filter.name, confirm: "Rename") { store.rename(filter.name, to: name) }
+                    if let name = askForName("Rename Filter", defaultName: filter.name, confirm: "Rename"), store.rename(filter.name, to: name) {
+                        var changed = edit
+                        changed.filter?.name = name
+                        onChange(changed)
+                    }
                 }
-                Button("Delete “\(filter.name)”") { store.delete(filter.name) }
+                Button("Delete “\(filter.name)”") {
+                    store.delete(filter.name)
+                    var changed = edit
+                    changed.filter = nil
+                    onChange(changed)
+                }
                 Divider()
             }
             Button("Import Filter…") { importFilter() }

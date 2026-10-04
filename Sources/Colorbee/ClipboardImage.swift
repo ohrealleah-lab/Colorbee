@@ -28,7 +28,9 @@ final class ClipboardImage: NSObject, NSPasteboardItemDataProvider, @unchecked S
             let png = pixels().flatMap { try? ImageCodec.encodePNG($0, colorSpace: space.value) }
             image.finish(with: png)
             if let png {
-                DispatchQueue.main.async { ClipboardHistory.shared.add(png) }
+                // A later copy may have finished first; only what's still on the clipboard joins the history
+                // (review B, finding 7).
+                DispatchQueue.main.async { if current === image { ClipboardHistory.shared.add(png) } }
             }
         }
     }

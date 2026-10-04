@@ -71,8 +71,10 @@ final class Renderer {
     private let adjustBlurPipeline: MTLRenderPipelineState
     /// Levels, Curves, Sepia, Posterize (and later photo adjustments) through a 3D color table.
     private let adjustLookupPipeline: MTLRenderPipelineState
+    private let adjustChannelPipeline: MTLRenderPipelineState
     private let adjustPhotoPipeline: MTLRenderPipelineState
     private var lookupTextures: [Effect: MTLTexture] = [:]
+    private var channelTextures: [Effect: MTLTexture] = [:]
     /// Marks where the canvas is, for keeping blurred edges opaque.
     private let coveragePipeline: MTLRenderPipelineState
     private typealias BlurTarget = (blurred: MTLTexture, coverage: MTLTexture, coverageBlurred: MTLTexture)
@@ -137,6 +139,7 @@ final class Renderer {
         adjustPointPipeline = pipeline(fragment: "adjust_point_fragment", blended: false, format: Self.layerTargetFormat)
         adjustBlurPipeline = pipeline(fragment: "adjust_blur_fragment", blended: false, format: Self.layerTargetFormat)
         adjustLookupPipeline = pipeline(fragment: "adjust_lookup_fragment", blended: false, format: Self.layerTargetFormat)
+        adjustChannelPipeline = pipeline(fragment: "adjust_channel_fragment", blended: false, format: Self.layerTargetFormat)
         adjustPhotoPipeline = pipeline(fragment: "adjust_photo_fragment", blended: false, format: Self.layerTargetFormat)
         coveragePipeline = pipeline(fragment: "solid_fragment", blended: false, format: .r16Float)
 
@@ -260,6 +263,9 @@ final class Renderer {
                                                   wide ? Float(a[.definition] / 100) : 0, fine ? Float(a[.noiseReduction] / 100) : 0)
                     uniforms.photoParams = SIMD4(Float(a[.vignette]), 0, 0, 0)
                     draw(adjustPhotoPipeline)
+                } else if let table = channelTexture(for: adjustment) {
+                    encoder.setFragmentTexture(table, index: 0)
+                    draw(adjustChannelPipeline)
                 } else if let lookup = lookupTexture(for: adjustment) {
                     uniforms.adjustParams = SIMD4(Float(lookup.width), 0, 0, 0)
                     encoder.setFragmentTexture(lookup, index: 0)
@@ -488,6 +494,22 @@ final class Renderer {
         }
         if lookupTextures.count >= 8 { lookupTextures.removeAll() }
         lookupTextures[effect] = texture
+        return texture
+    }
+
+    /// The 256-entry table for Levels, Curves or Posterize, made once per setting; like the 3D tables, only
+    /// the most recent few are kept.
+    private func channelTexture(for effect: Effect) -> MTLTexture? {
+        if let cached = channelTextures[effect] { return cached }
+        guard let table = ChannelTable(effect) else { return nil }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: 256, height: 1, mipmapped: false)
+        descriptor.usage = .shaderRead
+        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+        table.values.withUnsafeBytes { bytes in
+            texture.replace(region: MTLRegionMake2D(0, 0, 256, 1), mipmapLevel: 0, withBytes: bytes.baseAddress!, bytesPerRow: 256 * 4)
+        }
+        if channelTextures.count >= 8 { channelTextures.removeAll() }
+        channelTextures[effect] = texture
         return texture
     }
 

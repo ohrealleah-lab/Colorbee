@@ -298,6 +298,8 @@ private struct OpacityControl: View {
                 Slider(value: Binding(get: { (opacity * 100).rounded() }, set: { editor.previewOpacity(($0 / 100 * 100).rounded() / 100) }), in: 0...100) { editing in
                     if !editing { editor.finishLayerSettings() }
                 }
+                .accessibilityLabel("Opacity")
+                .accessibilityValue("\(Int((opacity * 100).rounded())) percent")
                 .frame(width: 160)
                 Text("\(Int((opacity * 100).rounded()))%").monospacedDigit().frame(width: 40, alignment: .trailing)
             }

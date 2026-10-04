@@ -51,6 +51,17 @@ public enum Warp {
         return IntSize(width: max(1, Int(width.rounded())), height: max(1, Int(height.rounded())))
     }
 
+    /// Whether the corners, in order, make a convex quadrilateral (either way round). Crossed or folded corners
+    /// would make the map divide by zero inside the image (review C, finding 1).
+    public static func isConvex(_ corners: [Point2D]) -> Bool {
+        guard corners.count == 4 else { return false }
+        let turns = (0..<4).map { index in
+            let a = corners[index], b = corners[(index + 1) % 4], c = corners[(index + 2) % 4]
+            return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)
+        }
+        return turns.allSatisfy { $0 > 1e-9 } || turns.allSatisfy { $0 < -1e-9 }
+    }
+
     static func perspectiveCorrected(_ buffer: PixelBuffer, corners: [Point2D], size: IntSize) -> PixelBuffer {
         let map = Homography(square: corners)
         return warped(buffer, size: size, fill: .clear) { x, y in
@@ -180,7 +191,7 @@ extension ImageActions {
     /// the corners of the new canvas, on every layer, as one step.
     @discardableResult
     public static func correctPerspective(corners: [Point2D], canvas: Canvas, history: History, context: SelectionContext) -> Bool {
-        guard corners.count == 4 else { return false }
+        guard Warp.isConvex(corners) else { return false }
         let size = Warp.perspectiveSize(corners)
         guard size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return false }
         return replaceEveryLayer("Perspective Correction", size: size, canvas: canvas, history: history, context: context) { layer in

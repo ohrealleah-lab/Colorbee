@@ -38,6 +38,8 @@ struct CurvesEditor: View {
     var onFinish: () -> Void = {}
 
     @State private var dragging: Int?
+    /// Where the dragged point was when it was grabbed; it moves by the drag, so a click doesn't shift it.
+    @State private var grabbed: Curves.Point?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -82,12 +84,14 @@ struct CurvesEditor: View {
                     .onChanged { drag in move(drag, in: size) }
                     .onEnded { _ in
                         dragging = nil
+                        grabbed = nil
                         onFinish()
                     })
                 .simultaneousGesture(SpatialTapGesture(count: 2).onEnded { tap in remove(near: tap.location, in: size) })
             }
             .aspectRatio(1, contentMode: .fit)
             .accessibilityLabel("Curve")
+            .accessibilityValue(curves[channel].map { "\(Int($0.x)) to \(Int($0.y))" }.joined(separator: ", "))
         }
     }
 
@@ -127,13 +131,17 @@ struct CurvesEditor: View {
     private func move(_ drag: DragGesture.Value, in size: CGSize) {
         var points = curves[channel]
         if dragging == nil {
-            if let index = nearest(to: drag.startLocation, in: size) {
+            let start = value(at: drag.startLocation, in: size)
+            // A click at an existing point's x (an end point's, say) grabs that point rather than adding a
+            // second one there (review D, finding 3).
+            if let index = nearest(to: drag.startLocation, in: size) ?? points.firstIndex(where: { $0.x == start.x }) {
                 dragging = index
             } else {
-                points.append(value(at: drag.startLocation, in: size))
+                points.append(start)
                 points.sort { $0.x < $1.x }
-                dragging = points.firstIndex(of: value(at: drag.startLocation, in: size))
+                dragging = points.firstIndex(of: start)
             }
+            grabbed = dragging.flatMap { points.indices.contains($0) ? points[$0] : nil }
         }
         guard let index = dragging, points.indices.contains(index) else { return }
         // Dragging a middle point well outside the graph removes it.
@@ -142,7 +150,8 @@ struct CurvesEditor: View {
             points.remove(at: index)
             dragging = -1
         } else {
-            var point = value(at: drag.location, in: size)
+            let origin = grabbed.map { location(of: $0, in: size) } ?? drag.startLocation
+            var point = value(at: CGPoint(x: origin.x + drag.translation.width, y: origin.y + drag.translation.height), in: size)
             // A point stays between its neighbors, so the curve stays a function of x.
             let low = index > 0 ? points[index - 1].x + 1 : 0
             let high = index < points.count - 1 ? points[index + 1].x - 1 : 255

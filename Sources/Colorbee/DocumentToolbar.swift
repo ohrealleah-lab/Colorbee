@@ -338,6 +338,7 @@ private struct LayersButton: View {
         .buttonStyle(.plain)
         .help("Layers (⌘L)")
         .accessibilityLabel("Layers")
+        .disabled(editor.activeEffect == .adjustPhoto)
     }
 
     private var layersShowing: Bool { editor.isSidebarOpen && editor.showsLayersPanel }
@@ -352,6 +353,8 @@ private struct SidebarButton: View {
             ToolbarGlyph(symbol: "sidebar.right", selected: editor.isSidebarOpen)
         }
         .buttonStyle(.plain)
+        // Adjust Photo's sliders are in the sidebar (review D, finding 5).
+        .disabled(editor.activeEffect == .adjustPhoto)
         .help("Sidebar")
         .accessibilityLabel("Sidebar")
     }

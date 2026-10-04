@@ -59,7 +59,15 @@ public enum Effect: Sendable, Hashable {
     /// Color adjustments the display shows through a `ColorLookup` table.
     public var usesColorLookup: Bool {
         switch self {
-        case .levels, .curves, .sepia, .posterize, .photo: true
+        case .sepia, .photo: true
+        default: false
+        }
+    }
+
+    /// Color adjustments that change each channel on its own, which the display shows through a `ChannelTable`.
+    public var usesChannelTable: Bool {
+        switch self {
+        case .levels, .curves, .posterize: true
         default: false
         }
     }

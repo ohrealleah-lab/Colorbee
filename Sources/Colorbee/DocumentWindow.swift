@@ -226,6 +226,9 @@ final class DocumentWindow: NSWindow {
         case #selector(showSpotlight(_:)):
             // Spotlight changes what's around a selection, so it waits for one.
             return editor.hasSelection
+        case #selector(selectSubject(_:)), #selector(removeBackground(_:)), #selector(liftSubject(_:)):
+            // One search at a time, and an adjustment layer has no picture to search (review D, finding 6).
+            return !editor.isFindingSubject && editor.canvas.activeLayer.adjustment == nil
         case #selector(undo(_:)) where textUndoManager != nil:
             menuItem.title = textUndoManager!.undoMenuItemTitle
             return textUndoManager!.canUndo

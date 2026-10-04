@@ -1678,7 +1678,9 @@ final class Editor {
 
     /// Opens an effect's dialog and shows its preview. It applies to the selection, or the whole layer.
     func beginEffect(_ kind: EffectKind) {
-        guard !refusedBecauseLocked() else { return }
+        // Whole-image tools apply to every layer, locked or not (§23), and picking a subject was already
+        // checked by findSubject, since selecting one doesn't change pixels (review B, findings 4 and 5).
+        guard kind.appliesToWholeImage || kind == .pickSubject || !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
         // Spotlight changes what's around the selection, so it needs one.
@@ -1887,14 +1889,19 @@ final class Editor {
         placeFloatingKeepingOutline()
         let layer = canvas.activeLayer
         guard layer.adjustment == nil, let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
-        let size = canvas.size
+        let revision = history.revision
         isFindingSubject = true
         Task { @MainActor [weak self] in
             let scan = try? await SubjectScan.find(in: image)
             guard let self else { return }
             self.isFindingSubject = false
-            // Something else changed the image meanwhile; the masks no longer fit it.
-            guard self.canvas.size == size, self.canvas.activeLayer.id == layer.id, self.activeEffect == nil else { return }
+            // Something changed the image meanwhile (a step, an undo, or a stroke still being drawn), so the
+            // masks may no longer fit it (review B, finding 2).
+            guard self.history.revision == revision, self.activeStroke == nil, self.gradientDrag == nil,
+                  self.canvas.activeLayer.id == layer.id, self.activeEffect == nil else {
+                self.subjectMessage = "The image changed while Colorbee was looking for the subject. Try again."
+                return
+            }
             guard let scan, !scan.isEmpty else {
                 self.subjectMessage = "No subject found. Remove Background and Select Subject work on photos of people, pets and objects, not on screenshots or text."
                 return
@@ -1985,8 +1992,10 @@ final class Editor {
     }
 
     private func showBackgroundPreview(_ preview: EffectPreview?, of effect: Effect, generation: Int) {
+        // A render from a closed session mustn't clear the flag for the current one's (review B, finding 6).
+        guard generation == previewGeneration else { return }
         previewRunning = false
-        guard generation == previewGeneration, let edit = effectEdit else { return }
+        guard let edit = effectEdit else { return }
         edit.restoreOriginals()
         preview?.write(into: canvas.activeLayer, edit: edit)
         shownEffect = effect
@@ -2176,6 +2185,8 @@ final class Editor {
             return
         }
         if activeEffect == .crop || activeEffect == .perspective {
+            // Crossed or folded corners can't be straightened; the tool stays open to fix them (review C, finding 1).
+            if activeEffect == .perspective, !Warp.isConvex(perspectiveCorners) { return onRefused() }
             let kind = activeEffect
             activeEffect = nil
             recordingChanges {
@@ -2403,6 +2414,28 @@ final class Editor {
         }
     }
 
+    /// Changes whenever the layers beneath the active one may look different, so a Levels layer's histogram
+    /// is worked out again then, and not on every tick of its own sliders (review D, finding 2).
+    var belowActiveLayerKey: Int {
+        // Read so SwiftUI looks at the key again when layers change; layers themselves aren't observed.
+        _ = layersRevision
+        var hasher = Hasher()
+        hasher.combine(undoRedoCount)
+        hasher.combine(canvas.activeLayer.id)
+        for layer in canvas.layers.prefix(canvas.activeLayerIndex) {
+            hasher.combine(layer.id)
+            hasher.combine(ObjectIdentifier(layer.buffer))
+            hasher.combine(layer.isVisible)
+            hasher.combine(layer.opacity)
+            hasher.combine(layer.blendMode)
+            hasher.combine(layer.adjustment)
+        }
+        return hasher.finalize()
+    }
+
+    /// Undo and redo can change pixels below the active layer without changing any layer's settings.
+    private var undoRedoCount = 0
+
     /// The layers beneath the active one as they look together, by brightness, for a Levels layer.
     func histogramBelowActiveLayer() -> Histogram {
         let index = canvas.activeLayerIndex
@@ -2460,6 +2493,7 @@ final class Editor {
         }
         finishInteractions()
         guard history.undo(on: canvas) != nil else { return }
+        undoRedoCount += 1
         layersRevision += 1
         onDocumentChange(.undone)
         selectionDidChange()
@@ -2468,6 +2502,7 @@ final class Editor {
     func redo() {
         finishInteractions()
         guard history.redo(on: canvas) != nil else { return }
+        undoRedoCount += 1
         layersRevision += 1
         onDocumentChange(.redone)
         selectionDidChange()
@@ -2710,9 +2745,20 @@ final class Editor {
     /// An effect's live preview is drawn into the layer before it's applied; an autosave in the
     /// meantime must write the image without it, in case the effect is cancelled.
     private func withoutEffectPreview<T>(_ body: () throws -> T) rethrows -> T {
+        // Drop Shadow, Border and Straighten preview as a real step, so it's taken back for the copy
+        // (review B, finding 1).
+        if activeEffect?.previewsAsStep == true, decorationPreviewed {
+            history.undo(on: canvas)
+            defer { history.redo(on: canvas) }
+            return try body()
+        }
         guard let edit = effectEdit else { return try body() }
+        // The preview's pixels are put back as they were, not worked out again on the main thread
+        // (review B, finding 3).
+        let shown = edit.dirtyRect, layer = canvas.activeLayer
+        let pixels = layer.buffer.pixels(in: shown)
         edit.restoreOriginals()
-        defer { renderEffectPreview() }
+        defer { layer.buffer.setPixels(pixels, in: shown) }
         return try body()
     }
 

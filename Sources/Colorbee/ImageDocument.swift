@@ -78,12 +78,16 @@ final class ImageDocument: NSDocument {
         let snapshot = MainActor.assumeIsolated { editor?.saveSnapshot() }
         snapshotLock.withLock { pendingSnapshot = snapshot }
         super.save(to: url, ofType: typeName, for: saveOperation) { [weak self] error in
-            // Let the copy go once its save is done, unless a newer save has replaced it.
-            self?.snapshotLock.withLock {
+            // Let the copy go once its save is done, unless a newer save has replaced it. Writes don't overlap,
+            // so the copy this save encoded is the one in the file; a newer save's copy may have replaced
+            // this save's own before it was written (review B, finding 8).
+            let written = self?.snapshotLock.withLock {
                 if self?.pendingSnapshot?.canvas === snapshot?.canvas { self?.pendingSnapshot = nil }
-            }
-            if error == nil, explicit, let snapshot {
-                Task { @MainActor in self?.editor?.markSaved(snapshot) }
+                defer { self?.encodedSnapshot = nil }
+                return self?.encodedSnapshot ?? snapshot
+            } ?? nil
+            if error == nil, explicit, let written {
+                Task { @MainActor in self?.editor?.markSaved(written) }
             }
             completionHandler(error)
         }
@@ -124,6 +128,8 @@ final class ImageDocument: NSDocument {
     /// The copy being saved. A newer save replaces it, which is fine since it's newer content.
     nonisolated private let snapshotLock = NSLock()
     nonisolated(unsafe) private var pendingSnapshot: SaveSnapshot?
+    /// The copy the running save is writing, which a newer save may have put in place of its own.
+    nonisolated(unsafe) private var encodedSnapshot: SaveSnapshot?
 
     nonisolated override func canAsynchronouslyWrite(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType) -> Bool {
         true
@@ -131,7 +137,10 @@ final class ImageDocument: NSDocument {
 
     /// Called on a background thread for saves (see `canAsynchronouslyWrite`), so it touches only the snapshot.
     nonisolated override func data(ofType typeName: String) throws -> Data {
-        var snapshot = snapshotLock.withLock { pendingSnapshot }
+        var snapshot = snapshotLock.withLock {
+            encodedSnapshot = pendingSnapshot
+            return pendingSnapshot
+        }
         if snapshot == nil, Thread.isMainThread {
             snapshot = MainActor.assumeIsolated { editor?.saveSnapshot() }
         }

@@ -259,6 +259,18 @@ fragment float4 adjust_lookup_fragment(QuadOut in [[stage_in]],
     return fadeIn(backdrop, adjusted, backdrop.a, u);
 }
 
+// Levels, Curves and Posterize: one entry per 8-bit value for each channel (ChannelTable), read without
+// interpolation, so the screen shows the same hard steps the export has.
+fragment float4 adjust_channel_fragment(QuadOut in [[stage_in]],
+                                        texture2d<float> table [[texture(0)]],
+                                        constant QuadUniforms &u [[buffer(0)]],
+                                        float4 backdrop [[color(0)]]) {
+    if (backdrop.a <= 0) return backdrop;
+    uint3 index = uint3(rint(clamp(backdrop.rgb / backdrop.a, 0.0, 1.0) * 255.0));
+    float3 adjusted = float3(table.read(uint2(index.r, 0)).r, table.read(uint2(index.g, 0)).g, table.read(uint2(index.b, 0)).b);
+    return fadeIn(backdrop, adjusted, backdrop.a, u);
+}
+
 // Adjust Photo (PhotoAdjustments in ColorbeeCore): detail from blurred copies of what's below, then the color
 // table, then the vignette. adjustParams: table size, sharpness, definition, noise reduction (0...1).
 static float3 unblurred(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel, float3 fallback) {

@@ -24,6 +24,11 @@ extension Effect: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let kind = try container.decode(String.self, forKey: .kind)
         let v = try container.decodeIfPresent([Double].self, forKey: .values) ?? []
+        // No setting is anywhere near this; a damaged or hand-edited file mustn't trap converting to Int
+        // (review C, finding 4).
+        guard v.allSatisfy({ $0.isFinite && abs($0) <= 1_000_000 }) else {
+            throw DecodingError.dataCorruptedError(forKey: .values, in: container, debugDescription: "Value out of range")
+        }
         func value(_ i: Int) -> Double { v.indices.contains(i) ? v[i] : 0 }
         switch kind {
         case "invert": self = .invert

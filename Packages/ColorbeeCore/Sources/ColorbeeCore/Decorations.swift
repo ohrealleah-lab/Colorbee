@@ -235,20 +235,22 @@ struct Shape {
         return Field(values: squared, bounds: area, outside: .greatestFiniteMagnitude)
     }
 
-    /// One pass of the squared-distance transform over a line of costs (0 inside, large outside).
+    /// One pass of the squared-distance transform over a line of costs (0 inside, large outside). The
+    /// parabola crossings are worked out in Double: squared positions past 2^24 aren't exact in Float, which
+    /// put gaps in borders around shapes over about 8,000 pixels wide (review C, finding 3).
     private static func transform(_ f: [Float]) -> [Float] {
         let n = f.count
         var result = [Float](repeating: 0, count: n)
         var v = [Int](repeating: 0, count: n)
-        var z = [Float](repeating: 0, count: n + 1)
+        var z = [Double](repeating: 0, count: n + 1)
         var k = 0
         z[0] = -.greatestFiniteMagnitude
         z[1] = .greatestFiniteMagnitude
         for q in 1..<max(n, 1) {
-            var s: Float
+            var s: Double
             repeat {
                 let p = v[k]
-                s = ((f[q] + Float(q * q)) - (f[p] + Float(p * p))) / Float(2 * q - 2 * p)
+                s = ((Double(f[q]) + Double(q * q)) - (Double(f[p]) + Double(p * p))) / Double(2 * q - 2 * p)
                 if s <= z[k] { k -= 1 } else { break }
             } while k >= 0
             k += 1
@@ -258,7 +260,7 @@ struct Shape {
         }
         k = 0
         for q in 0..<n {
-            while z[k + 1] < Float(q) { k += 1 }
+            while z[k + 1] < Double(q) { k += 1 }
             let p = v[k]
             result[q] = Float((q - p) * (q - p)) + f[p]
         }

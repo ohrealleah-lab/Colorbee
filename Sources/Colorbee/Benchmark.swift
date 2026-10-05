@@ -52,6 +52,8 @@ enum Benchmark {
         try? await Task.sleep(for: .milliseconds(500))
         Diagnostics.report("Memory at idle: \(Diagnostics.megabytes(Diagnostics.physicalFootprint()))")
 
+        // Documents start with Rectangle Select now; the stroke measurements have always used the Pencil.
+        editor.selectTool(.pencil)
         editor.brushDiameter = brushDiameter
         _ = canvasView.processingLatency.drain()
         _ = canvasView.screenLatency.drain()

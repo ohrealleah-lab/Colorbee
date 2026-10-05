@@ -383,7 +383,8 @@ final class Editor {
     var canvas: Canvas { page.canvas }
     var history: History { page.history }
 
-    private(set) var tool: Tool = .pencil
+    // A first click on a new document selects rather than draws (Leah, 2026-10-04).
+    private(set) var tool: Tool = .rectangleSelect
     var brush: Brush = .round
     /// Brushes respond to trackpad and pen pressure (FR-4.2). Off, every brush draws at full size.
     var usesPressure = true

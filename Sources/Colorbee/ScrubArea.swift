@@ -2,8 +2,9 @@ import AppKit
 import SwiftUI
 
 extension View {
-    /// Dragging up or down on this changes `value` by `step` for every few points, five times as fast with Shift
-    /// (Leah, 2026-10-05), so a number can be set without the keyboard. A click without dragging still reaches a
+    /// Dragging down on this raises `value` by `step` for every few points, and dragging up lowers it, five times as
+    /// fast with Shift (Leah, 2026-10-05), so a number can be set without the keyboard. Down is "more" because these
+    /// fields sit at the top of the window. A click without dragging still reaches a
     /// text field underneath, to type in it.
     func scrubs(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double = 1) -> some View {
         overlay(ScrubArea(value: value, range: range, step: step))
@@ -79,9 +80,9 @@ final class ScrubView: NSView {
             // A field being typed in shows the new numbers as they change.
             window?.makeFirstResponder(nil)
         }
-        // Window coordinates grow upward, so dragging up makes the number bigger.
+        // Window coordinates grow upward, so moving down (a smaller y) makes the number bigger.
         let speed = event.modifierFlags.contains(.shift) ? 5.0 : 1.0
-        remainder += (point.y - lastY) * speed / Self.pointsPerStep
+        remainder += (lastY - point.y) * speed / Self.pointsPerStep
         lastY = point.y
         let steps = remainder.rounded(.towardZero)
         guard steps != 0 else { return }

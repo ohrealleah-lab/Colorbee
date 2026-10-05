@@ -609,6 +609,8 @@ final class Editor {
         var savedGeometrySteps: [ObjectIdentifier]
         /// Saved since the page was hidden: its saved state is what it holds now.
         var savedIsStale = false
+        /// Its history was forgotten while it was hidden: "As Opened" becomes what it holds now.
+        var asOpenedIsStale = false
     }
 
     @ObservationIgnored private var pageMemory: [UUID: PageMemory] = [:]
@@ -692,7 +694,7 @@ final class Editor {
             page = pages.current
             canvasSize = canvas.size
             if let memory = pageMemory.removeValue(forKey: page.id) {
-                asOpened = memory.asOpened
+                asOpened = memory.asOpenedIsStale ? canvas.flattened() : memory.asOpened
                 if memory.savedIsStale {
                     rememberLayersAsSaved()
                 } else {
@@ -2501,9 +2503,14 @@ final class Editor {
 
     /// After a redacted file's earlier versions are removed: the undo history goes too, so the redaction can't
     /// be undone and then saved back, and Before/After's "As Opened" becomes the image as it is now (Leah, 2026-10-04).
+    /// Every page's, along with page changes, so a deleted page can't come back either.
     func forgetHistory() {
         finishInteractions()
-        history.removeAll()
+        pages.forgetHistory()
+        undone = []
+        redactionGroups = []
+        pageMemory = pageMemory.filter { id, _ in pages.pages.contains { $0.id == id } }
+        for id in pageMemory.keys { pageMemory[id]?.asOpenedIsStale = true }
         asOpened = canvas.flattened()
         savedGeometrySteps = history.geometrySteps
         layersRevision += 1

@@ -175,6 +175,7 @@ Logs in `build/soak-results*.txt` (not committed).
 6. **Locked layer stops everything.** Fresh copy of the PDF. Go to page 2, lock its layer in the Layers panel (⌘L), go back to page 1, Auto-Redact…, Apply. A message says page 2's layer is locked; nothing is redacted on any page.
 7. **Export as PDF.** Redact the PDF (step 3), then File ▸ Export as PDF… and save it. Open it in Preview: 3 letter-size pages in order, redactions black. Text can't be selected. In Preview, Tools ▸ Show Inspector: no title, author, creator or producer.
 8. **Images become a PDF.** Open E1 Screenshot.png, Page ▸ New Page, then File ▸ Export as PDF…. In Preview, page 1 is the screenshot and page 2 is blank (Color 2).
+9a. **Remove Earlier Versions clears every page (fixed 2026-10-04).** Open Three Page Test.pdf and ⌘S it as "Forget Test" on the Desktop. Delete page 3 (Page ▸ Delete Page). Effects ▸ Auto-Redact…, Solid Fill, Apply, then ⌘S and choose **Remove Earlier Versions and Undo History**. Now Edit ▸ Undo is greyed out on page 1 and on page 2, and the deleted page can't be brought back. On page 2, View ▸ Before/After with As Opened shows the redacted page, not the original.
 9. **Resolution setting.** Colorbee ▸ Settings ▸ PDFs, choose 300 DPI, then open Three Page Test.pdf again: the status bar says 2550 × 3300 px. Set it back to 200 DPI afterwards.
 
 **Stage 10a pages (2026-10-04): all 11 steps passed Leah's hand test on 2026-10-04.** Test files: `TestImages/Stage 10/Three Page Test.pdf`

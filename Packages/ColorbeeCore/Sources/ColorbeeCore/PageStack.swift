@@ -47,6 +47,14 @@ public final class PageStack {
         try current.unpark()
     }
 
+    /// Forgets every page change and every page's undo history, letting go of deleted pages, so nothing from
+    /// before can be brought back (Remove Earlier Versions and Undo History, after a redaction).
+    public func forgetHistory() {
+        undoSteps = []
+        redoSteps = []
+        for page in pages { page.history.removeAll() }
+    }
+
     /// A page was edited.
     public func noteEdit() {
         clock += 1

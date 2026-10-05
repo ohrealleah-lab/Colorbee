@@ -91,6 +91,21 @@ struct PageTests {
         #expect(stack.undoName == nil && stack.redoName == nil)
     }
 
+    /// Remove Earlier Versions and Undo History: no page's edits, and no deleted page, can be brought back.
+    @Test func forgettingHistoryForgetsEveryPageAndPageChange() throws {
+        let stack = PageStack(pages: [page(1)])
+        paint(stack.pages[0], 200)
+        try stack.insert(page(2), at: 1)
+        paint(stack.pages[1], 90)
+        try stack.insert(page(3), at: 2)
+        try stack.remove(at: 2)
+        #expect(stack.undoName == "Delete Page")
+        stack.forgetHistory()
+        #expect(stack.undoName == nil && stack.redoName == nil)
+        #expect(stack.pages.allSatisfy { !$0.history.canUndo && !$0.history.canRedo })
+        #expect(stack.pages.count == 2)
+    }
+
     @Test func deletingTheShownPageShowsTheNextOne() throws {
         let stack = PageStack(pages: [page(1)])
         try stack.insert(page(2), at: 1)

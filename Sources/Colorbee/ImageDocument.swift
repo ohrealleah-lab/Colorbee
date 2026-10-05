@@ -407,9 +407,16 @@ final class ImageDocument: NSDocument {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [options.format.type]
         panel.nameFieldStringValue = (displayName as NSString).deletingPathExtension
-        panel.accessoryView = NSHostingView(rootView: ExportAccessory(options: options) { format in
+        // A hosting view starts with no size, and a save panel only passes clicks inside the accessory's frame, so
+        // the controls showed but only the keyboard reached them (Leah, 2026-10-05). The frame follows the content
+        // as rows come and go.
+        let accessoryView = WeakView()
+        let accessory = NSHostingView(rootView: ExportAccessory(options: options, formatChanged: { format in
             panel.allowedContentTypes = [format.type]
-        })
+        }, sizeChanged: { accessoryView.view?.setFrameSize($0) }))
+        accessoryView.view = accessory
+        accessory.setFrameSize(accessory.fittingSize)
+        panel.accessoryView = accessory
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             let format = options.format, quality = options.quality, lzw = options.tiffLZW
@@ -475,9 +482,16 @@ private final class ExportOptions {
     var writesCameraDetails: Bool { hasCameraDetails && includeCameraDetails && format.holdsCameraDetails }
 }
 
+/// Lets the export accessory resize the view that hosts it.
+@MainActor
+private final class WeakView {
+    weak var view: NSView?
+}
+
 private struct ExportAccessory: View {
     @Bindable var options: ExportOptions
     let formatChanged: (ImageFileFormat) -> Void
+    let sizeChanged: (CGSize) -> Void
 
     var body: some View {
         Form {
@@ -516,6 +530,8 @@ private struct ExportAccessory: View {
         }
         .padding()
         .frame(width: 360)
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { sizeChanged($0) }
         .onChange(of: options.format) { formatChanged(options.format) }
     }
 }

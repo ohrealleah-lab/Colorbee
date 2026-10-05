@@ -174,6 +174,13 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
+**Export… panel clicks (fixed 2026-10-05): not yet tested.** Its Format menu and the controls below it showed but
+only the keyboard reached them. Use `TestImages/Stage 12/Test Camera.dng` (open it, press Return in Develop).
+1. File ▸ Export…: click the Format menu with the mouse and choose JPEG. A Quality slider appears; drag it with the mouse.
+2. Click Format, choose TIFF: Compression appears; click it and choose None.
+3. Click Format, choose PNG: Quality and Compression go away, and **Include camera details** shows; click the box (or its label) to check it, and again to uncheck it.
+4. Choose BMP: the camera details box goes away. Back to PNG, check the box, Save. In Preview's Inspector (ⓘ, EXIF) the PNG shows Test Camera and ISO 400.
+
 **Remembered file formats (2026-10-05): not yet tested.** Any images will do, for example `TestImages/Stage 5a Practice.png`.
 1. **Save remembers.** File ▸ New, then ⌘S: choose JPEG in File Format and save it as "Format Test" on the Desktop. File ▸ New again, ⌘S: the panel starts on JPEG. Cancel.
 2. **A file keeps its own format.** Open Stage 5a Practice.png, File ▸ Save As…: the panel starts on PNG. Cancel.

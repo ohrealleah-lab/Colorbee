@@ -174,6 +174,15 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
+**Scrubbing number fields (2026-10-05): not yet tested.** Any image, for example `TestImages/Stage 5a Practice.png`.
+1. **Size.** Choose the Brush. Hover over the size box in the toolbar (the "px" field): the pointer is an up-down arrow. Press and drag up: the number climbs, about 1 for every 3 points; drag down: it falls. It stops at 50 and at 1, and turns around straight away.
+2. **Shift.** Drag up holding Shift: it moves 5 times as fast.
+3. **Still typeable.** Click the size box without dragging: the cursor goes in, and you can type a number and press Return.
+4. **Eraser.** Choose the Eraser and drag the size up: it goes to 100.
+5. **Alpha.** Drag up or down on the "100%" box in the palette bar: Alpha changes, and the slider follows.
+6. **Tolerances.** With Fill, Magic Wand and the Eraser (Color Eraser), drag on the tolerance percentage: it changes 1% at a time, 5% with Shift.
+7. **Font size.** With the Text tool, drag on the font size box: the size changes (6 to 500), and a text box being typed in updates as you drag.
+
 **Export… panel clicks (fixed 2026-10-05): passed with the stage 12 tests on 2026-10-05.** Its Format menu and the controls below it showed but
 only the keyboard reached them. Use `TestImages/Stage 12/Test Camera.dng` (open it, press Return in Develop).
 1. File ▸ Export…: click the Format menu with the mouse and choose JPEG. A Quality slider appears; drag it with the mouse.

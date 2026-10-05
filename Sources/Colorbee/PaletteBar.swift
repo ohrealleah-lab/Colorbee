@@ -27,6 +27,7 @@ struct PaletteBar<Options: View>: View {
                     .padding(.horizontal, 7)
                     .frame(height: 22)
                     .background(Theme.field, in: RoundedRectangle(cornerRadius: 7))
+                    .scrubs(alpha, in: 0...100)
             }
             .help("How see-through the \(editor.activeWell == .color1 ? "Color 1" : "Color 2") well is")
             Button("Edit Colors…") { ColorPanelController.shared.open(for: editor) }

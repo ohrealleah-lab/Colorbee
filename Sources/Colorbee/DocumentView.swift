@@ -118,6 +118,7 @@ private struct ToolOptions: View {
             Text("\(Int((editor.colorEraserTolerance * 100).rounded()))%")
                 .monospacedDigit()
                 .frame(width: 36, alignment: .trailing)
+                .scrubs($editor.colorEraserTolerance, in: 0...1, step: 0.01)
             hint(editor.colorEraserMode ? "Drag replaces Color 1 with Color 2 · [ and ] change the size"
                  : "Right-drag replaces Color 1 with Color 2 · [ and ] change the size")
         case .fill:
@@ -128,6 +129,7 @@ private struct ToolOptions: View {
             Text("\(Int((editor.fillTolerance * 100).rounded()))%")
                 .monospacedDigit()
                 .frame(width: 36, alignment: .trailing)
+                .scrubs($editor.fillTolerance, in: 0...1, step: 0.01)
             Toggle("Sample All Layers", isOn: $editor.fillSamplesAllLayers)
                 .help("Find the area to fill in all visible layers together, and fill it on this layer")
         case .eyedropper:
@@ -153,6 +155,7 @@ private struct ToolOptions: View {
             Text("\(Int((editor.wandTolerance * 100).rounded()))%")
                 .monospacedDigit()
                 .frame(width: 36, alignment: .trailing)
+                .scrubs($editor.wandTolerance, in: 0...1, step: 0.01)
             Toggle("Contiguous", isOn: $editor.wandContiguous)
                 .help("Contiguous selects only the connected area; off selects every matching pixel")
             Toggle("Sample All Layers", isOn: $editor.wandSamplesAllLayers)
@@ -311,6 +314,7 @@ private struct TextOptions: View {
             TextField("Size", value: $style.fontSize, format: .number)
                 .frame(width: 40)
                 .multilineTextAlignment(.trailing)
+                .scrubs($style.fontSize, in: 6...500)
             Stepper("Size", value: $style.fontSize, in: 6...500)
                 .labelsHidden()
             Text("pt")

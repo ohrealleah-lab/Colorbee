@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Calls `action` when the view it backs is right-clicked (or Control-clicked), just before SwiftUI opens its context
-/// menu, so the menu can act on what was clicked. It never takes the click itself.
+/// Calls `action` when its window is right-clicked (or Control-clicked), just before SwiftUI opens a context menu,
+/// so the menu can act on what was clicked. The action decides what was clicked; this never takes the click itself.
 struct RightClickWatcher: NSViewRepresentable {
     let action: () -> Void
 
@@ -38,8 +38,6 @@ struct RightClickWatcher: NSViewRepresentable {
             let isMenuClick = event.type == .rightMouseDown
                 || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
             guard isMenuClick, event.window === window else { return }
-            // The visible part only: a thumbnail scrolled under the header mustn't catch the click.
-            guard visibleRect.contains(convert(event.locationInWindow, from: nil)) else { return }
             action()
         }
     }

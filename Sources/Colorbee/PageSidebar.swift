@@ -6,6 +6,8 @@ struct PageSidebar: View {
     @Bindable var editor: Editor
     /// The page being dragged to a new place, and how far it has moved.
     @State private var dragged: (index: Int, translation: CGFloat)?
+    /// The thumbnail under the pointer, which a right-click shows before its menu opens.
+    @State private var hovered: Int?
     private static let rowPitch: CGFloat = 150
 
     var body: some View {
@@ -53,6 +55,11 @@ struct PageSidebar: View {
             .padding(.vertical, 6)
         }
         .frame(width: 168)
+        // Right-clicking shows the page first, so the menu acts on the one clicked (Leah, 2026-10-04). Which
+        // thumbnail comes from hovering: each thumbnail's own view geometry matched every click, so the last page won.
+        .background(RightClickWatcher {
+            if let hovered, hovered < editor.pageCount { editor.showPage(at: hovered) }
+        })
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
         .padding(8)
         .disabled(editor.activeEffect != nil)
@@ -82,8 +89,9 @@ struct PageSidebar: View {
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { editor.showPage(at: index) }
-        // Right-clicking shows the page first, so the menu acts on the one clicked (Leah, 2026-10-04).
-        .background(RightClickWatcher { editor.showPage(at: index) })
+        .onHover { inside in
+            if inside { hovered = index } else if hovered == index { hovered = nil }
+        }
         .contextMenu {
             Button("New Page") { editor.newPage() }
             Button("Duplicate Page") { editor.duplicatePage() }

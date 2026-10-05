@@ -17,7 +17,8 @@ struct SaveSnapshot: @unchecked Sendable {
     /// saves them all; image formats save the page shown.
     let pageID: UUID
     let pageResolution: Double
-    let otherPages: [(index: Int, page: ProjectFile.StoredPage)]
+    /// With each page's id and its crop, resize and turn steps, so each page's saved state can be remembered.
+    let otherPages: [(index: Int, id: UUID, geometrySteps: [ObjectIdentifier], page: ProjectFile.StoredPage)]
     let currentIndex: Int
 
     /// The page shown in an image format, with its camera details only when asked (FR-11.8).

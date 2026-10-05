@@ -31,6 +31,9 @@ public enum ProjectFile {
         var layers: [LayerEntry]
         /// Missing from projects saved before stage 12.
         var cameraDetails: CameraDetails?
+        /// A one-page project's resolution (a PDF page's), in pixels per inch. Several pages keep theirs in the page
+        /// list; missing means the default (review K, finding 6).
+        var resolution: Double?
     }
 
     struct LayerEntry: Codable {
@@ -162,7 +165,7 @@ public enum ProjectFile {
 
     /// Writes pages already in one-page project form (a save copy holds them like this).
     public static func encode(stored pages: [StoredPage], currentIndex: Int) throws -> Data {
-        if pages.count == 1 { return pages[0].project }
+        if pages.count == 1 { return try settingResolution(pages[0].resolution, of: pages[0].project) }
         var projects = Data()
         var entries: [PageEntry] = []
         for page in pages {
@@ -183,23 +186,42 @@ public enum ProjectFile {
         return data
     }
 
-    /// Makes `count` pages on all cores (PDF pages, image frames) and stores each at once as a one-page project
-    /// with its thumbnail, so a long document never holds more than a few pages' pixels at a time.
+    /// Makes `count` pages (PDF pages, image frames), four at a time, and stores each at once as a one-page project
+    /// with its thumbnail, so a long document never holds more than a few pages' pixels at a time. Each page in work
+    /// holds about three full-size copies, so four keeps a long PDF at 300 DPI well within memory (review L, finding 7).
     public static func storedPages(count: Int, make: (Int) throws -> (canvas: Canvas, resolution: Double)) throws -> [StoredPage] {
-        let made = ParallelRows.map(count) { index -> Result<StoredPage, Error> in
-            Result {
-                let (canvas, resolution) = try make(index)
-                return StoredPage(project: try encode(canvas), resolution: resolution, thumbnail: canvas.thumbnail(maxSide: 160))
+        let lanes = min(4, count)
+        let made = ParallelRows.map(lanes) { lane -> [(Int, Result<StoredPage, Error>)] in
+            stride(from: lane, to: count, by: lanes).map { index in
+                (index, Result {
+                    let (canvas, resolution) = try make(index)
+                    return StoredPage(project: try encode(canvas), resolution: resolution, thumbnail: canvas.thumbnail(maxSide: 160))
+                })
             }
         }
-        return try made.map { try $0.get() }
+        return try made.joined().sorted { $0.0 < $1.0 }.map { try $0.1.get() }
+    }
+
+    /// `project` (a one-page project) with `resolution` recorded in its manifest. The pixels are left as they are.
+    static func settingResolution(_ resolution: Double, of project: Data) throws -> Data {
+        var (manifest, blobs) = try manifestAndBlobs(project)
+        guard manifest.resolution != resolution else { return project }
+        manifest.resolution = resolution == Page.defaultResolution ? nil : resolution
+        let json = try JSONEncoder().encode(manifest)
+        var data = magic
+        var length = UInt32(json.count).littleEndian
+        data.append(Data(bytes: &length, count: 4))
+        data.append(json)
+        data.append(blobs)
+        return data
     }
 
     /// The pages of a project, one-page or several, without decoding their pixels.
     public static func storedPages(_ data: Data) throws -> (pages: [StoredPage], currentIndex: Int) {
         guard data.starts(with: pagesMagic) else {
-            _ = try manifestAndBlobs(data)
-            return ([StoredPage(project: data, resolution: Page.defaultResolution, thumbnail: nil)], 0)
+            let (manifest, _) = try manifestAndBlobs(data)
+            let resolution = manifest.resolution.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } ?? Page.defaultResolution
+            return ([StoredPage(project: data, resolution: resolution, thumbnail: nil)], 0)
         }
         guard data.count >= pagesMagic.count + 4 else { throw Failure.damaged }
         let lengthStart = data.startIndex + pagesMagic.count
@@ -214,7 +236,9 @@ public enum ProjectFile {
                   entry.resolution.isFinite, entry.resolution > 0 else { throw Failure.damaged }
             let project = Data(projects[(projects.startIndex + entry.project.lowerBound)..<(projects.startIndex + entry.project.upperBound)])
             let thumbnail = entry.thumbnail.flatMap { stored -> Thumbnail? in
-                guard stored.width > 0, stored.height > 0, stored.width * stored.height * 4 == stored.pixels.count else { return nil }
+                // Sizes from the file are bounded before multiplying, so a damaged file can't overflow (review K, finding 9).
+                guard stored.width > 0, stored.height > 0, stored.width <= 4096, stored.height <= 4096,
+                      stored.width * stored.height * 4 == stored.pixels.count else { return nil }
                 return Thumbnail(width: stored.width, height: stored.height, pixels: stored.pixels.withUnsafeBytes { Array($0.bindMemory(to: Pixel.self)) })
             }
             return StoredPage(project: project, resolution: entry.resolution, thumbnail: thumbnail)

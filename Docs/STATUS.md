@@ -174,6 +174,13 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
+**Review round 4, batch B (2026-10-05): not yet tested.** Use `TestImages/Stage 10/Three Page Test.pdf`.
+1. **As Opened for pages not yet shown (K4).** Open the PDF and stay on page 1. Effects ▸ Auto-Redact…, Solid Fill, Apply (don't click any row). Click thumbnail 3, then View ▸ Before/After with As Opened: the left side shows the email and phone, the right side the black boxes.
+2. **Revert Layer after a save (L12).** Open the PDF and ⌘S it as "Revert Test". Auto-Redact, Solid Fill, Apply. Click thumbnail 2, then Layer ▸ Revert Layer: page 2's email and phone come back as saved.
+3. **Undo Delete Page keeps As Opened (L10).** Open the PDF, go to page 2, draw a line. Page ▸ Delete Page, then ⌘Z. View ▸ Before/After, As Opened: the left side has no line.
+4. **One page keeps its size (K6).** Open the PDF, delete pages 2 and 3, Layer ▸ New Layer (so it saves as a project), ⌘S as "One Page", close and reopen it. File ▸ Export as PDF…: in Preview, Tools ▸ Show Inspector, the page is 8.5 × 11 in.
+5. **Memory with many pages (K3, L4, L5, L7).** Make a long PDF: open Three Page Test.pdf in Preview, drag its thumbnails in a few more times until it has about 30 pages, File ▸ Export as PDF. In Colorbee's Settings ▸ General choose 300 DPI, open it, and watch Colorbee in Activity Monitor's Memory tab: opening doesn't spike to gigabytes; clicking through every page grows memory only a little per page; deleting pages (drawing something after each delete) lets memory go back down. Set 200 DPI again afterwards.
+
 **Review round 4, batch A (2026-10-05): not yet tested.** Files: `E1 Screenshot.png` from `~/Downloads/colorbee tests/`,
 `TestImages/Stage 10/Three Page Test.pdf`, `TestImages/Stage 12/Test Camera.dng`.
 1. **Unplaced shapes are saved (K1).** Open E1 Screenshot.png. Shapes tool, Rectangle, Fill Solid, Color 1 black. Drag a box over the email and don't press Return. File ▸ Export…, PNG, save; open it in Preview: the box is there. Do it again and press ⌘C instead, then in Preview File ▸ New from Clipboard: the box is there.

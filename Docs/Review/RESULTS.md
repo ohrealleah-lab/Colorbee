@@ -227,13 +227,13 @@ color profile to Display P3 (K8); the Clipboard History offer covers copies made
 |---|---|---|---|
 | 1 | High | A shape or text not yet placed was left out of saves, exports, copies, Share and Print | **Fixed (batch A).** Placed first; autosave leaves them alone. |
 | 2 | Medium | After a page failed to read, Apply redacted only the pages read | **Fixed (batch A).** Apply is refused, and the page is named. |
-| 3 | Medium | Hidden pages kept full-size copies, also after Remove Earlier Versions | Batch B. |
-| 4 | Medium | Pages redacted before being shown got the redacted page as "As Opened" | Batch B. |
+| 3 | Medium | Hidden pages kept full-size copies, also after Remove Earlier Versions | **Fixed (batch B).** Hidden pages' baselines are kept compressed (`PageBaseline`) and replaced by Remove Earlier Versions. |
+| 4 | Medium | Pages redacted before being shown got the redacted page as "As Opened" | **Fixed (batch B).** Every page's opened state is its bytes at open. |
 | 5 | Medium | A page that couldn't be brought back left the Editor on the wrong page | **Fixed (batch A).** Page changes bring the new page back first; a failure changes nothing. Core tests. |
-| 6 | Medium | A one-page project forgot its PDF resolution | Batch B. |
+| 6 | Medium | A one-page project forgot its PDF resolution | **Fixed (batch B).** Kept in its manifest. Core test. |
 | 7 | Low-Medium | A failure partway through Apply gave a wrong message, and a page could drop out of saves | **Fixed (batch A).** Saves include every page; the message says which pages were redacted. |
 | 8 | Low | Export as PDF embedded custom color profiles | Batch C (Leah: convert to Display P3). |
-| 9 | Low | A damaged project could crash on a thumbnail's size | Batch C. |
+| 9 | Low | A damaged project could crash on a thumbnail's size | **Fixed (batch B, in passing).** Sizes are bounded first. Core test. |
 | 10 | Low | The PDF writer could fail silently | Batch C. |
 | 11 | Low | Copies made from the document weren't in the Clipboard History offer | **Fixed (batch A, Leah).** |
 
@@ -244,15 +244,15 @@ color profile to Display P3 (K8); the Clipboard History offer covers copies made
 | 1 | High | A History panel click could undo or redo a page change | **Fixed (batch A).** The panel steps only the page shown. |
 | 2 | High | Save, Export, Share and Revert worked behind Auto-Redact; autosave could write half a redaction | **Fixed (batch A).** Greyed out behind any sheet or effect bar; autosave waits while Apply runs. |
 | 3 | Medium | A cancelled Save panel could make autosave write a lossy format | **Fixed (batch A).** Untitled documents autosave as projects. |
-| 4 | Medium | Every page visited kept a full-size copy (same as K3) | Batch B. |
+| 4 | Medium | Every page visited kept a full-size copy (same as K3) | **Fixed (batch B).** |
 | 5 | Medium | Deleted pages were never freed | **Fixed (batch A, in passing).** Let go once they can't be undone. Core test. |
-| 6 | Medium | A damaged project could crash on a thumbnail's size (same as K9) | Batch C. |
-| 7 | Medium | Opening a PDF rendered every page at once on all cores | Batch B. |
+| 6 | Medium | A damaged project could crash on a thumbnail's size (same as K9) | **Fixed (batch B).** |
+| 7 | Medium | Opening a PDF rendered every page at once on all cores | **Fixed (batch B).** Four pages at a time. Opening in the background with progress is for later. Core test. |
 | 8 | Medium | Dropped PDFs, projects and RAW files didn't open like File ▸ Open | Batch C. |
 | 9 | Low | Develop's Cancel didn't work while developing | Batch C. |
-| 10 | Low | Undoing Delete Page lost the page's baselines | Batch B. |
+| 10 | Low | Undoing Delete Page lost the page's baselines | **Fixed (batch B).** Kept while undo can bring the page back. |
 | 11 | Low | A developed photo lost its camera details after a relaunch | **Fixed (batch A)** with L3: projects keep them. |
-| 12 | Low | Other pages' saved state was taken when shown, not when saved | Batch B. |
+| 12 | Low | Other pages' saved state was taken when shown, not when saved | **Fixed (batch B).** Each page's saved state is the bytes written for it. |
 | 13 | Low | Reordering by dragging stopped at the sidebar's edge | Batch C. |
 | 14 | Low | A failure halfway through a page change left things inconsistent (same as K5, K7) | **Fixed (batch A).** |
 | 15 | Low | Page switches compress and expand on the main thread | Later (logged in STATUS). |

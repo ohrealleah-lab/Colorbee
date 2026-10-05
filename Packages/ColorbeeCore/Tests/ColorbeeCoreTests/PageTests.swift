@@ -186,6 +186,44 @@ struct PageProjectTests {
         }
     }
 
+    /// Review K, finding 6: a one-page project keeps its page's resolution.
+    @Test func aOnePageProjectKeepsItsResolution() throws {
+        let single = page(10)
+        single.resolution = 300
+        let data = try ProjectFile.encode(pages: [single], currentIndex: 0)
+        #expect(data.starts(with: ProjectFile.magic))
+        #expect(try ProjectFile.storedPages(data).pages[0].resolution == 300)
+        #expect(try ProjectFile.decode(data).flattened().contentHash() == single.canvas.flattened().contentHash())
+        let plain = try ProjectFile.encode(pages: [page(10)], currentIndex: 0)
+        #expect(try ProjectFile.storedPages(plain).pages[0].resolution == Page.defaultResolution)
+    }
+
+    /// Review L, finding 7: pages made four at a time still come out in order.
+    @Test func pagesMadeInParallelStayInOrder() throws {
+        let stored = try ProjectFile.storedPages(count: 11) { index in
+            (page(UInt8(index * 20)).canvas, Double(100 + index))
+        }
+        #expect(stored.map(\.resolution) == (0..<11).map { Double(100 + $0) })
+    }
+
+    /// Review K, finding 9: absurd thumbnail sizes in a damaged file are ignored, not multiplied.
+    @Test func aHugeThumbnailSizeDoesntCrash() throws {
+        let project = try ProjectFile.encode(page(1).canvas)
+        let huge = ProjectFile.ThumbnailEntry(width: 3_037_000_500, height: 3_037_000_500, pixels: Data(count: 16))
+        let manifest = ProjectFile.PagesManifest(currentIndex: 0, pages: [
+            ProjectFile.PageEntry(resolution: 144, project: 0..<project.count, thumbnail: huge),
+            ProjectFile.PageEntry(resolution: 144, project: 0..<project.count, thumbnail: nil),
+        ])
+        let json = try JSONEncoder().encode(manifest)
+        var data = ProjectFile.pagesMagic
+        var length = UInt32(json.count).littleEndian
+        data.append(Data(bytes: &length, count: 4))
+        data.append(json)
+        data.append(project)
+        let stored = try ProjectFile.storedPages(data)
+        #expect(stored.pages.count == 2 && stored.pages[0].thumbnail == nil)
+    }
+
     @Test func aOnePageProjectIsWrittenAsBefore() throws {
         let single = page(10)
         let data = try ProjectFile.encode(pages: [single], currentIndex: 0)

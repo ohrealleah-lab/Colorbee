@@ -39,6 +39,16 @@ public final class PageStack {
 
     public var current: Page { pages[currentIndex] }
 
+    /// Pages out of the document that undo or redo can still bring back (deleted ones, or added ones undone).
+    public var restorablePages: [Page] {
+        (undoSteps + redoSteps).compactMap { step in
+            switch step.change {
+            case .insert(let page, _), .remove(let page, _): pages.contains { $0 === page } ? nil : page
+            case .move: nil
+            }
+        }
+    }
+
     /// Shows another page: the new one is brought back, the one shown parked.
     public func show(_ index: Int) throws {
         guard pages.indices.contains(index), index != currentIndex else { return }

@@ -473,8 +473,9 @@ final class Editor {
     var comparison: Comparison? {
         didSet { if oldValue?.layout != comparison?.layout { fitComparison() } else { renderSoon() } }
     }
-    /// The image when the document was opened or created.
-    @ObservationIgnored private(set) var asOpened: PixelBuffer
+    /// The page shown, as opened or created (FR-11.3). Other pages keep theirs in `pageMemory`.
+    @ObservationIgnored private var opened: PageBaseline
+    var asOpened: PixelBuffer? { opened.flattened }
     /// The document at the last explicit save, as it was written.
     private(set) var lastSavedSnapshot: SaveSnapshot?
     @ObservationIgnored private var lastSavedImage: PixelBuffer?
@@ -588,8 +589,15 @@ final class Editor {
         self.pages = pages
         page = pages.current
         canvasSize = pages.current.canvas.size
-        asOpened = pages.current.canvas.flattened()
-        rememberLayersAsSaved(sharingSingleLayerWith: asOpened)
+        opened = PageBaseline(canvas: pages.current.canvas.copy())
+        saved = opened
+        // Every other page as opened is the bytes it's parked in: nothing to copy, and right even if the page is
+        // redacted before it's ever shown (review K, finding 4).
+        for other in pages.pages where other !== pages.current {
+            guard let parked = other.parked else { continue }
+            let baseline = PageBaseline(data: parked, describing: other.canvas)
+            pageMemory[other.id] = PageMemory(viewport: nil, opened: baseline, saved: baseline, savedGeometrySteps: [])
+        }
     }
 
     /// A page's undo history, as the app keeps it.
@@ -604,16 +612,13 @@ final class Editor {
     // MARK: Pages (FR-11.6)
 
     /// What the Editor remembers about a page while another is shown.
+    /// What a hidden page goes back to when it's shown: compressed until then.
     private struct PageMemory {
-        var viewport: Viewport
-        var asOpened: PixelBuffer
-        var savedLayers: [LayerID: PixelBuffer]
-        var savedSize: IntSize
+        /// Nil until the page has been shown.
+        var viewport: Viewport?
+        var opened: PageBaseline
+        var saved: PageBaseline
         var savedGeometrySteps: [ObjectIdentifier]
-        /// Saved since the page was hidden: its saved state is what it holds now.
-        var savedIsStale = false
-        /// Its history was forgotten while it was hidden: "As Opened" becomes what it holds now.
-        var asOpenedIsStale = false
     }
 
     @ObservationIgnored private var pageMemory: [UUID: PageMemory] = [:]
@@ -701,28 +706,31 @@ final class Editor {
     /// brings back the new one's.
     private func pageDidChange() {
         if pages.current !== page {
-            pageMemory[page.id] = PageMemory(viewport: viewport, asOpened: asOpened, savedLayers: savedLayers, savedSize: savedSize,
-                                             savedGeometrySteps: savedGeometrySteps)
+            opened.pack()
+            saved.pack()
+            pageMemory[page.id] = PageMemory(viewport: viewport, opened: opened, saved: saved, savedGeometrySteps: savedGeometrySteps)
             page = pages.current
             canvasSize = canvas.size
             if let memory = pageMemory.removeValue(forKey: page.id) {
-                asOpened = memory.asOpenedIsStale ? canvas.flattened() : memory.asOpened
-                if memory.savedIsStale {
-                    rememberLayersAsSaved()
+                opened = memory.opened
+                saved = memory.saved
+                savedGeometrySteps = memory.savedGeometrySteps
+                if let shown = memory.viewport {
+                    updateViewport { $0 = Viewport(zoom: shown.zoom, center: shown.center, viewSize: $0.viewSize) }
                 } else {
-                    savedLayers = memory.savedLayers
-                    savedSize = memory.savedSize
-                    savedGeometrySteps = memory.savedGeometrySteps
+                    zoomToFit()
                 }
-                updateViewport { $0 = Viewport(zoom: memory.viewport.zoom, center: memory.viewport.center, viewSize: $0.viewSize) }
             } else {
-                asOpened = canvas.flattened()
-                rememberLayersAsSaved(sharingSingleLayerWith: asOpened)
+                // A page added since the document opened: as opened is as it is now.
+                opened = PageBaseline(canvas: canvas.copy())
+                saved = opened
+                savedGeometrySteps = history.geometrySteps
                 zoomToFit()
             }
         }
-        // Pages taken out of the document (deleted) are forgotten once the undo can't bring them back.
-        pageMemory = pageMemory.filter { id, _ in pages.pages.contains { $0.id == id } }
+        // Pages out of the document are forgotten once undo can't bring them back (review L, finding 10).
+        let kept = Set((pages.pages + pages.restorablePages).map(\.id))
+        pageMemory = pageMemory.filter { kept.contains($0.key) }
         layersRevision += 1
         selectionDidChange()
         onRender()
@@ -787,34 +795,21 @@ final class Editor {
         didSet { renderSoon() }
     }
 
-    /// Each pixel layer as of the last explicit save (or as opened), for Revert Layer (FR-8.3).
-    @ObservationIgnored private var savedLayers: [LayerID: PixelBuffer] = [:]
+    /// The page shown's layers as of the last explicit save (or as opened), for Revert Layer (FR-8.3).
+    @ObservationIgnored private var saved: PageBaseline
     /// The crop, resize, rotation and flip steps in effect at the last save; Revert Layer needs the same ones.
     @ObservationIgnored private var savedGeometrySteps: [ObjectIdentifier] = []
-    @ObservationIgnored private var savedSize: IntSize = .init(width: 0, height: 0)
-
-    /// A lone opaque layer looks exactly like the flattened image, so it can share that copy.
-    private func rememberLayersAsSaved(sharingSingleLayerWith flattened: PixelBuffer? = nil) {
-        savedSize = canvas.size
-        savedGeometrySteps = history.geometrySteps
-        let pixelLayers = canvas.layers.filter { $0.adjustment == nil }
-        if let flattened, canvas.layers.count == 1, let only = pixelLayers.first, only.opacity >= 1, only.isVisible {
-            savedLayers = [only.id: flattened]
-        } else {
-            savedLayers = Dictionary(uniqueKeysWithValues: pixelLayers.map { ($0.id, $0.buffer.copy()) })
-        }
-    }
 
     var canRevertLayer: Bool {
         let layer = canvas.activeLayer
         // After a flip or rotation since the save, the saved pixels would come back unturned (review G, finding 4).
-        return layer.adjustment == nil && !layer.isLocked && canvas.size == savedSize && history.geometrySteps == savedGeometrySteps
-            && savedLayers[layer.id] != nil
+        return layer.adjustment == nil && !layer.isLocked && canvas.size == saved.size && history.geometrySteps == savedGeometrySteps
+            && saved.layerIDs.contains(layer.id)
     }
 
     /// Revert Layer: the active layer's pixels go back to how they were at the last save, as one step.
     func revertLayer() {
-        guard canRevertLayer, let saved = savedLayers[canvas.activeLayer.id] else {
+        guard canRevertLayer, let saved = saved.layer(canvas.activeLayer.id) else {
             onRefused()
             return
         }
@@ -2522,9 +2517,16 @@ final class Editor {
         pages.forgetHistory()
         undone = []
         redactionGroups = []
-        pageMemory = pageMemory.filter { id, _ in pages.pages.contains { $0.id == id } }
-        for id in pageMemory.keys { pageMemory[id]?.asOpenedIsStale = true }
-        asOpened = canvas.flattened()
+        let kept = Set(pages.pages.map(\.id))
+        pageMemory = pageMemory.filter { kept.contains($0.key) }
+        // Every page as opened is now as it is: nothing unredacted is kept (review K, finding 3).
+        for other in pages.pages where other !== page {
+            guard var memory = pageMemory[other.id], let project = try? other.projectData() else { continue }
+            memory.opened = PageBaseline(data: project, describing: other.canvas)
+            memory.savedGeometrySteps = other.history.geometrySteps
+            pageMemory[other.id] = memory
+        }
+        opened = PageBaseline(canvas: canvas.copy())
         savedGeometrySteps = history.geometrySteps
         layersRevision += 1
         onRender()
@@ -3211,8 +3213,9 @@ final class Editor {
     /// Fits the view to what's being compared: both images side by side, or just the canvas.
     private func fitComparison() {
         if comparison?.layout == .sideBySide {
-            let width = asOpened.width + canvas.size.width + Self.comparisonGap
-            let height = max(asOpened.height, canvas.size.height)
+            // As opened has the page's size, which is known without decoding it.
+            let width = opened.size.width + canvas.size.width + Self.comparisonGap
+            let height = max(opened.size.height, canvas.size.height)
             updateViewport { $0.fit(IntSize(width: width, height: height), margin: 40) }
         } else {
             zoomToFit()
@@ -3222,24 +3225,43 @@ final class Editor {
     /// Records the image as of an explicit save, for "Last Saved".
     /// `snapshot` is the copy that was written; nothing else changes it, so its buffers are kept as they are.
     func markSaved(_ snapshot: SaveSnapshot) {
-        // Other pages work out their saved state again when shown: what's saved now is what they hold.
-        for id in pageMemory.keys { pageMemory[id]?.savedIsStale = true }
-        guard snapshot.pageID == page.id else { return }
+        // Each other page's saved state is the bytes that were written for it (review L, finding 12).
+        for other in snapshot.otherPages {
+            guard var memory = pageMemory[other.id],
+                  let described = (pages.pages + pages.restorablePages).first(where: { $0.id == other.id }) else { continue }
+            memory.saved = PageBaseline(data: other.page.project, describing: described.canvas)
+            memory.savedGeometrySteps = other.geometrySteps
+            pageMemory[other.id] = memory
+        }
+        // With any floating selection drawn in, as the file has it (review G, finding 3).
+        let savedPage = PageBaseline(layers: snapshot.canvas.layerBuffersAsSaved(transparentKey: snapshot.transparentKey,
+                                                                                  resampling: snapshot.resampling),
+                                     colorSpace: snapshot.canvas.colorSpace)
+        guard snapshot.pageID == page.id else {
+            // The save finished after another page was shown: it's that page's saved state.
+            if let savedPage, var memory = pageMemory[snapshot.pageID] {
+                savedPage.pack()
+                memory.saved = savedPage
+                memory.savedGeometrySteps = snapshot.geometrySteps
+                pageMemory[snapshot.pageID] = memory
+            }
+            lastSavedSnapshot = snapshot
+            lastSavedImage = nil
+            return
+        }
         lastSavedSnapshot = snapshot
         lastSavedImage = nil
         // Flattened ahead in the background, so Before/After doesn't pause the first time (review E, finding 6).
-        let saved = UnsafeTransfer(snapshot)
+        let written = UnsafeTransfer(snapshot)
         Task { [weak self] in
             let image = await Task.detached(priority: .utility) {
-                UnsafeTransfer(saved.value.canvas.flattened(transparentKey: saved.value.transparentKey, resampling: saved.value.resampling))
+                UnsafeTransfer(written.value.canvas.flattened(transparentKey: written.value.transparentKey, resampling: written.value.resampling))
             }.value
-            guard let self, self.lastSavedSnapshot?.canvas === saved.value.canvas, self.lastSavedImage == nil else { return }
+            guard let self, self.lastSavedSnapshot?.canvas === written.value.canvas, self.lastSavedImage == nil else { return }
             self.lastSavedImage = image.value
         }
-        savedSize = snapshot.canvas.size
         savedGeometrySteps = snapshot.geometrySteps
-        // With any floating selection drawn in, as the file has it (review G, finding 3).
-        savedLayers = snapshot.canvas.layerBuffersAsSaved(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling)
+        if let savedPage { saved = savedPage }
     }
 
     // MARK: Files
@@ -3280,9 +3302,11 @@ final class Editor {
     private func snapshot(of canvas: ColorbeeCore.Canvas) -> SaveSnapshot {
         // Other pages are parked, so their bytes are taken as they are: no copying (FR-11.6).
         // A page left unparked by a failure is encoded now rather than left out (review K, finding 7).
-        let others = pages.pages.enumerated().compactMap { index, other -> (index: Int, page: ProjectFile.StoredPage)? in
+        let others = pages.pages.enumerated().compactMap { index, other
+            -> (index: Int, id: UUID, geometrySteps: [ObjectIdentifier], page: ProjectFile.StoredPage)? in
             guard other !== page, let project = try? other.projectData() else { return nil }
-            return (index, ProjectFile.StoredPage(project: project, resolution: other.resolution, thumbnail: other.thumbnail()))
+            return (index, other.id, other.history.geometrySteps,
+                    ProjectFile.StoredPage(project: project, resolution: other.resolution, thumbnail: other.thumbnail()))
         }
         return SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, resampling: selectionContext.resampling, matte: color2,
                             geometrySteps: history.geometrySteps, pageID: page.id, pageResolution: page.resolution, otherPages: others,

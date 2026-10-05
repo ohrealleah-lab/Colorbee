@@ -42,7 +42,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 10a. Pages | ✅ Done | High |
 | 10b. PDF output, Auto-Redact on every page | ✅ Done | High |
 | 11. Import from iPhone or iPad | Decided, to build later | High (trial build), then medium |
-| 12. RAW photos | Built, waiting for Leah's hand test | High |
+| 12. RAW photos | ✅ Done | High |
 
 ## What's built
 
@@ -131,7 +131,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
 - Polish done 2026-10-03: effect previews in the background (`EffectPreview`), Copy in the background (`ClipboardImage`). Tested by hand 2026-10-03.
 
-**12 RAW photos (FR-11.8)** — built 2026-10-05: `RawDeveloper` (macOS's RAW engine, CIRAWFilter), the Develop
+**12 RAW photos (FR-11.8)** — done; tested by hand 2026-10-05. Built: `RawDeveloper` (macOS's RAW engine, CIRAWFilter), the Develop
 window (`DevelopWindow`), `DocumentController` (sends RAW files to it), `CameraDetails` (core, kept in .colorproj),
 and Include camera details in Export…. Test file: `TestImages/Stage 12/Test Camera.dng`, a synthetic DNG with
 made-up camera details, serial number, owner and GPS location (made by a small script, not a real photo).
@@ -174,7 +174,7 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
-**Export… panel clicks (fixed 2026-10-05): not yet tested.** Its Format menu and the controls below it showed but
+**Export… panel clicks (fixed 2026-10-05): passed with the stage 12 tests on 2026-10-05.** Its Format menu and the controls below it showed but
 only the keyboard reached them. Use `TestImages/Stage 12/Test Camera.dng` (open it, press Return in Develop).
 1. File ▸ Export…: click the Format menu with the mouse and choose JPEG. A Quality slider appears; drag it with the mouse.
 2. Click Format, choose TIFF: Compression appears; click it and choose None.
@@ -188,7 +188,7 @@ only the keyboard reached them. Use `TestImages/Stage 12/Test Camera.dng` (open 
 4. **Export… remembers separately.** In any image, File ▸ Export…: choose JPEG, Quality 70, export. Export… again: JPEG at 70. Choose TIFF with Compression None, export; Export… again: TIFF, None. A new image's ⌘S still starts on JPEG.
 5. **After a relaunch.** Quit and reopen Colorbee: ⌘S on a new image starts on JPEG, and Export… on TIFF, None.
 
-**Stage 12 RAW photos (2026-10-05): not yet tested.** Use `TestImages/Stage 12/Test Camera.dng`, then some of
+**Stage 12 RAW photos (2026-10-05): all 11 steps passed Leah's hand test on 2026-10-05.** Use `TestImages/Stage 12/Test Camera.dng`, then some of
 your own RAW files (CR3, ARW, NEF or RAF) and an iPhone photo (JPEG or HEIC).
 1. **Develop window.** File ▸ Open the DNG. A "Develop — Test Camera.dng" window shows the photo (a sky, a white sun, four colored squares) and, along the bottom, "Test Camera · Test Lens 50mm F2.8 · ISO 400 · 1/125 s · f/2.8 · 50 mm · 600 × 400". Temperature reads 6502 K. Noise Reduction, Sharpness and Lens Correction are greyed out for this file, labels included, with "Greyed-out controls aren't available for this photo." under them, and dragging those sliders does nothing (fixed 2026-10-05: the labels looked usable).
 2. **Highlights.** Drag Exposure to +1: everything brightens. Drag Highlights to −100: the white sun turns gray again and the sky darkens, as bright detail comes back.

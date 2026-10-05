@@ -12,6 +12,8 @@ public final class Canvas {
     public internal(set) var hasTransparentBackground: Bool
     /// The original bottom layer. Erasing it leaves Color 2 while it's still at the bottom of a solid image.
     public private(set) var backgroundLayerID: LayerID?
+    /// How the photo was taken, if it came from a camera or phone (FR-11.8). Written into an export only when asked.
+    public var cameraDetails: CameraDetails?
 
     public static var defaultColorSpace: CGColorSpace {
         CGColorSpace(name: CGColorSpace.displayP3)!
@@ -60,6 +62,7 @@ public final class Canvas {
         let canvas = Canvas(colorSpace: colorSpace, layers: copies, hasTransparentBackground: hasTransparentBackground,
                             backgroundLayerID: backgroundLayerID, activeLayerIndex: activeLayerIndex)
         canvas.selection = selection
+        canvas.cameraDetails = cameraDetails
         return canvas
     }
 

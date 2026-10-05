@@ -34,6 +34,8 @@ public struct DecodedImage {
     public var frameCount = 1
     /// More than 8 bits per channel in the file; Colorbee keeps 8.
     public var isDeep = false
+    /// How the photo was taken, if the file says (FR-11.8).
+    public var cameraDetails: CameraDetails?
 
     /// Saving back over the file would lose frames or precision, so it opens as an untitled copy
     /// (Leah; review J, finding 2).
@@ -67,6 +69,7 @@ public enum ImageCodec {
         }
         decoded.frameCount = frameCount
         decoded.isDeep = image.bitsPerComponent > 8
+        decoded.cameraDetails = CameraDetails(properties: properties)
         return decoded
     }
 
@@ -96,7 +99,7 @@ public enum ImageCodec {
         }
     }
 
-    static func fitsEditing(width: Int, height: Int) -> Bool {
+    public static func fitsEditing(width: Int, height: Int) -> Bool {
         width <= ResizeSkew.maxSide && height <= ResizeSkew.maxSide && width * height <= ResizeSkew.maxArea
     }
 
@@ -134,7 +137,8 @@ public enum ImageCodec {
         as format: ImageFileFormat,
         quality: Double = 0.9,
         matte: Pixel = .white,
-        tiffLZW: Bool = false
+        tiffLZW: Bool = false,
+        cameraDetails: CameraDetails? = nil
     ) throws -> Data {
         guard format.canWrite else { throw ImageCodecError.encodingFailed }
         var pixels = buffer
@@ -155,9 +159,14 @@ public enum ImageCodec {
         }
         var options: [CFString: Any] = [:]
         if format.isLossy { options[kCGImageDestinationLossyCompressionQuality] = quality }
+        if let cameraDetails, format.holdsCameraDetails {
+            options.merge(cameraDetails.properties) { $1 }
+        }
         if format == .tiff {
             // TIFF compression tags: 1 is none, 5 is LZW.
-            options[kCGImagePropertyTIFFDictionary] = [kCGImagePropertyTIFFCompression: tiffLZW ? 5 : 1]
+            var tiff = options[kCGImagePropertyTIFFDictionary] as? [CFString: Any] ?? [:]
+            tiff[kCGImagePropertyTIFFCompression] = tiffLZW ? 5 : 1
+            options[kCGImagePropertyTIFFDictionary] = tiff
         }
         CGImageDestinationAddImage(destination, image, options.isEmpty ? nil : options as CFDictionary)
         guard CGImageDestinationFinalize(destination) else { throw ImageCodecError.encodingFailed }
@@ -221,6 +230,8 @@ public enum ImageFileFormat: CaseIterable, Sendable {
     }
 
     public var supportsTransparency: Bool { self != .jpeg }
+    /// Whether the format can carry camera details (EXIF).
+    public var holdsCameraDetails: Bool { self == .png || self == .jpeg || self == .tiff || self == .heic }
     public var isLossy: Bool { self == .jpeg || self == .heic || self == .webp }
 
     /// Whether this Mac's ImageIO can write the format (it can read all of them).

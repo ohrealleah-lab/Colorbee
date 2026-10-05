@@ -112,6 +112,11 @@ targets:
             LSHandlerRank: Alternate
             LSItemContentTypes: [com.adobe.pdf]
             NSDocumentClass: $(PRODUCT_MODULE_NAME).ImageDocument
+          - CFBundleTypeName: Camera RAW photo
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.camera-raw-image]
+            NSDocumentClass: $(PRODUCT_MODULE_NAME).ImageDocument
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.leah.Colorbee

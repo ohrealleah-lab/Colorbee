@@ -3,6 +3,8 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // The first document controller made becomes the shared one, so RAW files go to the Develop window.
+        _ = DocumentController()
         // Before any window exists, so none shows in the wrong appearance first.
         AppearanceSetting.apply()
         // Strokes must see every input sample (NFR-2).

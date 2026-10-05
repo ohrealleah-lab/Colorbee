@@ -24,9 +24,11 @@ final class ImageDocument: NSDocument {
         hasUndoManager = false
     }
 
-    /// Opens `canvas` as a new untitled document in its own window (Paste into New Image, or a drop).
-    static func open(_ canvas: ColorbeeCore.Canvas, clipboardSource: ClipboardHistory.Item.ID? = nil) {
+    /// Opens `canvas` as a new untitled document in its own window (Paste into New Image, a drop, or a developed RAW
+    /// photo, titled `name`).
+    static func open(_ canvas: ColorbeeCore.Canvas, clipboardSource: ClipboardHistory.Item.ID? = nil, name: String? = nil) {
         let document = ImageDocument()
+        document.projectName = name
         let editor = Editor(canvas: canvas)
         editor.noteClipboardSource(clipboardSource)
         document.editor = editor
@@ -105,8 +107,9 @@ final class ImageDocument: NSDocument {
             return
         }
         let decoded = try ImageCodec.decode(data)
-        // A format Colorbee can't write (WebP) opens as a copy too, so saving asks where (review J, WebP check).
-        let writable = type.flatMap(ImageFileFormat.init(type:))?.canWrite ?? true
+        // A format Colorbee can't write (WebP, or a RAW file reaching here without the Develop window) opens as a copy
+        // too, so saving asks where (review J, WebP check).
+        let writable = type.flatMap(ImageFileFormat.init(type:))?.canWrite ?? (type?.conforms(to: .rawImage) != true)
         opensAsCopy = decoded.opensAsCopy || !writable
         if decoded.frameCount > 1 {
             // Animated GIFs and multi-page TIFFs: every frame as a page (FR-11.6).
@@ -120,11 +123,13 @@ final class ImageDocument: NSDocument {
         }
         // AppKit reads on the main thread unless canConcurrentlyReadDocuments is overridden.
         MainActor.assumeIsolated {
-            editor = Editor(canvas: Canvas(
+            let canvas = Canvas(
                 colorSpace: decoded.colorSpace,
                 layers: [Layer(name: "Background", buffer: decoded.buffer)],
                 hasTransparentBackground: decoded.buffer.hasTransparency
-            ))
+            )
+            canvas.cameraDetails = decoded.cameraDetails
+            editor = Editor(canvas: canvas)
         }
     }
 
@@ -380,6 +385,7 @@ final class ImageDocument: NSDocument {
     @IBAction func exportDocument(_ sender: Any?) {
         guard let editor, let window = windowForSheet else { return }
         let options = ExportOptions()
+        options.hasCameraDetails = editor.canvas.cameraDetails != nil
         let panel = NSSavePanel()
         panel.allowedContentTypes = [options.format.type]
         panel.nameFieldStringValue = (displayName as NSString).deletingPathExtension
@@ -389,7 +395,10 @@ final class ImageDocument: NSDocument {
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             let format = options.format, quality = options.quality, lzw = options.tiffLZW
-            self?.export(editor.saveSnapshot(), to: url) { try $0.encoded(as: format, quality: quality, tiffLZW: lzw) }
+            let details = options.writesCameraDetails
+            self?.export(editor.saveSnapshot(), to: url) {
+                try $0.encoded(as: format, quality: quality, tiffLZW: lzw, includingCameraDetails: details)
+            }
         }
     }
 
@@ -424,6 +433,14 @@ private final class ExportOptions {
     var quality = 0.9
     /// Lossless and usually much smaller, so it's the default.
     var tiffLZW = true
+    /// The image came from a camera or phone that recorded how it was taken (FR-11.8).
+    var hasCameraDetails = false
+    /// Off at first; remembered after that.
+    var includeCameraDetails = UserDefaults.standard.bool(forKey: "ExportCameraDetails") {
+        didSet { UserDefaults.standard.set(includeCameraDetails, forKey: "ExportCameraDetails") }
+    }
+
+    var writesCameraDetails: Bool { hasCameraDetails && includeCameraDetails && format.holdsCameraDetails }
 }
 
 private struct ExportAccessory: View {
@@ -454,6 +471,10 @@ private struct ExportAccessory: View {
                     Text("None").tag(false)
                 }
                 .help("LZW is lossless and smaller; some older apps only read uncompressed TIFF")
+            }
+            if options.hasCameraDetails && options.format.holdsCameraDetails {
+                Toggle("Include camera details", isOn: $options.includeCameraDetails)
+                    .help("Camera, lens, ISO, shutter speed, aperture, focal length and date taken. Never location, serial numbers or the owner's name.")
             }
             if !options.format.supportsTransparency {
                 Text("Transparent areas are filled with Color 2.")

@@ -47,6 +47,10 @@ enum Snapshot {
             editor.addAdjustmentLayer(choice)
             editor.showsLayersPanel = true
         }
+        // `-ColorbeeSnapshotExportPNG /path/to.png` also exports the page shown as a PNG with its camera details (stage 12).
+        if let png = defaults.string(forKey: "ColorbeeSnapshotExportPNG") {
+            try? editor.saveSnapshot().encoded(as: .png, includingCameraDetails: true).write(to: URL(fileURLWithPath: png))
+        }
         // `-ColorbeeSnapshotPDF /path/to.pdf` also exports every page as a PDF (stage 10b).
         let pdf = defaults.string(forKey: "ColorbeeSnapshotPDF")
         func exportPDF() {
@@ -79,6 +83,28 @@ enum Snapshot {
             }
             // Quits outright: a snapshot of an edited or redacted document mustn't stop to ask about saving.
             exit(0)
+        }
+    }
+
+    /// `-ColorbeeSnapshotDevelop /path/to.png` photographs a RAW file's Develop window once its preview shows, after
+    /// `-ColorbeeSnapshotDevelopSettings "exposure=1,highlights=-100"` (any of the settings' names). With
+    /// `-ColorbeeSnapshotDevelopOpen YES` it then opens the photo, and the document window's options take over.
+    static func developIfRequested(window: NSWindow, session: DevelopSession) {
+        guard let path = defaults.string(forKey: "ColorbeeSnapshotDevelop") else { return }
+        if defaults.bool(forKey: "ColorbeeSnapshotDark") { NSApp.appearance = NSAppearance(named: .darkAqua) }
+        let paths: [String: WritableKeyPath<DevelopSettings, Double>] = [
+            "exposure": \.exposure, "temperature": \.temperature, "tint": \.tint, "highlights": \.highlights,
+            "shadows": \.shadows, "contrast": \.contrast, "noiseReduction": \.noiseReduction, "sharpness": \.sharpness,
+        ]
+        for pair in (defaults.string(forKey: "ColorbeeSnapshotDevelopSettings") ?? "").split(separator: ",") {
+            let parts = pair.split(separator: "=").map(String.init)
+            if parts.count == 2, let path = paths[parts[0]], let value = Double(parts[1]) { session.settings[keyPath: path] = value }
+        }
+        Task { @MainActor in
+            while session.preview == nil { try? await Task.sleep(for: .milliseconds(100)) }
+            try? await Task.sleep(for: .milliseconds(1500))
+            photograph(window, to: path)
+            if defaults.bool(forKey: "ColorbeeSnapshotDevelopOpen") { session.open() } else { exit(0) }
         }
     }
 

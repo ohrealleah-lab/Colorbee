@@ -508,6 +508,24 @@ Continuity Camera; details and reasoning in `Docs/Proposals/Import from iPhone.m
 - **Not in the first version:** searchable text in exported PDFs (later, as an opt-in that's off and refused on
   any redacted page) and splitting a two-page spread (later, "Split Page in Half").
 
+### FR-11.8 RAW photos (stage 12)
+Open camera RAW files, develop them, then edit and export like any image.
+
+- **Formats:** whatever macOS's own RAW engine reads (the one Photos and Preview use), which covers Canon CR3,
+  Sony ARW, Nikon NEF, Fujifilm RAF and DNG. A camera newer than macOS knows gets a plain message.
+- **Opening:** File ▸ Open, drag and drop, Open Recent and Finder, like any image. Every RAW open shows a
+  **Develop** window first: a live preview and Exposure, Temperature, Tint, Highlights, Shadows, Contrast, Noise
+  Reduction, Sharpness and a Lens Correction switch (when macOS has the lens's profile), each starting at the
+  camera's own setting, with **Reset to Camera**. Return opens with what's shown; Cancel opens nothing.
+- Developing happens at RAW precision, before the image becomes Colorbee's 8-bit pixels, in **Display P3**. To
+  develop differently later, open the RAW file again.
+- The result opens as an **untitled copy** (a RAW file is never written to), so ⌘S asks where to save.
+- **Camera details:** photos with them (RAW, and JPEG or HEIC from a camera or phone) keep the camera, lens, ISO,
+  shutter speed, aperture, focal length and date taken, also in .colorproj files. **File ▸ Export…** has
+  **Include camera details**, off at first, for formats that can hold them. Location, serial numbers and the
+  owner's name are never kept or written.
+- Too large for memory: a plain message, and nothing opens.
+
 ## 15. FR-12 — Saving and restoring (standard Mac behavior)
 
 - Documents save themselves automatically, the standard macOS way. Untitled documents are kept safe too.
@@ -640,6 +658,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 9. **Photo editing and presentation (later phase):** the FR-9.5 adjustments and effects, with their own performance and soak checks.
 10. **Pages and PDF documents:** FR-11.6. 10a pages: the document of pages, the page sidebar, page commands and undo, opening PDFs, TIFFs and GIFs, projects, memory. 10b output: Export as PDF, Auto-Redact on every page, the resolution setting.
 11. **Import from iPhone or iPad (planned):** FR-11.7. A short trial build first, with Leah scanning on her iPhone, to see what arrives; then the rest.
+12. **RAW photos:** FR-11.8. Develop window, RAW as another way in, camera details on export.
 
 ---
 
@@ -702,6 +721,8 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-05 | RAW photos, Claude's choices (veto any): **Highlights** goes from 0 down to −100 only, since macOS's highlight control can only bring bright areas down (Exposure or Curves brighten). Contrast is Colorbee's own, so it works for every file; Noise Reduction, Sharpness and Lens Correction are greyed out when macOS doesn't offer them for that camera or lens. Exposure is ±3 stops, Temperature 2000–12000 K, Tint ±150. Develop is its own window (not a sheet), so several photos can be developed side by side; it isn't brought back after a relaunch. The developed photo is titled after the file, and the RAW file goes into Open Recent. **Include camera details** remembers its last setting (off at first); ⌘S, Export As presets, Copy and Share never include camera details. |
+| 2026-10-05 | RAW photos (Leah): use macOS's built-in RAW engine (CR3, ARW, NEF, RAF and more) rather than a third-party library; open in Display P3; a **Develop** window on every RAW open (Return opens with what's shown) with Exposure, Temperature, Tint, Highlights, Shadows, Contrast, Noise Reduction, Sharpness and Lens Correction, at RAW precision; develop only when opening; **Include camera details** in Export…, off at first, for any photo with them, kept in .colorproj; never location, serial numbers or owner name. Built now, as stage 12. See FR-11.8. |
 | 2026-10-04 | Import from iPhone or iPad (Leah, all recommended; not built yet, for later): File ▸ Import from iPhone or iPad and the page sidebar's menu; scans and photos become new pages after the page being viewed (a new document if none is open); the phone's resolution, pixels and paper size are kept; Add Sketch stays; searchable text and splitting book spreads are later. See FR-11.7. |
 | 2026-10-04 | Appearance setting (Leah): Settings has a new first tab, **General**, with Appearance (System, Light or Dark, as a segmented control; System is the default and follows macOS live). It applies at once everywhere, is remembered, and is set before the first window shows. The PDF resolution moved into General too; the PDFs tab is gone. (Veto any, Claude's choices: Settings now opens on General the first time, and anyone who last used the old PDFs tab lands on General.) |
 | 2026-10-04 | Starting tool (Leah): every new or opened document starts with **Rectangle Select**, not the Pencil, so a first click doesn't draw on the image. |

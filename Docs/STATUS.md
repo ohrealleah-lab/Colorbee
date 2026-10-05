@@ -41,6 +41,8 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 9. Photo editing | ✅ Done | High |
 | 10a. Pages | ✅ Done | High |
 | 10b. PDF output, Auto-Redact on every page | ✅ Done | High |
+| 11. Import from iPhone or iPad | Decided, to build later | High (trial build), then medium |
+| 12. RAW photos | Built, waiting for Leah's hand test | High |
 
 ## What's built
 
@@ -129,6 +131,11 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
 - Polish done 2026-10-03: effect previews in the background (`EffectPreview`), Copy in the background (`ClipboardImage`). Tested by hand 2026-10-03.
 
+**12 RAW photos (FR-11.8)** — built 2026-10-05: `RawDeveloper` (macOS's RAW engine, CIRAWFilter), the Develop
+window (`DevelopWindow`), `DocumentController` (sends RAW files to it), `CameraDetails` (core, kept in .colorproj),
+and Include camera details in Export…. Test file: `TestImages/Stage 12/Test Camera.dng`, a synthetic DNG with
+made-up camera details, serial number, owner and GPS location (made by a small script, not a real photo).
+
 **11 Import from iPhone or iPad (FR-11.7)** — decided 2026-10-04, to build later (Leah). Start with the trial
 build in `Docs/Proposals/Import from iPhone.md`; Leah scans on her iPhone.
 
@@ -166,6 +173,20 @@ Logs in `build/soak-results*.txt` (not committed).
 7. **Warning on quit.** Open two duplicated copies of E1 Screenshot.png, Auto-Redact each (Solid Fill, Apply), then ⌘Q. Expect the message on each window in turn; after the second answer, Colorbee quits. Reopen both: the redactions are there.
 
 ## Not yet checked by hand
+
+**Stage 12 RAW photos (2026-10-05): not yet tested.** Use `TestImages/Stage 12/Test Camera.dng`, then some of
+your own RAW files (CR3, ARW, NEF or RAF) and an iPhone photo (JPEG or HEIC).
+1. **Develop window.** File ▸ Open the DNG. A "Develop — Test Camera.dng" window shows the photo (a sky, a white sun, four colored squares) and, along the bottom, "Test Camera · Test Lens 50mm F2.8 · ISO 400 · 1/125 s · f/2.8 · 50 mm · 600 × 400". Temperature reads 6502 K. Noise Reduction, Sharpness and Lens Correction are greyed out for this file.
+2. **Highlights.** Drag Exposure to +1: everything brightens. Drag Highlights to −100: the white sun turns gray again and the sky darkens, as bright detail comes back.
+3. **Reset.** Click Reset to Camera: every control goes back, and the button greys out.
+4. **Color.** Drag Temperature down to about 3500 K: the photo turns bluer. Tint to +100: it turns pinker. Reset to Camera.
+5. **Open.** Set Exposure to +0.5, press Return. A new window "Test Camera", Edited, shows the developed photo (Rectangle Select chosen). ⌘S asks where to save; the DNG is never changed.
+6. **Cancel.** Open the DNG again and press Esc (or Cancel, or the close button): nothing opens.
+7. **Camera details on export.** In the developed photo, File ▸ Export…, PNG: there's an "Include camera details" switch, off. Turn it on and save. In Finder, Get Info ▸ More Info shows Test Camera, the lens, ISO 400, f/2.8 and 1/125 s, and no location. Export again with the switch off: no camera details. Choose BMP in Export…: the switch disappears.
+8. **Other ways in.** Drag the DNG onto Colorbee's Dock icon, and onto the gray area of a Colorbee window: the Develop window each time. File ▸ Open Recent lists the DNG.
+9. **Your own RAW files.** Open a CR3, ARW, NEF or RAF: the Develop window shows your camera and lens, and Noise Reduction and Sharpness work (Lens Correction too, if macOS knows the lens). Open takes a few seconds for a big file. Then try Curves or Adjust Photo on it.
+10. **Phone photos.** Open an iPhone JPEG or HEIC (no Develop window), then File ▸ Export…: "Include camera details" is offered.
+11. **Kept in projects.** Add a layer to the developed photo, ⌘S as a .colorproj, close and reopen it: File ▸ Export… still offers "Include camera details".
 
 **Appearance setting (2026-10-04): not yet tested.** Use `TestImages/Stage 10/Three Page Test.pdf` or any image.
 1. **The General tab.** Colorbee ▸ Settings… (⌘,): the tabs are General, Shortcuts and Export Presets, and it opens on General. Appearance shows System | Light | Dark with System chosen, and "Open PDFs at" is below it.

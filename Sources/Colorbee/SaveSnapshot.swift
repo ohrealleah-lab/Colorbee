@@ -20,9 +20,10 @@ struct SaveSnapshot: @unchecked Sendable {
     let otherPages: [(index: Int, page: ProjectFile.StoredPage)]
     let currentIndex: Int
 
-    func encoded(as format: ImageFileFormat, quality: Double = 0.9, tiffLZW: Bool = false) throws -> Data {
+    /// The page shown in an image format, with its camera details only when asked (FR-11.8).
+    func encoded(as format: ImageFileFormat, quality: Double = 0.9, tiffLZW: Bool = false, includingCameraDetails: Bool = false) throws -> Data {
         try ImageCodec.encode(canvas.flattened(transparentKey: transparentKey, resampling: resampling), colorSpace: canvas.colorSpace, as: format, quality: quality,
-                              matte: matte, tiffLZW: tiffLZW)
+                              matte: matte, tiffLZW: tiffLZW, cameraDetails: includingCameraDetails ? canvas.cameraDetails : nil)
     }
 
     func encodedProject() throws -> Data {

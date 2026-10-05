@@ -29,6 +29,8 @@ public enum ProjectFile {
         var backgroundLayerID: UUID?
         var activeLayerIndex: Int
         var layers: [LayerEntry]
+        /// Missing from projects saved before stage 12.
+        var cameraDetails: CameraDetails?
     }
 
     struct LayerEntry: Codable {
@@ -78,7 +80,7 @@ public enum ProjectFile {
             iccProfile: canvas.colorSpace.copyICCData() as Data?, colorSpaceName: canvas.colorSpace.name as String?,
             hasTransparentBackground: canvas.hasTransparentBackground,
             backgroundLayerID: canvas.backgroundLayerID?.rawValue,
-            activeLayerIndex: canvas.activeLayerIndex, layers: entries
+            activeLayerIndex: canvas.activeLayerIndex, layers: entries, cameraDetails: canvas.cameraDetails
         )
         let json = try JSONEncoder().encode(manifest)
         var data = magic
@@ -240,6 +242,7 @@ public enum ProjectFile {
         }
         let canvas = Canvas(colorSpace: colorSpace, layers: layers, hasTransparentBackground: manifest.hasTransparentBackground,
                             backgroundLayerID: manifest.backgroundLayerID.map { LayerID(rawValue: $0) }, activeLayerIndex: manifest.activeLayerIndex)
+        canvas.cameraDetails = manifest.cameraDetails
         let pixelLayers = Set(zip(manifest.layers, layers).filter { $0.0.pixels != nil && $0.1.adjustment == nil }.map(\.1.id))
         return (canvas, pixelLayers)
     }
@@ -274,11 +277,13 @@ public enum ProjectFile {
             layer.adjustment = entry.adjustment?.effect
             return layer
         }
-        return Canvas(
+        let canvas = Canvas(
             colorSpace: colorSpace, layers: layers, hasTransparentBackground: manifest.hasTransparentBackground,
             backgroundLayerID: manifest.backgroundLayerID.map { LayerID(rawValue: $0) },
             activeLayerIndex: manifest.activeLayerIndex
         )
+        canvas.cameraDetails = manifest.cameraDetails
+        return canvas
     }
 
     /// The pixels without row padding, so the file doesn't depend on in-memory alignment.

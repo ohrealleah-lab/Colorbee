@@ -494,6 +494,20 @@ Any Colorbee document can have pages, so Colorbee can also make its own PDFs fro
   PDFs, TIFFs and GIFs, saving projects, memory); 10b output (Export as PDF, Auto-Redact on every page, the
   resolution setting).
 
+### FR-11.7 Import from iPhone or iPad (stage 11, planned)
+Scan with the phone, finish on the Mac: book pages (open-source ones), forms to redact, quick photos. Uses macOS
+Continuity Camera; details and reasoning in `Docs/Proposals/Import from iPhone.md`.
+
+- **File ▸ Import from iPhone or iPad**, the system's submenu (devices, each with Take Photo, Scan Documents and
+  Add Sketch), as in Preview. Also on the page sidebar's right-click menu.
+- With a document open, what arrives is added as **new pages just after the page being viewed**, in the order
+  scanned, showing the first; one undo step. With no document open, it becomes a new untitled document.
+- Each page keeps the phone's own pixels (no resampling), paper size and color profile; a photo counts as 144 DPI.
+  The phone decides the scan's resolution.
+- Add Sketch stays in the menu.
+- **Not in the first version:** searchable text in exported PDFs (later, as an opt-in that's off and refused on
+  any redacted page) and splitting a two-page spread (later, "Split Page in Half").
+
 ## 15. FR-12 — Saving and restoring (standard Mac behavior)
 
 - Documents save themselves automatically, the standard macOS way. Untitled documents are kept safe too.
@@ -625,6 +639,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 8. **Hardening:** performance, 8000×8000 soak tests, polish.
 9. **Photo editing and presentation (later phase):** the FR-9.5 adjustments and effects, with their own performance and soak checks.
 10. **Pages and PDF documents:** FR-11.6. 10a pages: the document of pages, the page sidebar, page commands and undo, opening PDFs, TIFFs and GIFs, projects, memory. 10b output: Export as PDF, Auto-Redact on every page, the resolution setting.
+11. **Import from iPhone or iPad (planned):** FR-11.7. A short trial build first, with Leah scanning on her iPhone, to see what arrives; then the rest.
 
 ---
 
@@ -687,6 +702,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | Import from iPhone or iPad (Leah, all recommended; not built yet, for later): File ▸ Import from iPhone or iPad and the page sidebar's menu; scans and photos become new pages after the page being viewed (a new document if none is open); the phone's resolution, pixels and paper size are kept; Add Sketch stays; searchable text and splitting book spreads are later. See FR-11.7. |
 | 2026-10-04 | Appearance setting (Leah): Settings has a new first tab, **General**, with Appearance (System, Light or Dark, as a segmented control; System is the default and follows macOS live). It applies at once everywhere, is remembered, and is set before the first window shows. The PDF resolution moved into General too; the PDFs tab is gone. (Veto any, Claude's choices: Settings now opens on General the first time, and anyone who last used the old PDFs tab lands on General.) |
 | 2026-10-04 | Starting tool (Leah): every new or opened document starts with **Rectangle Select**, not the Pencil, so a first click doesn't draw on the image. |
 | 2026-10-04 | Remove Earlier Versions and Undo History, with pages (Leah, fixing a gap from stage 10a): it clears the undo history of **every** page, forgets page adds, deletes and moves (so a deleted page can't come back), and makes Before/After's "As Opened" the current image on every page. |

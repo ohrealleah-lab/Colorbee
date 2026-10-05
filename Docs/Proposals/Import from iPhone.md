@@ -1,7 +1,7 @@
 # Proposal: Import from iPhone or iPad (Continuity Camera)
 
-Status: **proposal, for Leah's decisions** (2026-10-04). Nothing is built. Once decided, the behavior moves into
-the FRD (a new FR-11.7) and the decisions into §23.
+Status: **decided, not built** (2026-10-04). Leah chose every recommended answer below and asked to build it
+later. The behavior is in the FRD as FR-11.7 (stage 11), and the decisions in §23.
 
 ## Why
 

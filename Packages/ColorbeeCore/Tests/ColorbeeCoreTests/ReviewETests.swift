@@ -130,13 +130,8 @@ struct AutoRedactApplyTests {
         #expect(canvas.layers[0].buffer.pixels(in: large) == expected.layers[0].buffer.pixels(in: large))
     }
 
-    /// Finding 4: an item that touches the selection is kept, and redacted in full.
-    @Test func itemsTouchingTheSelectionAreKeptWhole() throws {
-        let selection = try #require(SelectionMask.rectangle(IntRect(x: 0, y: 0, width: 45, height: 200), clippedTo: IntRect(x: 0, y: 0, width: 200, height: 200)))
-        let mostlyOutside = match(IntRect(x: 40, y: 50, width: 60, height: 12))
-        let outside = match(IntRect(x: 60, y: 90, width: 60, height: 12))
-        #expect(AutoRedact.matches([mostlyOutside, outside], touching: selection) == [mostlyOutside])
-        #expect(AutoRedact.matches([mostlyOutside, outside], touching: nil) == [mostlyOutside, outside])
+    /// Finding 4: an item is redacted in full. (Auto-Redact no longer reads just the selection: Leah, 2026-10-04.)
+    @Test func itemsAreRedactedWhole() throws {
         let (canvas, history) = layered()
         _ = AutoRedact.apply([match(box)], treatment: .solidFill, fill: Pixel(r: 0, g: 0, b: 255), canvas: canvas, history: history)
         #expect(canvas.flattened().pixels(in: box).allSatisfy { $0 == Pixel(r: 0, g: 0, b: 255) })

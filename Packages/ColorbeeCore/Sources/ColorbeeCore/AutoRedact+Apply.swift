@@ -6,20 +6,6 @@ extension AutoRedact {
         case locked(layerName: String)
     }
 
-    /// The items to list when Auto-Redact searched `region` (a selection): every one that touches it, even
-    /// partly, since each is redacted whole (review E, finding 4).
-    public static func matches(_ matches: [RedactionMatch], touching region: SelectionMask?) -> [RedactionMatch] {
-        guard let region else { return matches }
-        return matches.filter { match in
-            let overlap = match.rect.intersection(region.bounds)
-            guard !overlap.isEmpty else { return false }
-            for y in overlap.minY..<overlap.maxY {
-                for x in overlap.minX..<overlap.maxX where region[x, y] > 0 { return true }
-            }
-            return false
-        }
-    }
-
     /// The pixel layers with anything in `selection` (or anywhere, with none), bottom to top, and the first of
     /// them that's locked. Batch Redact changes all of them, so a locked one stops it.
     public static func layersWithPixels(in selection: SelectionMask?, canvas: Canvas) -> (layers: [Layer], locked: Layer?) {

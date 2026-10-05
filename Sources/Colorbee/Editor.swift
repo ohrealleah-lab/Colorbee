@@ -248,7 +248,7 @@ extension RedactionTreatment {
     }
 }
 
-/// An Auto-Redact review in progress (FR-9.3): every page, or the selection on the page shown (FR-11.6).
+/// An Auto-Redact review in progress (FR-9.3): every page, whole, whatever is selected (FR-11.6).
 struct AutoRedactSession {
     /// One page that was read, and what was found on it.
     struct PageResult {
@@ -262,8 +262,6 @@ struct AutoRedactSession {
 
     /// Tells this run's scan from an earlier run's that finishes late.
     let id = UUID()
-    /// The area searched on the page shown: the selection, or nil for whole pages.
-    let region: SelectionMask?
     /// Some page read has more than one layer, so hidden layers matter.
     let anyLayered: Bool
     /// In page order.
@@ -2909,20 +2907,15 @@ final class Editor {
 
     // MARK: Auto-Redact
 
-    /// Reads the text on every page (or in the selection on the page shown) on this Mac and opens the review.
+    /// Reads the text on every page, whole, on this Mac and opens the review. A selection is ignored: Batch
+    /// Redact is for chosen areas (Leah, 2026-10-04).
     func beginAutoRedact() {
         // Every layer is redacted, so the active one being locked doesn't matter here; Apply checks the layers
         // under the boxes.
         finishInteractions()
         placeFloatingKeepingOutline()
-        let region = canvas.selection.marquee
-        // A selection can reach past the canvas; only the canvas is read (Leah's crash, 2026-10-04).
-        let area = (region?.bounds ?? canvas.bounds).intersection(canvas.bounds)
-        guard !area.isEmpty else { return onRefused() }
-        // A selection is on the page shown, so only that page is read then (Leah, 2026-10-04).
-        let read = region == nil ? pages.pages : [page]
+        let read = pages.pages
         let session = AutoRedactSession(
-            region: region,
             anyLayered: read.contains { $0.canvas.layers.count > 1 },
             pages: read.map { .init(pageID: $0.id, revision: $0.history.revision, canvasSize: $0.canvas.size) }
         )
@@ -2938,12 +2931,9 @@ final class Editor {
                 do {
                     let image = try await Task.detached(priority: .userInitiated) {
                         let canvas = try source.canvas()
-                        let area = index == 0 && region != nil ? area : canvas.bounds
-                        let cropped = PixelBuffer(width: area.width, height: area.height)
-                        cropped.setPixels(canvas.flattened().pixels(in: area), in: cropped.bounds)
-                        return (UnsafeTransfer(try ImageCodec.makeCGImage(cropped, colorSpace: canvas.colorSpace)), area.minX, area.minY)
+                        return UnsafeTransfer(try ImageCodec.makeCGImage(canvas.flattened(), colorSpace: canvas.colorSpace))
                     }.value
-                    let scan = try await TextScan.read(image.0.value, offset: IntPoint(x: image.1, y: image.2))
+                    let scan = try await TextScan.read(image.value)
                     // A scan from a run that was cancelled mustn't fill in a newer one (review E, finding 2).
                     guard let self, self.autoRedact?.id == session.id else { return }
                     self.autoRedact?.pages[index].scan = scan
@@ -2974,7 +2964,7 @@ final class Editor {
         guard let session = autoRedact else { return }
         for (index, result) in session.pages.enumerated() {
             guard let scan = result.scan else { continue }
-            autoRedact?.pages[index].matches = AutoRedact.matches(scan.matches(for: redactionPatterns), touching: session.region)
+            autoRedact?.pages[index].matches = scan.matches(for: redactionPatterns)
         }
         let found = autoRedact?.matches.map(\.id) ?? []
         autoRedact?.keptVisible.formIntersection(found)

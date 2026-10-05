@@ -55,15 +55,19 @@ struct AutoRedactSheet: View {
             return session.isMultiPage ? "Reading page \(session.pagesRead + 1) of \(session.pages.count)…" : "Reading text…"
         }
         if let failure = session.failure { return "Couldn't read the text: \(failure)" }
-        if session.matches.isEmpty {
-            if session.isMultiPage { return "No sensitive text found on any page." }
-            return "No sensitive text found" + (session.region == nil ? "." : " in the selection.")
-        }
+        // Says how much was read, so finding items on fewer pages doesn't look like pages were skipped (Leah).
+        let read = session.isMultiPage ? "Read \(session.pages.count) pages. " : ""
+        if session.matches.isEmpty { return read + "No sensitive text found." }
         let count = session.matches.count
         let items = "\(count) item\(count == 1 ? "" : "s")"
         guard session.isMultiPage else { return "Found \(items). Uncheck anything you want to keep visible." }
-        let pageCount = session.pages.count { !$0.matches.isEmpty }
-        return "Found \(items) on \(pageCount) page\(pageCount == 1 ? "" : "s"). Click one to see it; uncheck anything to keep visible."
+        let pagesWithItems = session.pages.filter { !$0.matches.isEmpty }
+        let found = if pagesWithItems.count == 1, let only = pagesWithItems.first {
+            "Found \(items), \(count == 1 ? "" : "all ")on page \(editor.pageNumber(of: only.pageID) ?? 0)."
+        } else {
+            "Found \(items) on \(pagesWithItems.count) pages."
+        }
+        return read + found + " Click one to see it; uncheck anything to keep visible."
     }
 
     @ViewBuilder

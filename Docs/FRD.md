@@ -329,7 +329,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - Built-in types to find: email addresses, phone numbers, credit card numbers, API keys and tokens, IP addresses, URLs.
 - Custom patterns can be added, named, saved and turned on or off.
 - Matches are shown as boxes you can review. Tick or untick each one, choose the treatment (Blur, Pixelate or Solid Fill with Color 1) and apply.
-- Works on the selection, or on the whole image if nothing is selected.
+- Always reads the whole image, every page, even when something is selected; Batch Redact is for chosen areas (§23, 2026-10-04).
 - The whole redaction is one undo step.
 
 ### FR-9.4 Batch redaction
@@ -483,8 +483,7 @@ Any Colorbee document can have pages, so Colorbee can also make its own PDFs fro
   Pages are compressed losslessly, and the file holds no metadata: no title, author, app name or dates.
 - **Image export** (Export, export presets, Copy, Share, Print) works on the page being viewed.
 - **Saving:** `.colorproj` holds every page; projects saved before pages open as one page.
-- **Auto-Redact** scans every page (or just the selection on the page being viewed, if there is one), with one
-  review list grouped by page ("Page 3 · 2 items"); clicking an item shows its page with the item in view. Apply
+- **Auto-Redact** scans every page, whole, with one review list grouped by page ("Page 3 · 2 items"); clicking an item shows its page with the item in view. Apply
   redacts every checked item on every page, as one step per page.
   Batch Redact works on the page being viewed.
 - **Memory:** a letter page at 300 DPI is about 34 MB, so pages not on screen are kept compressed, as history
@@ -684,7 +683,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
-| 2026-10-04 | Stage 10b (Leah): clicking an Auto-Redact item shows its page with the item in view; Export as PDF is lossless only; the PDF has no metadata at all (no title, author, app name or dates); with a selection, Auto-Redact reads just that area on the page being viewed. |
+| 2026-10-04 | Stage 10b (Leah): clicking an Auto-Redact item shows its page with the item in view; Export as PDF is lossless only; the PDF has no metadata at all (no title, author, app name or dates). Auto-Redact ignores the selection and always reads every page, whole: Batch Redact is the tool for chosen areas (changed the same day; it first read just a selection). Its summary says how many pages it read ("Read 3 pages. Found 2 items, all on page 1."), so finding items on fewer pages doesn't look like pages were skipped. |
 | 2026-10-04 | Stage 10b choices (veto any): transparent areas come out white in an exported PDF, as PDF viewers show them. Export as PDF has no shortcut. The PDF resolution is a new **PDFs** tab in Settings. Auto-Redact reads the pages in order, showing "Reading page 2 of 3…"; Apply waits until every page is read, and Cancel is greyed out while it redacts. Items are numbered within each page. Clicking an item keeps the zoom and only scrolls if its box isn't already in view. If any page changed since it was read, or has a locked layer under a box, nothing is redacted on any page and the message names the page. |
 | 2026-10-04 | Right-clicking a page thumbnail (Leah): shows that page first, so New, Duplicate and Delete Page in its menu act on the page clicked, as in Preview. |
 | 2026-10-04 | Stage 10a choices (veto any): pages have their own **Page** menu, after Layer. Previous and Next Page are ⌥⌘↑ and ⌥⌘↓ (as in Preview); View ▸ Page Sidebar is ⌥⌘2. The sidebar only appears once a document has two or more pages, and hiding it is remembered with the window. Adding, deleting and moving pages can be undone with ⌘Z until the page shown is edited; after that ⌘Z undoes that page's edits. Before/After's "Last Saved" and Revert Layer compare with the page as it was at the last save. Opening a project shows the page that was shown when it was saved. Opening a PDF makes an untitled copy that saves as a .colorproj. |

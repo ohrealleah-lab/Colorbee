@@ -151,6 +151,7 @@ final class GeometryChange {
 }
 
 final class HistoryEntry {
+    let id = UUID()
     let name: String
     var changes: [TileChange]
     var geometry: GeometryChange?
@@ -251,6 +252,10 @@ public final class History {
     public var undoCount: Int { undoStack.count }
     public var redoCount: Int { redoStack.count }
     public var undoActionName: String? { undoStack.last?.name }
+    /// The step ⌘Z would take back, and the one ⇧⌘Z would bring back. A step keeps its id through undo and redo,
+    /// so steps on several pages can be undone together while each is still its page's newest.
+    public var undoStepID: UUID? { undoStack.last?.id }
+    public var redoStepID: UUID? { redoStack.last?.id }
 
     /// Makes the History panel's picture of the image after each step. Nil makes none (tests, scratch work).
     public var makeThumbnail: ((Canvas) -> Thumbnail)?

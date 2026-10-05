@@ -615,6 +615,9 @@ final class Editor {
     /// The newest undos, oldest first: page changes and page edits redo in the order they were undone.
     private enum Undone { case pageChange, pageEdit }
     @ObservationIgnored private var undone: [Undone] = []
+    /// Auto-Redacts that changed more than one page, as each page's step: undone and redone together while they're
+    /// the newest change on every page (Leah, 2026-10-04).
+    @ObservationIgnored private var redactionGroups: [[(page: UUID, step: UUID)]] = []
     var showsPageSidebar = true {
         didSet { onViewStateChange() }
     }
@@ -2812,7 +2815,11 @@ final class Editor {
             onDocumentChange(.undone)
             return
         }
-        guard history.undo(on: canvas) != nil else { return }
+        if let group = redactionGroup(undoing: true) {
+            guard stepPages(group, undoing: true) else { return onRefused() }
+        } else {
+            guard history.undo(on: canvas) != nil else { return }
+        }
         undone.append(.pageEdit)
         undoRedoCount += 1
         layersRevision += 1
@@ -2828,12 +2835,45 @@ final class Editor {
             onDocumentChange(.redone)
             return
         }
-        guard history.redo(on: canvas) != nil else { return }
+        if let group = redactionGroup(undoing: false) {
+            guard stepPages(group, undoing: false) else { return onRefused() }
+        } else {
+            guard history.redo(on: canvas) != nil else { return }
+        }
         if undone.last == .pageEdit { undone.removeLast() }
         undoRedoCount += 1
         layersRevision += 1
         onDocumentChange(.redone)
         selectionDidChange()
+    }
+
+    /// The pages of the multi-page Auto-Redact that ⌘Z (or ⇧⌘Z) would step on the page shown, if it's still the
+    /// newest change on every one of them. If another page has changed since, only this page's part steps.
+    private func redactionGroup(undoing: Bool) -> [Page]? {
+        guard let top = undoing ? history.undoStepID : history.redoStepID,
+              let group = redactionGroups.first(where: { $0.contains { $0.step == top } }) else { return nil }
+        let parts = group.compactMap { part in pages.pages.first { $0.id == part.page }.map { (page: $0, step: part.step) } }
+        let ready = parts.allSatisfy { (undoing ? $0.page.history.undoStepID : $0.page.history.redoStepID) == $0.step }
+        return ready && parts.count > 1 ? parts.map(\.page) : nil
+    }
+
+    /// Undoes or redoes the newest step on each of `group`, bringing back parked pages just long enough.
+    private func stepPages(_ group: [Page], undoing: Bool) -> Bool {
+        for page in group {
+            let step = { undoing ? page.history.undo(on: page.canvas) : page.history.redo(on: page.canvas) }
+            if page === self.page {
+                _ = step()
+                continue
+            }
+            do {
+                try page.unpark()
+                _ = step()
+                try page.park()
+            } catch {
+                return false
+            }
+        }
+        return true
     }
 
     // MARK: Colors
@@ -3035,16 +3075,22 @@ final class Editor {
         Task { [weak self] in
             guard let self else { return }
             var redacted = false, changedOtherPages = false
+            var group: [(page: UUID, step: UUID)] = []
             for (done, target) in targets.enumerated() {
                 let apply = { AutoRedact.apply(target.matches, treatment: session.treatment, fill: self.color1,
                                                canvas: target.page.canvas, history: target.page.history) }
                 if target.page === page {
-                    recordingChanges { redacted = apply() == .redacted || redacted }
+                    recordingChanges {
+                        if apply() == .redacted { redacted = true; group += history.undoStepID.map { [(page.id, $0)] } ?? [] }
+                    }
                 } else {
                     // Another page is brought back just long enough to redact it, then compressed again.
                     do {
                         try target.page.unpark()
-                        redacted = apply() == .redacted || redacted
+                        if apply() == .redacted {
+                            redacted = true
+                            group += target.page.history.undoStepID.map { [(target.page.id, $0)] } ?? []
+                        }
                         try target.page.park()
                         changedOtherPages = true
                     } catch {
@@ -3056,6 +3102,7 @@ final class Editor {
                 // Lets the review show its progress between pages.
                 try? await Task.sleep(for: .milliseconds(1))
             }
+            if group.count > 1 { redactionGroups.append(group) }
             if changedOtherPages {
                 pages.noteEdit()
                 undone = []

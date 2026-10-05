@@ -58,6 +58,21 @@ struct PageTests {
         #expect(layer.row(31)[41] == .white)
     }
 
+    /// Stage 10b: an Auto-Redact on several pages undoes as one by matching each page's newest step.
+    @Test func aStepKeepsItsIDThroughUndoAndRedo() {
+        let page = page(10)
+        #expect(page.history.undoStepID == nil)
+        paint(page, 200)
+        let id = page.history.undoStepID
+        #expect(id != nil)
+        page.history.undo(on: page.canvas)
+        #expect(page.history.redoStepID == id && page.history.undoStepID == nil)
+        page.history.redo(on: page.canvas)
+        #expect(page.history.undoStepID == id)
+        paint(page, 90)
+        #expect(page.history.undoStepID != id)
+    }
+
     @Test func pageChangesUndoUntilAPageIsEdited() throws {
         let stack = PageStack(pages: [page(1)])
         try stack.insert(page(2), at: 1)

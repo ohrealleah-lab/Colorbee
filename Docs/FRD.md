@@ -483,8 +483,10 @@ Any Colorbee document can have pages, so Colorbee can also make its own PDFs fro
   Pages are compressed losslessly, and the file holds no metadata: no title, author, app name or dates.
 - **Image export** (Export, export presets, Copy, Share, Print) works on the page being viewed.
 - **Saving:** `.colorproj` holds every page; projects saved before pages open as one page.
-- **Auto-Redact** scans every page, whole, with one review list grouped by page ("Page 3 · 2 items"); clicking an item shows its page with the item in view. Apply
-  redacts every checked item on every page, as one step per page.
+- **Auto-Redact** scans every page, whole, with one review list grouped by page ("Page 3 · 2 items"); clicking
+  an item shows its page with the item in view. Apply redacts every checked item on every page. ⌘Z undoes it on
+  every page at once, from any page, while it's the newest change on each of them; if a page has changed since,
+  ⌘Z on another page undoes just that page's part.
   Batch Redact works on the page being viewed.
 - **Memory:** a letter page at 300 DPI is about 34 MB, so pages not on screen are kept compressed, as history
   does with layers it holds.
@@ -683,6 +685,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | Undoing Auto-Redact (Leah): all or nothing. ⌘Z undoes an Auto-Redact on every page at once, from whichever page is shown, and ⇧⌘Z redoes it on every page. After a later edit, ⌘Z undoes that edit first, then the whole Auto-Redact. If another page has changed since, ⌘Z on a page undoes just that page's part, so ⌘Z never gets stuck. |
 | 2026-10-04 | Stage 10b (Leah): clicking an Auto-Redact item shows its page with the item in view; Export as PDF is lossless only; the PDF has no metadata at all (no title, author, app name or dates). Auto-Redact ignores the selection and always reads every page, whole: Batch Redact is the tool for chosen areas (changed the same day; it first read just a selection). Its summary says how many pages it read ("Read 3 pages. Found 2 items, all on page 1."), so finding items on fewer pages doesn't look like pages were skipped. |
 | 2026-10-04 | Stage 10b choices (veto any): transparent areas come out white in an exported PDF, as PDF viewers show them. Export as PDF has no shortcut. The PDF resolution is a new **PDFs** tab in Settings. Auto-Redact reads the pages in order, showing "Reading page 2 of 3…"; Apply waits until every page is read, and Cancel is greyed out while it redacts. Items are numbered within each page. Clicking an item keeps the zoom and only scrolls if its box isn't already in view. If any page changed since it was read, or has a locked layer under a box, nothing is redacted on any page and the message names the page. |
 | 2026-10-04 | Right-clicking a page thumbnail (Leah): shows that page first, so New, Duplicate and Delete Page in its menu act on the page clicked, as in Preview. |

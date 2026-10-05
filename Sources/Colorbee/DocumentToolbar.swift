@@ -118,6 +118,7 @@ private struct TransparentSelectionButton: View {
 /// Five preset sizes and a field for any size, for the tool in use (FR-1.1). Tools without a size dim it.
 private struct SizeControl: View {
     @Bindable var editor: Editor
+    @FocusState private var typing: Bool
 
     var body: some View {
         let size = editor.toolSize
@@ -138,6 +139,7 @@ private struct SizeControl: View {
             }
             HStack(spacing: 2) {
                 TextField("Size", value: Binding(get: { size ?? 1 }, set: { editor.toolSize = $0 }), format: .number)
+                    .focused($typing)
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 22)
@@ -149,7 +151,7 @@ private struct SizeControl: View {
             .frame(height: 22)
             .background(Theme.field, in: RoundedRectangle(cornerRadius: 7))
             // Each tool keeps its size within its own limits, and reading it back stops the drag there.
-            .scrubs(Binding(get: { Double(editor.toolSize ?? 1) }, set: { editor.toolSize = Int($0) }), in: 1...100)
+            .scrubs(Binding(get: { Double(editor.toolSize ?? 1) }, set: { editor.toolSize = Int($0) }), in: 1...100, focus: $typing)
             .padding(.leading, 4)
         }
         .padding(.trailing, 2)

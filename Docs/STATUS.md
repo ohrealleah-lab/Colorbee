@@ -182,7 +182,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. Double-click Color 1: the Mac color picker opens, and choosing a color changes Color 1. The same for Color 2.
 3. Double-click an empty custom-color slot: the picker opens for that slot.
 
-**Review round 4, batch C (2026-10-05): not yet tested.** Files: `TestImages/Stage 10/Three Page Test.pdf`,
+**Review round 4, batch C (2026-10-05): all 4 steps passed Leah's hand test on 2026-10-05.** Files: `TestImages/Stage 10/Three Page Test.pdf`,
 `TestImages/Stage 6b Practice.colorproj`, `TestImages/Stage 12/Test Camera.dng`, `TestImages/Stage 5a Practice.png`,
 and one of your own large RAW files (the Nikon NEF in Downloads).
 1. **Drops open like File ▸ Open (L8).** Open Stage 5a Practice.png. From Finder, drag Three Page Test.pdf onto the **image itself**: a new window opens with 3 pages (nothing is pasted). Drag Stage 6b Practice.colorproj onto the window: it opens. Drag Test Camera.dng onto the image: the Develop window appears. Drag any PNG onto the image: it's still pasted as a floating selection; onto the gray area: it opens as a new image.
@@ -190,14 +190,14 @@ and one of your own large RAW files (the Nikon NEF in Downloads).
 3. **Develop's Cancel (L9).** Open your large RAW file, press Open, and while "Developing…" shows press Esc (or click Cancel): the window closes and no photo opens.
 4. **Reorder a long document (L13).** Make a PDF of 20 or more pages (as in batch B's step 5). Drag the thumbnail of page 15 up to the top of the sidebar and hold it there: the list scrolls up. Let go near the top: it becomes page 1 (or wherever you let go).
 
-**Review round 4, batch B (2026-10-05): not yet tested.** Use `TestImages/Stage 10/Three Page Test.pdf`.
+**Review round 4, batch B (2026-10-05): steps 1–3 passed Leah's hand test on 2026-10-05; 4 and 5 failed and are fixed, to test again.** Use `TestImages/Stage 10/Three Page Test.pdf`.
 1. **As Opened for pages not yet shown (K4).** Open the PDF and stay on page 1. Effects ▸ Auto-Redact…, Solid Fill, Apply (don't click any row). Click thumbnail 3, then View ▸ Before/After with As Opened: the left side shows the email and phone, the right side the black boxes.
 2. **Revert Layer after a save (L12).** Open the PDF and ⌘S it as "Revert Test". Auto-Redact, Solid Fill, Apply. Click thumbnail 2, then Layer ▸ Revert Layer: page 2's email and phone come back as saved.
 3. **Undo Delete Page keeps As Opened (L10).** Open the PDF, go to page 2, draw a line. Page ▸ Delete Page, then ⌘Z. View ▸ Before/After, As Opened: the left side has no line.
-4. **One page keeps its size (K6).** Open the PDF, delete pages 2 and 3, Layer ▸ New Layer (so it saves as a project), ⌘S as "One Page", close and reopen it. File ▸ Export as PDF…: in Preview, Tools ▸ Show Inspector, the page is 8.5 × 11 in.
-5. **Memory with many pages (K3, L4, L5, L7).** Make a long PDF: open Three Page Test.pdf in Preview, drag its thumbnails in a few more times until it has about 30 pages, File ▸ Export as PDF. In Colorbee's Settings ▸ General choose 300 DPI, open it, and watch Colorbee in Activity Monitor's Memory tab: opening doesn't spike to gigabytes; clicking through every page grows memory only a little per page; deleting pages (drawing something after each delete) lets memory go back down. Set 200 DPI again afterwards.
+4. **One page keeps its size (K6; fixed again 2026-10-05: the one-page save path didn't record it).** Open the PDF, delete pages 2 and 3, Layer ▸ New Layer (so it saves as a project), ⌘S as "One Page", close and reopen it. File ▸ Export as PDF…: in Preview, Tools ▸ Show Inspector, the page is 8.5 × 11 in.
+5. **Memory with many pages (K3, L4, L5, L7; fixed again 2026-10-05: each visited page kept a second compressed copy).** Make a long PDF: open Three Page Test.pdf in Preview, drag its thumbnails in a few more times until it has about 30 pages, File ▸ Export as PDF. In Colorbee's Settings ▸ General choose 300 DPI, open it, and watch Colorbee in Activity Monitor's Memory tab: opening doesn't spike to gigabytes; clicking through every page grows memory only a little per page; deleting pages (drawing something after each delete) lets memory go back down. Set 200 DPI again afterwards.
 
-**Review round 4, batch A (2026-10-05): not yet tested.** Files: `E1 Screenshot.png` from `~/Downloads/colorbee tests/`,
+**Review round 4, batch A (2026-10-05): all 6 steps passed Leah's hand test on 2026-10-05.** Files: `E1 Screenshot.png` from `~/Downloads/colorbee tests/`,
 `TestImages/Stage 10/Three Page Test.pdf`, `TestImages/Stage 12/Test Camera.dng`.
 1. **Unplaced shapes are saved (K1).** Open E1 Screenshot.png. Shapes tool, Rectangle, Fill Solid, Color 1 black. Drag a box over the email and don't press Return. File ▸ Export…, PNG, save; open it in Preview: the box is there. Do it again and press ⌘C instead, then in Preview File ▸ New from Clipboard: the box is there.
 2. **Unplaced text is saved.** Text tool, click on the image, type SECRET and don't click away. ⌘S (save a copy somewhere): reopen it, SECRET is in it.
@@ -206,14 +206,14 @@ and one of your own large RAW files (the Nikon NEF in Downloads).
 5. **Autosave keeps everything (L3, L11).** File ▸ New, Image ▸ Canvas Properties… with a transparent background, draw something. ⌘S, choose JPEG, then Cancel. Wait about 30 seconds, quit and reopen Colorbee: the window comes back with the checkerboard still showing (not white). Then open Test Camera.dng, press Return, quit and reopen: the "Test Camera" window comes back, and File ▸ Export… still offers Include camera details.
 6. **Copies are offered for removal (K11).** Open E1 Screenshot.png, ⌘C with nothing selected. Effects ▸ Auto-Redact…, Solid Fill, Apply: Colorbee offers to remove the unredacted image from Clipboard History. Choose Remove: it's gone from the Clipboard History panel (⌥⌘V), and ⌘V in another app pastes nothing.
 
-**Scrubbing number fields (2026-10-05): not yet tested.** Any image, for example `TestImages/Stage 5a Practice.png`.
+**Scrubbing number fields (2026-10-05): steps 1, 2, 4, 5 and 6 passed Leah's hand test on 2026-10-05; 3 and 7 failed and are fixed, to test again.** Any image, for example `TestImages/Stage 5a Practice.png`.
 1. **Size.** Choose the Brush. Hover over the size box in the toolbar (the "px" field): the pointer is an up-down arrow. Press and drag **down**: the number climbs, about 1 for every 3 points; drag up: it falls. It stops at 50 and at 1, and turns around straight away.
 2. **Shift.** Drag down holding Shift: it moves 5 times as fast.
-3. **Still typeable.** Click the size box without dragging: the cursor goes in, and you can type a number and press Return.
+3. **Still typeable (fixed 2026-10-05).** Click the size box without dragging: the cursor goes in, and you can type a number and press Return.
 4. **Eraser.** Choose the Eraser and drag the size down: it goes to 100.
 5. **Alpha.** Drag up on the "100%" box in the palette bar: Alpha goes down, and the slider follows; drag down to bring it back up.
 6. **Tolerances.** With Fill, Magic Wand and the Eraser (Color Eraser), drag on the tolerance percentage: it changes 1% at a time, 5% with Shift.
-7. **Font size.** With the Text tool, drag on the font size box: the size changes (6 to 500), and a text box being typed in updates as you drag.
+7. **Font size (fixed 2026-10-05).** With the Text tool, click on the image and type a few words. Drag on the font size box: the size changes (6 to 500) and the text updates as you drag. Then keep typing: the words go into the text box. Click the font size box without dragging: you can type a size and press Return.
 
 **Export… panel clicks (fixed 2026-10-05): passed with the stage 12 tests on 2026-10-05.** Its Format menu and the controls below it showed but
 only the keyboard reached them. Use `TestImages/Stage 12/Test Camera.dng` (open it, press Return in Develop).
@@ -222,7 +222,7 @@ only the keyboard reached them. Use `TestImages/Stage 12/Test Camera.dng` (open 
 3. Click Format, choose PNG: Quality and Compression go away, and **Include camera details** shows; click the box (or its label) to check it, and again to uncheck it.
 4. Choose BMP: the camera details box goes away. Back to PNG, check the box, Save. In Preview's Inspector (ⓘ, EXIF) the PNG shows Test Camera and ISO 400.
 
-**Remembered file formats (2026-10-05): not yet tested.** Any images will do, for example `TestImages/Stage 5a Practice.png`.
+**Remembered file formats (2026-10-05): all 5 steps passed Leah's hand test on 2026-10-05.** Any images will do, for example `TestImages/Stage 5a Practice.png`.
 1. **Save remembers.** File ▸ New, then ⌘S: choose JPEG in File Format and save it as "Format Test" on the Desktop. File ▸ New again, ⌘S: the panel starts on JPEG. Cancel.
 2. **A file keeps its own format.** Open Stage 5a Practice.png, File ▸ Save As…: the panel starts on PNG. Cancel.
 3. **Layers still save as a project.** File ▸ New, Layer ▸ New Layer, ⌘S: Colorbee Project. Cancel. File ▸ New (no layers), ⌘S: still JPEG.
@@ -243,7 +243,7 @@ your own RAW files (CR3, ARW, NEF or RAF) and an iPhone photo (JPEG or HEIC).
 10. **Phone photos.** Open an iPhone JPEG or HEIC (no Develop window), then File ▸ Export…: "Include camera details" is offered.
 11. **Kept in projects.** Add a layer to the developed photo, ⌘S as a .colorproj, close and reopen it: File ▸ Export… still offers "Include camera details".
 
-**Appearance setting (2026-10-04): not yet tested.** Use `TestImages/Stage 10/Three Page Test.pdf` or any image.
+**Appearance setting (2026-10-04): all 7 steps passed Leah's hand test on 2026-10-05.** Use `TestImages/Stage 10/Three Page Test.pdf` or any image.
 1. **The General tab.** Colorbee ▸ Settings… (⌘,): the tabs are General, Shortcuts and Export Presets, and it opens on General. Appearance shows System | Light | Dark with System chosen, and "Open PDFs at" is below it.
 2. **Dark at once.** With a document open, choose Dark. The document window (toolbar, palette bar, page sidebar, status bar and the gray around the image) and the Settings window turn dark straight away. The image itself doesn't change.
 3. **Light at once.** Choose Light: everything turns light straight away, even if your Mac is in Dark mode.

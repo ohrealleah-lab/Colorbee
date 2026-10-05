@@ -4,10 +4,14 @@ import SwiftUI
 extension View {
     /// Dragging down on this raises `value` by `step` for every few points, and dragging up lowers it, five times as
     /// fast with Shift (Leah, 2026-10-05), so a number can be set without the keyboard. Down is "more" because these
-    /// fields sit at the top of the window. A click without dragging still reaches a
-    /// text field underneath, to type in it.
-    func scrubs(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double = 1) -> some View {
-        overlay(ScrubArea(value: value, range: range, step: step))
+    /// fields sit at the top of the window. On a text field, pass `focus`: a click without dragging focuses the field
+    /// to type in it, and a drag ends typing in it so it shows the new numbers. Other focus, such as text being typed
+    /// on the canvas, is left alone (Leah's test, 2026-10-05).
+    func scrubs(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double = 1,
+                focus: FocusState<Bool>.Binding? = nil) -> some View {
+        overlay(ScrubArea(value: value, range: range, step: step,
+                          onClick: focus.map { focus in { focus.wrappedValue = true } },
+                          onScrubStart: focus.map { focus in { focus.wrappedValue = false } }))
     }
 }
 
@@ -15,6 +19,8 @@ private struct ScrubArea: NSViewRepresentable {
     let value: Binding<Double>
     let range: ClosedRange<Double>
     let step: Double
+    let onClick: (() -> Void)?
+    let onScrubStart: (() -> Void)?
 
     func makeNSView(context: Context) -> ScrubView {
         let view = ScrubView()
@@ -30,6 +36,8 @@ private struct ScrubArea: NSViewRepresentable {
         view.value = value
         view.range = range
         view.step = step
+        view.onClick = onClick
+        view.onScrubStart = onScrubStart
     }
 }
 
@@ -37,6 +45,8 @@ final class ScrubView: NSView {
     var value: Binding<Double> = .constant(0)
     var range: ClosedRange<Double> = 0...1
     var step = 1.0
+    var onClick: (() -> Void)?
+    var onScrubStart: (() -> Void)?
 
     /// How far the mouse moves, in points, for one step.
     private static let pointsPerStep = 3.0
@@ -77,8 +87,7 @@ final class ScrubView: NSView {
         if !isScrubbing {
             guard hypot(point.x - start.x, point.y - start.y) >= Self.dragThreshold else { return }
             isScrubbing = true
-            // A field being typed in shows the new numbers as they change.
-            window?.makeFirstResponder(nil)
+            onScrubStart?()
         }
         // Window coordinates grow upward, so moving down (a smaller y) makes the number bigger.
         let speed = event.modifierFlags.contains(.shift) ? 5.0 : 1.0
@@ -92,13 +101,6 @@ final class ScrubView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         defer { pressedAt = nil }
-        guard !isScrubbing, let point = pressedAt else { return }
-        // A click: hand it to a text field underneath, ready to type.
-        isHidden = true
-        let below = window?.contentView?.hitTest(window?.contentView?.convert(point, from: nil) ?? point)
-        isHidden = false
-        var view = below
-        while let candidate = view, !(candidate is NSTextField) { view = candidate.superview }
-        if let field = view as? NSTextField, field.isEditable { window?.makeFirstResponder(field) }
+        if !isScrubbing, pressedAt != nil { onClick?() }
     }
 }

@@ -302,6 +302,7 @@ extension Array {
 
 private struct TextOptions: View {
     @Binding var style: TextStyle
+    @FocusState private var typingSize: Bool
     private static let families = NSFontManager.shared.availableFontFamilies
 
     var body: some View {
@@ -312,9 +313,10 @@ private struct TextOptions: View {
         .frame(width: 160)
         HStack(spacing: 2) {
             TextField("Size", value: $style.fontSize, format: .number)
+                .focused($typingSize)
                 .frame(width: 40)
                 .multilineTextAlignment(.trailing)
-                .scrubs($style.fontSize, in: 6...500)
+                .scrubs($style.fontSize, in: 6...500, focus: $typingSize)
             Stepper("Size", value: $style.fontSize, in: 6...500)
                 .labelsHidden()
             Text("pt")

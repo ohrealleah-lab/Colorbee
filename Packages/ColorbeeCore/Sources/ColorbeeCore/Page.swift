@@ -18,6 +18,10 @@ public final class Page {
     private var freedLayers: Set<LayerID> = []
     /// A small picture for the page sidebar, kept while parked.
     public private(set) var parkedThumbnail: Thumbnail?
+    /// The bytes the page was last brought back from, with what they hold. If nothing has changed when the page is
+    /// parked again, they're used as they are: no new copy is made, so visiting pages doesn't add up in memory, and
+    /// switching is quicker (Leah's memory test, 2026-10-05).
+    private var unparkedFrom: (data: Data, thumbnail: Thumbnail?, revision: Int, activeLayer: Int)?
     private let activeBudget: Int
 
     /// What a parked page's history may keep in memory.
@@ -60,9 +64,18 @@ public final class Page {
     public func park(thumbnailSide: Int = 160) throws {
         guard parked == nil else { return }
         history.finishBackgroundWork()
-        // The layers exactly as they are: these bytes go straight back into them.
-        let data = try ProjectFile.encode(canvas, stampingFloating: false)
-        parkedThumbnail = canvas.thumbnail(maxSide: thumbnailSide)
+        // Every change to a page goes through its history, so an unchanged revision means unchanged pixels and layers.
+        let data: Data
+        if let last = unparkedFrom, last.revision == history.revision, last.activeLayer == canvas.activeLayerIndex,
+           canvas.selection.floating == nil {
+            data = last.data
+            parkedThumbnail = last.thumbnail ?? canvas.thumbnail(maxSide: thumbnailSide)
+        } else {
+            // The layers exactly as they are: these bytes go straight back into them.
+            data = try ProjectFile.encode(canvas, stampingFloating: false)
+            parkedThumbnail = canvas.thumbnail(maxSide: thumbnailSide)
+        }
+        unparkedFrom = nil
         freedLayers = []
         for layer in canvas.layers where layer.adjustment == nil && !layer.buffer.isUntouched {
             layer.buffer.discardContents()
@@ -77,6 +90,7 @@ public final class Page {
     public func unpark() throws {
         guard let data = parked else { return }
         try ProjectFile.restore(data, into: canvas, layers: freedLayers)
+        unparkedFrom = (data, parkedThumbnail, history.revision, canvas.activeLayerIndex)
         parked = nil
         parkedThumbnail = nil
         freedLayers = []

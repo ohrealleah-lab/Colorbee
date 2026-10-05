@@ -34,6 +34,25 @@ struct PageTests {
         #expect(page.canvas.flattened().contentHash() == before)
     }
 
+    /// Leah's memory test: a page visited without changes is parked again from the very same bytes, so no second copy
+    /// is kept; a changed page is encoded afresh.
+    @Test func anUnchangedPageReusesItsBytes() throws {
+        let page = page(10)
+        try page.park()
+        let first = try #require(page.parked)
+        try page.unpark()
+        try page.park()
+        let again = try #require(page.parked)
+        #expect(first.withUnsafeBytes { $0.baseAddress } == again.withUnsafeBytes { $0.baseAddress })
+        try page.unpark()
+        paint(page, 200)
+        try page.park()
+        let changed = try #require(page.parked)
+        #expect(changed != first)
+        try page.unpark()
+        #expect(page.canvas.layers[0].buffer.row(15)[35] == Pixel(r: 200, g: 200, b: 0))
+    }
+
     @Test func aPageUndoesItsOwnEditsAfterBeingParked() throws {
         let page = page(10)
         let original = page.canvas.flattened().contentHash()
@@ -196,6 +215,13 @@ struct PageProjectTests {
         #expect(try ProjectFile.decode(data).flattened().contentHash() == single.canvas.flattened().contentHash())
         let plain = try ProjectFile.encode(pages: [page(10)], currentIndex: 0)
         #expect(try ProjectFile.storedPages(plain).pages[0].resolution == Page.defaultResolution)
+    }
+
+    /// The path a save of a one-page document takes: the page shown, encoded with its resolution (Leah's test).
+    @Test func aShownPageEncodedAloneKeepsItsResolution() throws {
+        let data = try ProjectFile.encode(page(10).canvas, resolution: 200)
+        #expect(try ProjectFile.storedPages(data).pages[0].resolution == 200)
+        #expect(try ProjectFile.storedPages(ProjectFile.encode(page(10).canvas)).pages[0].resolution == Page.defaultResolution)
     }
 
     /// Review L, finding 7: pages made four at a time still come out in order.

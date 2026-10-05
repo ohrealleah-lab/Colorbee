@@ -28,7 +28,8 @@ struct SaveSnapshot: @unchecked Sendable {
     }
 
     func encodedProject() throws -> Data {
-        let shown = try ProjectFile.encode(canvas, transparentKey: transparentKey, resampling: resampling)
+        // A one-page project is just this page, so its resolution goes in with it (Leah's test, 2026-10-05).
+        let shown = try ProjectFile.encode(canvas, transparentKey: transparentKey, resampling: resampling, resolution: pageResolution)
         guard !otherPages.isEmpty else { return shown }
         var pages = otherPages.sorted { $0.index < $1.index }.map(\.page)
         pages.insert(ProjectFile.StoredPage(project: shown, resolution: pageResolution, thumbnail: canvas.thumbnail(maxSide: 160)),

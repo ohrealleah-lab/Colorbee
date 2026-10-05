@@ -59,8 +59,9 @@ public enum ProjectFile {
 
     /// Encodes `canvas`. A floating selection is stamped into a copy of its layer, so what's saved is what's seen.
     /// `stampingFloating` off writes the layers exactly as they are, for parking a page (FR-11.6).
+    /// `resolution` is a one-page project's (a PDF page's); several pages keep theirs in the page list.
     public static func encode(_ canvas: Canvas, transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor,
-                              stampingFloating: Bool = true) throws -> Data {
+                              stampingFloating: Bool = true, resolution: Double = Page.defaultResolution) throws -> Data {
         var blobs = Data()
         var entries: [LayerEntry] = []
         let saved = stampingFloating ? canvas.layerBuffersAsSaved(transparentKey: transparentKey, resampling: resampling)
@@ -83,7 +84,8 @@ public enum ProjectFile {
             iccProfile: canvas.colorSpace.copyICCData() as Data?, colorSpaceName: canvas.colorSpace.name as String?,
             hasTransparentBackground: canvas.hasTransparentBackground,
             backgroundLayerID: canvas.backgroundLayerID?.rawValue,
-            activeLayerIndex: canvas.activeLayerIndex, layers: entries, cameraDetails: canvas.cameraDetails
+            activeLayerIndex: canvas.activeLayerIndex, layers: entries, cameraDetails: canvas.cameraDetails,
+            resolution: resolution == Page.defaultResolution ? nil : resolution
         )
         let json = try JSONEncoder().encode(manifest)
         var data = magic

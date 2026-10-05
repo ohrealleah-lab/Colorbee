@@ -49,7 +49,7 @@ enum Tool: CaseIterable {
     }
 }
 
-/// Which color well a swatch click (and the Alpha slider and Edit Colors…) changes (FR-1.1).
+/// Which color well a swatch click (and the Alpha slider and the color picker) changes (FR-1.1).
 enum ColorWell {
     case color1
     case color2

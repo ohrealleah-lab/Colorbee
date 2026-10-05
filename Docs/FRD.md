@@ -46,7 +46,7 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ Toolbar: Clipboard │ Selection │ Tools │ Brushes │ Shapes │ Size │ Outline/Fill │
 │          Color 1/2 wells │ [Layers ▣]                                          │
-│ Palette: 28 swatches │ Alpha slider │ Edit Colors…                              │
+│ Palette: 28 swatches │ Alpha slider │ tool settings                             │
 ├──────────────────────────────────────────────────┬────────────────────────────┤
 │                                                  │ Right sidebar (collapsible)│
 │                  CANVAS                          │  • Layers                  │
@@ -75,13 +75,13 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 - **Color wells** at the left end: Color 1 and Color 2, with a ring showing which one a swatch click will set. Double-click a well to choose its color.
 - 28 swatches in 2 rows of 14.
 - **12 custom-color slots** (2 rows of 6) next to the swatches, for your own colors:
-  - A color picked with Edit Colors… or the eyedropper's "Add to Custom Colors" goes into the next empty slot. When all are full, the oldest is replaced.
+  - A color picked in the color picker (double-click a well) or with the eyedropper's "Add to Custom Colors" goes into the next empty slot. When all are full, the oldest is replaced.
   - Left-click sets Color 1, right-click sets Color 2, exactly like the swatches. Ctrl-click → Remove clears a slot.
   - Double-click an empty slot to pick a color for it with the color picker; the color goes into that slot.
   - The custom colors are kept between launches and saved as part of a palette (FR-15.1).
 - An Alpha slider (0–100%) for the active color.
-- An **Edit Colors…** button that opens the system Color Panel (Display P3, hex, sliders, screen eyedropper).
-- A palette menu: choose, save, import, export or reset palettes (FR-15.1).
+- Double-clicking Color 1 or Color 2 opens the system Color Panel (Display P3, hex, sliders, screen eyedropper) for that well. (An Edit Colors… button did the same; removed 2026-10-05.)
+- A palette menu: choose, save, import, export or reset palettes (FR-15.1). **Hidden for now** (Leah, 2026-10-05); it's all still there and comes back with one switch.
 
 ### FR-1.3 Right sidebar
 One collapsible sidebar holds these panels. Each panel can be shown or hidden on its own:
@@ -592,7 +592,7 @@ Every shortcut above is a default. All of them can be changed in the shortcut ed
 
 ## 18. FR-15 — Presets and customization
 
-### FR-15.1 Palettes
+### FR-15.1 Palettes (hidden for now, 2026-10-05)
 - Save the current 28 swatches and 12 custom colors as a named palette. Load, rename, delete, import or export palettes (`.colorpalette`). Reset to the classic palette.
 - The chosen palette is kept between launches.
 
@@ -721,6 +721,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-05 | Palette bar (Leah): **Edit Colors…** is removed, since double-clicking Color 1 or Color 2 opens the same color picker. **Palettes** are hidden, not removed: too much for the bar's space; the code stays and one switch (`PaletteStore.isShown`) brings the menu back. Colorbee keeps using the palette that was active (Paint Classic). |
 | 2026-10-05 | Review round 4 (Leah): Export as PDF converts pages with a non-standard color profile to Display P3, so no device or calibration name goes in (Display P3 and sRGB pages are kept as they are); after a redaction, the Clipboard History offer also covers copies made from the document. (Veto any, Claude's choices: an untitled document autosaves as a .colorproj, so nothing is lost on a relaunch, while the Save panel still starts on an image format; the History panel steps only the page shown, never a page change; Save, Export, Share, Print and Revert are greyed out behind any sheet or effect bar, and autosave waits while Auto-Redact is applying.) |
 | 2026-10-05 | Scrubbing number fields (Leah): drag up or down on a small number field to change it, **down for bigger** (changed the same day from up: the fields are at the top of the window, so pulling down feels like more), Shift for 5× faster: the toolbar's Size, the Alpha percentage, the Fill, Magic Wand and Color Eraser tolerances, and the Text tool's font size. Size limits stay (Brush and outlines 50 px, Eraser 100 px). (Veto any, Claude's choices: one step per 3 points of movement; a press only becomes a drag after 3 points, so a click still puts the cursor in a field to type; the pointer is an up-down arrow over these fields; dragging past a limit stops there, and dragging back changes the value at once.) |
 | 2026-10-05 | Remembered file formats (Leah): Save and Export… each remember their own last format, also after a relaunch. The Save panel starts on it for a new or untitled image (new images, pastes, developed RAW photos, copies of files Colorbee can't save back); a document with a file keeps its own format in Save As…; a layered or multi-page document still saves as .colorproj and doesn't change what's remembered. (Veto any, Claude's choice: Export… also remembers the JPEG/HEIC quality and the TIFF compression.) |

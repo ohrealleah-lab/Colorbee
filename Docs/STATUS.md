@@ -177,6 +177,11 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
+**Palette bar tidy-up (2026-10-05): not yet tested.** Any image.
+1. The palette bar has no Edit Colors… button and no palette menu: after the Alpha percentage comes a divider and the tool's own settings.
+2. Double-click Color 1: the Mac color picker opens, and choosing a color changes Color 1. The same for Color 2.
+3. Double-click an empty custom-color slot: the picker opens for that slot.
+
 **Review round 4, batch C (2026-10-05): not yet tested.** Files: `TestImages/Stage 10/Three Page Test.pdf`,
 `TestImages/Stage 6b Practice.colorproj`, `TestImages/Stage 12/Test Camera.dng`, `TestImages/Stage 5a Practice.png`,
 and one of your own large RAW files (the Nikon NEF in Downloads).

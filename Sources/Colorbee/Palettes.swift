@@ -29,6 +29,9 @@ struct Palette: Codable, Equatable {
 @Observable
 final class PaletteStore {
     static let shared = PaletteStore()
+    /// Palettes are hidden for now (Leah, 2026-10-05): too much for the bar's space. Everything still works behind
+    /// this; set it to true to bring the palette menu back.
+    static let isShown = false
     private static let key = "Palettes"
 
     private struct Stored: Codable {

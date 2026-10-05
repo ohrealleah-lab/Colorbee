@@ -2,7 +2,7 @@ import AppKit
 import ColorbeeCore
 import SwiftUI
 
-/// The row under the toolbar (FR-1.2): the color wells, swatches, custom colors, Alpha, Edit Colors…,
+/// The row under the toolbar (FR-1.2): the color wells, swatches, custom colors, Alpha,
 /// the palette, and the active tool's own settings.
 struct PaletteBar<Options: View>: View {
     @Bindable var editor: Editor
@@ -30,19 +30,18 @@ struct PaletteBar<Options: View>: View {
                     .scrubs(alpha, in: 0...100)
             }
             .help("How see-through the \(editor.activeWell == .color1 ? "Color 1" : "Color 2") well is")
-            Button("Edit Colors…") { ColorPanelController.shared.open(for: editor) }
-                .buttonBorderShape(.capsule)
-                .controlSize(.small)
-                .help("Choose any color for the ringed well, with the Mac color picker")
-            PaletteMenu(store: PaletteStore.shared) {
-                HStack(spacing: 5) {
-                    Image(systemName: "paintpalette").foregroundStyle(Theme.secondaryInk).accessibilityHidden(true)
-                    Text(PaletteStore.shared.activeName)
-                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).opacity(0.6).accessibilityHidden(true)
+            // Edit Colors… was removed (Leah, 2026-10-05): double-clicking Color 1 or Color 2 opens the same picker.
+            if PaletteStore.isShown {
+                PaletteMenu(store: PaletteStore.shared) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "paintpalette").foregroundStyle(Theme.secondaryInk).accessibilityHidden(true)
+                        Text(PaletteStore.shared.activeName)
+                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).opacity(0.6).accessibilityHidden(true)
+                    }
                 }
+                .accessibilityLabel("Palette: \(PaletteStore.shared.activeName)")
+                .help("Palettes: switch, save, rename, import or export your swatches and custom colors")
             }
-            .accessibilityLabel("Palette: \(PaletteStore.shared.activeName)")
-            .help("Palettes: switch, save, rename, import or export your swatches and custom colors")
             divider
             HStack(spacing: 10) { toolOptions }
                 .controlSize(.small)
@@ -276,7 +275,7 @@ private final class SwatchElement: NSAccessibilityElement {
     }
 }
 
-/// Edit Colors…: the Mac color picker, changing the ringed well. A color chosen there joins the custom
+/// The Mac color picker (double-click a color well), changing the ringed well. A color chosen there joins the custom
 /// colors when the picker closes (FR-1.2): in the slot that was double-clicked, or the next empty one.
 @MainActor
 final class ColorPanelController: NSObject {

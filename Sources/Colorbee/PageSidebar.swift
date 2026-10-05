@@ -6,8 +6,7 @@ struct PageSidebar: View {
     @Bindable var editor: Editor
     /// The page being dragged to a new place, and how far it has moved.
     @State private var dragged: (index: Int, translation: CGFloat)?
-    /// The thumbnail under the pointer, which a right-click shows before its menu opens.
-    @State private var hovered: Int?
+    @State private var places = Places()
     private static let rowPitch: CGFloat = 150
 
     var body: some View {
@@ -43,6 +42,7 @@ struct PageSidebar: View {
                     .padding(.horizontal, 10)
                 }
                 .onChange(of: editor.currentPageIndex) { scroller.scrollTo(editor.currentPageIndex) }
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { places.list = $0 }
             }
             HStack(spacing: 2) {
                 footerButton("plus", "New Page") { editor.newPage() }
@@ -55,10 +55,13 @@ struct PageSidebar: View {
             .padding(.vertical, 6)
         }
         .frame(width: 168)
-        // Right-clicking shows the page first, so the menu acts on the one clicked (Leah, 2026-10-04). Which
-        // thumbnail comes from hovering: each thumbnail's own view geometry matched every click, so the last page won.
-        .background(RightClickWatcher {
-            if let hovered, hovered < editor.pageCount { editor.showPage(at: hovered) }
+        // Right-clicking shows the page first, so the menu acts on the one clicked (Leah, 2026-10-04). The page is
+        // found from where the thumbnails are: hover state only catches up after the click is handled.
+        .background(RightClickWatcher { point in
+            guard places.list.contains(point),
+                  let index = places.thumbnails.first(where: { $0.value.contains(point) })?.key,
+                  index < editor.pageCount else { return }
+            editor.showPage(at: index)
         })
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
         .padding(8)
@@ -89,13 +92,12 @@ struct PageSidebar: View {
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { editor.showPage(at: index) }
-        .onHover { inside in
-            if inside { hovered = index } else if hovered == index { hovered = nil }
-        }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { places.thumbnails[index] = $0 }
+        // Each command shows its page first too, in case the right-click didn't.
         .contextMenu {
-            Button("New Page") { editor.newPage() }
-            Button("Duplicate Page") { editor.duplicatePage() }
-            Button("Delete Page") { editor.deletePage() }.disabled(editor.pageCount < 2)
+            Button("New Page") { editor.showPage(at: index); editor.newPage() }
+            Button("Duplicate Page") { editor.showPage(at: index); editor.duplicatePage() }
+            Button("Delete Page") { editor.showPage(at: index); editor.deletePage() }.disabled(editor.pageCount < 2)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Page \(index + 1)")
@@ -122,4 +124,11 @@ struct PageSidebar: View {
         .help(label)
         .accessibilityLabel(label)
     }
+}
+
+/// Where the list and each thumbnail are in the window, for right-clicks. Not observed: they change as the list
+/// scrolls, and nothing on screen depends on them.
+private final class Places {
+    var list: CGRect = .zero
+    var thumbnails: [Int: CGRect] = [:]
 }

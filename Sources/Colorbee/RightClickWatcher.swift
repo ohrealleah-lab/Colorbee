@@ -1,10 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// Calls `action` when its window is right-clicked (or Control-clicked), just before SwiftUI opens a context menu,
-/// so the menu can act on what was clicked. The action decides what was clicked; this never takes the click itself.
+/// Calls `action` with the click's place in SwiftUI's global coordinates when its window is right-clicked (or
+/// Control-clicked), just before SwiftUI opens a context menu, so the menu can act on what was clicked. The action
+/// decides what was clicked; this never takes the click itself.
 struct RightClickWatcher: NSViewRepresentable {
-    let action: () -> Void
+    let action: (CGPoint) -> Void
 
     func makeNSView(context: Context) -> WatcherView {
         let view = WatcherView()
@@ -17,7 +18,7 @@ struct RightClickWatcher: NSViewRepresentable {
     }
 
     final class WatcherView: NSView {
-        var action: () -> Void = {}
+        var action: (CGPoint) -> Void = { _ in }
         private var monitor: Any?
 
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -37,8 +38,10 @@ struct RightClickWatcher: NSViewRepresentable {
         private func watch(_ event: NSEvent) {
             let isMenuClick = event.type == .rightMouseDown
                 || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
-            guard isMenuClick, event.window === window else { return }
-            action()
+            guard isMenuClick, event.window === window, let content = window?.contentView else { return }
+            var point = content.convert(event.locationInWindow, from: nil)
+            if !content.isFlipped { point.y = content.bounds.height - point.y }
+            action(point)
         }
     }
 }

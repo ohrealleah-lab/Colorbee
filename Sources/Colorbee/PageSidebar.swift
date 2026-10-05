@@ -82,6 +82,8 @@ struct PageSidebar: View {
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { editor.showPage(at: index) }
+        // Right-clicking shows the page first, so the menu acts on the one clicked (Leah, 2026-10-04).
+        .background(RightClickWatcher { editor.showPage(at: index) })
         .contextMenu {
             Button("New Page") { editor.newPage() }
             Button("Duplicate Page") { editor.duplicatePage() }

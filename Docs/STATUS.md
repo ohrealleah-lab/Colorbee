@@ -40,7 +40,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 8. Hardening | ✅ Done | Medium |
 | 9. Photo editing | ✅ Done | High |
 | 10a. Pages | ✅ Done | High |
-| 10b. PDF output, Auto-Redact on every page | Built, waiting for Leah's hand test | High |
+| 10b. PDF output, Auto-Redact on every page | ✅ Done | High |
 
 ## What's built
 
@@ -129,7 +129,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
 - Polish done 2026-10-03: effect previews in the background (`EffectPreview`), Copy in the background (`ClipboardImage`). Tested by hand 2026-10-03.
 
-**10 Pages and PDF documents (FR-11.6)** — decisions made 2026-10-04 (§23).
+**10 Pages and PDF documents (FR-11.6)** — done; tested by hand 2026-10-04. Decisions in §23.
 - 10a built 2026-10-04: pages in core (`Page`, `PageStack`, project format 2, `PDFPages`), the page sidebar (`PageSidebar`), the Page menu, and PDFs, multi-page TIFFs and animated GIFs opening with every page. The frame bar is gone.
 - 10b built 2026-10-04: File ▸ Export as PDF… (`PDFWriter`, hand-written so it has no metadata), Auto-Redact on every page (`AutoRedactSession.pages`), and Settings ▸ PDFs.
 
@@ -164,7 +164,7 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
-**Stage 10b PDF output and Auto-Redact on every page (2026-10-04): not yet tested.** Use
+**Stage 10b PDF output and Auto-Redact on every page (2026-10-04): all steps (1–9, 9a), and the Rectangle Select starting tool, passed Leah's hand test on 2026-10-04.** Use
 `TestImages/Stage 10/Three Page Test.pdf` (each page has a made-up email and phone number), and
 `E1 Screenshot.png` from `~/Downloads/colorbee tests/`. Color 1 should be black.
 1. **Reads every page.** Open Three Page Test.pdf, Effects ▸ Auto-Redact…. It says "Reading page 1 of 3…" with a progress bar, then lists 6 items under "Page 1 · 2 items", "Page 2 · 2 items" and "Page 3 · 2 items": an Email and a Phone on each.

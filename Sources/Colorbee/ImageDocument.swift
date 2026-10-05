@@ -154,8 +154,15 @@ final class ImageDocument: NSDocument {
            MainActor.assumeIsolated({ editor?.isLayered != true }) {
             UserDefaults.standard.set(typeName, forKey: Self.lastSaveFormatKey)
         }
-        // The copy is taken here, on the main thread, so the encoding can run in the background (NFR-6).
-        let snapshot = MainActor.assumeIsolated { editor?.saveSnapshot() }
+        let isAutosave = [.autosaveElsewhereOperation, .autosaveInPlaceOperation, .autosaveAsOperation].contains(saveOperation)
+        // An autosave waits while Auto-Redact redacts page after page, so no file holds half a redaction (review L,
+        // finding 2). A cancelled autosave is simply tried again later.
+        if isAutosave, MainActor.assumeIsolated({ editor?.isRedacting == true }) {
+            return completionHandler(CocoaError(.userCancelled))
+        }
+        // The copy is taken here, on the main thread, so the encoding can run in the background (NFR-6). An autosave
+        // doesn't place a shape or text still being edited.
+        let snapshot = MainActor.assumeIsolated { editor?.saveSnapshot(placingPending: !isAutosave) }
         snapshotLock.withLock { pendingSnapshot = snapshot }
         super.save(to: url, ofType: typeName, for: saveOperation) { [weak self] error in
             // Let the copy go once its save is done, unless a newer save has replaced it. Writes don't overlap,
@@ -223,10 +230,17 @@ final class ImageDocument: NSDocument {
         replaceWindows()
     }
 
-    /// Saving and exporting wait until an open effect is applied or cancelled.
+    /// Saving, exporting, sharing, printing and reverting wait until an open effect, Auto-Redact or dialog is done.
     override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
-        if editor?.activeEffect != nil { return false }
+        if editor?.blocksDocumentCommands == true { return false }
         return super.validateUserInterfaceItem(item)
+    }
+
+    /// An untitled document autosaves as a project, whatever format the Save panel last showed: nothing is flattened
+    /// or compressed lossily, and layers, pages, a PDF's resolution and camera details survive a relaunch (review L,
+    /// findings 3 and 11). A document with a file autosaves in its own format, as macOS requires.
+    override var autosavingFileType: String? {
+        fileURL == nil ? UTType.colorbeeProject.identifier : super.autosavingFileType
     }
 
     /// Once an image has layers (or an adjustment layer), saving keeps it as a .colorproj: an image file
@@ -268,9 +282,10 @@ final class ImageDocument: NSDocument {
 
     override func runModalSavePanel(for saveOperation: NSDocument.SaveOperationType, delegate: Any?, didSave didSaveSelector: Selector?,
                                     contextInfo: UnsafeMutableRawPointer?) {
-        if fileURL == nil, editor?.isLayered != true, let remembered = UserDefaults.standard.string(forKey: Self.lastSaveFormatKey),
-           writableTypes(for: saveOperation).contains(remembered) {
-            fileType = remembered
+        if fileURL == nil, editor?.isLayered != true {
+            // An untitled image autosaves as a project, but the panel starts on an image format.
+            let remembered = UserDefaults.standard.string(forKey: Self.lastSaveFormatKey) ?? UTType.png.identifier
+            if writableTypes(for: saveOperation).contains(remembered) { fileType = remembered }
         }
         super.runModalSavePanel(for: saveOperation, delegate: delegate, didSave: didSaveSelector, contextInfo: contextInfo)
     }
@@ -299,7 +314,7 @@ final class ImageDocument: NSDocument {
             return pendingSnapshot
         }
         if snapshot == nil, Thread.isMainThread {
-            snapshot = MainActor.assumeIsolated { editor?.saveSnapshot() }
+            snapshot = MainActor.assumeIsolated { editor?.saveSnapshot(placingPending: false) }
         }
         guard let snapshot else { throw CocoaError(.fileWriteUnknown) }
         unblockUserInteraction()

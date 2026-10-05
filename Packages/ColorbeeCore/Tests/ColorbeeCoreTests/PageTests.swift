@@ -106,6 +106,45 @@ struct PageTests {
         #expect(stack.pages.count == 2)
     }
 
+    /// A page whose stored pixels are damaged: its manifest reads, so it opens parked, but it can't be brought back.
+    private func damagedPage() throws -> Page {
+        var project = try ProjectFile.encode(page(7).canvas)
+        let tail = project.count - 64
+        project.replaceSubrange(tail..<project.count, with: Data(repeating: 0xFF, count: 64))
+        return try Page(stored: ProjectFile.StoredPage(project: project, resolution: 144, thumbnail: nil), history: History(byteBudget: 64 << 20))
+    }
+
+    /// Review K, finding 5: a page that can't be brought back leaves everything as it was.
+    @Test func showingADamagedPageChangesNothing() throws {
+        let stack = PageStack(pages: [page(1), try damagedPage()])
+        let shown = stack.current
+        let before = shown.canvas.flattened().contentHash()
+        #expect(throws: (any Error).self) { try stack.show(1) }
+        #expect(stack.currentIndex == 0 && stack.current === shown && !shown.isParked)
+        #expect(shown.canvas.flattened().contentHash() == before)
+        #expect(stack.pages[1].isParked)
+    }
+
+    /// A page change that fails stays on the undo list.
+    @Test func aFailedUndoKeepsItsStep() throws {
+        let stack = PageStack(pages: [page(1), try damagedPage()])
+        try stack.remove(at: 1)
+        #expect(stack.undoName == "Delete Page")
+        #expect(throws: (any Error).self) { try stack.undo() }
+        #expect(stack.undoName == "Delete Page" && stack.pages.count == 1 && !stack.current.isParked)
+    }
+
+    /// Review L, finding 5: once a page change can't be undone, a deleted page is let go.
+    @Test func aDeletedPageIsFreedOnceItCantComeBack() throws {
+        let stack = PageStack(pages: [page(1)])
+        try stack.insert(page(2), at: 1)
+        weak var deleted = stack.pages[1]
+        try stack.remove(at: 1)
+        #expect(deleted != nil)
+        stack.noteEdit()
+        #expect(deleted == nil)
+    }
+
     @Test func deletingTheShownPageShowsTheNextOne() throws {
         let stack = PageStack(pages: [page(1)])
         try stack.insert(page(2), at: 1)

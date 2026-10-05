@@ -54,7 +54,12 @@ struct AutoRedactSheet: View {
         if session.isReading {
             return session.isMultiPage ? "Reading page \(session.pagesRead + 1) of \(session.pages.count)…" : "Reading text…"
         }
-        if let failure = session.failure { return "Couldn't read the text: \(failure)" }
+        if let failure = session.failure {
+            guard session.isMultiPage, let page = session.failedPage.flatMap(editor.pageNumber(of:)) else {
+                return "Couldn't read the text: \(failure)"
+            }
+            return "Couldn't read page \(page), so nothing can be redacted: \(failure) Cancel and try again."
+        }
         // Says how much was read, so finding items on fewer pages doesn't look like pages were skipped (Leah).
         let read = session.isMultiPage ? "Read \(session.pages.count) pages. " : ""
         if session.matches.isEmpty { return read + "No sensitive text found." }
@@ -147,7 +152,8 @@ struct AutoRedactSheet: View {
             let count = editor.autoRedact?.selectedMatches.count ?? 0
             Button("Apply to \(count) Item\(count == 1 ? "" : "s")") { editor.applyAutoRedact() }
                 .keyboardShortcut(.defaultAction)
-                .disabled(count == 0 || busy || editor.autoRedact?.isReading != false || editor.autoRedact?.problem != nil)
+                .disabled(count == 0 || busy || editor.autoRedact?.isReading != false || editor.autoRedact?.problem != nil
+                          || editor.autoRedact?.failure != nil)
         }
     }
 }

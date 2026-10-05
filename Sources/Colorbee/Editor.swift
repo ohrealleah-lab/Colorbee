@@ -269,6 +269,8 @@ struct AutoRedactSession {
     /// Why Apply couldn't redact (a page changed, or a layer is locked).
     var problem: String?
     var failure: String?
+    /// The page that couldn't be read. Pages after it weren't read either, so nothing can be applied (review K, finding 2).
+    var failedPage: UUID?
     /// Matches the person unchecked to keep visible.
     var keptVisible: Set<UUID> = []
     var treatment: RedactionTreatment = .solidFill
@@ -674,16 +676,25 @@ final class Editor {
 
     /// Runs a page change: what's under way on the shown page is finished first, then the Editor follows the
     /// page now shown. `recorded` changes are steps (undoable, and they mark the document edited).
-    private func changePages(recorded: Bool = false, _ body: () throws -> Void) {
+    /// Whether the change was made. A page that can't be brought back changes nothing (review K, finding 5).
+    @discardableResult
+    private func changePages(recorded: Bool = false, _ body: () throws -> Void) -> Bool {
         finishInteractions()
         placeFloatingSelection()
         comparison = nil
-        do { try body() } catch { return onRefused() }
+        do {
+            try body()
+        } catch {
+            onRefused()
+            if pages.current !== page { pageDidChange() }
+            return false
+        }
         if recorded {
             undone = []
             onDocumentChange(.done)
         }
         pageDidChange()
+        return true
     }
 
     /// After the shown page changed (or the page list did): remembers the old page's view and saved state, and
@@ -725,10 +736,11 @@ final class Editor {
     }
 
     /// Undoes or redoes until exactly `count` steps are done, for a click in the History panel.
+    /// Steps only the page shown, never a page change, which isn't in its list (review L, finding 1).
     func jump(toStep count: Int) {
         finishInteractions()
-        while history.undoCount > count, history.canUndo { undo() }
-        while history.undoCount < count, history.canRedo { redo() }
+        while history.undoCount > count, history.canUndo, stepShownPage(undoing: true) {}
+        while history.undoCount < count, history.canRedo, stepShownPage(undoing: false) {}
     }
 
     // MARK: Canvas (FR-1.4)
@@ -2818,41 +2830,46 @@ final class Editor {
         finishInteractions()
         // Adding, deleting or moving a page is undone while it's the newest thing done (FR-11.6).
         if pages.undoName != nil {
-            changePages { try pages.undo() }
+            guard changePages({ try pages.undo() }) else { return }
             undone.append(.pageChange)
             onDocumentChange(.undone)
             return
         }
-        if let group = redactionGroup(undoing: true) {
-            guard stepPages(group, undoing: true) else { return onRefused() }
-        } else {
-            guard history.undo(on: canvas) != nil else { return }
-        }
-        undone.append(.pageEdit)
-        undoRedoCount += 1
-        layersRevision += 1
-        onDocumentChange(.undone)
-        selectionDidChange()
+        stepShownPage(undoing: true)
     }
 
     func redo() {
         finishInteractions()
         if undone.last == .pageChange, pages.redoName != nil {
-            changePages { try pages.redo() }
+            guard changePages({ try pages.redo() }) else { return }
             undone.removeLast()
             onDocumentChange(.redone)
             return
         }
-        if let group = redactionGroup(undoing: false) {
-            guard stepPages(group, undoing: false) else { return onRefused() }
+        stepShownPage(undoing: false)
+    }
+
+    /// Undoes or redoes the newest step of the page shown, or of every page of a multi-page Auto-Redact it's part of.
+    @discardableResult
+    private func stepShownPage(undoing: Bool) -> Bool {
+        if let group = redactionGroup(undoing: undoing) {
+            let stepped = stepPages(group, undoing: undoing)
+            // Some pages may have stepped before one failed; they're recorded as changed either way.
+            if stepped < group.count { onRefused() }
+            guard stepped > 0 else { return false }
         } else {
-            guard history.redo(on: canvas) != nil else { return }
+            guard (undoing ? history.undo(on: canvas) : history.redo(on: canvas)) != nil else { return false }
         }
-        if undone.last == .pageEdit { undone.removeLast() }
+        if undoing {
+            undone.append(.pageEdit)
+        } else if undone.last == .pageEdit {
+            undone.removeLast()
+        }
         undoRedoCount += 1
         layersRevision += 1
-        onDocumentChange(.redone)
+        onDocumentChange(undoing ? .undone : .redone)
         selectionDidChange()
+        return true
     }
 
     /// The pages of the multi-page Auto-Redact that ⌘Z (or ⇧⌘Z) would step on the page shown, if it's still the
@@ -2865,23 +2882,27 @@ final class Editor {
         return ready && parts.count > 1 ? parts.map(\.page) : nil
     }
 
-    /// Undoes or redoes the newest step on each of `group`, bringing back parked pages just long enough.
-    private func stepPages(_ group: [Page], undoing: Bool) -> Bool {
+    /// Undoes or redoes the newest step on each of `group`, bringing back parked pages just long enough. Returns how
+    /// many pages stepped. A page that stepped but couldn't be parked again stays unparked; saving still includes it.
+    private func stepPages(_ group: [Page], undoing: Bool) -> Int {
+        var stepped = 0
         for page in group {
             let step = { undoing ? page.history.undo(on: page.canvas) : page.history.redo(on: page.canvas) }
             if page === self.page {
                 _ = step()
+                stepped += 1
                 continue
             }
             do {
                 try page.unpark()
                 _ = step()
+                stepped += 1
                 try page.park()
             } catch {
-                return false
+                break
             }
         }
-        return true
+        return stepped
     }
 
     // MARK: Colors
@@ -2988,6 +3009,7 @@ final class Editor {
                     self.refreshAutoRedactMatches()
                 } catch {
                     guard self?.autoRedact?.id == session.id else { return }
+                    self?.autoRedact?.failedPage = session.pages[index].pageID
                     self?.autoRedact?.failure = error.localizedDescription
                     return
                 }
@@ -3054,7 +3076,7 @@ final class Editor {
     /// Redacts every checked match, one step on each page, on every layer under it (review E, findings 1, 3 and
     /// 4). Nothing is redacted if any page changed since it was read or has a locked layer under a box.
     func applyAutoRedact() {
-        guard let session = autoRedact, !session.isReading, session.applying == nil else { return }
+        guard let session = autoRedact, !session.isReading, session.failure == nil, session.applying == nil else { return }
         let targets = session.pages.compactMap { result -> (page: Page, result: AutoRedactSession.PageResult, matches: [RedactionMatch])? in
             let matches = session.selectedMatches(onPage: result.pageID)
             guard !matches.isEmpty, let page = pages.pages.first(where: { $0.id == result.pageID }) else { return nil }
@@ -3084,25 +3106,33 @@ final class Editor {
             guard let self else { return }
             var redacted = false, changedOtherPages = false
             var group: [(page: UUID, step: UUID)] = []
+            var redactedPages: [Int] = []
             for (done, target) in targets.enumerated() {
                 let apply = { AutoRedact.apply(target.matches, treatment: session.treatment, fill: self.color1,
                                                canvas: target.page.canvas, history: target.page.history) }
+                let number = pageNumber(of: target.page.id) ?? 0
                 if target.page === page {
                     recordingChanges {
                         if apply() == .redacted { redacted = true; group += history.undoStepID.map { [(page.id, $0)] } ?? [] }
                     }
+                    redactedPages.append(number)
                 } else {
-                    // Another page is brought back just long enough to redact it, then compressed again.
+                    // Another page is brought back just long enough to redact it, then compressed again. A page that
+                    // was redacted but can't be parked again stays unparked; saving still includes it.
                     do {
                         try target.page.unpark()
                         if apply() == .redacted {
                             redacted = true
+                            changedOtherPages = true
                             group += target.page.history.undoStepID.map { [(target.page.id, $0)] } ?? []
                         }
+                        redactedPages.append(number)
                         try target.page.park()
-                        changedOtherPages = true
                     } catch {
-                        autoRedact?.problem = "Couldn't redact page \(pageNumber(of: target.page.id) ?? 0): \(error.localizedDescription)"
+                        // Says plainly what was and wasn't redacted (review K, finding 7).
+                        let done = redactedPages.isEmpty ? "No page was redacted"
+                            : "Page\(redactedPages.count == 1 ? "" : "s") \(redactedPages.map(String.init).joined(separator: ", ")) \(redactedPages.count == 1 ? "was" : "were") redacted"
+                        autoRedact?.problem = "\(done), but page \(number) couldn't be: \(error.localizedDescription) Cancel, then check the pages."
                         break
                     }
                 }
@@ -3225,16 +3255,34 @@ final class Editor {
         try withoutEffectPreview { try snapshot(of: canvas).encodedProject() }
     }
 
-    /// A copy of the document to save or export in the background, without any live effect preview.
-    func saveSnapshot() -> SaveSnapshot {
-        withoutEffectPreview { snapshot(of: canvas.copy()) }
+    /// A copy of the document for saving or output, without any live effect preview. A shape or text still being
+    /// edited is placed first, so what's written is what's shown (review K, finding 1); autosave passes false, so it
+    /// doesn't fix in place what's still being edited.
+    func saveSnapshot(placingPending: Bool = true) -> SaveSnapshot {
+        if placingPending { placePendingObjects() }
+        return withoutEffectPreview { snapshot(of: canvas.copy()) }
+    }
+
+    /// While a sheet or an effect's bar is open, the document's own commands (Save, Export, Share, Print, Revert) wait
+    /// too, as the Edit commands do (review L, finding 2).
+    var blocksDocumentCommands: Bool {
+        activeEffect != nil || autoRedact != nil || isResizeSkewOpen || isCanvasPropertiesOpen
+    }
+
+    /// Auto-Redact is redacting page after page; a save now would hold only part of it.
+    var isRedacting: Bool { autoRedact?.applying != nil }
+
+    func placePendingObjects() {
+        commitPendingShape()
+        commitPendingText()
     }
 
     private func snapshot(of canvas: ColorbeeCore.Canvas) -> SaveSnapshot {
         // Other pages are parked, so their bytes are taken as they are: no copying (FR-11.6).
+        // A page left unparked by a failure is encoded now rather than left out (review K, finding 7).
         let others = pages.pages.enumerated().compactMap { index, other -> (index: Int, page: ProjectFile.StoredPage)? in
-            guard other !== page, let parked = other.parked else { return nil }
-            return (index, ProjectFile.StoredPage(project: parked, resolution: other.resolution, thumbnail: other.thumbnail()))
+            guard other !== page, let project = try? other.projectData() else { return nil }
+            return (index, ProjectFile.StoredPage(project: project, resolution: other.resolution, thumbnail: other.thumbnail()))
         }
         return SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, resampling: selectionContext.resampling, matte: color2,
                             geometrySteps: history.geometrySteps, pageID: page.id, pageResolution: page.resolution, otherPages: others,
@@ -3269,7 +3317,8 @@ final class Editor {
     }
 
     func flattenedPNG() throws -> Data {
-        try encoded(as: .png)
+        placePendingObjects()
+        return try encoded(as: .png)
     }
 }
 

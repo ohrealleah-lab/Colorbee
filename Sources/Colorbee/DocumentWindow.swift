@@ -80,12 +80,17 @@ final class DocumentWindow: NSWindow {
     /// snapshot flattened in the background.
     private func copyToClipboard(selected: PixelBuffer?, editor: Editor) {
         let colorSpace = editor.canvas.colorSpace
+        // A copy made from the document is offered for removal after a redaction too, like the image it came from
+        // (Leah, 2026-10-05; review K, finding 11).
+        let added: @MainActor @Sendable (ClipboardHistory.Item.ID) -> Void = { [weak editor] id in editor?.noteClipboardSource(id) }
         if let selected {
             let pixels = UnsafePixels(selected)
-            ClipboardImage.copy(colorSpace: colorSpace) { pixels.value }
+            ClipboardImage.copy(colorSpace: colorSpace, pixels: { pixels.value }, added: added)
         } else {
             let snapshot = editor.saveSnapshot()
-            ClipboardImage.copy(colorSpace: colorSpace) { snapshot.canvas.flattened(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling) }
+            ClipboardImage.copy(colorSpace: colorSpace, pixels: {
+                snapshot.canvas.flattened(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling)
+            }, added: added)
         }
     }
 

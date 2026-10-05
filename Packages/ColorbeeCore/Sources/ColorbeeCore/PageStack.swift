@@ -39,12 +39,42 @@ public final class PageStack {
 
     public var current: Page { pages[currentIndex] }
 
-    /// Shows another page: the one shown is parked, the new one brought back.
+    /// Shows another page: the new one is brought back, the one shown parked.
     public func show(_ index: Int) throws {
         guard pages.indices.contains(index), index != currentIndex else { return }
-        try current.park()
-        currentIndex = index
-        try current.unpark()
+        try change(to: pages, showing: pages[index])
+    }
+
+    /// Puts `newPages` in place, showing `shown`. The page to show is brought back before the old one is parked, and if
+    /// either step fails nothing has changed (review K, finding 5): every page but the shown one stays parked.
+    private func change(to newPages: [Page], showing shown: Page) throws {
+        let old = current
+        if shown !== old {
+            try shown.unpark()
+            do {
+                try old.park()
+            } catch {
+                try? shown.park()
+                throw error
+            }
+        }
+        pages = newPages
+        currentIndex = newPages.firstIndex { $0 === shown } ?? 0
+    }
+
+    /// `pages` without the one at `index`, and the page to show then: the same one, or the next (or previous) if the
+    /// one shown is removed.
+    private func removing(at index: Int) -> (pages: [Page], shown: Page) {
+        var remaining = pages
+        let removed = remaining.remove(at: index)
+        let shown = removed === current ? remaining[min(index, remaining.count - 1)] : current
+        return (remaining, shown)
+    }
+
+    private func inserting(_ page: Page, at index: Int) -> [Page] {
+        var all = pages
+        all.insert(page, at: min(max(0, index), all.count))
+        return all
     }
 
     /// Forgets every page change and every page's undo history, letting go of deleted pages, so nothing from
@@ -55,20 +85,19 @@ public final class PageStack {
         for page in pages { page.history.removeAll() }
     }
 
-    /// A page was edited.
+    /// A page was edited. Page changes before it can't be undone any more, so their steps, and the deleted pages they
+    /// held, are let go (review L, finding 5).
     public func noteEdit() {
         clock += 1
         lastEdit = clock
+        undoSteps = []
         redoSteps = []
     }
 
     /// Adds `page` (parked or not) at `index` and shows it.
     public func insert(_ page: Page, at index: Int) throws {
         let index = min(max(0, index), pages.count)
-        try current.park()
-        pages.insert(page, at: index)
-        currentIndex = index
-        try current.unpark()
+        try change(to: inserting(page, at: index), showing: page)
         record(.insert(page, at: index))
     }
 
@@ -76,15 +105,8 @@ public final class PageStack {
     public func remove(at index: Int) throws {
         guard pages.count > 1, pages.indices.contains(index) else { return }
         let page = pages[index]
-        try page.park()
-        let shown = current
-        pages.remove(at: index)
-        if shown === page {
-            currentIndex = min(index, pages.count - 1)
-            try current.unpark()
-        } else {
-            currentIndex = pages.firstIndex { $0 === shown } ?? 0
-        }
+        let after = removing(at: index)
+        try change(to: after.pages, showing: after.shown)
         record(.remove(page, at: index))
     }
 
@@ -114,15 +136,18 @@ public final class PageStack {
 
     public var redoName: String? { redoSteps.last?.change.name }
 
+    /// A step is taken off its list only once it has worked, so a failure leaves it there to try again.
     public func undo() throws {
-        guard undoName != nil, let step = undoSteps.popLast() else { return }
+        guard undoName != nil, let step = undoSteps.last else { return }
         try apply(inverseOf: step.change)
+        undoSteps.removeLast()
         redoSteps.append(step)
     }
 
     public func redo() throws {
-        guard let step = redoSteps.popLast() else { return }
+        guard let step = redoSteps.last else { return }
         try apply(step.change)
+        redoSteps.removeLast()
         clock += 1
         undoSteps.append(Step(change: step.change, stamp: clock))
     }
@@ -130,13 +155,11 @@ public final class PageStack {
     private func apply(_ change: Change) throws {
         switch change {
         case .insert(let page, let index):
-            try current.park()
-            pages.insert(page, at: min(index, pages.count))
-            currentIndex = pages.firstIndex { $0 === page } ?? 0
-            try current.unpark()
+            try self.change(to: inserting(page, at: index), showing: page)
         case .remove(let page, _):
-            guard let index = pages.firstIndex(where: { $0 === page }) else { return }
-            try removeWithoutRecording(at: index)
+            guard let index = pages.firstIndex(where: { $0 === page }), pages.count > 1 else { return }
+            let after = removing(at: index)
+            try self.change(to: after.pages, showing: after.shown)
         case .move(let source, let destination):
             moveWithoutRecording(from: source, to: destination)
         }
@@ -145,29 +168,13 @@ public final class PageStack {
     private func apply(inverseOf change: Change) throws {
         switch change {
         case .insert(let page, _):
-            guard let index = pages.firstIndex(where: { $0 === page }) else { return }
-            try removeWithoutRecording(at: index)
+            guard let index = pages.firstIndex(where: { $0 === page }), pages.count > 1 else { return }
+            let after = removing(at: index)
+            try self.change(to: after.pages, showing: after.shown)
         case .remove(let page, let index):
-            try current.park()
-            pages.insert(page, at: min(index, pages.count))
-            currentIndex = pages.firstIndex { $0 === page } ?? 0
-            try current.unpark()
+            try self.change(to: inserting(page, at: index), showing: page)
         case .move(let source, let destination):
             moveWithoutRecording(from: destination, to: source)
-        }
-    }
-
-    private func removeWithoutRecording(at index: Int) throws {
-        guard pages.count > 1 else { return }
-        let page = pages[index]
-        let shown = current
-        try page.park()
-        pages.remove(at: index)
-        if shown === page {
-            currentIndex = min(index, pages.count - 1)
-            try current.unpark()
-        } else {
-            currentIndex = pages.firstIndex { $0 === shown } ?? 0
         }
     }
 }

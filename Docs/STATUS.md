@@ -174,6 +174,15 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
+**Review round 4, batch A (2026-10-05): not yet tested.** Files: `E1 Screenshot.png` from `~/Downloads/colorbee tests/`,
+`TestImages/Stage 10/Three Page Test.pdf`, `TestImages/Stage 12/Test Camera.dng`.
+1. **Unplaced shapes are saved (K1).** Open E1 Screenshot.png. Shapes tool, Rectangle, Fill Solid, Color 1 black. Drag a box over the email and don't press Return. File ▸ Export…, PNG, save; open it in Preview: the box is there. Do it again and press ⌘C instead, then in Preview File ▸ New from Clipboard: the box is there.
+2. **Unplaced text is saved.** Text tool, click on the image, type SECRET and don't click away. ⌘S (save a copy somewhere): reopen it, SECRET is in it.
+3. **Commands wait behind sheets (L2).** Open Three Page Test.pdf, Effects ▸ Auto-Redact…: in the File menu, Save, Export…, Export as PDF… and Share… are greyed out. Cancel: they're back. The same with an effect bar open (Effects ▸ Gaussian Blur…).
+4. **History panel stays on the page (L1).** In the PDF, Pencil: draw a red line, then a blue one, on page 1. Page ▸ New Page, then click thumbnail 1. ⌘Y, click "Opened": both lines go, and there are still 4 pages.
+5. **Autosave keeps everything (L3, L11).** File ▸ New, Image ▸ Canvas Properties… with a transparent background, draw something. ⌘S, choose JPEG, then Cancel. Wait about 30 seconds, quit and reopen Colorbee: the window comes back with the checkerboard still showing (not white). Then open Test Camera.dng, press Return, quit and reopen: the "Test Camera" window comes back, and File ▸ Export… still offers Include camera details.
+6. **Copies are offered for removal (K11).** Open E1 Screenshot.png, ⌘C with nothing selected. Effects ▸ Auto-Redact…, Solid Fill, Apply: Colorbee offers to remove the unredacted image from Clipboard History. Choose Remove: it's gone from the Clipboard History panel (⌥⌘V), and ⌘V in another app pastes nothing.
+
 **Scrubbing number fields (2026-10-05): not yet tested.** Any image, for example `TestImages/Stage 5a Practice.png`.
 1. **Size.** Choose the Brush. Hover over the size box in the toolbar (the "px" field): the pointer is an up-down arrow. Press and drag **down**: the number climbs, about 1 for every 3 points; drag up: it falls. It stops at 50 and at 1, and turns around straight away.
 2. **Shift.** Drag down holding Shift: it moves 5 times as fast.

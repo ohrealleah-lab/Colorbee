@@ -13,9 +13,11 @@ final class ClipboardImage: NSObject, NSPasteboardItemDataProvider, @unchecked S
     private var finished = false
 
     /// Puts an image on the clipboard. `pixels` is called in the background and must only read things
-    /// nothing else changes (a snapshot or a fresh buffer). The PNG joins Clipboard History when it's ready.
+    /// nothing else changes (a snapshot or a fresh buffer). The PNG joins Clipboard History when it's ready, and
+    /// `added` gets its item.
     @MainActor
-    static func copy(colorSpace: CGColorSpace, pixels: @escaping @Sendable () -> PixelBuffer?) {
+    static func copy(colorSpace: CGColorSpace, pixels: @escaping @Sendable () -> PixelBuffer?,
+                     added: @escaping @MainActor @Sendable (ClipboardHistory.Item.ID) -> Void = { _ in }) {
         let image = ClipboardImage()
         let item = NSPasteboardItem()
         item.setDataProvider(image, forTypes: [.png])
@@ -30,7 +32,9 @@ final class ClipboardImage: NSObject, NSPasteboardItemDataProvider, @unchecked S
             if let png {
                 // A later copy may have finished first; only what's still on the clipboard joins the history
                 // (review B, finding 7).
-                DispatchQueue.main.async { if current === image { ClipboardHistory.shared.add(png) } }
+                DispatchQueue.main.async {
+                    if current === image, let id = ClipboardHistory.shared.add(png) { added(id) }
+                }
             }
         }
     }

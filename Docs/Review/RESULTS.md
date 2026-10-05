@@ -211,3 +211,51 @@ Reviewed at `fc427a1`; Leah confirmed 1, 2, 4–7, 15–17 and 23 by hand, and c
 | 27 | Low | Damaged files showed an error code, or nothing | **Fixed.** Plain messages, and drops and Services say why. |
 | 28 | Low | Relaunch lost an image-turned-project's name, zoom and panels | **Fixed.** |
 | 29 | Low | VoiceOver gaps (A1–A8) | **Fixed**, except bare readouts in the status bar (A7, part) and Curves points (round 1, deferred). |
+
+---
+
+# Round 4: pages, PDFs, Auto-Redact on every page, RAW photos ([plan](PLAN-4.md))
+
+Reviewed at `9cf0fc5` by two local sessions (K and L). Verified by the engineer against the code on 2026-10-05:
+all 29 are real, except K8, which was a judgment call for Leah. Several overlap (K3 = L4, K9 = L6, K5/K7 = L14), so
+they come to 17 fixes, done in three batches. Leah's decisions: Export as PDF converts pages with a non-standard
+color profile to Display P3 (K8); the Clipboard History offer covers copies made from the document too (K11).
+
+## Session K: privacy with pages, PDFs and camera details ([findings](findings-K.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | A shape or text not yet placed was left out of saves, exports, copies, Share and Print | **Fixed (batch A).** Placed first; autosave leaves them alone. |
+| 2 | Medium | After a page failed to read, Apply redacted only the pages read | **Fixed (batch A).** Apply is refused, and the page is named. |
+| 3 | Medium | Hidden pages kept full-size copies, also after Remove Earlier Versions | Batch B. |
+| 4 | Medium | Pages redacted before being shown got the redacted page as "As Opened" | Batch B. |
+| 5 | Medium | A page that couldn't be brought back left the Editor on the wrong page | **Fixed (batch A).** Page changes bring the new page back first; a failure changes nothing. Core tests. |
+| 6 | Medium | A one-page project forgot its PDF resolution | Batch B. |
+| 7 | Low-Medium | A failure partway through Apply gave a wrong message, and a page could drop out of saves | **Fixed (batch A).** Saves include every page; the message says which pages were redacted. |
+| 8 | Low | Export as PDF embedded custom color profiles | Batch C (Leah: convert to Display P3). |
+| 9 | Low | A damaged project could crash on a thumbnail's size | Batch C. |
+| 10 | Low | The PDF writer could fail silently | Batch C. |
+| 11 | Low | Copies made from the document weren't in the Clipboard History offer | **Fixed (batch A, Leah).** |
+
+## Session L: RAW photos, opening files, and background work ([findings](findings-L.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | A History panel click could undo or redo a page change | **Fixed (batch A).** The panel steps only the page shown. |
+| 2 | High | Save, Export, Share and Revert worked behind Auto-Redact; autosave could write half a redaction | **Fixed (batch A).** Greyed out behind any sheet or effect bar; autosave waits while Apply runs. |
+| 3 | Medium | A cancelled Save panel could make autosave write a lossy format | **Fixed (batch A).** Untitled documents autosave as projects. |
+| 4 | Medium | Every page visited kept a full-size copy (same as K3) | Batch B. |
+| 5 | Medium | Deleted pages were never freed | **Fixed (batch A, in passing).** Let go once they can't be undone. Core test. |
+| 6 | Medium | A damaged project could crash on a thumbnail's size (same as K9) | Batch C. |
+| 7 | Medium | Opening a PDF rendered every page at once on all cores | Batch B. |
+| 8 | Medium | Dropped PDFs, projects and RAW files didn't open like File ▸ Open | Batch C. |
+| 9 | Low | Develop's Cancel didn't work while developing | Batch C. |
+| 10 | Low | Undoing Delete Page lost the page's baselines | Batch B. |
+| 11 | Low | A developed photo lost its camera details after a relaunch | **Fixed (batch A)** with L3: projects keep them. |
+| 12 | Low | Other pages' saved state was taken when shown, not when saved | Batch B. |
+| 13 | Low | Reordering by dragging stopped at the sidebar's edge | Batch C. |
+| 14 | Low | A failure halfway through a page change left things inconsistent (same as K5, K7) | **Fixed (batch A).** |
+| 15 | Low | Page switches compress and expand on the main thread | Later (logged in STATUS). |
+| 16 | Low | The Export panel was never freed | Batch C. |
+| 17 | Low | Develop's final size came from the default render | Batch C. |
+| 18 | Low | Export as PDF held pages twice; failed compression went unnoticed | Batch C. |

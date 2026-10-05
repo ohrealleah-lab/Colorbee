@@ -39,7 +39,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 7c. Shortcut editor | ✅ Done | **High** |
 | 8. Hardening | ✅ Done | Medium |
 | 9. Photo editing | ✅ Done | High |
-| 10a. Pages | Built, waiting for Leah's hand test | High |
+| 10a. Pages | ✅ Done | High |
 | 10b. PDF output, Auto-Redact on every page | Next | High |
 
 ## What's built
@@ -164,7 +164,7 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
-**Stage 10a pages (2026-10-04): not yet tested.** Test files: `TestImages/Stage 10/Three Page Test.pdf`
+**Stage 10a pages (2026-10-04): all 11 steps passed Leah's hand test on 2026-10-04.** Test files: `TestImages/Stage 10/Three Page Test.pdf`
 (made up names, emails and phone numbers, one person per page), `TestImages/Round 3/Two Pages.tiff`, and
 `catslap.gif` from `~/Downloads/colorbee tests/`.
 1. **Open a PDF.** Open Three Page Test.pdf. Expect a window titled "Three Page Test", Edited, with a Pages sidebar on the left showing 3 thumbnails, page 1 outlined in blue. The status bar says 1700 × 2200 px (letter size at 200 DPI).

@@ -44,7 +44,7 @@ targets:
             NSMessage: openInColorbee
             NSPortName: Colorbee
             NSRequiredContext: {}
-            NSSendFileTypes: [public.image, com.leah.colorbee.colorproj]
+            NSSendFileTypes: [public.image, com.adobe.pdf, com.leah.colorbee.colorproj]
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: com.leah.colorbee.colorpalette
             UTTypeDescription: Colorbee Palette

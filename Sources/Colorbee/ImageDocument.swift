@@ -426,8 +426,9 @@ final class ImageDocument: NSDocument {
         // the controls showed but only the keyboard reached them (Leah, 2026-10-05). The frame follows the content
         // as rows come and go.
         let accessoryView = WeakView()
-        let accessory = NSHostingView(rootView: ExportAccessory(options: options, formatChanged: { format in
-            panel.allowedContentTypes = [format.type]
+        // Weak, since the panel holds this closure through its accessory (review L, finding 16).
+        let accessory = NSHostingView(rootView: ExportAccessory(options: options, formatChanged: { [weak panel] format in
+            panel?.allowedContentTypes = [format.type]
         }, sizeChanged: { accessoryView.view?.setFrameSize($0) }))
         accessoryView.view = accessory
         accessory.setFrameSize(accessory.fittingSize)

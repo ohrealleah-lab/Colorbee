@@ -55,17 +55,22 @@ struct SaveSnapshot: @unchecked Sendable {
             }
         }
         if let error = failure.withLock({ $0 }) { throw error }
-        return encoded.withLock { pages in PDFWriter.document(order.indices.compactMap { pages[$0] }) }
+        // Handed over and let go here, so the writer can free each page once it's in the file (review L, finding 18).
+        let pages = encoded.withLock { pages in
+            defer { pages = [:] }
+            return order.indices.compactMap { pages[$0] }
+        }
+        return try PDFWriter.document(pages)
     }
 
     /// One page for the PDF: the page shown (nil) as it is now, or another as it's parked.
     private func pdfPage(_ stored: ProjectFile.StoredPage?) throws -> PDFWriter.EncodedPage {
         guard let stored else {
-            return PDFWriter.encodePage(canvas.flattened(transparentKey: transparentKey, resampling: resampling),
-                                        colorSpace: canvas.colorSpace, resolution: pageResolution)
+            return try PDFWriter.encodePage(canvas.flattened(transparentKey: transparentKey, resampling: resampling),
+                                            colorSpace: canvas.colorSpace, resolution: pageResolution)
         }
         let page = try ProjectFile.decode(stored.project)
-        return PDFWriter.encodePage(page.flattened(), colorSpace: page.colorSpace, resolution: stored.resolution)
+        return try PDFWriter.encodePage(page.flattened(), colorSpace: page.colorSpace, resolution: stored.resolution)
     }
 
     /// A PNG scaled by an export preset, with the chosen scaling or the one that suits the image's size.

@@ -131,6 +131,9 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
 - Polish done 2026-10-03: effect previews in the background (`EffectPreview`), Copy in the background (`ClipboardImage`). Tested by hand 2026-10-03.
 
+**Later, from review round 4:** switching pages compresses the old page and expands the new one on the main thread
+(L15); on very large pages (8000 × 8000 with layers and a long history) a switch can pause for a second.
+
 **12 RAW photos (FR-11.8)** — done; tested by hand 2026-10-05. Built: `RawDeveloper` (macOS's RAW engine, CIRAWFilter), the Develop
 window (`DevelopWindow`), `DocumentController` (sends RAW files to it), `CameraDetails` (core, kept in .colorproj),
 and Include camera details in Export…. Test file: `TestImages/Stage 12/Test Camera.dng`, a synthetic DNG with
@@ -173,6 +176,14 @@ Logs in `build/soak-results*.txt` (not committed).
 7. **Warning on quit.** Open two duplicated copies of E1 Screenshot.png, Auto-Redact each (Solid Fill, Apply), then ⌘Q. Expect the message on each window in turn; after the second answer, Colorbee quits. Reopen both: the redactions are there.
 
 ## Not yet checked by hand
+
+**Review round 4, batch C (2026-10-05): not yet tested.** Files: `TestImages/Stage 10/Three Page Test.pdf`,
+`TestImages/Stage 6b Practice.colorproj`, `TestImages/Stage 12/Test Camera.dng`, `TestImages/Stage 5a Practice.png`,
+and one of your own large RAW files (the Nikon NEF in Downloads).
+1. **Drops open like File ▸ Open (L8).** Open Stage 5a Practice.png. From Finder, drag Three Page Test.pdf onto the **image itself**: a new window opens with 3 pages (nothing is pasted). Drag Stage 6b Practice.colorproj onto the window: it opens. Drag Test Camera.dng onto the image: the Develop window appears. Drag any PNG onto the image: it's still pasted as a floating selection; onto the gray area: it opens as a new image.
+2. **Services (L8).** In Finder, right-click Three Page Test.pdf ▸ Services: "Open in Colorbee" is listed (macOS may need it switched on once in System Settings ▸ Keyboard ▸ Keyboard Shortcuts ▸ Services).
+3. **Develop's Cancel (L9).** Open your large RAW file, press Open, and while "Developing…" shows press Esc (or click Cancel): the window closes and no photo opens.
+4. **Reorder a long document (L13).** Make a PDF of 20 or more pages (as in batch B's step 5). Drag the thumbnail of page 15 up to the top of the sidebar and hold it there: the list scrolls up. Let go near the top: it becomes page 1 (or wherever you let go).
 
 **Review round 4, batch B (2026-10-05): not yet tested.** Use `TestImages/Stage 10/Three Page Test.pdf`.
 1. **As Opened for pages not yet shown (K4).** Open the PDF and stay on page 1. Effects ▸ Auto-Redact…, Solid Fill, Apply (don't click any row). Click thumbnail 3, then View ▸ Before/After with As Opened: the left side shows the email and phone, the right side the black boxes.

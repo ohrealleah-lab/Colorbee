@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import ColorbeeCore
 import Metal
 import QuartzCore
@@ -937,25 +938,33 @@ enum CanvasHandle: CaseIterable {
 // MARK: Drag and drop (FR-11.4)
 
 extension CanvasView {
+    /// Decided from what's offered, without reading a dropped file, so a large one doesn't stall the window as the
+    /// drag enters it (review L, finding 8).
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
-        Self.imageData(from: sender.draggingPasteboard) == nil ? [] : .copy
+        let pasteboard = sender.draggingPasteboard
+        if let url = Self.droppedFile(pasteboard) {
+            return Self.opensAsDocument(url) || Self.type(of: url)?.conforms(to: .image) == true ? .copy : []
+        }
+        return PasteboardImages.hasImage(pasteboard) ? .copy : []
     }
 
     /// Dropped on the canvas: a floating selection centered where it landed. Dropped on the gray around
-    /// the canvas: it opens as a new document.
+    /// the canvas: it opens as a new document. PDFs, projects and RAW photos open as documents wherever they land,
+    /// as File ▸ Open does (a RAW photo through the Develop window).
     override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
         let pasteboard = sender.draggingPasteboard
         let location = convert(sender.draggingLocation, from: nil)
         let point = editor.viewport.imagePoint(fromView: Point2D(x: location.x, y: location.y))
         let onCanvas = point.x >= 0 && point.y >= 0 && point.x < Double(editor.canvasSize.width) && point.y < Double(editor.canvasSize.height)
-        if !onCanvas, let url = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])?.first as? URL {
+        let file = Self.droppedFile(pasteboard)
+        if let url = file, !onCanvas || Self.opensAsDocument(url) {
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
                 // A file that can't be opened says why, rather than nothing happening (review J, finding 27).
                 if let error { NSApp.presentError(error) }
             }
             return true
         }
-        guard let data = Self.imageData(from: pasteboard) else { return false }
+        guard let data = file.flatMap({ try? Data(contentsOf: $0) }) ?? PasteboardImages.imageData(pasteboard) else { return false }
         let decoded: DecodedImage
         do { decoded = try ImageCodec.decode(data, convertingTo: onCanvas ? editor.canvas.colorSpace : nil) } catch {
             window?.presentError(error)
@@ -971,12 +980,16 @@ extension CanvasView {
         return true
     }
 
-    private static func imageData(from pasteboard: NSPasteboard) -> Data? {
-        if let url = pasteboard.readObjects(forClasses: [NSURL.self], options: [
-            .urlReadingFileURLsOnly: true, .urlReadingContentsConformToTypes: ["public.image"],
-        ])?.first as? URL {
-            return try? Data(contentsOf: url)
-        }
-        return PasteboardImages.imageData(pasteboard)
+    private static func droppedFile(_ pasteboard: NSPasteboard) -> URL? {
+        pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])?.first as? URL
+    }
+
+    private static func type(of url: URL) -> UTType? {
+        try? url.resourceValues(forKeys: [.contentTypeKey]).contentType
+    }
+
+    private static func opensAsDocument(_ url: URL) -> Bool {
+        guard let type = type(of: url) else { return false }
+        return type.conforms(to: .pdf) || type.conforms(to: .colorbeeProject) || type.conforms(to: .rawImage)
     }
 }

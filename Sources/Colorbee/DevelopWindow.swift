@@ -148,11 +148,11 @@ private struct DevelopView: View {
                 Divider()
                 controls
                     .frame(width: 300)
+                    .disabled(session.isDeveloping)
             }
             Divider()
             footer
         }
-        .disabled(session.isDeveloping)
     }
 
     private var preview: some View {
@@ -224,11 +224,13 @@ private struct DevelopView: View {
                 Text(problem).font(.callout).foregroundStyle(.red).lineLimit(2)
             }
             Button("Reset to Camera") { session.resetToCamera() }
-                .disabled(session.settings == session.developer.cameraDefaults)
+                .disabled(session.settings == session.developer.cameraDefaults || session.isDeveloping)
+            // Cancel works while developing too: the window closes and the photo isn't opened (review L, finding 9).
             Button("Cancel", role: .cancel, action: close)
                 .keyboardShortcut(.cancelAction)
             Button("Open") { session.open() }
                 .keyboardShortcut(.defaultAction)
+                .disabled(session.isDeveloping)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

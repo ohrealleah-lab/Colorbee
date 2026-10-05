@@ -114,10 +114,15 @@ final class RawDeveloper: Sendable {
 
     /// The full-size photo as a one-layer canvas in Display P3, with its camera details.
     func develop(_ settings: DevelopSettings) throws -> Canvas {
-        guard ImageCodec.fitsEditing(width: size.width, height: size.height) else { throw RawDevelopError.tooLarge }
-        // The pixels, plus room for the engine to work, must fit comfortably in memory.
-        guard size.width * size.height * 4 * 3 < ProcessInfo.processInfo.physicalMemory / 2 else { throw RawDevelopError.tooLarge }
         guard let image = image(settings, scale: 1) else { throw RawDevelopError.unreadable }
+        // The size of this render, not the camera-default one: a setting such as Lens Correction can change it
+        // (review L, finding 17).
+        let size = IntSize(width: Int(image.extent.width.rounded()), height: Int(image.extent.height.rounded()))
+        guard size.width > 0, size.height > 0, ImageCodec.fitsEditing(width: size.width, height: size.height) else {
+            throw RawDevelopError.tooLarge
+        }
+        // The pixels, plus room for the engine to work, must fit comfortably in memory.
+        guard UInt64(size.width * size.height * 4 * 3) < ProcessInfo.processInfo.physicalMemory / 2 else { throw RawDevelopError.tooLarge }
         let buffer = PixelBuffer(width: size.width, height: size.height)
         let bounds = CGRect(x: image.extent.minX, y: image.extent.minY, width: CGFloat(size.width), height: CGFloat(size.height))
         Self.context.render(image, toBitmap: buffer.baseAddress, rowBytes: buffer.bytesPerRow, bounds: bounds,

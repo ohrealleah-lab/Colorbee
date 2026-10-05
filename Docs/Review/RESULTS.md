@@ -232,9 +232,9 @@ color profile to Display P3 (K8); the Clipboard History offer covers copies made
 | 5 | Medium | A page that couldn't be brought back left the Editor on the wrong page | **Fixed (batch A).** Page changes bring the new page back first; a failure changes nothing. Core tests. |
 | 6 | Medium | A one-page project forgot its PDF resolution | **Fixed (batch B).** Kept in its manifest. Core test. |
 | 7 | Low-Medium | A failure partway through Apply gave a wrong message, and a page could drop out of saves | **Fixed (batch A).** Saves include every page; the message says which pages were redacted. |
-| 8 | Low | Export as PDF embedded custom color profiles | Batch C (Leah: convert to Display P3). |
+| 8 | Low | Export as PDF embedded custom color profiles | **Fixed (batch C, Leah).** Pages with a non-standard profile are converted to Display P3. Core test. |
 | 9 | Low | A damaged project could crash on a thumbnail's size | **Fixed (batch B, in passing).** Sizes are bounded first. Core test. |
-| 10 | Low | The PDF writer could fail silently | Batch C. |
+| 10 | Low | The PDF writer could fail silently | **Fixed (batch C).** Compression failures are reported; offsets past 2 GB are written correctly. |
 | 11 | Low | Copies made from the document weren't in the Clipboard History offer | **Fixed (batch A, Leah).** |
 
 ## Session L: RAW photos, opening files, and background work ([findings](findings-L.md))
@@ -248,14 +248,14 @@ color profile to Display P3 (K8); the Clipboard History offer covers copies made
 | 5 | Medium | Deleted pages were never freed | **Fixed (batch A, in passing).** Let go once they can't be undone. Core test. |
 | 6 | Medium | A damaged project could crash on a thumbnail's size (same as K9) | **Fixed (batch B).** |
 | 7 | Medium | Opening a PDF rendered every page at once on all cores | **Fixed (batch B).** Four pages at a time. Opening in the background with progress is for later. Core test. |
-| 8 | Medium | Dropped PDFs, projects and RAW files didn't open like File ▸ Open | Batch C. |
-| 9 | Low | Develop's Cancel didn't work while developing | Batch C. |
+| 8 | Medium | Dropped PDFs, projects and RAW files didn't open like File ▸ Open | **Fixed (batch C).** They open as documents wherever they land (RAW through Develop); a drop is accepted by file type without reading the file; Services offers PDFs. |
+| 9 | Low | Develop's Cancel didn't work while developing | **Fixed (batch C).** Cancel and Esc close the window; the photo isn't opened. |
 | 10 | Low | Undoing Delete Page lost the page's baselines | **Fixed (batch B).** Kept while undo can bring the page back. |
 | 11 | Low | A developed photo lost its camera details after a relaunch | **Fixed (batch A)** with L3: projects keep them. |
 | 12 | Low | Other pages' saved state was taken when shown, not when saved | **Fixed (batch B).** Each page's saved state is the bytes written for it. |
-| 13 | Low | Reordering by dragging stopped at the sidebar's edge | Batch C. |
+| 13 | Low | Reordering by dragging stopped at the sidebar's edge | **Fixed (batch C).** Holding a page near the top or bottom scrolls the list. |
 | 14 | Low | A failure halfway through a page change left things inconsistent (same as K5, K7) | **Fixed (batch A).** |
-| 15 | Low | Page switches compress and expand on the main thread | Later (logged in STATUS). |
-| 16 | Low | The Export panel was never freed | Batch C. |
-| 17 | Low | Develop's final size came from the default render | Batch C. |
-| 18 | Low | Export as PDF held pages twice; failed compression went unnoticed | Batch C. |
+| 15 | Low | Page switches compress and expand on the main thread | Later (logged in STATUS): a pause only on very large pages. |
+| 16 | Low | The Export panel was never freed | **Fixed (batch C).** |
+| 17 | Low | Develop's final size came from the default render | **Fixed (batch C).** The final render's own size is used. |
+| 18 | Low | Export as PDF held pages twice; failed compression went unnoticed | **Fixed (batch C).** Each page is let go once written; failures are reported. |

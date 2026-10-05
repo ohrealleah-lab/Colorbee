@@ -4,8 +4,12 @@ import SwiftUI
 /// The pages, down the left side (FR-11.6): a thumbnail each, in order. Clicking one shows it; dragging one moves it.
 struct PageSidebar: View {
     @Bindable var editor: Editor
-    /// The page being dragged to a new place, and how far it has moved.
-    @State private var dragged: (index: Int, translation: CGFloat)?
+    /// The page being dragged to a new place.
+    @State private var drag: PageDrag?
+    /// Where the list is scrolled to, so a drag can scroll it and count how far it has gone (review L, finding 13).
+    @State private var scroll = ScrollPosition(edge: .top)
+    @State private var scrolled: CGFloat = 0
+    @State private var maxScroll: CGFloat = 0
     @State private var places = Places()
     private static let rowPitch: CGFloat = 150
 
@@ -23,23 +27,34 @@ struct PageSidebar: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(0..<editor.pageCount, id: \.self) { index in
-                            let isDragged = dragged?.index == index
+                            let isDragged = drag?.index == index
                             cell(index)
                                 .id(index)
-                                .offset(y: isDragged ? dragged?.translation ?? 0 : 0)
+                                .offset(y: isDragged ? travel : 0)
                                 .shadow(color: .black.opacity(isDragged ? 0.25 : 0), radius: 6, y: 2)
                                 .zIndex(isDragged ? 1 : 0)
-                                .gesture(DragGesture(minimumDistance: 4)
-                                    .onChanged { dragged = (index, $0.translation.height) }
-                                    .onEnded { value in
-                                        dragged = nil
-                                        let steps = Int((value.translation.height / Self.rowPitch).rounded())
-                                        let destination = min(max(index + steps, 0), editor.pageCount - 1)
-                                        if destination != index { editor.movePage(from: index, to: destination) }
+                                .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .global)
+                                    .onChanged { value in
+                                        if drag == nil {
+                                            drag = PageDrag(index: index, startY: value.startLocation.y, startScroll: scrolled, y: value.location.y)
+                                            scrollWhileHeldAtAnEdge()
+                                        }
+                                        drag?.y = value.location.y
+                                    }
+                                    .onEnded { _ in
+                                        guard let ended = drag else { return }
+                                        let destination = min(max(ended.index + Int((travel / Self.rowPitch).rounded()), 0), editor.pageCount - 1)
+                                        drag = nil
+                                        if destination != ended.index { editor.movePage(from: ended.index, to: destination) }
                                     })
                         }
                     }
                     .padding(.horizontal, 10)
+                }
+                .scrollPosition($scroll)
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, offset in scrolled = offset }
+                .onScrollGeometryChange(for: CGFloat.self) { max(0, $0.contentSize.height - $0.containerSize.height) } action: { _, most in
+                    maxScroll = most
                 }
                 .onChange(of: editor.currentPageIndex) { scroller.scrollTo(editor.currentPageIndex) }
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { places.list = $0 }
@@ -66,6 +81,25 @@ struct PageSidebar: View {
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
         .padding(8)
         .disabled(editor.activeEffect != nil)
+    }
+
+    /// How far the dragged page has moved within the list: the pointer's movement plus any scrolling since.
+    private var travel: CGFloat {
+        guard let drag else { return 0 }
+        return drag.y - drag.startY + scrolled - drag.startScroll
+    }
+
+    /// While a dragged page is held near the top or bottom of the list, the list scrolls, so a page can go anywhere
+    /// in a long document.
+    private func scrollWhileHeldAtAnEdge() {
+        Task { @MainActor in
+            while let held = drag {
+                let edge: CGFloat = 40, list = places.list
+                let step: CGFloat = held.y < list.minY + edge ? -14 : held.y > list.maxY - edge ? 14 : 0
+                if step != 0 { scroll.scrollTo(y: min(max(scrolled + step, 0), maxScroll)) }
+                try? await Task.sleep(for: .milliseconds(30))
+            }
+        }
     }
 
     private func cell(_ index: Int) -> some View {
@@ -131,4 +165,12 @@ struct PageSidebar: View {
 private final class Places {
     var list: CGRect = .zero
     var thumbnails: [Int: CGRect] = [:]
+}
+
+/// A page being dragged: where the pointer started and is, and how far the list was scrolled at the start.
+private struct PageDrag {
+    let index: Int
+    let startY: CGFloat
+    let startScroll: CGFloat
+    var y: CGFloat
 }

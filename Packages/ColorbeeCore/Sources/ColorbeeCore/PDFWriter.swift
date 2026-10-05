@@ -11,14 +11,22 @@ public enum PDFWriter {
         let height: Int
         /// The page's size in points (1/72 inch).
         let mediaSize: (width: Double, height: Double)
-        /// RGB, 8 bits a channel, zlib-compressed.
-        let pixels: Data
+        /// RGB, 8 bits a channel, zlib-compressed. Emptied once written, so a long document isn't held twice.
+        var pixels: Data
         let profile: Data?
     }
 
     /// Compresses `image` (a flattened page) for the PDF, over white where it's transparent, as a PDF viewer
     /// would show it. `resolution` is in pixels per inch and sets the page's printed size.
-    public static func encodePage(_ image: PixelBuffer, colorSpace: CGColorSpace, resolution: Double) -> EncodedPage {
+    public static func encodePage(_ image: PixelBuffer, colorSpace: CGColorSpace, resolution: Double) throws -> EncodedPage {
+        // A custom profile (a calibrated display's, a camera's) can name a device or a person's calibration, so such
+        // pages are converted to Display P3; Display P3 and sRGB are kept as they are (Leah, 2026-10-05; review K, finding 8).
+        var image = image, colorSpace = colorSpace
+        let standard = [CGColorSpace.displayP3, CGColorSpace.sRGB].contains { $0 == colorSpace.name }
+        if !standard, let displayP3 = CGColorSpace(name: CGColorSpace.displayP3) {
+            image = try ImageCodec.decode(ImageCodec.makeCGImage(image, colorSpace: colorSpace), convertingTo: displayP3).buffer
+            colorSpace = displayP3
+        }
         let width = image.width, height = image.height
         var rgb = Data(count: width * height * 3)
         rgb.withUnsafeMutableBytes { raw in
@@ -41,11 +49,12 @@ public enum PDFWriter {
         let points = 72 / max(resolution, 1)
         return EncodedPage(width: width, height: height,
                            mediaSize: (Double(width) * points, Double(height) * points),
-                           pixels: zlib(rgb), profile: colorSpace.copyICCData() as Data?)
+                           pixels: try zlib(rgb), profile: colorSpace.copyICCData() as Data?)
     }
 
     /// The PDF file, its pages in order.
-    public static func document(_ pages: [EncodedPage]) -> Data {
+    public static func document(_ pages: [EncodedPage]) throws -> Data {
+        var pages = pages
         var file = Data()
         var offsets: [Int] = [0]
         func object(_ body: String, stream: Data? = nil) -> Int {
@@ -68,10 +77,11 @@ public enum PDFWriter {
         var pageNumbers: [Int] = []
         _ = object("<< /Type /Catalog /Pages 2 0 R >>")
         offsets.append(0)
-        for page in pages {
+        for index in pages.indices {
+            let page = pages[index]
             var colorSpace = "/DeviceRGB"
             if let profile = page.profile {
-                let compressed = zlib(profile)
+                let compressed = try zlib(profile)
                 let number = profiles[profile]
                     ?? object("<< /N 3 /Alternate /DeviceRGB /Filter /FlateDecode /Length \(compressed.count) >>", stream: compressed)
                 profiles[profile] = number
@@ -84,6 +94,7 @@ public enum PDFWriter {
             let contents = object("<< /Length \(drawing.count) >>", stream: drawing)
             pageNumbers.append(object("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 \(w) \(h)] "
                                       + "/Resources << /XObject << /Im0 \(image) 0 R >> >> /Contents \(contents) 0 R >>"))
+            pages[index].pixels = Data()
         }
         offsets[2] = file.count
         let kids = pageNumbers.map { "\($0) 0 R" }.joined(separator: " ")
@@ -91,7 +102,11 @@ public enum PDFWriter {
 
         let table = file.count
         var xref = "xref\n0 \(offsets.count)\n0000000000 65535 f \n"
-        for offset in offsets.dropFirst() { xref += String(format: "%010d 00000 n \n", offset) }
+        // Padded by hand: "%d" reads 32 bits, so offsets past 2 GB would come out wrong (review K, finding 10).
+        for offset in offsets.dropFirst() {
+            let digits = String(offset)
+            xref += String(repeating: "0", count: max(0, 10 - digits.count)) + digits + " 00000 n \n"
+        }
         // No /Info and no /ID: nothing that says who made the file or when.
         xref += "trailer\n<< /Size \(offsets.count) /Root 1 0 R >>\nstartxref\n\(table)\n%%EOF\n"
         file.append(Data(xref.utf8))
@@ -108,8 +123,9 @@ public enum PDFWriter {
 
     /// zlib format (RFC 1950), as PDF's FlateDecode wants: Foundation's `.zlib` gives raw deflate, so the header
     /// and Adler-32 checksum are added here.
-    static func zlib(_ data: Data) -> Data {
-        let deflated = (try? (data as NSData).compressed(using: .zlib) as Data) ?? Data()
+    static func zlib(_ data: Data) throws -> Data {
+        // A failure is reported rather than written as an empty page (review K, finding 10).
+        let deflated = try (data as NSData).compressed(using: .zlib) as Data
         var a: UInt32 = 1, b: UInt32 = 0
         data.withUnsafeBytes { raw in
             let bytes = raw.bindMemory(to: UInt8.self)

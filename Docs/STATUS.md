@@ -177,7 +177,7 @@ Logs in `build/soak-results*.txt` (not committed).
 8. **Hide the sidebar.** View ▸ Page Sidebar (⌥⌘2) hides it; again shows it. Quit and relaunch with the window open: it stays as you left it.
 9. **Pages in any image.** Open any PNG (Stage 5a Practice.png), Page ▸ New Page. The sidebar appears with 2 pages, and ⌘S asks where to save a project (the PNG is left as it was).
 10. **TIFF and GIF.** Open Two Pages.tiff: 2 pages in the sidebar, "Page 1" and "Page 2". Open catslap.gif: every frame is a page. Neither original file changes.
-11. **Right-click a thumbnail (fixed 2026-10-04).** On page 1, right-click thumbnail 3: the blue outline moves to 3 and the canvas shows "page 3 of 3" before you choose anything. Duplicate Page: a 4th page appears, a copy of page 3. Right-click thumbnail 2, Delete Page: "page 2 of 3" is gone. Right-click a thumbnail and press Esc: you stay on that page and nothing else changes. Control-click works the same.
+11. **Right-click a thumbnail (fixed 2026-10-04; passed Leah's hand test the same day).** On page 1, right-click thumbnail 3: the blue outline moves to 3 and the canvas shows "page 3 of 3" before you choose anything. Duplicate Page: a 4th page appears, a copy of page 3. Right-click thumbnail 2, Delete Page: "page 2 of 3" is gone. Right-click a thumbnail and press Esc: you stay on that page and nothing else changes. Control-click works the same.
 
 **Round 3 fixes (reviews H, I and J, 2026-10-04): all 33 steps, and 11a, passed Leah's hand test on 2026-10-04.** Details in `Docs/Review/RESULTS.md`.
 Test images: the review ones in `~/Downloads/colorbee tests/` (E1 Screenshot.png, E3 Mixed Text Sizes.png,

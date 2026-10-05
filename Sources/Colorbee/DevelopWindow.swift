@@ -201,6 +201,11 @@ private struct DevelopView: View {
                         .disabled(!support.lensCorrection)
                         .help(support.lensCorrection ? "Corrects this lens's distortion and vignetting"
                                                      : "macOS has no correction for this lens")
+                    if !support.noiseReduction || !support.sharpness || !support.lensCorrection {
+                        Text("Greyed-out controls aren't available for this photo.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .padding(16)
@@ -256,10 +261,11 @@ private struct DevelopView: View {
     private func slider(_ title: String, value: Binding<Double>, in range: ClosedRange<Double>, enabled: Bool = true,
                         help: String? = nil, format: @escaping (Double) -> String = { "\(Int($0.rounded()))" }) -> some View {
         VStack(alignment: .leading, spacing: 2) {
+            // Text doesn't grey out by itself when disabled; without this an unavailable slider looked usable (Leah).
             HStack {
-                Text(title)
+                Text(title).foregroundStyle(enabled ? .primary : .tertiary)
                 Spacer()
-                Text(format(value.wrappedValue)).monospacedDigit().foregroundStyle(.secondary)
+                Text(format(value.wrappedValue)).monospacedDigit().foregroundStyle(enabled ? .secondary : .tertiary)
             }
             .font(.callout)
             Slider(value: Binding(get: { min(max(value.wrappedValue, range.lowerBound), range.upperBound) },

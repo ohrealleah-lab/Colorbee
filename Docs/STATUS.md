@@ -176,7 +176,7 @@ Logs in `build/soak-results*.txt` (not committed).
 
 **Stage 12 RAW photos (2026-10-05): not yet tested.** Use `TestImages/Stage 12/Test Camera.dng`, then some of
 your own RAW files (CR3, ARW, NEF or RAF) and an iPhone photo (JPEG or HEIC).
-1. **Develop window.** File ▸ Open the DNG. A "Develop — Test Camera.dng" window shows the photo (a sky, a white sun, four colored squares) and, along the bottom, "Test Camera · Test Lens 50mm F2.8 · ISO 400 · 1/125 s · f/2.8 · 50 mm · 600 × 400". Temperature reads 6502 K. Noise Reduction, Sharpness and Lens Correction are greyed out for this file.
+1. **Develop window.** File ▸ Open the DNG. A "Develop — Test Camera.dng" window shows the photo (a sky, a white sun, four colored squares) and, along the bottom, "Test Camera · Test Lens 50mm F2.8 · ISO 400 · 1/125 s · f/2.8 · 50 mm · 600 × 400". Temperature reads 6502 K. Noise Reduction, Sharpness and Lens Correction are greyed out for this file, labels included, with "Greyed-out controls aren't available for this photo." under them, and dragging those sliders does nothing (fixed 2026-10-05: the labels looked usable).
 2. **Highlights.** Drag Exposure to +1: everything brightens. Drag Highlights to −100: the white sun turns gray again and the sky darkens, as bright detail comes back.
 3. **Reset.** Click Reset to Camera: every control goes back, and the button greys out.
 4. **Color.** Drag Temperature down to about 3500 K: the photo turns bluer. Tint to +100: it turns pinker. Reset to Camera.

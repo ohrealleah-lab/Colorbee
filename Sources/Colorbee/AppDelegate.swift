@@ -3,6 +3,8 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // Before any window exists, so none shows in the wrong appearance first.
+        AppearanceSetting.apply()
         // Strokes must see every input sample (NFR-2).
         NSEvent.isMouseCoalescingEnabled = false
         let menu = MainMenu.make()

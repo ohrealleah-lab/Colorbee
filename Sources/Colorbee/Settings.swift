@@ -88,44 +88,63 @@ final class SettingsWindowController: NSWindowController {
 
 private struct SettingsView: View {
     /// Settings reopens on the tab you last used.
-    @AppStorage("SettingsTab") private var tab = "shortcuts"
+    @AppStorage("SettingsTab") private var tab = "general"
 
     var body: some View {
-        TabView(selection: $tab) {
+        TabView(selection: Binding(
+            // The PDFs tab became part of General (Leah, 2026-10-04).
+            get: { tab == "pdfs" ? "general" : tab },
+            set: { tab = $0 }
+        )) {
+            GeneralSettings()
+                .tabItem { Label("General", systemImage: "circle.lefthalf.filled") }
+                .tag("general")
             ShortcutSettings(store: ShortcutStore.shared)
                 .tabItem { Label("Shortcuts", systemImage: "keyboard") }
                 .tag("shortcuts")
             ExportPresetSettings(store: ExportPresetStore.shared)
                 .tabItem { Label("Export Presets", systemImage: "square.and.arrow.up") }
                 .tag("exports")
-            PDFSettings()
-                .tabItem { Label("PDFs", systemImage: "doc.richtext") }
-                .tag("pdfs")
         }
         .padding(20)
         .frame(width: 640, height: 560)
     }
 }
 
-/// The resolution PDFs open at (FR-11.6). It's read when a PDF opens, so it changes the next one.
-private struct PDFSettings: View {
+/// Appearance, and the resolution PDFs open at (FR-11.6).
+private struct GeneralSettings: View {
+    @AppStorage(AppearanceSetting.key) private var appearance = AppearanceSetting.system
+    /// Read when a PDF opens, so it changes the next one.
     @AppStorage("PDFResolution") private var resolution = 200.0
 
     var body: some View {
         Form {
-            Picker("Open PDFs at", selection: $resolution) {
-                Text("150 DPI · smaller, faster").tag(150.0)
-                Text("200 DPI · recommended").tag(200.0)
-                Text("300 DPI · sharpest, uses more memory").tag(300.0)
+            Section {
+                Picker("Appearance", selection: $appearance) {
+                    ForEach(AppearanceSetting.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+                Text("System follows your Mac's Light or Dark setting. The image itself is never tinted.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
-            .pickerStyle(.radioGroup)
-            Text("Each PDF page becomes an image at this resolution. A letter page is 1700 × 2200 pixels at 200 DPI. "
-                 + "It applies to PDFs opened from now on; open ones keep their resolution, and Export as PDF keeps each page's.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Section {
+                Picker("Open PDFs at", selection: $resolution) {
+                    Text("150 DPI · smaller, faster").tag(150.0)
+                    Text("200 DPI · recommended").tag(200.0)
+                    Text("300 DPI · sharpest, uses more memory").tag(300.0)
+                }
+                .pickerStyle(.radioGroup)
+                Text("Each PDF page becomes an image at this resolution. A letter page is 1700 × 2200 pixels at 200 DPI. "
+                     + "It applies to PDFs opened from now on; open ones keep their resolution, and Export as PDF keeps each page's.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .formStyle(.grouped)
+        .onChange(of: appearance) { AppearanceSetting.apply() }
     }
 }
 

@@ -13,6 +13,8 @@ enum Snapshot {
 
     static func startIfRequested(window: NSWindow, editor: Editor) {
         guard let path = defaults.string(forKey: "ColorbeeSnapshot") else { return }
+        // Overrides Settings ▸ General ▸ Appearance for this run only, without saving. `-Appearance light` (or dark,
+        // or system) picks the setting itself for a run, since snapshots otherwise use Leah's saved choice.
         if defaults.bool(forKey: "ColorbeeSnapshotDark") { NSApp.appearance = NSAppearance(named: .darkAqua) }
         if defaults.bool(forKey: "ColorbeeSnapshotEdited") {
             (window.windowController?.document as? NSDocument)?.updateChangeCount(.changeDone)

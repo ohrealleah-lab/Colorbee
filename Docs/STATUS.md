@@ -131,7 +131,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 
 **10 Pages and PDF documents (FR-11.6)** — done; tested by hand 2026-10-04. Decisions in §23.
 - 10a built 2026-10-04: pages in core (`Page`, `PageStack`, project format 2, `PDFPages`), the page sidebar (`PageSidebar`), the Page menu, and PDFs, multi-page TIFFs and animated GIFs opening with every page. The frame bar is gone.
-- 10b built 2026-10-04: File ▸ Export as PDF… (`PDFWriter`, hand-written so it has no metadata), Auto-Redact on every page (`AutoRedactSession.pages`), and Settings ▸ PDFs.
+- 10b built 2026-10-04: File ▸ Export as PDF… (`PDFWriter`, hand-written so it has no metadata), Auto-Redact on every page (`AutoRedactSession.pages`), and the PDF resolution setting (now in Settings ▸ General).
 
 **9 Photo editing and presentation (FR-9.5)** — done; tested by hand 2026-10-03.
 - 9a tone adjustments and effects (`Levels`, `Curves`, `Histogram`, `ColorLookup`, `Effects+Texture`); 9b Adjust Photo, Auto and filters (`PhotoAdjustments`, `PhotoAuto`, `PhotoFilter`, `FilterStore`, `adjust_photo_fragment`); 9c Drop Shadow, Border, Spotlight (`Decorations`); 9d Straighten, Perspective Correction, Crop… (`Warp`, `CropBox`, `CropOptions`, canvas-tool drags in `CanvasView`); 9e Remove Background, Lift Subject, Select Subject (`Subjects`, Vision instance masks).
@@ -163,6 +163,15 @@ Logs in `build/soak-results*.txt` (not committed).
 7. **Warning on quit.** Open two duplicated copies of E1 Screenshot.png, Auto-Redact each (Solid Fill, Apply), then ⌘Q. Expect the message on each window in turn; after the second answer, Colorbee quits. Reopen both: the redactions are there.
 
 ## Not yet checked by hand
+
+**Appearance setting (2026-10-04): not yet tested.** Use `TestImages/Stage 10/Three Page Test.pdf` or any image.
+1. **The General tab.** Colorbee ▸ Settings… (⌘,): the tabs are General, Shortcuts and Export Presets, and it opens on General. Appearance shows System | Light | Dark with System chosen, and "Open PDFs at" is below it.
+2. **Dark at once.** With a document open, choose Dark. The document window (toolbar, palette bar, page sidebar, status bar and the gray around the image) and the Settings window turn dark straight away. The image itself doesn't change.
+3. **Light at once.** Choose Light: everything turns light straight away, even if your Mac is in Dark mode.
+4. **Sheets.** With Dark chosen, open Effects ▸ Auto-Redact…: the sheet is dark too. Cancel.
+5. **Remembered, no flash.** With Dark chosen, quit and relaunch Colorbee: the first window opens dark, with no flash of light first.
+6. **System follows macOS live.** Choose System. In System Settings ▸ Appearance, switch your Mac between Light and Dark: Colorbee follows each time, without a relaunch.
+7. **Last tab remembered.** Click Shortcuts, close Settings, reopen it: it's still on Shortcuts.
 
 **Stage 10b PDF output and Auto-Redact on every page (2026-10-04): all steps (1–9, 9a), and the Rectangle Select starting tool, passed Leah's hand test on 2026-10-04.** Use
 `TestImages/Stage 10/Three Page Test.pdf` (each page has a made-up email and phone number), and

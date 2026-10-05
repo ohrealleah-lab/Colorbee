@@ -456,7 +456,7 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 
 ---
 
-### FR-11.6 Pages and PDF documents (stage 10, planned)
+### FR-11.6 Pages and PDF documents (stage 10)
 Bee edits typical documents (letter or A4, 10–50 pages) and needs to annotate or redact most pages in one session.
 Any Colorbee document can have pages, so Colorbee can also make its own PDFs from images.
 
@@ -480,10 +480,12 @@ Any Colorbee document can have pages, so Colorbee can also make its own PDFs fro
   (visible layers, as shown), at its resolution: a PDF's pages keep the resolution they were opened at; other
   pages count as 144 DPI (Retina screenshots), so a 1440-pixel-wide screenshot makes a 10-inch-wide page.
   Pixels only, so no hidden text survives under a redaction; the text isn't selectable or searchable.
+  Pages are compressed losslessly, and the file holds no metadata: no title, author, app name or dates.
 - **Image export** (Export, export presets, Copy, Share, Print) works on the page being viewed.
 - **Saving:** `.colorproj` holds every page; projects saved before pages open as one page.
-- **Auto-Redact** scans every page (or just the selection, if there is one), with one review list grouped by
-  page ("Page 3: 2 items"); Apply redacts every checked item on every page, as one step per page.
+- **Auto-Redact** scans every page (or just the selection on the page being viewed, if there is one), with one
+  review list grouped by page ("Page 3 · 2 items"); clicking an item shows its page with the item in view. Apply
+  redacts every checked item on every page, as one step per page.
   Batch Redact works on the page being viewed.
 - **Memory:** a letter page at 300 DPI is about 34 MB, so pages not on screen are kept compressed, as history
   does with layers it holds.
@@ -682,6 +684,8 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-04 | Stage 10b (Leah): clicking an Auto-Redact item shows its page with the item in view; Export as PDF is lossless only; the PDF has no metadata at all (no title, author, app name or dates); with a selection, Auto-Redact reads just that area on the page being viewed. |
+| 2026-10-04 | Stage 10b choices (veto any): transparent areas come out white in an exported PDF, as PDF viewers show them. Export as PDF has no shortcut. The PDF resolution is a new **PDFs** tab in Settings. Auto-Redact reads the pages in order, showing "Reading page 2 of 3…"; Apply waits until every page is read, and Cancel is greyed out while it redacts. Items are numbered within each page. Clicking an item keeps the zoom and only scrolls if its box isn't already in view. If any page changed since it was read, or has a locked layer under a box, nothing is redacted on any page and the message names the page. |
 | 2026-10-04 | Right-clicking a page thumbnail (Leah): shows that page first, so New, Duplicate and Delete Page in its menu act on the page clicked, as in Preview. |
 | 2026-10-04 | Stage 10a choices (veto any): pages have their own **Page** menu, after Layer. Previous and Next Page are ⌥⌘↑ and ⌥⌘↓ (as in Preview); View ▸ Page Sidebar is ⌥⌘2. The sidebar only appears once a document has two or more pages, and hiding it is remembered with the window. Adding, deleting and moving pages can be undone with ⌘Z until the page shown is edited; after that ⌘Z undoes that page's edits. Before/After's "Last Saved" and Revert Layer compare with the page as it was at the last save. Opening a project shows the page that was shown when it was saved. Opening a PDF makes an untitled copy that saves as a .colorproj. |
 | 2026-10-04 | Pages (Leah): the page sidebar is on the left; the PDF resolution is a setting (200 DPI by default); ⌘Z undoes the last change on the page being viewed, each page keeping its own edits; any document can have pages, so Colorbee can make PDFs from images; Auto-Redact on every page has one review list grouped by page. Multi-page TIFFs and animated GIFs open with every frame as a page, replacing the frame bar. See FR-11.6. (Veto any, Claude's choices: New Page is filled with Color 2; non-PDF pages export at 144 DPI; Batch Redact works on the page being viewed.) |

@@ -54,18 +54,9 @@ extension AutoRedact {
     /// text needs (finding 3). If a locked layer has pixels under a box, nothing is redacted.
     public static func apply(_ matches: [RedactionMatch], treatment: RedactionTreatment, fill: Pixel,
                              canvas: Canvas, history: History) -> Outcome {
-        let boxes = matches.map { $0.rect.intersection(canvas.bounds) }.filter { !$0.isEmpty }
-        func hasPixels(_ layer: Layer, in rect: IntRect) -> Bool {
-            for y in rect.minY..<rect.maxY {
-                let row = layer.buffer.row(y)
-                for x in rect.minX..<rect.maxX where row[x].a > 0 { return true }
-            }
-            return false
-        }
+        if let locked = lockedLayer(under: matches, canvas: canvas) { return .locked(layerName: locked.name) }
+        let boxes = boxes(of: matches, canvas: canvas)
         let pixelLayers = canvas.layers.filter { $0.adjustment == nil }
-        if let locked = pixelLayers.first(where: { layer in layer.isLocked && boxes.contains { hasPixels(layer, in: $0) } }) {
-            return .locked(layerName: locked.name)
-        }
         let edit = history.beginEdit("Auto-Redact", on: canvas)
         for box in boxes {
             let strength = max(6, Double(box.height) / 3)
@@ -80,5 +71,26 @@ extension AutoRedact {
             }
         }
         return history.commit(edit) ? .redacted : .nothingChanged
+    }
+
+    /// The first locked layer with pixels under an item's box: Apply would stop there, so it's checked on every
+    /// page before any is redacted.
+    public static func lockedLayer(under matches: [RedactionMatch], canvas: Canvas) -> Layer? {
+        let boxes = boxes(of: matches, canvas: canvas)
+        return canvas.layers.first { layer in
+            layer.adjustment == nil && layer.isLocked && boxes.contains { hasPixels(layer, in: $0) }
+        }
+    }
+
+    private static func boxes(of matches: [RedactionMatch], canvas: Canvas) -> [IntRect] {
+        matches.map { $0.rect.intersection(canvas.bounds) }.filter { !$0.isEmpty }
+    }
+
+    private static func hasPixels(_ layer: Layer, in rect: IntRect) -> Bool {
+        for y in rect.minY..<rect.maxY {
+            let row = layer.buffer.row(y)
+            for x in rect.minX..<rect.maxX where row[x].a > 0 { return true }
+        }
+        return false
     }
 }

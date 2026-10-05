@@ -40,7 +40,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 8. Hardening | ✅ Done | Medium |
 | 9. Photo editing | ✅ Done | High |
 | 10a. Pages | ✅ Done | High |
-| 10b. PDF output, Auto-Redact on every page | Next | High |
+| 10b. PDF output, Auto-Redact on every page | Built, waiting for Leah's hand test | High |
 
 ## What's built
 
@@ -131,7 +131,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 
 **10 Pages and PDF documents (FR-11.6)** — decisions made 2026-10-04 (§23).
 - 10a built 2026-10-04: pages in core (`Page`, `PageStack`, project format 2, `PDFPages`), the page sidebar (`PageSidebar`), the Page menu, and PDFs, multi-page TIFFs and animated GIFs opening with every page. The frame bar is gone.
-- 10b next: File ▸ Export as PDF…, Auto-Redact on every page (one list grouped by page), and the PDF resolution setting in Settings (150, 200 or 300 DPI; 200 for now).
+- 10b built 2026-10-04: File ▸ Export as PDF… (`PDFWriter`, hand-written so it has no metadata), Auto-Redact on every page (`AutoRedactSession.pages`), and Settings ▸ PDFs.
 
 **9 Photo editing and presentation (FR-9.5)** — done; tested by hand 2026-10-03.
 - 9a tone adjustments and effects (`Levels`, `Curves`, `Histogram`, `ColorLookup`, `Effects+Texture`); 9b Adjust Photo, Auto and filters (`PhotoAdjustments`, `PhotoAuto`, `PhotoFilter`, `FilterStore`, `adjust_photo_fragment`); 9c Drop Shadow, Border, Spotlight (`Decorations`); 9d Straighten, Perspective Correction, Crop… (`Warp`, `CropBox`, `CropOptions`, canvas-tool drags in `CanvasView`); 9e Remove Background, Lift Subject, Select Subject (`Subjects`, Vision instance masks).
@@ -163,6 +163,19 @@ Logs in `build/soak-results*.txt` (not committed).
 7. **Warning on quit.** Open two duplicated copies of E1 Screenshot.png, Auto-Redact each (Solid Fill, Apply), then ⌘Q. Expect the message on each window in turn; after the second answer, Colorbee quits. Reopen both: the redactions are there.
 
 ## Not yet checked by hand
+
+**Stage 10b PDF output and Auto-Redact on every page (2026-10-04): not yet tested.** Use
+`TestImages/Stage 10/Three Page Test.pdf` (each page has a made-up email and phone number), and
+`E1 Screenshot.png` from `~/Downloads/colorbee tests/`. Color 1 should be black.
+1. **Reads every page.** Open Three Page Test.pdf, Effects ▸ Auto-Redact…. It says "Reading page 1 of 3…" with a progress bar, then lists 6 items under "Page 1 · 2 items", "Page 2 · 2 items" and "Page 3 · 2 items": an Email and a Phone on each.
+2. **Click to see.** Click the alex.morgan@example.org row (not its checkbox): the row is highlighted, and the canvas behind the sheet shows page 2 with that email outlined.
+3. **Apply to every page.** Uncheck page 3's Phone. Solid Fill, Apply to 5 Items. The sheet closes. Pages 1 and 2 have their email and phone blacked out; page 3 has its email blacked out and its phone still showing. The thumbnails show it too.
+4. **Undo is per page.** On page 2, ⌘Z: page 2's redaction comes back off; page 1 stays redacted. ⇧⌘Z puts it back.
+5. **Just the selection.** Open the PDF again (a fresh copy). On page 1, draw a selection box around the email only, then Auto-Redact…: it lists just that one email, with no page headings.
+6. **Locked layer stops everything.** Fresh copy of the PDF. Go to page 2, lock its layer in the Layers panel (⌘L), go back to page 1, Auto-Redact…, Apply. A message says page 2's layer is locked; nothing is redacted on any page.
+7. **Export as PDF.** Redact the PDF (step 3), then File ▸ Export as PDF… and save it. Open it in Preview: 3 letter-size pages in order, redactions black. Text can't be selected. In Preview, Tools ▸ Show Inspector: no title, author, creator or producer.
+8. **Images become a PDF.** Open E1 Screenshot.png, Page ▸ New Page, then File ▸ Export as PDF…. In Preview, page 1 is the screenshot and page 2 is blank (Color 2).
+9. **Resolution setting.** Colorbee ▸ Settings ▸ PDFs, choose 300 DPI, then open Three Page Test.pdf again: the status bar says 2550 × 3300 px. Set it back to 200 DPI afterwards.
 
 **Stage 10a pages (2026-10-04): all 11 steps passed Leah's hand test on 2026-10-04.** Test files: `TestImages/Stage 10/Three Page Test.pdf`
 (made up names, emails and phone numbers, one person per page), `TestImages/Round 3/Two Pages.tiff`, and

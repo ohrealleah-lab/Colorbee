@@ -248,26 +248,50 @@ extension RedactionTreatment {
     }
 }
 
-/// An Auto-Redact review in progress (FR-9.3).
+/// An Auto-Redact review in progress (FR-9.3): every page, or the selection on the page shown (FR-11.6).
 struct AutoRedactSession {
+    /// One page that was read, and what was found on it.
+    struct PageResult {
+        let pageID: UUID
+        /// The page as it was read; Apply refuses if it has changed since (review E, finding 2).
+        let revision: Int
+        let canvasSize: IntSize
+        var scan: TextScan?
+        var matches: [RedactionMatch] = []
+    }
+
     /// Tells this run's scan from an earlier run's that finishes late.
     let id = UUID()
-    /// The area searched: the selection, or nil for the whole image.
+    /// The area searched on the page shown: the selection, or nil for whole pages.
     let region: SelectionMask?
-    /// The image as it was read; Apply refuses if it has changed since (review E, finding 2).
-    let revision: Int
-    let canvasSize: IntSize
-    /// Why Apply couldn't redact (the image changed, or a layer is locked).
+    /// Some page read has more than one layer, so hidden layers matter.
+    let anyLayered: Bool
+    /// In page order.
+    var pages: [PageResult]
+    /// Why Apply couldn't redact (a page changed, or a layer is locked).
     var problem: String?
-    var scan: TextScan?
     var failure: String?
-    var matches: [RedactionMatch] = []
     /// Matches the person unchecked to keep visible.
     var keptVisible: Set<UUID> = []
     var treatment: RedactionTreatment = .solidFill
+    /// The match last clicked in the list.
+    var focused: UUID?
+    /// While Apply works through the pages: how many are done, of how many.
+    var applying: (done: Int, total: Int)?
 
-    var isReading: Bool { scan == nil && failure == nil }
+    var isReading: Bool { failure == nil && pages.contains { $0.scan == nil } }
+    var pagesRead: Int { pages.count { $0.scan != nil } }
+    var isMultiPage: Bool { pages.count > 1 }
+    var matches: [RedactionMatch] { pages.flatMap(\.matches) }
     var selectedMatches: [RedactionMatch] { matches.filter { !keptVisible.contains($0.id) } }
+
+    func matches(onPage id: UUID) -> [RedactionMatch] {
+        pages.first { $0.pageID == id }?.matches ?? []
+    }
+
+    func selectedMatches(onPage id: UUID) -> [RedactionMatch] {
+        matches(onPage: id).filter { !keptVisible.contains($0.id) }
+    }
 }
 
 /// The Before/After view's settings (FR-11.3).
@@ -2885,7 +2909,7 @@ final class Editor {
 
     // MARK: Auto-Redact
 
-    /// Reads the text in the selection (or the whole image) on this Mac and opens the review.
+    /// Reads the text on every page (or in the selection on the page shown) on this Mac and opens the review.
     func beginAutoRedact() {
         // Every layer is redacted, so the active one being locked doesn't matter here; Apply checks the layers
         // under the boxes.
@@ -2895,36 +2919,65 @@ final class Editor {
         // A selection can reach past the canvas; only the canvas is read (Leah's crash, 2026-10-04).
         let area = (region?.bounds ?? canvas.bounds).intersection(canvas.bounds)
         guard !area.isEmpty else { return onRefused() }
-        let session = AutoRedactSession(region: region, revision: history.revision, canvasSize: canvas.size)
+        // A selection is on the page shown, so only that page is read then (Leah, 2026-10-04).
+        let read = region == nil ? pages.pages : [page]
+        let session = AutoRedactSession(
+            region: region,
+            anyLayered: read.contains { $0.canvas.layers.count > 1 },
+            pages: read.map { .init(pageID: $0.id, revision: $0.history.revision, canvasSize: $0.canvas.size) }
+        )
         autoRedact = session
         onRender()
-        // The image is flattened from a copy in the background, not on the main thread (review E, finding 6).
-        let copy = UnsafeTransfer(canvas.copy())
+        // Each page is flattened from a copy (or its parked bytes) in the background, not on the main thread
+        // (review E, finding 6), one page at a time so only one is held in full.
+        let sources = read.map { page in
+            page.parked.map(PageSource.parked) ?? .canvas(UnsafeTransfer(page.canvas.copy()))
+        }
         Task { [weak self] in
-            do {
-                let image = try await Task.detached(priority: .userInitiated) {
-                    let flattened = copy.value.flattened()
-                    let cropped = PixelBuffer(width: area.width, height: area.height)
-                    cropped.setPixels(flattened.pixels(in: area), in: cropped.bounds)
-                    return UnsafeTransfer(try ImageCodec.makeCGImage(cropped, colorSpace: copy.value.colorSpace))
-                }.value
-                let scan = try await TextScan.read(image.value, offset: IntPoint(x: area.minX, y: area.minY))
-                // A scan from a run that was cancelled mustn't fill in a newer one (review E, finding 2).
-                guard let self, self.autoRedact?.id == session.id else { return }
-                self.autoRedact?.scan = scan
-                self.refreshAutoRedactMatches()
-            } catch {
-                guard self?.autoRedact?.id == session.id else { return }
-                self?.autoRedact?.failure = error.localizedDescription
+            for (index, source) in sources.enumerated() {
+                do {
+                    let image = try await Task.detached(priority: .userInitiated) {
+                        let canvas = try source.canvas()
+                        let area = index == 0 && region != nil ? area : canvas.bounds
+                        let cropped = PixelBuffer(width: area.width, height: area.height)
+                        cropped.setPixels(canvas.flattened().pixels(in: area), in: cropped.bounds)
+                        return (UnsafeTransfer(try ImageCodec.makeCGImage(cropped, colorSpace: canvas.colorSpace)), area.minX, area.minY)
+                    }.value
+                    let scan = try await TextScan.read(image.0.value, offset: IntPoint(x: image.1, y: image.2))
+                    // A scan from a run that was cancelled mustn't fill in a newer one (review E, finding 2).
+                    guard let self, self.autoRedact?.id == session.id else { return }
+                    self.autoRedact?.pages[index].scan = scan
+                    self.refreshAutoRedactMatches()
+                } catch {
+                    guard self?.autoRedact?.id == session.id else { return }
+                    self?.autoRedact?.failure = error.localizedDescription
+                    return
+                }
+            }
+        }
+    }
+
+    /// Where a page's pixels come from for reading: the page shown, copied, or a parked page's bytes.
+    private enum PageSource: Sendable {
+        case canvas(UnsafeTransfer<Canvas>)
+        case parked(Data)
+
+        func canvas() throws -> Canvas {
+            switch self {
+            case .canvas(let copy): copy.value
+            case .parked(let data): try ProjectFile.decode(data)
             }
         }
     }
 
     private func refreshAutoRedactMatches() {
-        guard let session = autoRedact, let scan = session.scan else { return }
-        let matches = AutoRedact.matches(scan.matches(for: redactionPatterns), touching: session.region)
-        autoRedact?.matches = matches
-        autoRedact?.keptVisible.formIntersection(matches.map(\.id))
+        guard let session = autoRedact else { return }
+        for (index, result) in session.pages.enumerated() {
+            guard let scan = result.scan else { continue }
+            autoRedact?.pages[index].matches = AutoRedact.matches(scan.matches(for: redactionPatterns), touching: session.region)
+        }
+        let found = autoRedact?.matches.map(\.id) ?? []
+        autoRedact?.keptVisible.formIntersection(found)
         onRender()
     }
 
@@ -2937,27 +2990,106 @@ final class Editor {
         autoRedact?.treatment = treatment
     }
 
-    /// Redacts every checked match in one step, on every layer under it (review E, findings 1, 3 and 4).
-    func applyAutoRedact() {
-        guard let session = autoRedact else { return }
-        guard history.revision == session.revision, canvas.size == session.canvasSize else {
-            autoRedact?.problem = "The image changed after it was read. Cancel and run Auto-Redact again."
-            return
+    /// The page number (from 1) of a page, for the review.
+    func pageNumber(of id: UUID) -> Int? {
+        pages.pages.firstIndex { $0.id == id }.map { $0 + 1 }
+    }
+
+    /// Clicking an item in the review: shows its page, and scrolls its box into view (Leah, 2026-10-04).
+    func focusRedactionMatch(_ id: UUID) {
+        guard let session = autoRedact, session.applying == nil,
+              let result = session.pages.first(where: { $0.matches.contains { $0.id == id } }),
+              let match = result.matches.first(where: { $0.id == id }),
+              let number = pageNumber(of: result.pageID) else { return }
+        autoRedact?.focused = id
+        showPage(at: number - 1)
+        let box = match.rect
+        let corners = [viewport.viewPoint(fromImage: Point2D(x: Double(box.minX), y: Double(box.minY))),
+                       viewport.viewPoint(fromImage: Point2D(x: Double(box.maxX), y: Double(box.maxY)))]
+        let inView = corners.allSatisfy { $0.x >= 0 && $0.y >= 0 && $0.x <= viewport.viewSize.width && $0.y <= viewport.viewSize.height }
+        if !inView {
+            updateViewport { $0.center = Point2D(x: Double(box.minX + box.maxX) / 2, y: Double(box.minY + box.maxY) / 2) }
         }
-        var outcome = AutoRedact.Outcome.nothingChanged
-        recordingChanges {
-            outcome = AutoRedact.apply(session.selectedMatches, treatment: session.treatment, fill: color1, canvas: canvas, history: history)
-        }
-        if case .locked(let name) = outcome {
-            autoRedact?.problem = "“\(name)” is locked. Cancel, unlock it and run Auto-Redact again; nothing was redacted."
-            return
-        }
-        if outcome == .redacted { noteRedaction() }
-        autoRedact = nil
         onRender()
     }
 
+    /// Redacts every checked match, one step on each page, on every layer under it (review E, findings 1, 3 and
+    /// 4). Nothing is redacted if any page changed since it was read or has a locked layer under a box.
+    func applyAutoRedact() {
+        guard let session = autoRedact, !session.isReading, session.applying == nil else { return }
+        let targets = session.pages.compactMap { result -> (page: Page, result: AutoRedactSession.PageResult, matches: [RedactionMatch])? in
+            let matches = session.selectedMatches(onPage: result.pageID)
+            guard !matches.isEmpty, let page = pages.pages.first(where: { $0.id == result.pageID }) else { return nil }
+            return (page, result, matches)
+        }
+        func onPage(_ page: Page) -> String {
+            session.isMultiPage ? "On page \(pageNumber(of: page.id) ?? 0), " : ""
+        }
+        for target in targets where target.page.history.revision != target.result.revision || target.page.canvas.size != target.result.canvasSize {
+            let what = session.isMultiPage ? "Page \(pageNumber(of: target.page.id) ?? 0)" : "The image"
+            autoRedact?.problem = "\(what) changed after it was read. Cancel and run Auto-Redact again."
+            return
+        }
+        for target in targets {
+            let locked: Layer?
+            do { locked = try lockedLayer(under: target.matches, on: target.page) } catch {
+                autoRedact?.problem = "Couldn't check page \(pageNumber(of: target.page.id) ?? 0): \(error.localizedDescription)"
+                return
+            }
+            if let locked {
+                autoRedact?.problem = "\(onPage(target.page))“\(locked.name)” is locked. Cancel, unlock it and run Auto-Redact again; nothing was redacted."
+                return
+            }
+        }
+        autoRedact?.applying = (0, targets.count)
+        Task { [weak self] in
+            guard let self else { return }
+            var redacted = false, changedOtherPages = false
+            for (done, target) in targets.enumerated() {
+                let apply = { AutoRedact.apply(target.matches, treatment: session.treatment, fill: self.color1,
+                                               canvas: target.page.canvas, history: target.page.history) }
+                if target.page === page {
+                    recordingChanges { redacted = apply() == .redacted || redacted }
+                } else {
+                    // Another page is brought back just long enough to redact it, then compressed again.
+                    do {
+                        try target.page.unpark()
+                        redacted = apply() == .redacted || redacted
+                        try target.page.park()
+                        changedOtherPages = true
+                    } catch {
+                        autoRedact?.problem = "Couldn't redact page \(pageNumber(of: target.page.id) ?? 0): \(error.localizedDescription)"
+                        break
+                    }
+                }
+                autoRedact?.applying = (done + 1, targets.count)
+                // Lets the review show its progress between pages.
+                try? await Task.sleep(for: .milliseconds(1))
+            }
+            if changedOtherPages {
+                pages.noteEdit()
+                undone = []
+                onDocumentChange(.done)
+                layersRevision += 1
+            }
+            if redacted { noteRedaction() }
+            if autoRedact?.problem == nil { autoRedact = nil } else { autoRedact?.applying = nil }
+            onRender()
+        }
+    }
+
+    /// The first locked layer with pixels under `matches` on `page`. A parked page with no locked layer at all
+    /// isn't brought back to look.
+    private func lockedLayer(under matches: [RedactionMatch], on page: Page) throws -> Layer? {
+        guard page.canvas.layers.contains(where: { $0.isLocked && $0.adjustment == nil }) else { return nil }
+        guard page.isParked else { return AutoRedact.lockedLayer(under: matches, canvas: page.canvas) }
+        try page.unpark()
+        defer { try? page.park() }
+        return AutoRedact.lockedLayer(under: matches, canvas: page.canvas)
+    }
+
     func cancelAutoRedact() {
+        guard autoRedact?.applying == nil else { return }
         autoRedact = nil
         onRender()
     }

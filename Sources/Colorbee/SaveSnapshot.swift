@@ -1,5 +1,6 @@
 import ColorbeeCore
 import Foundation
+import Synchronization
 
 /// Everything saving or exporting needs. Made from a copy of the canvas, it can be encoded off the
 /// main thread while editing carries on (NFR-6); nothing else holds the copy.
@@ -31,6 +32,38 @@ struct SaveSnapshot: @unchecked Sendable {
         pages.insert(ProjectFile.StoredPage(project: shown, resolution: pageResolution, thumbnail: canvas.thumbnail(maxSide: 160)),
                      at: min(currentIndex, pages.count))
         return try ProjectFile.encode(stored: pages, currentIndex: currentIndex)
+    }
+
+    /// Every page as a PDF page, at its own resolution (FR-11.6). Pages are flattened and compressed four at a
+    /// time: enough to use the cores, without holding dozens of full-size pages at once.
+    func encodedPDF() throws -> Data {
+        var order: [ProjectFile.StoredPage?] = otherPages.sorted { $0.index < $1.index }.map(\.page)
+        order.insert(nil, at: min(currentIndex, order.count))
+        let encoded = Mutex<[Int: PDFWriter.EncodedPage]>([:])
+        let failure = Mutex<(any Error)?>(nil)
+        let lanes = min(4, order.count)
+        DispatchQueue.concurrentPerform(iterations: lanes) { lane in
+            for index in stride(from: lane, to: order.count, by: lanes) {
+                do {
+                    let page = try pdfPage(order[index])
+                    encoded.withLock { $0[index] = page }
+                } catch {
+                    failure.withLock { $0 = error }
+                }
+            }
+        }
+        if let error = failure.withLock({ $0 }) { throw error }
+        return encoded.withLock { pages in PDFWriter.document(order.indices.compactMap { pages[$0] }) }
+    }
+
+    /// One page for the PDF: the page shown (nil) as it is now, or another as it's parked.
+    private func pdfPage(_ stored: ProjectFile.StoredPage?) throws -> PDFWriter.EncodedPage {
+        guard let stored else {
+            return PDFWriter.encodePage(canvas.flattened(transparentKey: transparentKey, resampling: resampling),
+                                        colorSpace: canvas.colorSpace, resolution: pageResolution)
+        }
+        let page = try ProjectFile.decode(stored.project)
+        return PDFWriter.encodePage(page.flattened(), colorSpace: page.colorSpace, resolution: stored.resolution)
     }
 
     /// A PNG scaled by an export preset, with the chosen scaling or the one that suits the image's size.

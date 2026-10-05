@@ -393,6 +393,18 @@ final class ImageDocument: NSDocument {
         }
     }
 
+    /// Every page, in order, as a PDF (FR-11.6).
+    @IBAction func exportPDF(_ sender: Any?) {
+        guard let editor, let window = windowForSheet else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = (displayName as NSString).deletingPathExtension
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.export(editor.saveSnapshot(), to: url) { try $0.encodedPDF() }
+        }
+    }
+
     /// Encodes and writes in the background, so a large image doesn't stall the window (NFR-6).
     private func export(_ snapshot: SaveSnapshot, to url: URL, encode: @escaping @Sendable (SaveSnapshot) throws -> Data) {
         Task.detached(priority: .userInitiated) {

@@ -104,6 +104,10 @@ struct AutoRedactApplyTests {
         #expect(AutoRedact.apply([match(box)], treatment: .solidFill, fill: .black, canvas: canvas, history: history) == .locked(layerName: "Background"))
         #expect(canvas.flattened().contentHash() == before)
         #expect(history.revision == revision)
+        // Checked on its own before redacting any page (stage 10b).
+        #expect(AutoRedact.lockedLayer(under: [match(box)], canvas: canvas)?.name == "Background")
+        canvas.layers[0].isLocked = false
+        #expect(AutoRedact.lockedLayer(under: [match(box)], canvas: canvas) == nil)
     }
 
     @Test func aLockedLayerWithNothingUnderTheBoxesDoesntMatter() {

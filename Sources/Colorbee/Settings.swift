@@ -98,9 +98,34 @@ private struct SettingsView: View {
             ExportPresetSettings(store: ExportPresetStore.shared)
                 .tabItem { Label("Export Presets", systemImage: "square.and.arrow.up") }
                 .tag("exports")
+            PDFSettings()
+                .tabItem { Label("PDFs", systemImage: "doc.richtext") }
+                .tag("pdfs")
         }
         .padding(20)
         .frame(width: 640, height: 560)
+    }
+}
+
+/// The resolution PDFs open at (FR-11.6). It's read when a PDF opens, so it changes the next one.
+private struct PDFSettings: View {
+    @AppStorage("PDFResolution") private var resolution = 200.0
+
+    var body: some View {
+        Form {
+            Picker("Open PDFs at", selection: $resolution) {
+                Text("150 DPI · smaller, faster").tag(150.0)
+                Text("200 DPI · recommended").tag(200.0)
+                Text("300 DPI · sharpest, uses more memory").tag(300.0)
+            }
+            .pickerStyle(.radioGroup)
+            Text("Each PDF page becomes an image at this resolution. A letter page is 1700 × 2200 pixels at 200 DPI. "
+                 + "It applies to PDFs opened from now on; open ones keep their resolution, and Export as PDF keeps each page's.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .formStyle(.grouped)
     }
 }
 

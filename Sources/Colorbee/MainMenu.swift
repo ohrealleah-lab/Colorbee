@@ -42,6 +42,7 @@ enum MainMenu {
         "duplicateDocument:": "Open a copy of this image in a new window.",
         "revertDocumentToSaved:": "Throw away changes since the last save.",
         "exportDocument:": "Save a copy in any format, with a quality setting for JPEG and HEIC.",
+        "exportPDF:": "Save every page as a PDF, in order. Pixels only: no text under a redaction, and no details about who made it.",
         "exportPreset:": "Save a PNG at this exact size; the aspect ratio is kept and nothing is enlarged.",
         "undo:": "Undo the last change.",
         "redo:": "Redo the change you just undid.",
@@ -181,6 +182,7 @@ enum MainMenu {
         menu.addItem(item("Revert To Saved", "revertDocumentToSaved:"))
         menu.addItem(.separator())
         menu.addItem(item("Export…", "exportDocument:", "s", [.command, .option]))
+        menu.addItem(item("Export as PDF…", "exportPDF:"))
         let presets = NSMenu(title: "Export As")
         // Filled in when it opens, from the presets in Settings.
         presets.delegate = ExportPresetMenuTitles.shared

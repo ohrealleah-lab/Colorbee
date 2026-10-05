@@ -9,7 +9,7 @@ struct AutoRedactSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             header
             // Hiding a layer is how a part is kept out of redaction (Leah; review H, finding 4).
-            if editor.canvas.layers.count > 1 {
+            if editor.autoRedact?.anyLayered == true {
                 Label("Only visible layers were checked. Text on a hidden layer, or covered by another layer, isn't found.",
                       systemImage: "eye")
                     .font(.callout)
@@ -48,36 +48,66 @@ struct AutoRedactSheet: View {
     private var status: String {
         guard let session = editor.autoRedact else { return "" }
         if let problem = session.problem { return problem }
-        if session.isReading { return "Reading text…" }
+        if let applying = session.applying {
+            return session.isMultiPage ? "Redacting page \(min(applying.done + 1, applying.total)) of \(applying.total)…" : "Redacting…"
+        }
+        if session.isReading {
+            return session.isMultiPage ? "Reading page \(session.pagesRead + 1) of \(session.pages.count)…" : "Reading text…"
+        }
         if let failure = session.failure { return "Couldn't read the text: \(failure)" }
-        if session.matches.isEmpty { return "No sensitive text found" + (session.region == nil ? "." : " in the selection.") }
+        if session.matches.isEmpty {
+            if session.isMultiPage { return "No sensitive text found on any page." }
+            return "No sensitive text found" + (session.region == nil ? "." : " in the selection.")
+        }
         let count = session.matches.count
-        return "Found \(count) item\(count == 1 ? "" : "s"). Uncheck anything you want to keep visible."
+        let items = "\(count) item\(count == 1 ? "" : "s")"
+        guard session.isMultiPage else { return "Found \(items). Uncheck anything you want to keep visible." }
+        let pageCount = session.pages.count { !$0.matches.isEmpty }
+        return "Found \(items) on \(pageCount) page\(pageCount == 1 ? "" : "s"). Click one to see it; uncheck anything to keep visible."
     }
 
     @ViewBuilder
     private func content(_ session: AutoRedactSession) -> some View {
-        if session.isReading {
+        if let applying = session.applying {
+            ProgressView(value: Double(applying.done), total: Double(max(applying.total, 1)))
+        } else if session.isReading && session.isMultiPage {
+            ProgressView(value: Double(session.pagesRead), total: Double(session.pages.count))
+        } else if session.isReading {
             ProgressView()
                 .frame(maxWidth: .infinity)
-        } else if !session.matches.isEmpty {
+        }
+        if !session.matches.isEmpty {
             ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(Array(session.matches.enumerated()), id: \.element.id) { index, match in
-                        MatchRow(
-                            number: index + 1,
-                            match: match,
-                            included: Binding(
-                                get: { !(editor.autoRedact?.keptVisible.contains(match.id) ?? false) },
-                                set: { editor.setRedactionMatch(match.id, included: $0) }
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(session.pages.filter { !$0.matches.isEmpty }, id: \.pageID) { result in
+                        if session.isMultiPage {
+                            let count = result.matches.count
+                            Text("Page \(editor.pageNumber(of: result.pageID) ?? 0) · \(count) item\(count == 1 ? "" : "s")")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 10)
+                                .padding(.top, 8)
+                                .padding(.bottom, 2)
+                        }
+                        ForEach(Array(result.matches.enumerated()), id: \.element.id) { index, match in
+                            MatchRow(
+                                number: index + 1,
+                                match: match,
+                                isFocused: session.focused == match.id,
+                                included: Binding(
+                                    get: { !(editor.autoRedact?.keptVisible.contains(match.id) ?? false) },
+                                    set: { editor.setRedactionMatch(match.id, included: $0) }
+                                )
                             )
-                        )
-                        if index < session.matches.count - 1 { Divider() }
+                            .onTapGesture { editor.focusRedactionMatch(match.id) }
+                            if index < result.matches.count - 1 { Divider() }
+                        }
                     }
                 }
             }
-            .frame(maxHeight: 240)
+            .frame(maxHeight: session.isMultiPage ? 300 : 240)
             .background(.background.secondary, in: RoundedRectangle(cornerRadius: 8))
+            .disabled(session.applying != nil)
         }
     }
 
@@ -106,12 +136,14 @@ struct AutoRedactSheet: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
+            let busy = editor.autoRedact?.applying != nil
             Button("Cancel", role: .cancel) { editor.cancelAutoRedact() }
                 .keyboardShortcut(.cancelAction)
+                .disabled(busy)
             let count = editor.autoRedact?.selectedMatches.count ?? 0
             Button("Apply to \(count) Item\(count == 1 ? "" : "s")") { editor.applyAutoRedact() }
                 .keyboardShortcut(.defaultAction)
-                .disabled(count == 0 || editor.autoRedact?.problem != nil)
+                .disabled(count == 0 || busy || editor.autoRedact?.isReading != false || editor.autoRedact?.problem != nil)
         }
     }
 }
@@ -119,6 +151,7 @@ struct AutoRedactSheet: View {
 private struct MatchRow: View {
     let number: Int
     let match: RedactionMatch
+    let isFocused: Bool
     @Binding var included: Bool
 
     var body: some View {
@@ -146,6 +179,8 @@ private struct MatchRow: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
+        .background(isFocused ? Color.accentColor.opacity(0.15) : .clear)
+        .contentShape(Rectangle())
     }
 }
 

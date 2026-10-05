@@ -309,7 +309,7 @@ final class CanvasView: NSView {
 
     private var redactionHighlights: [(rect: IntRect, active: Bool)] {
         guard let session = editor.autoRedact else { return [] }
-        return session.matches.map { ($0.rect, !session.keptVisible.contains($0.id)) }
+        return session.matches(onPage: editor.page.id).map { ($0.rect, !session.keptVisible.contains($0.id)) }
     }
 
     private var comparisonScene: (before: PixelBuffer, layout: Comparison.Layout, dividerX: Double)? {

@@ -177,6 +177,10 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
+**Toolbar: Brushes and Shapes with the drawing tools (2026-10-05): not yet tested.** Any image.
+1. The toolbar's second group reads Pencil, Brushes, Shapes, Fill, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure, and the Size box sits in its own group next to it.
+2. Click Brushes and Shapes: their galleries open as before, and choosing one picks that tool.
+
 **Palette bar tidy-up (2026-10-05): not yet tested.** Any image.
 1. The palette bar has no Edit Colors… button and no palette menu: after the Alpha percentage comes a divider and the tool's own settings.
 2. Double-click Color 1: the Mac color picker opens, and choosing a color changes Color 1. The same for Color 2.

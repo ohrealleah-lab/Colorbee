@@ -28,8 +28,14 @@ private struct SelectingGroups: ToolbarContent {
                 .disabled(editor.activeEffect != nil)
         }
         ToolbarSpacer(.fixed)
+        // The drawing tools in one group, Brushes and Shapes beside the Pencil (Leah, 2026-10-05).
         ToolbarItemGroup {
-            ForEach([Tool.pencil, .fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure], id: \.self) {
+            ToolButton(tool: .pencil, editor: editor)
+            BrushGalleryButton(editor: editor)
+                .disabled(editor.activeEffect != nil)
+            ShapeGalleryButton(editor: editor)
+                .disabled(editor.activeEffect != nil)
+            ForEach([Tool.fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure], id: \.self) {
                 ToolButton(tool: $0, editor: editor)
             }
         }
@@ -37,18 +43,11 @@ private struct SelectingGroups: ToolbarContent {
     }
 }
 
-/// Brushes and shapes, size, and outline and fill.
+/// Size, and outline and fill.
 private struct PaintingGroups: ToolbarContent {
     let editor: Editor
 
     var body: some ToolbarContent {
-        ToolbarItemGroup {
-            BrushGalleryButton(editor: editor)
-                .disabled(editor.activeEffect != nil)
-            ShapeGalleryButton(editor: editor)
-                .disabled(editor.activeEffect != nil)
-        }
-        ToolbarSpacer(.fixed)
         ToolbarItem {
             SizeControl(editor: editor)
                 .disabled(editor.activeEffect != nil)

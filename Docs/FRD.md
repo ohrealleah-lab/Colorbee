@@ -64,9 +64,9 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 
 ### FR-1.1 Toolbar (always docked at the top)
 - **Selection:** Rectangle, Ellipse, Free-Form (lasso), Magic Wand; a Transparent Selection toggle.
-- **Tools:** Pencil, Fill Bucket, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure.
-- **Brushes:** a gallery of 9 brush types (FR-4.2).
-- **Shapes:** a gallery of 23 shapes (FR-5.1).
+- **Tools:** Pencil, Brushes, Shapes, Fill Bucket, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure, in one group.
+  - **Brushes:** a gallery of 9 brush types (FR-4.2).
+  - **Shapes:** a gallery of 23 shapes (FR-5.1).
 - **Size:** presets of 1, 2, 3, 4 and 5px plus a custom value (1–50px for brushes).
 - **Outline / Fill:** style pickers (FR-5.1).
 - **Layers toggle:** shows or hides the Layers panel. It shows the layer count when there's more than one layer.
@@ -721,6 +721,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-05 | Toolbar (Leah): Brushes and Shapes join the drawing tools' group, right after the Pencil, instead of a group of their own: they're all drawing tools. |
 | 2026-10-05 | Palette bar (Leah): **Edit Colors…** is removed, since double-clicking Color 1 or Color 2 opens the same color picker. **Palettes** are hidden, not removed: too much for the bar's space; the code stays and one switch (`PaletteStore.isShown`) brings the menu back. Colorbee keeps using the palette that was active (Paint Classic). |
 | 2026-10-05 | Review round 4 (Leah): Export as PDF converts pages with a non-standard color profile to Display P3, so no device or calibration name goes in (Display P3 and sRGB pages are kept as they are); after a redaction, the Clipboard History offer also covers copies made from the document. (Veto any, Claude's choices: an untitled document autosaves as a .colorproj, so nothing is lost on a relaunch, while the Save panel still starts on an image format; the History panel steps only the page shown, never a page change; Save, Export, Share, Print and Revert are greyed out behind any sheet or effect bar, and autosave waits while Auto-Redact is applying.) |
 | 2026-10-05 | Scrubbing number fields (Leah): drag up or down on a small number field to change it, **down for bigger** (changed the same day from up: the fields are at the top of the window, so pulling down feels like more), Shift for 5× faster: the toolbar's Size, the Alpha percentage, the Fill, Magic Wand and Color Eraser tolerances, and the Text tool's font size. Size limits stay (Brush and outlines 50 px, Eraser 100 px). (Veto any, Claude's choices: one step per 3 points of movement; a press only becomes a drag after 3 points, so a click still puts the cursor in a field to type; the pointer is an up-down arrow over these fields; dragging past a limit stops there, and dragging back changes the value at once.) |

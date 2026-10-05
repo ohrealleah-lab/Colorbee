@@ -174,6 +174,13 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
+**Remembered file formats (2026-10-05): not yet tested.** Any images will do, for example `TestImages/Stage 5a Practice.png`.
+1. **Save remembers.** File ▸ New, then ⌘S: choose JPEG in File Format and save it as "Format Test" on the Desktop. File ▸ New again, ⌘S: the panel starts on JPEG. Cancel.
+2. **A file keeps its own format.** Open Stage 5a Practice.png, File ▸ Save As…: the panel starts on PNG. Cancel.
+3. **Layers still save as a project.** File ▸ New, Layer ▸ New Layer, ⌘S: Colorbee Project. Cancel. File ▸ New (no layers), ⌘S: still JPEG.
+4. **Export… remembers separately.** In any image, File ▸ Export…: choose JPEG, Quality 70, export. Export… again: JPEG at 70. Choose TIFF with Compression None, export; Export… again: TIFF, None. A new image's ⌘S still starts on JPEG.
+5. **After a relaunch.** Quit and reopen Colorbee: ⌘S on a new image starts on JPEG, and Export… on TIFF, None.
+
 **Stage 12 RAW photos (2026-10-05): not yet tested.** Use `TestImages/Stage 12/Test Camera.dng`, then some of
 your own RAW files (CR3, ARW, NEF or RAF) and an iPhone photo (JPEG or HEIC).
 1. **Develop window.** File ▸ Open the DNG. A "Develop — Test Camera.dng" window shows the photo (a sky, a white sun, four colored squares) and, along the bottom, "Test Camera · Test Lens 50mm F2.8 · ISO 400 · 1/125 s · f/2.8 · 50 mm · 600 × 400". Temperature reads 6502 K. Noise Reduction, Sharpness and Lens Correction are greyed out for this file, labels included, with "Greyed-out controls aren't available for this photo." under them, and dragging those sliders does nothing (fixed 2026-10-05: the labels looked usable).

@@ -149,6 +149,11 @@ final class ImageDocument: NSDocument {
     override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,
                        completionHandler: @escaping (Error?) -> Void) {
         let explicit = saveOperation == .saveOperation || saveOperation == .saveAsOperation
+        // A format chosen in the Save panel for an image without layers is remembered for the next new image.
+        if saveOperation == .saveAsOperation || (saveOperation == .saveOperation && fileURL == nil),
+           MainActor.assumeIsolated({ editor?.isLayered != true }) {
+            UserDefaults.standard.set(typeName, forKey: Self.lastSaveFormatKey)
+        }
         // The copy is taken here, on the main thread, so the encoding can run in the background (NFR-6).
         let snapshot = MainActor.assumeIsolated { editor?.saveSnapshot() }
         snapshotLock.withLock { pendingSnapshot = snapshot }
@@ -257,6 +262,19 @@ final class ImageDocument: NSDocument {
     }
 
     /// A layered image can only be saved as a project; flat copies come from Export.
+    /// The format last chosen when saving an image without layers (Leah, 2026-10-05). It's where the Save panel
+    /// starts for a new or untitled image; a file keeps its own format, and a layered image saves as a project.
+    private static let lastSaveFormatKey = "LastSaveFormat"
+
+    override func runModalSavePanel(for saveOperation: NSDocument.SaveOperationType, delegate: Any?, didSave didSaveSelector: Selector?,
+                                    contextInfo: UnsafeMutableRawPointer?) {
+        if fileURL == nil, editor?.isLayered != true, let remembered = UserDefaults.standard.string(forKey: Self.lastSaveFormatKey),
+           writableTypes(for: saveOperation).contains(remembered) {
+            fileType = remembered
+        }
+        super.runModalSavePanel(for: saveOperation, delegate: delegate, didSave: didSaveSelector, contextInfo: contextInfo)
+    }
+
     override func writableTypes(for saveOperation: NSDocument.SaveOperationType) -> [String] {
         // AppKit asks on the main thread while setting up a save panel.
         let layered = MainActor.assumeIsolated { editor?.isLayered == true }
@@ -429,10 +447,24 @@ final class ImageDocument: NSDocument {
 @MainActor
 @Observable
 private final class ExportOptions {
-    var format: ImageFileFormat = .png
-    var quality = 0.9
+    private static let defaults = UserDefaults.standard
+
+    /// Export… starts with the format, quality and compression last used (Leah, 2026-10-05).
+    var format: ImageFileFormat = ExportOptions.rememberedFormat {
+        didSet { Self.defaults.set(format.type.identifier, forKey: "ExportFormat") }
+    }
+    var quality = ExportOptions.defaults.object(forKey: "ExportQuality") as? Double ?? 0.9 {
+        didSet { Self.defaults.set(quality, forKey: "ExportQuality") }
+    }
     /// Lossless and usually much smaller, so it's the default.
-    var tiffLZW = true
+    var tiffLZW = ExportOptions.defaults.object(forKey: "ExportTIFFLZW") as? Bool ?? true {
+        didSet { Self.defaults.set(tiffLZW, forKey: "ExportTIFFLZW") }
+    }
+
+    private static var rememberedFormat: ImageFileFormat {
+        let format = defaults.string(forKey: "ExportFormat").flatMap(UTType.init).flatMap(ImageFileFormat.init(type:))
+        return format.flatMap { $0.canWrite ? $0 : nil } ?? .png
+    }
     /// The image came from a camera or phone that recorded how it was taken (FR-11.8).
     var hasCameraDetails = false
     /// Off at first; remembered after that.

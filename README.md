@@ -50,7 +50,7 @@ Built in stages, each working end to end before the next starts, and tested by h
 
 ## Download
 
-Betas will be published as [GitHub Releases](https://github.com/ohrealleah-lab/Colorbee/releases), marked as pre-releases. Download the zip and read "Start Here.txt". Colorbee needs a Mac with Apple silicon and macOS 26.
+Betas are published as [GitHub Releases](https://github.com/ohrealleah-lab/Colorbee/releases), marked as pre-releases. Download the zip and read "Start Here.txt". Colorbee needs a Mac with Apple silicon and macOS 26.
 
 ## The product docs
 

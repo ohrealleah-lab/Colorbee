@@ -177,11 +177,11 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
-**Toolbar: Brushes and Shapes with the drawing tools (2026-10-05): not yet tested.** Any image.
+**Toolbar: Brushes and Shapes with the drawing tools (2026-10-05): passed Leah's hand test on 2026-10-05.** Any image.
 1. The toolbar's second group reads Pencil, Brushes, Shapes, Fill, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure, and the Size box sits in its own group next to it.
 2. Click Brushes and Shapes: their galleries open as before, and choosing one picks that tool.
 
-**Palette bar tidy-up (2026-10-05): not yet tested.** Any image.
+**Palette bar tidy-up (2026-10-05): passed Leah's hand test on 2026-10-05.** Any image.
 1. The palette bar has no Edit Colors… button and no palette menu: after the Alpha percentage comes a divider and the tool's own settings.
 2. Double-click Color 1: the Mac color picker opens, and choosing a color changes Color 1. The same for Color 2.
 3. Double-click an empty custom-color slot: the picker opens for that slot.
@@ -194,7 +194,7 @@ and one of your own large RAW files (the Nikon NEF in Downloads).
 3. **Develop's Cancel (L9).** Open your large RAW file, press Open, and while "Developing…" shows press Esc (or click Cancel): the window closes and no photo opens.
 4. **Reorder a long document (L13).** Make a PDF of 20 or more pages (as in batch B's step 5). Drag the thumbnail of page 15 up to the top of the sidebar and hold it there: the list scrolls up. Let go near the top: it becomes page 1 (or wherever you let go).
 
-**Review round 4, batch B (2026-10-05): steps 1–3 passed Leah's hand test on 2026-10-05; 4 and 5 failed and are fixed, to test again.** Use `TestImages/Stage 10/Three Page Test.pdf`.
+**Review round 4, batch B (2026-10-05): all 5 steps passed Leah's hand test on 2026-10-05 (4 and 5 after a second fix).** Use `TestImages/Stage 10/Three Page Test.pdf`.
 1. **As Opened for pages not yet shown (K4).** Open the PDF and stay on page 1. Effects ▸ Auto-Redact…, Solid Fill, Apply (don't click any row). Click thumbnail 3, then View ▸ Before/After with As Opened: the left side shows the email and phone, the right side the black boxes.
 2. **Revert Layer after a save (L12).** Open the PDF and ⌘S it as "Revert Test". Auto-Redact, Solid Fill, Apply. Click thumbnail 2, then Layer ▸ Revert Layer: page 2's email and phone come back as saved.
 3. **Undo Delete Page keeps As Opened (L10).** Open the PDF, go to page 2, draw a line. Page ▸ Delete Page, then ⌘Z. View ▸ Before/After, As Opened: the left side has no line.
@@ -210,10 +210,10 @@ and one of your own large RAW files (the Nikon NEF in Downloads).
 5. **Autosave keeps everything (L3, L11).** File ▸ New, Image ▸ Canvas Properties… with a transparent background, draw something. ⌘S, choose JPEG, then Cancel. Wait about 30 seconds, quit and reopen Colorbee: the window comes back with the checkerboard still showing (not white). Then open Test Camera.dng, press Return, quit and reopen: the "Test Camera" window comes back, and File ▸ Export… still offers Include camera details.
 6. **Copies are offered for removal (K11).** Open E1 Screenshot.png, ⌘C with nothing selected. Effects ▸ Auto-Redact…, Solid Fill, Apply: Colorbee offers to remove the unredacted image from Clipboard History. Choose Remove: it's gone from the Clipboard History panel (⌥⌘V), and ⌘V in another app pastes nothing.
 
-**Scrubbing number fields (2026-10-05): steps 1, 2, 4, 5 and 6 passed Leah's hand test on 2026-10-05; 3 and 7 failed and are fixed, to test again.** Any image, for example `TestImages/Stage 5a Practice.png`.
+**Scrubbing number fields (2026-10-05): all steps passed Leah's hand test on 2026-10-05 except 3, fixed again, to test.** Any image, for example `TestImages/Stage 5a Practice.png`.
 1. **Size.** Choose the Brush. Hover over the size box in the toolbar (the "px" field): the pointer is an up-down arrow. Press and drag **down**: the number climbs, about 1 for every 3 points; drag up: it falls. It stops at 50 and at 1, and turns around straight away.
 2. **Shift.** Drag down holding Shift: it moves 5 times as fast.
-3. **Still typeable (fixed 2026-10-05).** Click the size box without dragging: the cursor goes in, and you can type a number and press Return.
+3. **Still typeable (fixed again 2026-10-05: the toolbar's Size box now gets the click itself).** Click the size box without dragging: the cursor goes in, and you can type a number and press Return.
 4. **Eraser.** Choose the Eraser and drag the size down: it goes to 100.
 5. **Alpha.** Drag up on the "100%" box in the palette bar: Alpha goes down, and the slider follows; drag down to bring it back up.
 6. **Tolerances.** With Fill, Magic Wand and the Eraser (Color Eraser), drag on the tolerance percentage: it changes 1% at a time, 5% with Shift.

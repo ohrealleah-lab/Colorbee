@@ -7,11 +7,15 @@ extension View {
     /// fields sit at the top of the window. On a text field, pass `focus`: a click without dragging focuses the field
     /// to type in it, and a drag ends typing in it so it shows the new numbers. Other focus, such as text being typed
     /// on the canvas, is left alone (Leah's test, 2026-10-05).
+    ///
+    /// A field in the window's toolbar can't be focused that way (macOS hosts toolbar items apart from the window's
+    /// content), so `passingClicksThrough` instead hands a click to whatever is underneath, as if this weren't there.
     func scrubs(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double = 1,
-                focus: FocusState<Bool>.Binding? = nil) -> some View {
+                focus: FocusState<Bool>.Binding? = nil, passingClicksThrough: Bool = false) -> some View {
         overlay(ScrubArea(value: value, range: range, step: step,
                           onClick: focus.map { focus in { focus.wrappedValue = true } },
-                          onScrubStart: focus.map { focus in { focus.wrappedValue = false } }))
+                          onScrubStart: focus.map { focus in { focus.wrappedValue = false } },
+                          passesClicksThrough: passingClicksThrough))
     }
 }
 
@@ -21,6 +25,7 @@ private struct ScrubArea: NSViewRepresentable {
     let step: Double
     let onClick: (() -> Void)?
     let onScrubStart: (() -> Void)?
+    let passesClicksThrough: Bool
 
     func makeNSView(context: Context) -> ScrubView {
         let view = ScrubView()
@@ -38,6 +43,7 @@ private struct ScrubArea: NSViewRepresentable {
         view.step = step
         view.onClick = onClick
         view.onScrubStart = onScrubStart
+        view.passesClicksThrough = passesClicksThrough
     }
 }
 
@@ -47,6 +53,9 @@ final class ScrubView: NSView {
     var step = 1.0
     var onClick: (() -> Void)?
     var onScrubStart: (() -> Void)?
+    var passesClicksThrough = false
+    /// The press that started this drag or click, kept to hand on as a click.
+    private var pressEvent: NSEvent?
 
     /// How far the mouse moves, in points, for one step.
     private static let pointsPerStep = 3.0
@@ -75,6 +84,7 @@ final class ScrubView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {
+        pressEvent = event
         pressedAt = event.locationInWindow
         lastY = event.locationInWindow.y
         isScrubbing = false
@@ -100,7 +110,20 @@ final class ScrubView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        defer { pressedAt = nil }
-        if !isScrubbing, pressedAt != nil { onClick?() }
+        defer {
+            pressedAt = nil
+            pressEvent = nil
+        }
+        guard !isScrubbing, pressedAt != nil else { return }
+        if passesClicksThrough, let press = pressEvent, let window {
+            // Out of the way while the click is sent again, so it lands on the field underneath. The release is queued
+            // first: a text field's press waits for it.
+            isHidden = true
+            NSApp.postEvent(event, atStart: false)
+            window.sendEvent(press)
+            isHidden = false
+        } else {
+            onClick?()
+        }
     }
 }

@@ -150,7 +150,8 @@ private struct SizeControl: View {
             .frame(height: 22)
             .background(Theme.field, in: RoundedRectangle(cornerRadius: 7))
             // Each tool keeps its size within its own limits, and reading it back stops the drag there.
-            .scrubs(Binding(get: { Double(editor.toolSize ?? 1) }, set: { editor.toolSize = Int($0) }), in: 1...100, focus: $typing)
+            .scrubs(Binding(get: { Double(editor.toolSize ?? 1) }, set: { editor.toolSize = Int($0) }), in: 1...100, focus: $typing,
+                    passingClicksThrough: true)
             .padding(.leading, 4)
         }
         .padding(.trailing, 2)

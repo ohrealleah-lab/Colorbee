@@ -30,7 +30,8 @@ GETTING AROUND
 - Every change can be undone (⌘Z), with no step limit. The History panel
   (⌘Y) lets you jump back to any step.
 - Layers: ⌘L shows the Layers panel.
-- Settings (⌘,) has your keyboard shortcuts and export sizes.
+- Settings (⌘,) has Light or Dark appearance, the resolution PDFs open at,
+  your keyboard shortcuts and export sizes.
 
 
 A FEW THINGS WORTH TRYING
@@ -40,6 +41,11 @@ A FEW THINGS WORTH TRYING
   and keys in a screenshot so you can hide them.
 - View ▸ Before/After compares your edits with the original.
 - File ▸ Export As picks a common size for sharing.
+- Open a PDF: every page shows down the left side. Auto-Redact checks every
+  page at once, and File ▸ Export as PDF... saves a clean copy.
+- Open a camera RAW photo (CR3, ARW, NEF, RAF, DNG): a Develop window lets you
+  set exposure, highlights, white balance and more before it opens.
+- Drag up or down on a number box (brush size, Alpha) to change it quickly.
 
 
 SAVING

@@ -129,6 +129,8 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 **8 Hardening**
 - The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
+- Beta 0.9.0 (2) built, notarized and stapled on 2026-10-05 (`build/Beta/Colorbee-0.9.0-2.zip`, 2.7 MB): pages and PDFs, RAW photos, review round 4, Appearance, scrubbing. "Start Here.txt" updated.
+- GitHub Actions (`.github/workflows/build-release.yml`, like Honeycomb's): every push builds and runs the tests on a macOS 26 runner. A tag `vX.Y.Z-beta.N` also signs, notarizes and publishes the zip as a pre-release (version X.Y.Z, build N). Needs five repo secrets, the same as Honeycomb's: `APPLE_CERT_P12`, `APPLE_CERT_P12_PASSWORD`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_KEY_P8`.
 - Polish done 2026-10-03: effect previews in the background (`EffectPreview`), Copy in the background (`ClipboardImage`). Tested by hand 2026-10-03.
 
 **Later, from review round 4:** switching pages compresses the old page and expands the new one on the main thread

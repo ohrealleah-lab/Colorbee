@@ -5,6 +5,10 @@
 #
 # One-time setup (Leah types the app-specific password herself):
 #   xcrun notarytool store-credentials colorbee-notary --apple-id <Apple ID> --team-id <Team ID>
+#
+# On GitHub (.github/workflows/build-release.yml) it notarizes with an App Store Connect API key instead:
+# NOTARY_KEY_PATH, NOTARY_KEY_ID and NOTARY_ISSUER. MARKETING_VERSION and BUILD_NUMBER, when set, override
+# project.yml's version (a release tag sets them).
 set -euo pipefail
 cd "${0:A:h}/.."
 
@@ -16,6 +20,15 @@ if [[ -z "$identity" ]]; then
 fi
 team=$(print -r -- "$identity" | sed -E 's/.*\(([A-Z0-9]{10})\)".*/\1/')
 
+versioning=()
+[[ -n "${MARKETING_VERSION:-}" ]] && versioning+=("MARKETING_VERSION=$MARKETING_VERSION")
+[[ -n "${BUILD_NUMBER:-}" ]] && versioning+=("CURRENT_PROJECT_VERSION=$BUILD_NUMBER")
+if [[ -n "${NOTARY_KEY_PATH:-}" ]]; then
+    notary=(--key "$NOTARY_KEY_PATH" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER")
+else
+    notary=(--keychain-profile "$profile")
+fi
+
 derived=build/BetaBuild
 out=build/Beta
 app=$derived/Build/Products/Release/Colorbee.app
@@ -25,7 +38,7 @@ xcodebuild -project Colorbee.xcodeproj -scheme Colorbee -configuration Release \
     -destination 'platform=macOS,arch=arm64' -derivedDataPath "$derived" -quiet \
     CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application" DEVELOPMENT_TEAM="$team" \
     ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
-    clean build
+    "${versioning[@]}" clean build
 codesign --verify --strict --deep "$app"
 # Apple refuses apps that allow debugger attachment.
 if codesign -d --entitlements - --xml "$app" 2>/dev/null | grep -q get-task-allow; then
@@ -40,11 +53,11 @@ mkdir -p "$out/Colorbee $version"
 
 echo "Sending Colorbee $version ($build) to Apple for notarization. This usually takes a few minutes."
 ditto -c -k --keepParent "$app" "$out/notarize.zip"
-result=$(xcrun notarytool submit "$out/notarize.zip" --keychain-profile "$profile" --wait)
+result=$(xcrun notarytool submit "$out/notarize.zip" "${notary[@]}" --wait)
 print -r -- "$result"
 if ! print -r -- "$result" | grep -q "status: Accepted"; then
     id=$(print -r -- "$result" | sed -nE 's/^ *id: ([0-9a-f-]+).*/\1/p' | head -1)
-    echo "Apple didn't accept it. Its reasons: xcrun notarytool log $id --keychain-profile $profile" >&2
+    echo "Apple didn't accept it. Its reasons: xcrun notarytool log $id ${notary[*]}" >&2
     exit 1
 fi
 xcrun stapler staple "$app"

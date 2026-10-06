@@ -11,6 +11,9 @@ Colorbee's Help menu is empty today: it has only macOS's own search field. The F
   - It ships inside the app and works offline, which matters because Colorbee has no network access.
 - **Scope:** task guides first (how to do the main jobs), then a full reference (every tool, menu, panel and setting).
 - **Pictures:** a few key screenshots, where they help most. Everything else is text.
+- **Screenshots are light mode only.** The page text still adapts to dark mode.
+- **Screenshots are taken by a script**, so they can be retaken quickly when the look changes (see phase 1).
+- **No "What's new" page.** Beta notes stay in `Start Here.txt`.
 
 These go into the FRD (new FR-14.6, below) and the §23 decision log in phase 0.
 
@@ -74,9 +77,9 @@ Rules for the screenshots:
 - **Made-up content only.** The repo is public, so use a sample screenshot with fake details, for example
   `bee@example.com`, `555-0100`, and a fake key `sk_test_…`.
 - **Window shots at 2×**, without the window shadow.
-- **The setup for each shot is written down** (document, zoom, which panel is open), so it can be retaken
-  exactly when the look changes.
-- A question for Leah below: light only, or light and dark.
+- **Light mode only.**
+- **The setup for each shot is written down** (document, zoom, which panel is open), and a script
+  takes them all, so they can be retaken exactly whenever the look changes.
 
 ## How it's built (technical)
 
@@ -104,6 +107,14 @@ Rules for the screenshots:
   - Resize and Skew
   - Canvas Properties
   - the Develop window
+- **Screenshot script:** `make help-shots`.
+  - It launches Colorbee with a developer-only flag (like `-ColorbeeBenchmark`), for example
+    `-ColorbeeHelpShots YES`.
+  - The app opens each written setup in turn (sample document, zoom, panel or sheet open) and captures the window
+    with `screencapture -l <window id> -o` (no shadow), into the book's images folder.
+  - It forces light appearance while it runs.
+  - Like `make bench`, it brings windows to the front, so it runs only when Leah says so.
+  - The made-up sample images it uses are committed with it.
 - **Keeping the tables true:** the Menus and Keyboard shortcuts pages are generated, not typed.
   - A developer-only launch flag (like `-ColorbeeBenchmark`), for example `-ColorbeeDumpMenus YES`, writes every
     menu command, its default shortcut and its tooltip, plus the canvas keys from `ShortcutStore`, as JSON, then
@@ -137,11 +148,14 @@ removal, the frame bar, and tools greyed out during effects. The plumbing (phase
 ### Phase 1: plumbing
 - The help bundle, the Info.plist keys, the folder resource, the index step, the Help menu item, and one placeholder
   page.
+- The `make help-shots` script, with the first setup (the whole window) as a test.
 - **Leah tests:**
   1. `make run`, then Help ▸ Colorbee Help. The help viewer opens on the placeholder page.
   2. Press ⌘? from anywhere in Colorbee: the same.
   3. Click Help, type "colorbee" in the search field: the placeholder topic is listed under Help Topics.
   4. Turn on dark mode (System Settings ▸ Appearance): the page is readable.
+  5. When the engineer asks, let `make help-shots` run (it takes over the screen for a minute). Open the new
+     window screenshot: Colorbee in light mode, with no window shadow and no personal content.
 
 ### Phase 2: the two pages that matter most
 - **Getting started** and **Redact a screenshot**, with screenshots 1–5.
@@ -180,19 +194,5 @@ removal, the frame bar, and tools greyed out during effects. The plumbing (phase
 
 - **New rule for `CLAUDE.md` (Workflow):** any change to user-visible behavior updates the matching help page in
   the same commit. Run `make help` after adding, renaming or re-keying a menu command.
-- **Screenshots** are retaken from their written setups when the part of the window they show changes.
+- **Screenshots** are retaken with `make help-shots` (with Leah's OK) when the part of the window they show changes.
 - **Each later stage's "please try" list for Leah** includes "read the help page for this".
-
-## Questions for Leah
-
-1. **Screenshots in dark mode too?**
-   - Light only is half the work.
-   - Light and dark means each shot follows the viewer's appearance.
-   - Recommendation: light only, since the page text adapts to dark mode either way.
-2. **Who takes the screenshots?**
-   - Leah by hand from the written setups (⇧⌘5, window capture), or
-   - Claude with a script that opens each setup and captures the window. Like `make bench`, it brings windows to
-     the front, so it would only run when Leah says so.
-   - Recommendation: the script, so retakes are quick.
-3. **A "What's new" page** for each beta, so testers know what to try? (Optional; it could also stay in
-   `Start Here.txt`.)

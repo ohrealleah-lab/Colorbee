@@ -19,6 +19,7 @@ jobs:
   build:
     # Colorbee needs macOS 26 and Xcode 26.
     runs-on: macos-26
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,8 +30,15 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Build and test
-        run: make test
+      # One test at a time, with a limit: on GitHub's small virtual Macs the tests stalled when run side by side,
+      # and one at a time shows which test is slow.
+      - name: Test
+        timeout-minutes: 25
+        run: cd Packages/ColorbeeCore && swift test --no-parallel
+
+      - name: Build the app
+        timeout-minutes: 20
+        run: make build
 
       # ── Tag pushes only: package, sign, notarize, release ─────────────────────────────────────────────
 

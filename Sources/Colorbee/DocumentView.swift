@@ -201,9 +201,43 @@ private struct ToolOptions: View {
         case .pencil:
             hint("1 px · Shift draws straight lines")
         case .retouch:
-            Toggle("Sample All Layers", isOn: $editor.retouchSamplesAllLayers)
-                .help("Read what all visible layers show and write into this one, so you can retouch on an empty layer above")
-            hint(editor.retouchKind.hint)
+            let kind = editor.retouchKind
+            if kind.hasRange {
+                Picker("Range", selection: $editor.toneRange) {
+                    Text("Shadows").tag(ToneRange.shadows)
+                    Text("Midtones").tag(ToneRange.midtones)
+                    Text("Highlights").tag(ToneRange.highlights)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .help("Which tones change most")
+            }
+            if kind.hasStrength {
+                Text("Strength")
+                Slider(value: $editor.retouchStrength, in: 0.01...1)
+                    .frame(width: 90)
+                    .accessibilityLabel("Strength")
+                Text("\(Int((editor.retouchStrength * 100).rounded()))%").monospacedDigit()
+            }
+            if !kind.fillsArea {
+                Text("Hardness")
+                Slider(value: $editor.retouchHardness, in: 0...1)
+                    .frame(width: 70)
+                    .accessibilityLabel("Hardness")
+                Text("\(Int((editor.retouchHardness * 100).rounded()))%").monospacedDigit()
+            }
+            if kind == .cloneStamp {
+                Toggle("Aligned", isOn: $editor.cloneAligned)
+                    .help("On: the offset stays from stroke to stroke. Off: every stroke starts again from the source")
+                Toggle("Match Tone", isOn: $editor.cloneMatchesTone)
+                    .help("Blend the copied pixels' brightness and color into what's around them")
+            }
+            if kind.canSampleAllLayers {
+                Toggle("Sample All Layers", isOn: $editor.retouchSamplesAllLayers)
+                    .help("Read what all visible layers show and write into this one, so you can retouch on an empty layer above")
+            }
+            hint(kind.hint)
         case .redactBrush:
             Picker("Treatment", selection: $editor.redactTreatment) {
                 Text("Solid Fill").tag(RedactionTreatment.solidFill)

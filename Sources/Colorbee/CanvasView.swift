@@ -22,6 +22,7 @@ final class CanvasView: NSView {
         case badge
         case redact
         case retouch
+        case retouchBrush
         case divider
         case shape
         case text(start: Point2D)
@@ -321,6 +322,14 @@ final class CanvasView: NSView {
                 }
             }
         }
+        if let source = editor.cloneCrosshair(hovering: hoverPoint), editor.comparison == nil {
+            // Where the Clone Stamp copies from: a cross, black with white beside it, so it shows on any colors.
+            let arm = 8 / editor.viewport.zoom, gap = 1.5 / editor.viewport.zoom
+            for (offset, color) in [(0.0, SIMD4<Float>(0, 0, 0, 1)), (gap, SIMD4<Float>(1, 1, 1, 1))] {
+                lines.append((Point2D(x: source.x - arm, y: source.y + offset), Point2D(x: source.x + arm, y: source.y + offset), color))
+                lines.append((Point2D(x: source.x + offset, y: source.y - arm), Point2D(x: source.x + offset, y: source.y + arm), color))
+            }
+        }
         if let size = editor.canvasResizePreview {
             frame(0, 0, Double(size.width), Double(size.height))
         }
@@ -459,7 +468,7 @@ final class CanvasView: NSView {
         let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         editor.pointer = editor.canvas.bounds.contains(pixel) ? pixel : nil
         hoverPoint = point
-        if editor.tool == .eraser || editor.areaBrushSize != nil { setNeedsRender() }
+        if editor.tool == .eraser || editor.tool == .retouch || editor.areaBrushSize != nil { setNeedsRender() }
         if drag == nil { currentCursor(at: point).set() }
     }
 
@@ -573,9 +582,15 @@ final class CanvasView: NSView {
         case .redactBrush:
             drag = .redact
             editor.beginRedactStroke(at: point, secondary: secondary)
-        case .retouch:
+        case .retouch where editor.retouchKind == .cloneStamp && event.modifierFlags.contains(.option):
+            editor.setCloneSource(point)
+        case .retouch where editor.retouchKind.fillsArea:
             drag = .retouch
             editor.beginRetouchStroke(at: point)
+        case .retouch:
+            // Right-click does the same as left-click: there are no colors involved.
+            drag = .retouchBrush
+            editor.beginRetouchBrush(at: point, pressure: pressure(event))
         case .text:
             // A handle or the border moves or resizes the open text box; a click elsewhere places it,
             // and the next click starts a new one.
@@ -631,6 +646,9 @@ final class CanvasView: NSView {
         case .retouch:
             editor.continueRetouchStroke(to: imagePoint(event), constrain: event.modifierFlags.contains(.shift))
             updatePointer(event)
+        case .retouchBrush:
+            editor.continueRetouchBrush(to: imagePoint(event), constrain: event.modifierFlags.contains(.shift), pressure: pressure(event))
+            updatePointer(event)
         case .text(let start):
             editor.updateTextDragFrame(from: start, to: imagePoint(event))
             updatePointer(event)
@@ -672,6 +690,8 @@ final class CanvasView: NSView {
             editor.endRedactStroke()
         case .retouch:
             editor.endRetouchStroke()
+        case .retouchBrush:
+            editor.endRetouchBrush()
         case .canvasResize:
             let size = editor.canvasResizePreview
             editor.canvasResizePreview = nil
@@ -923,6 +943,7 @@ final class CanvasView: NSView {
             "canvas.shape": { self.editor.selectTool(.shape) }, "canvas.measure": { self.editor.selectTool(.measure) },
             "canvas.stepBadge": { self.editor.selectTool(.stepBadge) }, "canvas.redactBrush": { self.editor.selectTool(.redactBrush) },
             "canvas.retouch": { self.editor.selectTool(.retouch) },
+            "canvas.cloneStamp": { self.editor.selectTool(.retouch); self.editor.retouchKind = .cloneStamp },
             "canvas.swapColors": { self.editor.swapColors() }, "canvas.resetColors": { self.editor.resetColors() },
             "canvas.smaller": { self.editor.adjustToolSize(larger: false) }, "canvas.larger": { self.editor.adjustToolSize(larger: true) },
         ]

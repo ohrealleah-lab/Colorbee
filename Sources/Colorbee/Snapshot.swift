@@ -33,6 +33,11 @@ enum Snapshot {
         if let name = defaults.string(forKey: "ColorbeeSnapshotTool"), let tool = Tool.allCases.first(where: { "\($0)" == name }) {
             editor.selectTool(tool)
         }
+        // `-ColorbeeSnapshotRetouch cloneStamp` picks that retouching tool.
+        if let name = defaults.string(forKey: "ColorbeeSnapshotRetouch"), let kind = RetouchKind.allCases.first(where: { "\($0)" == name }) {
+            editor.selectTool(.retouch)
+            editor.retouchKind = kind
+        }
         // `-ColorbeeSnapshotNotice "Copied 42 words"` shows that message at the bottom of the canvas.
         if let notice = defaults.string(forKey: "ColorbeeSnapshotNotice") { editor.showNotice(notice) }
         // `-ColorbeeSnapshotShapeFill YES`: a solid shape fill in an orange Color 2, to see the Fill swatch.

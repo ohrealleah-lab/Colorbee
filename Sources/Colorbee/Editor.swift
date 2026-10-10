@@ -510,6 +510,20 @@ final class Editor {
     /// Remove and Spot Heal read what all visible layers show and write into the active one, so retouching can go
     /// on an empty layer above a photo and leave the photo as it was.
     var retouchSamplesAllLayers = false
+    /// The local brushes' Strength, and how hard the retouching brushes' edge is (FR-4.6).
+    var retouchStrength = 0.5
+    var retouchHardness = 0.5
+    var toneRange: ToneRange = .midtones
+    /// The Clone Stamp: where it copies from (Option-click), whether the offset stays from stroke to stroke, and
+    /// whether the copied pixels' tone is evened out with their surroundings.
+    private(set) var cloneSource: Point2D?
+    var cloneAligned = true
+    var cloneMatchesTone = false
+    /// From where you paint to where it copies from, once the first stroke after picking the source started.
+    @ObservationIgnored private var cloneOffset: IntPoint?
+    @ObservationIgnored private var retouchBrush: (stroke: Stroke, edit: Edit, kind: RetouchKind, lock: AxisLock, offset: IntPoint?)?
+    /// Where the Clone Stamp is copying from now, for the crosshair.
+    private(set) var cloneCrosshair: Point2D?
     @ObservationIgnored private var retouchStroke: (area: RedactBrushArea, lock: AxisLock, kind: RetouchKind)?
     /// The area being filled, shown until the fill is done.
     @ObservationIgnored private var fillingArea: RedactBrushArea?
@@ -1030,6 +1044,7 @@ final class Editor {
         commitPendingBadge()
         endRedactStroke()
         endRetouchStroke()
+        endRetouchBrush()
         endStroke()
         cancelOrEndSelectionDrag()
         if activeEffect != nil { cancelEffect() }
@@ -1637,6 +1652,87 @@ final class Editor {
         case .retouch: retouchSize
         default: nil
         }
+    }
+
+    // MARK: Retouching: brushes (FR-4.6)
+
+    /// Option-click with the Clone Stamp: where to copy from. The next stroke sets the offset.
+    func setCloneSource(_ point: Point2D) {
+        cloneSource = point
+        cloneOffset = nil
+        cloneCrosshair = point
+        onRender()
+    }
+
+    /// The local brushes, Smudge and the Clone Stamp change pixels as you paint; the stroke is one step.
+    func beginRetouchBrush(at point: Point2D, pressure: Double) {
+        guard !refusedBecauseLocked() else { return }
+        let kind = retouchKind
+        var offset: IntPoint?
+        if kind == .cloneStamp {
+            guard let source = cloneSource else {
+                showNotice("Option-click where to copy from first")
+                return onRefused()
+            }
+            // Aligned keeps the offset from the first stroke; otherwise each stroke starts again from the source.
+            offset = cloneAligned ? cloneOffset : nil
+            if offset == nil {
+                offset = IntPoint(x: Int((source.x - point.x).rounded()), y: Int((source.y - point.y).rounded()))
+                if cloneAligned { cloneOffset = offset }
+            }
+        }
+        finishInteractions()
+        placeFloatingSelection()
+        let layer = canvas.activeLayer
+        let edit = history.beginEdit(kind.name, on: canvas)
+        let stroke: Stroke
+        if kind == .smudge {
+            stroke = SmudgeStroke(diameter: retouchSize, hardness: retouchHardness, strength: retouchStrength, layer: layer, edit: edit)
+        } else if let offset {
+            let source = retouchSamplesAllLayers ? canvas.flattened() : nil
+            stroke = RetouchStroke(diameter: retouchSize, hardness: retouchHardness, strength: 1, kind: .clone(offset: offset, source: source),
+                                   layer: layer, edit: edit)
+        } else if let adjustment = kind.adjustment(range: toneRange) {
+            stroke = RetouchStroke(diameter: retouchSize, hardness: retouchHardness, strength: retouchStrength, kind: .adjust(adjustment),
+                                   layer: layer, edit: edit)
+        } else {
+            return
+        }
+        retouchBrush = (stroke, edit, kind, AxisLock(start: point), offset)
+        moveRetouchBrush(to: point, pressure: pressure)
+    }
+
+    func continueRetouchBrush(to point: Point2D, constrain: Bool, pressure: Double) {
+        guard var brush = retouchBrush else { return }
+        let target = constrain ? brush.lock.constrain(point) : point
+        retouchBrush = brush
+        moveRetouchBrush(to: target, pressure: pressure)
+    }
+
+    private func moveRetouchBrush(to point: Point2D, pressure: Double) {
+        guard let brush = retouchBrush else { return }
+        if let offset = brush.offset { cloneCrosshair = Point2D(x: point.x + Double(offset.x), y: point.y + Double(offset.y)) }
+        if !brush.stroke.move(to: point, pressure: pressure).isEmpty || brush.offset != nil { onRender() }
+    }
+
+    /// Ends the stroke as one step; the Clone Stamp's Match Tone evens out what it copied first, in the same step.
+    func endRetouchBrush() {
+        guard let brush = retouchBrush else { return }
+        retouchBrush = nil
+        brush.stroke.finish()
+        if brush.kind == .cloneStamp, cloneMatchesTone, let mask = (brush.stroke as? RetouchStroke)?.coverage {
+            ToneMatch.apply(to: canvas.activeLayer, in: mask, edit: brush.edit)
+        }
+        recordingChanges { history.commit(brush.edit) }
+        onRender()
+    }
+
+    /// Where the crosshair goes while hovering with the Clone Stamp: the source, or where an aligned offset reads from.
+    func cloneCrosshair(hovering point: Point2D?) -> Point2D? {
+        guard tool == .retouch, retouchKind == .cloneStamp, let source = cloneSource else { return nil }
+        if retouchBrush != nil { return cloneCrosshair }
+        if cloneAligned, let offset = cloneOffset, let point { return Point2D(x: point.x + Double(offset.x), y: point.y + Double(offset.y)) }
+        return source
     }
 
     // MARK: Retouching: Remove and Spot Heal (FR-4.6)

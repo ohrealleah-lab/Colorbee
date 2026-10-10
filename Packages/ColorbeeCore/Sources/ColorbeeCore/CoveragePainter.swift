@@ -46,6 +46,9 @@ final class CoveragePainter {
     let transfer: [UInt8]?
     private(set) var dirtyRect: IntRect = .zero
     private var coverage: [TileKey: TileCoverage] = [:]
+    /// What a retouching tool makes of a pixel (FR-4.6), from its position and its value before the stroke; the
+    /// coverage mixes towards it. When set, it's used instead of `effect`.
+    var transform: ((_ x: Int, _ y: Int, _ original: Pixel) -> Pixel)?
 
     init(layer: Layer, edit: Edit, effect: StrokeEffect, transfer: [UInt8]? = nil) {
         precondition(transfer == nil || transfer?.count == 256)
@@ -100,12 +103,45 @@ final class CoveragePainter {
                     let index = rowStart + x
                     guard value > tileCoverage.values[index] else { continue }
                     tileCoverage.values[index] = value
-                    row[x] = apply(to: original.pixels[index], coverage: transfer?[Int(value)] ?? value)
+                    let covered = transfer?[Int(value)] ?? value
+                    if let transform {
+                        let source = original.pixels[index]
+                        row[x] = Compositing.lerp(source, transform(x, y, source), Float(covered) / 255)
+                    } else {
+                        row[x] = apply(to: original.pixels[index], coverage: covered)
+                    }
                 }
             }
         }
         dirtyRect = dirtyRect.union(area)
         return area
+    }
+
+    /// A pixel as it was before the stroke, whether or not the stroke has reached it.
+    func original(atX x: Int, y: Int) -> Pixel {
+        let key = TileKey(layer: layer.id, column: x / TileGrid.tileSize, row: y / TileGrid.tileSize)
+        if let tile = edit.originalTile(key) {
+            return tile.pixels[(y - tile.rect.minY) * tile.rect.width + x - tile.rect.minX]
+        }
+        return layer.buffer[x, y]
+    }
+
+    /// Everything the stroke covered, at its strongest coverage, as a mask.
+    func coverageMask() -> SelectionMask? {
+        guard !dirtyRect.isEmpty else { return nil }
+        let area = dirtyRect
+        var values = [UInt8](repeating: 0, count: area.area)
+        for (key, tileCoverage) in coverage {
+            guard let tile = edit.originalTile(key)?.rect else { continue }
+            let region = tile.intersection(area)
+            guard !region.isEmpty else { continue }
+            for y in region.minY..<region.maxY {
+                for x in region.minX..<region.maxX {
+                    values[(y - area.minY) * area.width + x - area.minX] = tileCoverage.values[(y - tile.minY) * tile.width + x - tile.minX]
+                }
+            }
+        }
+        return SelectionMask(bounds: area, values: values)
     }
 
     private func apply(to original: Pixel, coverage: UInt8) -> Pixel {

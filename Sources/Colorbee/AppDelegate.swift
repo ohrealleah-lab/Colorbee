@@ -18,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let services = ServicesProvider()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // A help screenshot (`make help-shots`) needs Colorbee in front, also for the Develop window's scene.
+        if HelpShots.scene > 0 { NSApp.activate() }
         NSApp.servicesProvider = services
         NSUpdateDynamicServices()
         ImageDocument.removeShareFolders()

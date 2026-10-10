@@ -112,7 +112,12 @@ Rules for the screenshots:
   - Resize and Skew
   - Canvas Properties
   - the Develop window
-- **Screenshot script:** `make help-shots`.
+- **Screenshot script:** `make help-shots`. **Changed 2026-10-09 (Leah, option 1):** capturing a window from a script needs
+  macOS's Screen Recording permission, which Colorbee doesn't ask for. So the script is guided instead: it opens
+  Colorbee set up for each scene, Leah takes the picture with ⇧⌘4, Space and Option-click (or drags a box), presses
+  Return, and the script files it as `en.lproj/images/<name>.png`. The scenes are set up by `-ColorbeeHelpShot N`
+  (`HelpShots.swift`); the sample is `TestImages/Help/Sample Screenshot.png` (made-up details). What follows was the
+  original plan:
   - It launches Colorbee with a developer-only flag (like `-ColorbeeBenchmark`), for example
     `-ColorbeeHelpShots YES`.
   - The app opens each written setup in turn (sample document, zoom, panel or sheet open) and captures the window

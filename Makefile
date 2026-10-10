@@ -4,7 +4,7 @@ DERIVED := build
 APP     := $(DERIVED)/Build/Products/Debug/Colorbee.app
 BENCH   := $(DERIVED)/Build/Products/Release/Colorbee.app/Contents/MacOS/Colorbee -ColorbeeBenchmark YES -ApplePersistenceIgnoreState YES
 
-.PHONY: gen build test core perf run bench beta help-index open clean
+.PHONY: gen build test core perf run bench beta help-index help-shots open clean
 
 gen:
 	xcodegen generate --quiet
@@ -27,6 +27,12 @@ HELP := Help/Colorbee.help/Contents/Resources/en.lproj
 help-index:
 	hiutil -I corespotlight -Caf $(HELP)/Colorbee.cshelpindex -s en $(HELP)
 	hiutil -I corespotlight -Fvf $(HELP)/Colorbee.cshelpindex
+
+# Guided screenshots for the help book: Colorbee sets up each scene, Leah takes the picture. Brings windows to the front.
+help-shots: gen
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release \
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -quiet build
+	Scripts/help-shots.sh
 
 # Signed, notarized beta zip for testers in build/Beta. Uses the keychain; may ask for its password.
 beta:

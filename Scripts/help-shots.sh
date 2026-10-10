@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Walks Leah through the help book's screenshots (FR-14.6, Docs/HELP-PLAN.md). For each scene it opens Colorbee
 # set up for that picture, she takes it with macOS's own screenshot keys, presses Return, and the picture is filed
-# in the help book. No Screen Recording permission is needed. Brings Colorbee to the front; run it when the Mac is free.
+# in the help book: a picture copied to the clipboard (⌃⇧4 on Leah's Mac) or a new screenshot file. No Screen
+# Recording permission is needed. Brings Colorbee to the front; run it when the Mac is free.
 set -euo pipefail
 cd "${0:A:h}/.."
 
@@ -16,8 +17,10 @@ shots=$(defaults read com.apple.screencapture location 2>/dev/null || true)
 shots=${shots/#\~/$HOME}
 [[ -d "$shots" ]] || shots="$HOME/Desktop"
 
-window="press ⇧⌘4, then Space, then Option-click the Colorbee window"
-region="press ⇧⌘4, then drag a box around"
+# Leah's Mac copies a selected area to the clipboard with ⌃⇧4 (saving to a file, ⇧⌘4, is turned off there).
+key="${HELP_SHOT_KEY:-⌃⇧4}"
+window="press $key, then Space, then Option-click the Colorbee window"
+region="press $key, then drag a box around"
 # Number | file name | file to open | what to do
 scenes=(
     "1|window|$sample|The whole window. $window."
@@ -26,9 +29,9 @@ scenes=(
     "4|auto-redact|$sample|The Auto-Redact sheet. Wait until it lists what it found, then $window."
     "5|before-after|$sample|Before/After. Wait until the black boxes show on the right side, then $window."
     "6|layers|$sample|The Layers panel. $window."
-    "7|export-presets|$sample|Settings ▸ Export Presets. Press ⇧⌘4, then Space, then Option-click the Settings window."
-    "8|shortcuts|$sample|Settings ▸ Shortcuts. Press ⇧⌘4, then Space, then Option-click the Settings window."
-    "9|develop|$raw|The Develop window. Wait for the photo to show, then press ⇧⌘4, then Space, then Option-click the Develop window."
+    "7|export-presets|$sample|Settings ▸ Export Presets. Press $key, then Space, then Option-click the Settings window."
+    "8|shortcuts|$sample|Settings ▸ Shortcuts. Press $key, then Space, then Option-click the Settings window."
+    "9|develop|$raw|The Develop window. Wait for the photo to show, then press $key, then Space, then Option-click the Develop window."
 )
 
 echo "Colorbee help screenshots: ${#scenes} pictures, about five minutes."
@@ -38,6 +41,8 @@ echo
 for entry in "${scenes[@]}"; do
     IFS='|' read -r number name file instructions <<< "$entry"
     marker=$(mktemp)
+    # Something else on the clipboard first, so an old picture there isn't taken for the new one.
+    print -n "" | pbcopy
     "$app" "$file" -ColorbeeHelpShot "$number" -Appearance light -ApplePersistenceIgnoreState YES >/dev/null 2>&1 &
     pid=$!
     echo "[$number of ${#scenes}] $instructions"
@@ -50,7 +55,14 @@ for entry in "${scenes[@]}"; do
             echo "  Saved as $name.png"
             break
         fi
-        echo "  No new screenshot in $shots yet. Take it, then press Return."
+        # Otherwise a picture copied to the clipboard.
+        if osascript -e "set png to (the clipboard as «class PNGf»)" \
+                     -e "set f to open for access POSIX file \"$PWD/$images/$name.png\" with write permission" \
+                     -e "set eof f to 0" -e "write png to f" -e "close access f" >/dev/null 2>&1; then
+            echo "  Saved as $name.png"
+            break
+        fi
+        echo "  No new picture on the clipboard or in $shots yet. Take it, then press Return."
     done
     rm -f "$marker"
     # This copy was started by the script, so closing it can't touch the Colorbee you're using.

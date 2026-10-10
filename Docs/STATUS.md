@@ -185,7 +185,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. Press ⌘? from anywhere in Colorbee: the same page opens.
 3. Click the Help menu and type "colorbee" in its search field: "Colorbee Help" is listed under Help Topics.
 4. Turn on dark mode (Colorbee ▸ Settings ▸ General ▸ Dark, or your Mac's): the help page is readable, light text on dark.
-5. **Screenshots (when the Mac is free, about five minutes).** In Terminal, in the Colorbee folder, run `make help-shots`. For each of the 9 scenes, Colorbee opens set up for it: take the picture as Terminal says, then press Return. At the end, `Help/Colorbee.help/Contents/Resources/en.lproj/images/` has window.png, toolbar.png and the others, in light mode, with only made-up content.
+5. **Screenshots (when the Mac is free, about five minutes).** In Terminal, in the Colorbee folder, run `make help-shots`. For each of the 9 scenes, Colorbee opens set up for it: take the picture as Terminal says (⌃⇧4, then Space, then Option-click the window; or ⌃⇧4 and drag a box for the toolbar and palette bar), then press Return. The script takes the picture from the clipboard. At the end, `Help/Colorbee.help/Contents/Resources/en.lproj/images/` has window.png, toolbar.png and the others, in light mode, with only made-up content.
 
 **Toolbar: Brushes and Shapes with the drawing tools (2026-10-05): passed Leah's hand test on 2026-10-05.** Any image.
 1. The toolbar's second group reads Pencil, Brushes, Shapes, Fill, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure, and the Size box sits in its own group next to it.

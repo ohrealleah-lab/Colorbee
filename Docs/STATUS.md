@@ -43,7 +43,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 10b. PDF output, Auto-Redact on every page | ✅ Done | High |
 | 11. Import from iPhone or iPad | Decided, to build later | High (trial build), then medium |
 | 12. RAW photos | ✅ Done | High |
-| Help (FR-14.6) | Phase 1 built: the help book, ⌘?, search; pages next | Medium (phase 6 high) |
+| Help (FR-14.6) | Phases 1 and 2 built: the help book, ⌘?, search, screenshots, Getting started and Redact a screenshot | Medium (phase 6 high) |
 
 ## What's built
 
@@ -179,6 +179,15 @@ Logs in `build/soak-results*.txt` (not committed).
 7. **Warning on quit.** Open two duplicated copies of E1 Screenshot.png, Auto-Redact each (Solid Fill, Apply), then ⌘Q. Expect the message on each window in turn; after the second answer, Colorbee quits. Reopen both: the redactions are there.
 
 ## Not yet checked by hand
+
+**Help, phase 2 (2026-10-09): not yet tested.** Rebuild and run with the script first, then follow each guide exactly as
+written on a clean launch, using `TestImages/Help/Sample Screenshot.png` (made-up details). Every step should work and
+every menu name and key should match; note anything unclear.
+1. Help ▸ Colorbee Help: the contents page lists **Getting started** and **Redact a screenshot**.
+2. **Getting started:** read it with Colorbee open beside it. Check the toolbar, palette bar, key table, undo, sidebar and Settings descriptions against the app. Try the Magic Wand Option-click tip.
+3. **Redact a screenshot:** open the sample in Preview, ⌘A ⌘C, then follow the guide from step 2 (File ▸ Paste into New Image) through Auto-Redact, Batch Redact, Before/After and the Clipboard History offer.
+4. In the Help menu's search field type "redact": Redact a screenshot is listed. Type "keys": Getting started is listed.
+5. Switch Colorbee to Dark (Settings ▸ General): both pages and their pictures read well.
 
 **Help, phase 1 (2026-10-09): screenshots taken by Leah on 2026-10-09 (step 5); steps 1–4 not yet tested.** Plan: `Docs/HELP-PLAN.md`. Rebuild and run with the script first.
 1. Help ▸ Colorbee Help: Apple's help viewer opens on a "Colorbee Help" page saying the guide is coming soon.

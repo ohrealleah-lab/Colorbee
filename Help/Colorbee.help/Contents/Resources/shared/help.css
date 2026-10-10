@@ -28,3 +28,12 @@ p.lead { color: var(--soft-ink); }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 kbd { font-family: inherit; }
+figure { margin: 1.2em 0; }
+figure img { max-width: 100%; height: auto; border-radius: 6px; }
+figcaption { color: var(--soft-ink); font-size: 0.9em; margin-top: 0.3em; }
+ol li, ul li { margin: 0.25em 0; }
+.note { border-left: 3px solid var(--accent); padding: 0.2em 0 0.2em 0.8em; margin: 1em 0; }
+table { border-collapse: collapse; margin: 0.8em 0; }
+td, th { padding: 0.25em 0.9em 0.25em 0; text-align: left; vertical-align: top; }
+th { color: var(--soft-ink); font-weight: 600; }
+nav.back { font-size: 0.9em; margin-bottom: 1em; }

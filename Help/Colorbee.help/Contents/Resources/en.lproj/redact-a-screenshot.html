@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Redact a screenshot</title>
+    <meta name="AppleTitle" content="Redact a screenshot">
+    <meta name="description" content="Hide email addresses, phone numbers, card numbers and keys in a screenshot with Auto-Redact and Batch Redact, check it with Before/After, and remove the copies a redaction leaves behind.">
+    <meta name="keywords" content="redact, redaction, Auto-Redact, Batch Redact, hide, privacy, email, phone, API key, card number, blur, pixelate, solid fill, Before/After, Clipboard History, earlier versions">
+    <link rel="stylesheet" href="../shared/help.css">
+</head>
+<body>
+    <nav class="back"><a href="index.html">Colorbee Help</a></nav>
+    <a name="redact"></a>
+    <h1>Redact a screenshot</h1>
+    <p class="lead">Before you share a screenshot, hide what shouldn't be seen. Colorbee finds the usual suspects for
+        you, and everything happens on your Mac: Colorbee has no internet access at all.</p>
+
+    <a name="steps"></a>
+    <h2>Step by step</h2>
+    <ol>
+        <li>Take a screenshot to the clipboard. On a Mac that's ⌃⇧⌘4 by default (hold Control with the usual screenshot keys).</li>
+        <li>In Colorbee, choose File ▸ Paste into New Image (⇧⌘V).</li>
+        <li>Choose Effects ▸ Auto-Redact…, and Colorbee reads the text and lists the email addresses, phone numbers, card numbers, API keys, IP addresses and web addresses it found. Each is outlined on the image.</li>
+        <li>Uncheck anything you want to keep visible.</li>
+        <li>Choose a treatment, then click Apply.</li>
+    </ol>
+    <figure>
+        <img src="images/auto-redact.png" alt="The Auto-Redact sheet listing an email address, a phone number and an API key, each checked, with Blur, Pixelate and Solid Fill to choose from.">
+        <figcaption>Auto-Redact lists what it found before anything changes.</figcaption>
+    </figure>
+
+    <a name="treatment"></a>
+    <h2>Which treatment?</h2>
+    <ul>
+        <li><strong>Solid Fill</strong> covers each item with Color 1. It's the safest: nothing can be read back.</li>
+        <li><strong>Blur</strong> and <strong>Pixelate</strong> look softer, but blurred or pixelated text can sometimes be reconstructed. Use them only when that doesn't matter.</li>
+    </ul>
+
+    <a name="auto-redact"></a>
+    <h2>What Auto-Redact checks</h2>
+    <ul>
+        <li>The whole image, every page of a PDF, even if part of it is selected. To redact just an area, use Batch Redact (below).</li>
+        <li>Only what's visible: text on a hidden layer, or covered by another layer, isn't found. Each item is redacted on every layer under it.</li>
+        <li>You can turn the kinds of text on and off, and add your own patterns, under Patterns in the Auto-Redact sheet.</li>
+        <li>One ⌘Z undoes the whole Auto-Redact, on every page.</li>
+    </ul>
+
+    <a name="batch"></a>
+    <h2>Anything it missed: Batch Redact</h2>
+    <ol>
+        <li>Select what to hide. To select several separate areas, hold Shift as you drag each one (or Shift-click with the Magic Wand).</li>
+        <li>Choose Effects ▸ Batch Redact, then one of Solid Fill with Color 1, Blur… and Pixelate…</li>
+    </ol>
+    <p>Each area is redacted on its own, on every layer under it, as one step.</p>
+
+    <a name="check"></a>
+    <h2>Check it with Before/After</h2>
+    <p>Choose View ▸ Before/After (⌥⌘B) to compare your image with how it was opened. Drag the divider to see each side.</p>
+    <figure>
+        <img src="images/before-after.png" alt="Before/After in Split view: the original screenshot on the left of the divider, and the email, phone number and API key covered with black boxes on the right.">
+        <figcaption>As Opened on the left, your redacted image on the right.</figcaption>
+    </figure>
+
+    <a name="copies"></a>
+    <h2>Copies a redaction leaves behind</h2>
+    <p>Colorbee helps you clean up the places where the unredacted image could still be found:</p>
+    <ul>
+        <li><strong>Clipboard History.</strong> If the image is in Clipboard History, Colorbee asks after a redaction: "Remove the unredacted image from Clipboard History and the clipboard?" Choose Remove. This covers the image you pasted from, and copies you made of this image before redacting it.</li>
+        <li><strong>Earlier versions.</strong> When you save a redacted file with ⌘S, Colorbee may say "Earlier versions of this file still show what you redacted." Choose Remove Earlier Versions and Undo History, so File ▸ Revert To and Undo can't bring the original back.</li>
+    </ul>
+
+    <a name="share"></a>
+    <h2>Share it</h2>
+    <p>Save it with ⌘S, or use File ▸ Export… for a copy in another format, or File ▸ Export As for a common size. For a PDF, File ▸ Export as PDF… writes only pixels, so no hidden text survives under a redaction.</p>
+
+    <p><a href="getting-started.html">Getting started</a></p>
+</body>
+</html>

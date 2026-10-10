@@ -20,40 +20,11 @@ INSTALLING
    security settings.
 
 
-GETTING AROUND
+HOW TO USE IT
 
-- Tools are in the toolbar. Most have a one-key shortcut, shown when you
-  hover over them (P Pencil, B Brush, E Eraser, G Fill, T Text, M Select...).
-- Left-click paints with Color 1, right-click with Color 2, as in Paint.
-- Click a swatch to set the ringed color well; right-click sets Color 2.
-- Hover over almost anything to see what it does.
-- Every change can be undone (⌘Z), with no step limit. The History panel
-  (⌘Y) lets you jump back to any step.
-- Layers: ⌘L shows the Layers panel.
-- Settings (⌘,) has Light or Dark appearance, the resolution PDFs open at,
-  your keyboard shortcuts and export sizes.
-
-
-A FEW THINGS WORTH TRYING
-
-- Take a screenshot to the clipboard (⇧⌃⌘4), then File ▸ Paste into New Image.
-- Effects ▸ Auto-Redact... finds email addresses, phone numbers, card numbers
-  and keys in a screenshot so you can hide them.
-- View ▸ Before/After compares your edits with the original.
-- File ▸ Export As picks a common size for sharing.
-- Open a PDF: every page shows down the left side. Auto-Redact checks every
-  page at once, and File ▸ Export as PDF... saves a clean copy.
-- Open a camera RAW photo (CR3, ARW, NEF, RAF, DNG): a Develop window lets you
-  set exposure, highlights, white balance and more before it opens.
-- Drag up or down on a number box (brush size, Alpha) to change it quickly.
-
-
-SAVING
-
-- Plain images save as PNG (or whatever format you opened).
-- Once an image has more than one layer, it saves as a Colorbee project
-  (.colorproj) so the layers are kept. Use File ▸ Export... for a flat copy.
-- Colorbee saves automatically, like Pages and TextEdit.
+Choose Help ▸ Colorbee Help (⌘?) for guides, starting with "Getting started"
+and "Redact a screenshot". Hover over almost anything in Colorbee to see what
+it does.
 
 
 PRIVACY

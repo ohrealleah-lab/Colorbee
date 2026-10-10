@@ -202,6 +202,8 @@ struct AdjustmentsPanel: View {
                         set: { editor.setLayerVisible($0, at: editor.activeLayerIndex) }
                     ))
                     .font(.system(size: 12))
+                    // With Auto, Reset and Apply beside it, the narrow panel otherwise wrapped the label.
+                    .fixedSize()
                     .help("Show or hide this adjustment")
                     Spacer()
                     if choice.kind == .levels {

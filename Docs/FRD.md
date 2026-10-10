@@ -1,6 +1,6 @@
 # Colorbee — Functional Requirements Document
 
-**Version:** 2.2.0 · **Date:** 2026-10-02 · **Owner:** Leah (PM)  
+**Version:** 2.3.0 · **Date:** 2026-10-10 · **Owner:** Leah (PM)  
 **Platform:** macOS 26 or later, Apple Silicon  
 **Audience:** Personal tool, with one user (Leah). No App Store, no public distribution.  
 **Scope:** Everything in this document ships. The build order in §20 is a sequence, not a list of cuts.
@@ -64,7 +64,8 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 
 ### FR-1.1 Toolbar (always docked at the top)
 - **Selection:** Rectangle, Ellipse, Free-Form (lasso), Magic Wand; a Transparent Selection toggle.
-- **Tools:** Pencil, Brushes, Shapes, Fill Bucket, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure, in one group.
+- **Tools:** Pencil, Brushes, Shapes, Fill Bucket, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure, in one group. Stage 13 adds Retouch, Redact Brush and Step Badge.
+  - **Retouch:** a gallery of retouching tools (FR-4.6).
   - **Brushes:** a gallery of 9 brush types (FR-4.2).
   - **Shapes:** a gallery of 23 shapes (FR-5.1).
 - **Size:** presets of 1, 2, 3, 4 and 5px plus a custom value (1–50px for brushes).
@@ -168,6 +169,15 @@ These let you build several separate regions for batch redaction (FR-9.4).
 - **Crop to Selection:** Cmd+Shift+X.
 - **Delete:** Delete/Backspace fills the selection with Color 2, or makes it transparent.
 
+### FR-3.4 Soft edges (stage 13)
+- **Edit ▸ Feather…** softens the edge of the current selection by 1–100 px, with a live preview.
+- Rectangle, Ellipse and Free-Form selections have a **Feather** value in the palette bar (0 px by default), applied as each one is drawn.
+- **Select Subject** keeps Vision's soft edges (FR-9.5).
+- Everything that uses a selection follows its soft edge: Delete, Cut, Copy, moving, Fill, Gradient, the effects and the adjustments. A pixel that's half selected is changed (or lifted) halfway.
+- Combining (FR-3.2): Add keeps the stronger of the two at each pixel, Subtract takes away, Intersect keeps the weaker.
+- The marching ants run where the selection is at least half on.
+- **Redaction is never softened.** Batch Redact and the Redact Brush treat any partly selected pixel as fully selected, so no part of a secret is left half-visible.
+
 ---
 
 ## 7. FR-4 — Freehand tools
@@ -208,6 +218,37 @@ These let you build several separate regions for batch redaction (FR-9.4).
 - Left-click sets Color 1, right-click sets Color 2. Alpha is included.
 - Option-click samples the combined image of all visible layers instead of only the active layer.
 
+### FR-4.6 Retouching (stage 13)
+Retouching works only from the real pixels in the image. **No AI model ships in Colorbee for now**, to keep it small; AI may come later (§23, 2026-10-10).
+
+- The **Retouch** gallery in the toolbar (key J) holds Remove, Spot Heal, Clone Stamp, Lighten, Darken, Saturate, Desaturate, Blur, Sharpen and Smudge. J picks the one used last.
+- **Size:** 1–300 px, from the Size control; [ and ] change it. A Force Touch trackpad or pen changes the size with pressure, as for the brushes.
+- Works on the active layer. Remove, Spot Heal and Clone Stamp have **Sample All Layers**: they read what you see and write into the active layer, so you can retouch on an empty layer above the photo and keep the original untouched.
+- Retouch tools ignore Symmetry, and right-click does the same as left-click (there are no colors involved).
+- Each stroke is one undo step. Refused on a locked or adjustment layer, like the brushes.
+
+**Remove**
+- Paint over the thing to remove. The painted area shows in a see-through red while you paint.
+- When you release, the area is filled from its surroundings: Colorbee copies and blends patches of nearby texture (**Match Surroundings**). It works best on backgrounds: sky, walls, grass, sand, water, and the flat areas of screenshots. It's weaker where the area crosses strong lines or structures; painting a little past the object's edge helps.
+- A large area can take a moment. A progress ring shows on the canvas, panning and zooming still work, and Esc cancels the fill.
+- The result is repeatable: the same stroke on the same image always gives the same fill.
+
+**Spot Heal**
+- Click a small spot (dust, a blemish, a stray pixel) or brush over a thin scratch. It's filled from the area just around it and blended so the tone matches.
+- Meant for small things. For anything much bigger than the brush, use Remove.
+
+**Clone Stamp** (key S)
+- Option-click to set the source. Then paint: pixels are copied from the source, keeping the same offset as you move (**Aligned**, on by default). With Aligned off, every stroke starts again from the source.
+- A crosshair shows where the source is while you paint.
+- **Match Tone** (off by default) blends the copied pixels into the colors around them, like a healing brush.
+- **Hardness** 0–100% (50% by default) sets how soft the brush edge is.
+
+**Local brushes:** Lighten, Darken, Saturate, Desaturate, Blur, Sharpen, Smudge
+- Paint to change only what's under the brush. **Strength** 1–100% (50% by default) and **Hardness** are in the palette bar.
+- Lighten and Darken have a **Range**: Shadows, Midtones (default) or Highlights.
+- Within one stroke, going over the same place doesn't add up (as with the brushes, FR-4.2); a new stroke adds more.
+- Smudge drags the colors along the stroke, like a finger through wet paint; Strength sets how far they travel.
+
 ---
 
 ## 8. FR-5 — Shapes and gradients
@@ -226,6 +267,14 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - Modes: Linear, Radial, Reflected, Diamond, Conical.
 - Uses each color's alpha, so a gradient can fade to fully transparent.
 - Stays inside the selection if there is one.
+
+### FR-5.3 Step badges (stage 13)
+- The **Step Badge** tool (key N): click to place a numbered circle. Each click places the next number: 1, 2, 3…
+- The circle is filled with Color 1 and the number is drawn in Color 2. Right-click swaps them, as for shapes.
+- **Size** sets the circle's diameter (16–128 px, 32 by default).
+- **Numbers or letters** (1, 2, 3 or A, B, C) in the palette bar, with a **Next** field for what the next badge shows. It starts at 1 in each document and steps back when a badge is undone.
+- **Drag** from where you press to draw the badge with an arrow pointing to where you release, in the badge's color.
+- Like a shape, a badge stays editable until it's placed: drag to move it, Delete removes it. Placed badges are pixels.
 
 ---
 
@@ -346,6 +395,7 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - **Curves:** a tone curve with draggable points, for the combined RGB and for each channel.
 - **Sepia:** a warm brown-tone version of the image, with an amount slider.
 - **Posterize:** reduces each channel to 2–32 levels.
+- **Remove Red-Eye** (stage 13): finds eyes with Apple Vision, on this Mac, and turns red pupils dark while keeping their highlight. With a selection, it fixes red pixels inside the selection instead, for eyes Vision misses (pets, faces turned away). One undo step. Says "No red-eye found" when nothing changes.
 - Each of these also comes as an adjustment layer (FR-8.4), from "as Adjustment Layer" versions of the menu items.
 - White Balance and Vibrance are sliders in the Adjust Photo panel, not separate menu items.
 
@@ -368,10 +418,10 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 
 **Subject (Apple Vision, on this Mac; nothing leaves it)**
 - **Remove Background:** writes Vision's soft edges directly into transparency. Option: put the subject on a new layer instead of erasing in place.
-- **Select Subject:** makes a selection from the subject. Its edges are hard for now, since selections are all-or-nothing; soft selections can come later.
+- **Select Subject:** makes a selection from the subject. Its edges are hard until soft selections arrive in stage 13 (FR-3.4); then it keeps Vision's soft edges.
 - With several subjects, clicking one picks just that subject.
 - Shows "No subject found" when Vision finds nothing (screenshots, text).
-- **Clean Up** (removing an object and filling in the background) is out of scope.
+- **Clean Up** with an AI model isn't planned for now: no AI models ship in Colorbee, to keep it small; AI may come later (§23, 2026-10-10). Objects are removed with the Remove tool (FR-4.6), which fills from the image's own pixels.
 
 **Effects menu**
 - **Add Noise:** amount, and monochrome or color noise.
@@ -396,6 +446,15 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
   - A rule-of-thirds grid shows while dragging.
   - Return applies, Esc cancels. Applies to every layer as one undo step.
 
+### FR-9.6 Redact Brush (stage 13)
+**Redact Brush** (key K)
+- Paint over anything to hide it. The treatment is chosen in the palette bar: Blur, Pixelate or Solid Fill (Color 1). **Solid Fill** is the default, as in Auto-Redact.
+- The painted area shows as a see-through overlay while you paint. The treatment is applied when you release, as one undo step.
+- Size 1–300 px. Shift locks the stroke to horizontal or vertical, for a line of text.
+- Changes layers like Batch Redact (§23, 2026-10-04): every layer with pixels under the stroke. A locked layer with pixels there blocks it, and a message names the layer.
+- Blur and Pixelate strength follows the brush size, as Auto-Redact's follows the text height.
+- It's a redaction, so the after-redaction offers apply (earlier Versions, Clipboard History; §23, 2026-10-04).
+
 ---
 
 ## 13. FR-10 — Clipboard
@@ -415,6 +474,14 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - **Cmd+C** copies the selection, or the whole combined image if nothing is selected, as a PNG with transparency.
 - **Cmd+X** cuts.
 - **Copy Merged (Cmd+Shift+C)** copies the combined image of all visible layers inside the selection.
+
+### FR-10.4 Copy Text (stage 13)
+- **Edit ▸ Copy Text (Cmd+Opt+C)** reads the text in the selection, or in the whole image if nothing is selected, and puts it on the clipboard as plain text.
+- Reads on this Mac with Apple Vision, like Auto-Redact. Nothing leaves the Mac. Languages are detected automatically.
+- Reads what you see (all visible layers). In a document with pages, it reads the page being viewed.
+- Lines come out in reading order, one per line; side-by-side columns are read left column first.
+- A short message confirms it: "Copied 42 words", or "No text found" (the clipboard is then left as it was).
+- It never changes the image and isn't an undo step. Text isn't added to Clipboard History, which holds images.
 
 ---
 
@@ -581,16 +648,16 @@ Open camera RAW files, develop them, then edit and export like any image.
 | Menu | Items |
 |---|---|
 | **File** | New (Cmd+N), Open (Cmd+O), Open Recent, Close (Cmd+W), Save (Cmd+S), Save As (Cmd+Shift+S), Duplicate, Revert To, Export… (Cmd+Opt+S), Export As ▸ presets, Share, Set as Desktop Picture, Page Setup, Print (Cmd+P) |
-| **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z), Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Paste (Cmd+V), Paste into New Image (Cmd+Shift+V), Delete, Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I) |
+| **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z), Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Copy Text (Cmd+Opt+C), Paste (Cmd+V), Paste into New Image (Cmd+Shift+V), Delete, Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I), Feather… |
 | **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9), Pixel Grid (Cmd+'), Rulers (Cmd+R), Status Bar, Layers (Cmd+L), History (Cmd+Y), Clipboard History (Cmd+Opt+V), Adjustments panel, Before/After (Cmd+Opt+B) |
 | **Image** | Crop to Selection (Cmd+Shift+X), Resize/Skew (Cmd+E), Canvas Properties (Cmd+Opt+E), Rotate ▸, Flip ▸, Symmetry ▸ |
 | **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete (Cmd+Delete), Merge Down (Cmd+Shift+E), Merge Visible (Cmd+Opt+Shift+E), Flatten, Hide/Show Layer (no default shortcut), Lock/Unlock Layer, New Adjustment Layer ▸, Revert Layer, Layer Properties |
-| **Adjustments** | Invert Colors (Cmd+I), Hue/Saturation, Desaturate (Cmd+Shift+U), Adjust Photo…, Levels…, Auto Contrast, Curves…, Sepia…, Posterize… |
-| **Effects** | Gaussian Blur…, Pixelate…, Sharpen…, Auto-Redact…, Batch Redact ▸ |
+| **Adjustments** | Invert Colors (Cmd+I), Hue/Saturation, Desaturate (Cmd+Shift+U), Adjust Photo…, Levels…, Auto Contrast, Curves…, Sepia…, Posterize…, Remove Red-Eye |
+| **Effects** | Gaussian Blur…, Pixelate…, Sharpen…, Auto-Redact…, Batch Redact ▸ (Blur…, Pixelate…, Solid Fill) |
 | **Window** | Standard |
 | **Help** | Colorbee Help (Cmd+?), and macOS's search field (FR-14.6) |
 
-**Single-key shortcuts** (active only when you're not typing text): X swap colors, D default colors, [ and ] change size, Space (hold) pan. One key per tool: P pencil, B brush, E eraser, G fill, T text, I eyedropper, Z magnifier, M rectangle select, L lasso, W magic wand, U shapes, R measure.
+**Single-key shortcuts** (active only when you're not typing text): X swap colors, D default colors, [ and ] change size, Space (hold) pan. One key per tool: P pencil, B brush, E eraser, G fill, T text, I eyedropper, Z magnifier, M rectangle select, L lasso, W magic wand, U shapes, R measure. Stage 13 adds J retouch, S clone stamp, K redact brush and N step badge.
 
 Every shortcut above is a default. All of them can be changed in the shortcut editor (FR-15.3).
 
@@ -679,6 +746,11 @@ Everything ships. This is only the order work happens in, and each stage builds 
 10. **Pages and PDF documents:** FR-11.6. 10a pages: the document of pages, the page sidebar, page commands and undo, opening PDFs, TIFFs and GIFs, projects, memory. 10b output: Export as PDF, Auto-Redact on every page, the resolution setting.
 11. **Import from iPhone or iPad (planned):** FR-11.7. A short trial build first, with Leah scanning on her iPhone, to see what arrives; then the rest.
 12. **RAW photos:** FR-11.8. Develop window, RAW as another way in, camera details on export.
+13. **Retouching and annotation extras:** FR-3.4, FR-4.6, FR-5.3, FR-9.5 (Remove Red-Eye), FR-9.6, FR-10.4. In four parts:
+    - **13a quick wins:** Copy Text, Step Badges, and the Redact Brush with Blur, Pixelate and Solid Fill.
+    - **13b Match Surroundings:** a trial build of the fill engine first, judged by Leah on her own test pictures; then the engine with its own performance and soak checks, Remove and Spot Heal.
+    - **13c** Clone Stamp, the local brushes, Remove Red-Eye.
+    - **13d Soft selections** (FR-3.4). This touches every command that uses a selection, so it comes last.
 
 ---
 
@@ -733,6 +805,15 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [ ] AC-41 Every menu command appears in the Menus reference with its default shortcut.
 - [ ] AC-42 Each contextual ? button opens the matching section.
 - [ ] AC-43 Scan Documents from an iPhone adds the scans as pages after the page shown, at the phone's own pixel size, as one undo step; with no window open, they open as a new document.
+- [ ] AC-44 Copy Text on a screenshot puts its text on the clipboard in reading order. On an image with no text it says "No text found" and leaves the clipboard unchanged.
+- [ ] AC-45 Step badges count 1, 2, 3 in order; undoing one steps the next number back; Letters gives A, B, C.
+- [ ] AC-46 The Redact Brush changes every layer with pixels under the stroke, as one undo step, and is blocked by a locked layer with pixels there.
+- [ ] AC-47 Remove on an object against sky, a wall or a flat screenshot area leaves no visible trace (judged by Leah on her test images), and the same stroke on the same image gives an identical result.
+- [ ] AC-49 Clone Stamp copies with a constant offset while Aligned is on; Spot Heal removes a dust spot with the tone matched.
+- [ ] AC-50 The local brushes don't build up within one stroke; a second stroke adds more.
+- [ ] AC-51 Remove Red-Eye darkens red pupils in a flash photo and changes nothing in a photo without red-eye.
+- [ ] AC-52 Delete on a feathered selection leaves a soft edge; a redaction treats every partly selected pixel as fully selected.
+- [ ] AC-53 The app contains no machine-learning model files; retouching uses only the image's own pixels.
 
 ---
 
@@ -746,6 +827,8 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-10 | Stage 13 review (Leah): **Erase to Background is struck**: on a busy background it copies nearby texture, which can carry other nearby text into a redaction. The redaction treatments stay Blur, Pixelate and Solid Fill. "No AI models" is for now, to keep Colorbee small, not a hard no. **13b starts with a trial build** of Match Surroundings, judged on Leah's test pictures. Open questions answered: the Retouch gallery goes next to Brushes, and the Redact Brush and Step Badge after Measure; Remove fills when you let go; Step Badge keeps drag-to-arrow. |
+| 2026-10-10 | Retouching and annotation extras, stage 13 (Leah): **no AI models ship in Colorbee.** Object removal comes back into scope, replacing 2026-10-03's "Clean Up is out of scope", as the Remove tool, which fills only from the image's own pixels (Match Surroundings). Also in: Spot Heal, Clone Stamp, local Lighten, Darken, Saturate, Desaturate, Blur, Sharpen and Smudge brushes, Remove Red-Eye, soft-edged selections, the Redact Brush, Erase to Background, numbered Step Badges and Copy Text (FR-3.4, FR-4.6, FR-5.3, FR-9.5, FR-9.6, FR-10.4). Proposals (veto any): keys J Retouch, S Clone Stamp, K Redact Brush, N Step Badge, and Cmd+Opt+C for Copy Text; retouch and Redact Brush sizes up to 300 px; retouch tools ignore Symmetry and treat right-click like left-click; the Redact Brush defaults to Solid Fill and changes layers like Batch Redact; soft selections never soften a redaction; Remove and Spot Heal results are repeatable. |
 | 2026-10-10 | Import from iPhone or iPad (stage 11), from Leah's trial scans: scans arrive as a Letter-size PDF with one JPEG per page (about 1,600 × 2,600 px); photos as a 1440 × 1920 JPEG in Display P3. Leah chose each scan's own picture, without the Letter page's white strips. My choices (veto any): the page sidebar's right-click menu doesn't get the item (macOS offers it only in AppKit menus, and that menu is SwiftUI); the undo step is named "Import" and undoing it shows the page you were on; a scan prints as large as fits on Letter, as the phone placed it; pages that aren't one JPEG are drawn like an opened PDF; a photo uses the phone's JPEG rather than the TIFF copy macOS also offers; importing is refused while Auto-Redact is redacting. |
 | 2026-10-10 | Switching pages (L15), my choices (veto any): .colorproj layers are stored in pieces of about 4 MB, each compressed on its own and joined into one LZ4 stream, so every core can work on them. Older Colorbee versions still open the new files, and new ones open older files (a layer at a time, as before). A page from an older file is stored in pieces the next time it's parked. Files are 0.1% larger. While a page comes back, Colorbee still just waits, much more briefly (Leah). |
 | 2026-10-10 | **Apply Adjustment is renamed Merge Adjustment** (Leah): the Adjustments panel's button is **Merge** and the Layer menu item **Merge Adjustment**, since it combines layers. **Merge Down** is unavailable on an adjustment layer (greyed out in the menu and the Layers panel), so "Down" always means the one layer below; this replaces the 2026-10-03 rule that Merge Down on an adjustment layer applied it. |

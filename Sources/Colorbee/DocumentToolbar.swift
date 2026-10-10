@@ -376,7 +376,7 @@ private struct SidebarButton: View {
     @Bindable var editor: Editor
 
     var body: some View {
-        Button { editor.isSidebarOpen.toggle() } label: {
+        Button { editor.toggleSidebar() } label: {
             ToolbarGlyph(symbol: "sidebar.right", selected: editor.isSidebarOpen)
         }
         .buttonStyle(.plain)

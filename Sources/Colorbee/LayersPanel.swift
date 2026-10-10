@@ -10,10 +10,10 @@ struct Sidebar: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 2) {
-                switcherButton("square.3.layers.3d", "Layers", ShortcutStore.shared.hint("Layers panel", command: "toggleLayers:"), isOn: $editor.showsLayersPanel)
-                switcherButton("slider.horizontal.3", "Adjustments", "Adjustments panel", isOn: $editor.showsAdjustmentsPanel)
-                switcherButton("clock.arrow.circlepath", "History", ShortcutStore.shared.hint("History panel", command: "toggleHistoryPanel:"), isOn: $editor.showsHistoryPanel)
-                switcherButton("list.clipboard", "Clipboard History", ShortcutStore.shared.hint("Clipboard History panel", command: "toggleClipboardPanel:"), isOn: $editor.showsClipboardPanel)
+                switcherButton("square.3.layers.3d", "Layers", ShortcutStore.shared.hint("Layers panel", command: "toggleLayers:"), panel: \.showsLayersPanel)
+                switcherButton("slider.horizontal.3", "Adjustments", "Adjustments panel", panel: \.showsAdjustmentsPanel)
+                switcherButton("clock.arrow.circlepath", "History", ShortcutStore.shared.hint("History panel", command: "toggleHistoryPanel:"), panel: \.showsHistoryPanel)
+                switcherButton("list.clipboard", "Clipboard History", ShortcutStore.shared.hint("Clipboard History panel", command: "toggleClipboardPanel:"), panel: \.showsClipboardPanel)
             }
             .padding(2)
             .background(Theme.field, in: Capsule())
@@ -57,8 +57,10 @@ struct Sidebar: View {
         }
     }
 
-    private func switcherButton(_ symbol: String, _ name: String, _ help: String, isOn: Binding<Bool>) -> some View {
-        Button { isOn.wrappedValue.toggle() } label: {
+    /// Turning off the last panel closes the sidebar, as ⌘L does (Leah, 2026-10-10).
+    private func switcherButton(_ symbol: String, _ name: String, _ help: String, panel: ReferenceWritableKeyPath<Editor, Bool>) -> some View {
+        let isOn = Binding(get: { editor[keyPath: panel] }, set: { _ in })
+        return Button { editor.togglePanel(panel) } label: {
             Image(systemName: symbol)
                 .font(.system(size: 13))
                 .frame(width: 40, height: 24)

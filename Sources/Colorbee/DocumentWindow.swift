@@ -43,6 +43,7 @@ final class DocumentWindow: NSWindow {
         for (key, path) in zip(Self.panelKeys, Self.panelPaths) where coder.containsValue(forKey: "Colorbee." + key) {
             editor[keyPath: path] = coder.decodeBool(forKey: "Colorbee." + key)
         }
+        editor.settlePanels()
         guard coder.containsValue(forKey: "ColorbeeZoom") else { return }
         let zoom = coder.decodeDouble(forKey: "ColorbeeZoom")
         let center = Point2D(x: coder.decodeDouble(forKey: "ColorbeeCenterX"), y: coder.decodeDouble(forKey: "ColorbeeCenterY"))
@@ -263,7 +264,10 @@ final class DocumentWindow: NSWindow {
     }
 
     /// The Layers panel holds the active layer's name, blend mode and opacity, so this opens it.
-    @objc func showLayerProperties(_ sender: Any?) { editor?.isSidebarOpen = true }
+    @objc func showLayerProperties(_ sender: Any?) {
+        editor?.showsLayersPanel = true
+        editor?.openSidebar()
+    }
 
     @objc func togglePixelGrid(_ sender: Any?) {
         editor?.showsPixelGrid.toggle()

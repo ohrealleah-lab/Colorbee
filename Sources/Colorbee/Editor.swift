@@ -3107,7 +3107,7 @@ final class Editor {
     func togglePanel(_ panel: ReferenceWritableKeyPath<Editor, Bool>) {
         if isSidebarOpen && self[keyPath: panel] {
             self[keyPath: panel] = false
-            if !showsLayersPanel && !showsAdjustmentsPanel && !showsHistoryPanel && !showsClipboardPanel { isSidebarOpen = false }
+            if !showsAnyPanel { isSidebarOpen = false }
         } else {
             self[keyPath: panel] = true
             isSidebarOpen = true
@@ -3116,6 +3116,28 @@ final class Editor {
 
     func toggleAdjustmentsPanel() {
         togglePanel(\.showsAdjustmentsPanel)
+    }
+
+    private var showsAnyPanel: Bool { showsLayersPanel || showsAdjustmentsPanel || showsHistoryPanel || showsClipboardPanel }
+
+    /// The toolbar's Sidebar button. Opened with no panel chosen, it shows the Layers panel, so it's never an empty
+    /// shell (Leah, 2026-10-10).
+    func toggleSidebar() {
+        if isSidebarOpen {
+            isSidebarOpen = false
+        } else {
+            openSidebar()
+        }
+    }
+
+    func openSidebar() {
+        if !showsAnyPanel { showsLayersPanel = true }
+        isSidebarOpen = true
+    }
+
+    /// After the panels are put back as a window was left: an open sidebar with no panel is closed.
+    func settlePanels() {
+        if isSidebarOpen, !showsAnyPanel { isSidebarOpen = false }
     }
 
     var layers: [Layer] {

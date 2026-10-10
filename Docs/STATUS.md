@@ -180,7 +180,7 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
-**Help, phase 2 (2026-10-09): not yet tested.** Rebuild and run with the script first, then follow each guide exactly as
+**Help, phase 2 (2026-10-09): all 5 steps passed Leah's hand test on 2026-10-09.** Rebuild and run with the script first, then follow each guide exactly as
 written on a clean launch, using `TestImages/Help/Sample Screenshot.png` (made-up details). Every step should work and
 every menu name and key should match; note anything unclear.
 1. Help ▸ Colorbee Help: the contents page lists **Getting started** and **Redact a screenshot**.

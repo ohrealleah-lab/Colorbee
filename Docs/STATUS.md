@@ -180,6 +180,11 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
+**Adjustment layers: Merge Adjustment and Copy (2026-10-09/10): passed Leah's hand test on 2026-10-10.** Leah's `Cant Copy.colorproj` (four layers, Adjust Photo on top).
+1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
+2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
+3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
 **Help, phase 2 (2026-10-09): all 5 steps passed Leah's hand test on 2026-10-09.** Rebuild and run with the script first, then follow each guide exactly as
 written on a clean launch, using `TestImages/Help/Sample Screenshot.png` (made-up details). Every step should work and
 every menu name and key should match; note anything unclear.

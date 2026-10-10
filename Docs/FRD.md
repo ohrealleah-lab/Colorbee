@@ -582,11 +582,26 @@ Open camera RAW files, develop them, then edit and export like any image.
 | **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete (Cmd+Delete), Merge Down (Cmd+Shift+E), Merge Visible (Cmd+Opt+Shift+E), Flatten, Hide/Show Layer (no default shortcut), Lock/Unlock Layer, New Adjustment Layer ▸, Revert Layer, Layer Properties |
 | **Adjustments** | Invert Colors (Cmd+I), Hue/Saturation, Desaturate (Cmd+Shift+U), Adjust Photo…, Levels…, Auto Contrast, Curves…, Sepia…, Posterize… |
 | **Effects** | Gaussian Blur…, Pixelate…, Sharpen…, Auto-Redact…, Batch Redact ▸ |
-| **Window / Help** | Standard |
+| **Window** | Standard |
+| **Help** | Colorbee Help (Cmd+?), and macOS's search field (FR-14.6) |
 
 **Single-key shortcuts** (active only when you're not typing text): X swap colors, D default colors, [ and ] change size, Space (hold) pan. One key per tool: P pencil, B brush, E eraser, G fill, T text, I eyedropper, Z magnifier, M rectangle select, L lasso, W magic wand, U shapes, R measure.
 
 Every shortcut above is a default. All of them can be changed in the shortcut editor (FR-15.3).
+
+### FR-14.6 Help
+- **Help ▸ Colorbee Help (Cmd+?)** opens a standard Mac Help Book in Apple's help viewer. It ships inside the app
+  and works offline. Cmd+? is reserved (FR-15.3), so it can't be reassigned.
+- The Help menu's search field finds help topics as well as menu items.
+- **Contents:** task guides first (Getting started, Redact a screenshot, Annotate an image, Work with layers, Fix up
+  a photo, Pages and PDFs, Pixel art, Save, export and share), then a reference (Tools, Menus, Panels, Settings,
+  Keyboard shortcuts, Privacy, Troubleshooting). The Menus and Keyboard shortcuts pages are generated from the app.
+- **About 9 screenshots**, light mode only, made-up content only, taken by a script so they can be retaken. The
+  pages themselves follow light and dark mode.
+- **Contextual ? buttons** open the matching section: the Auto-Redact sheet, Settings ▸ Shortcuts and Export
+  Presets, Resize and Skew, Canvas Properties, and the Develop window.
+- The help describes what the app actually does, and leaves out hidden features (palettes). Plan:
+  `Docs/HELP-PLAN.md`.
 
 ---
 
@@ -708,6 +723,10 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [x] AC-36 A filter at 50% intensity gives the same result as its slider values halved. A saved filter survives a relaunch and round-trips through a .colorbeefilter file.
 - [x] AC-37 Remove Background leaves soft edges in transparency; Select Subject picks only the clicked subject; an image with no subject says "No subject found" and changes nothing.
 - [x] AC-38 Crop with a pixel-size preset produces exactly that size; Perspective Correction turns a photographed rectangle into a rectangle.
+- [ ] AC-39 Cmd+? opens Colorbee Help (FR-14.6).
+- [ ] AC-40 Typing "redact" in the Help menu's search lists the Redact a screenshot guide.
+- [ ] AC-41 Every menu command appears in the Menus reference with its default shortcut.
+- [ ] AC-42 Each contextual ? button opens the matching section.
 
 ---
 
@@ -721,6 +740,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-06 | Help (Leah): a standard Mac Help Book (Help ▸ Colorbee Help, Cmd+?, offline, found by the Help menu's search); task guides first, then a full reference; a few key screenshots, light mode only, retaken by a script; no "What's new" page (beta notes stay in Start Here.txt). See FR-14.6 and `Docs/HELP-PLAN.md`. (Veto any, Claude's choices: the contextual ? buttons go in the Auto-Redact sheet, Settings ▸ Shortcuts and Export Presets, Resize and Skew, Canvas Properties and the Develop window; the Menus and Keyboard shortcuts pages are generated from the app, so they can't drift.) |
 | 2026-10-05 | Toolbar (Leah): Brushes and Shapes join the drawing tools' group, right after the Pencil, instead of a group of their own: they're all drawing tools. |
 | 2026-10-05 | Palette bar (Leah): **Edit Colors…** is removed, since double-clicking Color 1 or Color 2 opens the same color picker. **Palettes** are hidden, not removed: too much for the bar's space; the code stays and one switch (`PaletteStore.isShown`) brings the menu back. Colorbee keeps using the palette that was active (Paint Classic). |
 | 2026-10-05 | Review round 4 (Leah): Export as PDF converts pages with a non-standard color profile to Display P3, so no device or calibration name goes in (Display P3 and sRGB pages are kept as they are); after a redaction, the Clipboard History offer also covers copies made from the document. (Veto any, Claude's choices: an untitled document autosaves as a .colorproj, so nothing is lost on a relaunch, while the Save panel still starts on an image format; the History panel steps only the page shown, never a page change; Save, Export, Share, Print and Revert are greyed out behind any sheet or effect bar, and autosave waits while Auto-Redact is applying.) |

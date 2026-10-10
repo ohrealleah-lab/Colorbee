@@ -35,7 +35,7 @@ private struct SelectingGroups: ToolbarContent {
                 .disabled(editor.activeEffect != nil)
             ShapeGalleryButton(editor: editor)
                 .disabled(editor.activeEffect != nil)
-            ForEach([Tool.fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure], id: \.self) {
+            ForEach([Tool.fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure, .stepBadge], id: \.self) {
                 ToolButton(tool: $0, editor: editor)
             }
         }
@@ -150,7 +150,8 @@ private struct SizeControl: View {
             .frame(height: 22)
             .background(Theme.field, in: RoundedRectangle(cornerRadius: 7))
             // Each tool keeps its size within its own limits, and reading it back stops the drag there.
-            .scrubs(Binding(get: { Double(editor.toolSize ?? 1) }, set: { editor.toolSize = Int($0) }), in: 1...100, focus: $typing,
+            .scrubs(Binding(get: { Double(editor.toolSize ?? 1) }, set: { editor.toolSize = Int($0) }),
+                    in: Double(editor.toolSizeRange.lowerBound)...Double(editor.toolSizeRange.upperBound), focus: $typing,
                     passingClicksThrough: true)
             .padding(.leading, 4)
         }

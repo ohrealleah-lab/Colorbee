@@ -24,6 +24,7 @@ enum Tool: CaseIterable {
     case lassoSelect
     case magicWand
     case magnifier
+    case stepBadge
 
     var isSelectionTool: Bool {
         switch self {
@@ -35,7 +36,7 @@ enum Tool: CaseIterable {
     /// Tools that change the active layer's pixels.
     var changesPixels: Bool {
         switch self {
-        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text: true
+        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text, .stepBadge: true
         default: false
         }
     }
@@ -327,6 +328,16 @@ struct PendingShape: Equatable {
     }
 }
 
+/// A step badge still being placed (FR-5.3): it can be moved or removed until the next one, or another command,
+/// places it.
+struct PendingBadge: Equatable {
+    var value: Int
+    var center: Point2D
+    var arrowTip: Point2D?
+    /// Right-clicked: the circle in Color 2 and the number in Color 1.
+    var swapped: Bool
+}
+
 /// Text formatting for the text tool (FR-6.1).
 struct TextStyle: Equatable, Codable {
     var fontFamily = "Helvetica Neue"
@@ -459,6 +470,23 @@ final class Editor {
         didSet { renderSoon() }
     }
     private(set) var pendingShape: PendingShape?
+    // Step badges (FR-5.3).
+    var badgeStyle: BadgeStyle = .numbers {
+        didSet { renderSoon() }
+    }
+    /// What the next badge shows. It starts at 1 in each document and steps back when a badge is undone.
+    var nextBadge = 1
+    var badgeDiameter = 32.0 {
+        didSet { renderSoon() }
+    }
+    private(set) var pendingBadge: PendingBadge?
+    private enum BadgeDrag {
+        case create
+        case move(grab: Point2D, original: PendingBadge)
+    }
+    @ObservationIgnored private var badgeDrag: BadgeDrag?
+    /// The value each placed badge's step showed, so undoing it steps the next number back.
+    @ObservationIgnored private var badgeSteps: [UUID: Int] = [:]
     var gradientMode: GradientMode = .linear
     var symmetry: SymmetryMode = .off {
         didSet { renderSoon() }
@@ -837,7 +865,7 @@ final class Editor {
     /// The step Undo on Active Layer would take back, for the menu; nil when it isn't available.
     var undoOnActiveLayerName: String? {
         // Placing a pending shape or text makes a newer step, so the step isn't known yet (review G, finding 1).
-        guard pendingShape == nil, pendingText == nil else { return nil }
+        guard pendingShape == nil, pendingText == nil, pendingBadge == nil else { return nil }
         return history.undoOnLayerActionName(canvas.activeLayer.id, canvas: canvas)
     }
 
@@ -883,23 +911,40 @@ final class Editor {
             case .brush: Int(brushDiameter.rounded())
             case .shape: Int(shapeLineWidth.rounded())
             case .eraser: eraserSize
+            case .stepBadge: Int(badgeDiameter.rounded())
             default: nil
             }
         }
         set {
             guard let size = newValue else { return }
+            let range = toolSizeRange
+            let clamped = min(range.upperBound, max(range.lowerBound, size))
             switch tool {
-            case .brush: brushDiameter = Double(min(50, max(1, size)))
-            case .shape: shapeLineWidth = Double(min(50, max(1, size)))
-            case .eraser: eraserSize = min(100, max(1, size))
+            case .brush: brushDiameter = Double(clamped)
+            case .shape: shapeLineWidth = Double(clamped)
+            case .eraser: eraserSize = clamped
+            case .stepBadge: badgeDiameter = Double(clamped)
             default: break
             }
         }
     }
 
+    /// The sizes the tool in use allows.
+    var toolSizeRange: ClosedRange<Int> {
+        switch tool {
+        case .eraser: 1...100
+        case .stepBadge: 16...128
+        default: 1...50
+        }
+    }
+
     /// The five sizes the Size control offers for the tool in use.
     var toolSizePresets: [Int] {
-        tool == .eraser ? [4, 6, 8, 10, 20] : [1, 2, 3, 4, 5]
+        switch tool {
+        case .eraser: [4, 6, 8, 10, 20]
+        case .stepBadge: [24, 32, 48, 64, 96]
+        default: [1, 2, 3, 4, 5]
+        }
     }
 
     /// The `[` and `]` keys: resize whichever tool is active.
@@ -910,6 +955,8 @@ final class Editor {
         case .shape:
             // The Shapes tool's size is its line width (review I, finding 10).
             shapeLineWidth = max(1, min(50, shapeLineWidth + (larger ? 1 : -1)))
+        case .stepBadge:
+            badgeDiameter = max(16, min(128, badgeDiameter + (larger ? 4 : -4)))
         default:
             brushDiameter = max(1, min(50, brushDiameter + (larger ? 1 : -1)))
         }
@@ -933,6 +980,7 @@ final class Editor {
         shapeDrag = nil
         commitPendingShape()
         commitPendingText()
+        commitPendingBadge()
         endStroke()
         cancelOrEndSelectionDrag()
         if activeEffect != nil { cancelEffect() }
@@ -1487,6 +1535,86 @@ final class Editor {
         pendingShape = nil
         forgetShapeRender()
         shapeDrag = nil
+        onRender()
+    }
+
+    // MARK: Step badges (FR-5.3)
+
+    var pendingBadgeSpec: StepBadgeSpec? {
+        guard let badge = pendingBadge else { return nil }
+        return StepBadgeSpec(label: StepBadge.label(for: badge.value, style: badgeStyle), center: badge.center, diameter: badgeDiameter,
+                             fill: badge.swapped ? color2 : color1, ink: badge.swapped ? color1 : color2, arrowTip: badge.arrowTip)
+    }
+
+    /// The badge being placed, drawn into pixels for the overlay.
+    func renderedPendingBadge() -> (pixels: PixelBuffer, origin: IntPoint)? {
+        pendingBadgeSpec.flatMap { StepBadge.render($0, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) }
+    }
+
+    func pendingBadgeContains(_ point: Point2D) -> Bool {
+        pendingBadgeSpec?.contains(point) == true
+    }
+
+    /// A press on the badge being placed moves it; anywhere else places it and starts the next one there. Dragging
+    /// out from a new badge points an arrow at where the drag ends.
+    func beginBadge(at point: Point2D, secondary: Bool) {
+        if let badge = pendingBadge, pendingBadgeContains(point) {
+            badgeDrag = .move(grab: point, original: badge)
+            return
+        }
+        guard !refusedBecauseLocked() else { return }
+        finishInteractions()
+        placeFloatingSelection()
+        pendingBadge = PendingBadge(value: nextBadge, center: point, swapped: secondary)
+        nextBadge += 1
+        badgeDrag = .create
+        onRender()
+    }
+
+    func continueBadge(to point: Point2D) {
+        guard var badge = pendingBadge, let drag = badgeDrag else { return }
+        switch drag {
+        case .create:
+            badge.arrowTip = point
+        case .move(let grab, let original):
+            let dx = point.x - grab.x, dy = point.y - grab.y
+            badge = original
+            badge.center = Point2D(x: original.center.x + dx, y: original.center.y + dy)
+            badge.arrowTip = original.arrowTip.map { Point2D(x: $0.x + dx, y: $0.y + dy) }
+        }
+        pendingBadge = badge
+        onRender()
+    }
+
+    func endBadge() {
+        badgeDrag = nil
+        // A click, or a drag that stayed on the circle, has no arrow.
+        if pendingBadgeSpec?.showsArrow == false { pendingBadge?.arrowTip = nil }
+    }
+
+    /// Draws the badge into the active layer as one step, "Step Badge".
+    func commitPendingBadge() {
+        guard let badge = pendingBadge, let spec = pendingBadgeSpec else { return }
+        pendingBadge = nil
+        badgeDrag = nil
+        guard activeLayerTakesEdits, let rendered = StepBadge.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) else {
+            nextBadge = badge.value
+            onRender()
+            return
+        }
+        let edit = history.beginEdit("Step Badge", on: canvas)
+        Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.activeLayer, edit: edit)
+        recordingChanges { history.commit(edit) }
+        if let step = history.undoStepID { badgeSteps[step] = badge.value }
+        onRender()
+    }
+
+    /// Removes the badge being placed (Delete, Esc or ⌘Z); its number is used again by the next one.
+    func cancelPendingBadge() {
+        guard let badge = pendingBadge else { return }
+        pendingBadge = nil
+        badgeDrag = nil
+        nextBadge = badge.value
         onRender()
     }
 
@@ -2881,6 +3009,10 @@ final class Editor {
             cancelPendingShape()
             return
         }
+        if pendingBadge != nil {
+            cancelPendingBadge()
+            return
+        }
         finishInteractions()
         // Adding, deleting or moving a page is undone while it's the newest thing done (FR-11.6).
         if pages.undoName != nil {
@@ -2889,7 +3021,9 @@ final class Editor {
             onDocumentChange(.undone)
             return
         }
-        stepShownPage(undoing: true)
+        let step = history.undoStepID
+        // Undoing a badge steps the next number back to it (FR-5.3).
+        if stepShownPage(undoing: true), let step, let value = badgeSteps[step] { nextBadge = value }
     }
 
     func redo() {
@@ -2900,7 +3034,8 @@ final class Editor {
             onDocumentChange(.redone)
             return
         }
-        stepShownPage(undoing: false)
+        let step = history.redoStepID
+        if stepShownPage(undoing: false), let step, let value = badgeSteps[step] { nextBadge = value + 1 }
     }
 
     /// Undoes or redoes the newest step of the page shown, or of every page of a multi-page Auto-Redact it's part of.

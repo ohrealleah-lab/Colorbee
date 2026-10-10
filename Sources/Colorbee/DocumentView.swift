@@ -188,6 +188,24 @@ private struct ToolOptions: View {
             TextOptions(style: $editor.textStyle)
         case .pencil:
             hint("1 px · Shift draws straight lines")
+        case .stepBadge:
+            Picker("Badges", selection: $editor.badgeStyle) {
+                Text("1, 2, 3").tag(BadgeStyle.numbers)
+                Text("A, B, C").tag(BadgeStyle.letters)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("Number the badges, or letter them")
+            Text("Next")
+            TextField("Next", text: Binding(
+                get: { StepBadge.label(for: editor.nextBadge, style: editor.badgeStyle) },
+                set: { if let value = StepBadge.value(of: $0, style: editor.badgeStyle) { editor.nextBadge = value } }))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 52)
+                .labelsHidden()
+                .help("What the next badge shows")
+            hint("Drag to point an arrow · Right-click swaps the colors")
         }
     }
 

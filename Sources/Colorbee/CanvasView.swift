@@ -19,6 +19,7 @@ final class CanvasView: NSView {
         case select(last: Point2D)
         case measure(start: Point2D)
         case gradient
+        case badge
         case divider
         case shape
         case text(start: Point2D)
@@ -256,7 +257,7 @@ final class CanvasView: NSView {
             outline: outline,
             transparentKey: editor.selectionContext.transparentKey,
             smoothFloating: editor.smoothResize,
-            overlay: comparing ? nil : editor.renderedPendingShape() ?? editor.renderedPendingText(),
+            overlay: comparing ? nil : editor.renderedPendingShape() ?? editor.renderedPendingText() ?? editor.renderedPendingBadge(),
             handlePoints: comparing ? [] : editor.activeEffect?.isCanvasTool == true ? editor.canvasToolHandles : handlePoints(selection),
             roundHandlePoints: comparing ? [] : [editor.pendingShapeRotateHandle].compactMap { $0 },
             showsPixelGrid: editor.showsPixelGrid,
@@ -484,7 +485,7 @@ final class CanvasView: NSView {
             case .box(let handle): return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
             case .rotate: return Self.rotateCursor
             case .start, .end, .vertex: return .crosshair
-            case nil: if editor.pendingShapeContains(point) { return .openHand }
+            case nil: if editor.pendingShapeContains(point) || editor.pendingBadgeContains(point) { return .openHand }
             }
         }
         if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
@@ -551,6 +552,9 @@ final class CanvasView: NSView {
         case .shape:
             drag = .shape
             editor.beginShapeDrag(at: point, viewPoint: viewPoint(event), secondary: secondary, clickCount: event.clickCount)
+        case .stepBadge:
+            drag = .badge
+            editor.beginBadge(at: point, secondary: secondary)
         case .text:
             // A handle or the border moves or resizes the open text box; a click elsewhere places it,
             // and the next click starts a new one.
@@ -597,6 +601,9 @@ final class CanvasView: NSView {
         case .shape:
             editor.continueShapeDrag(to: imagePoint(event), shiftDown: event.modifierFlags.contains(.shift))
             updatePointer(event)
+        case .badge:
+            editor.continueBadge(to: imagePoint(event))
+            updatePointer(event)
         case .text(let start):
             editor.updateTextDragFrame(from: start, to: imagePoint(event))
             updatePointer(event)
@@ -632,6 +639,8 @@ final class CanvasView: NSView {
             editor.endGradient()
         case .shape:
             editor.endShapeDrag()
+        case .badge:
+            editor.endBadge()
         case .canvasResize:
             let size = editor.canvasResizePreview
             editor.canvasResizePreview = nil
@@ -833,15 +842,29 @@ final class CanvasView: NSView {
                 editor.finishBuilding()
             } else if editor.pendingShape != nil {
                 editor.commitPendingShape()
+            } else if editor.pendingBadge != nil {
+                editor.commitPendingBadge()
             } else {
                 editor.deselect()
             }
         case .delete where plain, .deleteForward where plain, .backspace where plain:
-            if editor.hasSelection { editor.deleteSelection() } else { super.keyDown(with: event) }
+            if editor.pendingBadge != nil {
+                editor.cancelPendingBadge()
+            } else if editor.hasSelection {
+                editor.deleteSelection()
+            } else {
+                super.keyDown(with: event)
+            }
         default:
             switch (event.charactersIgnoringModifiers, plain) {
             case ("\u{1b}", true):
-                if editor.pendingShape != nil { editor.cancelPendingShape() } else { editor.deselect() }
+                if editor.pendingShape != nil {
+                    editor.cancelPendingShape()
+                } else if editor.pendingBadge != nil {
+                    editor.cancelPendingBadge()
+                } else {
+                    editor.deselect()
+                }
             case (" ", true):
                 spaceHeld = true
                 if drag == nil { NSCursor.openHand.set() }
@@ -865,6 +888,7 @@ final class CanvasView: NSView {
             "canvas.magnifier": { self.editor.selectTool(.magnifier) }, "canvas.rectangleSelect": { self.editor.selectTool(.rectangleSelect) },
             "canvas.lassoSelect": { self.editor.selectTool(.lassoSelect) }, "canvas.magicWand": { self.editor.selectTool(.magicWand) },
             "canvas.shape": { self.editor.selectTool(.shape) }, "canvas.measure": { self.editor.selectTool(.measure) },
+            "canvas.stepBadge": { self.editor.selectTool(.stepBadge) },
             "canvas.swapColors": { self.editor.swapColors() }, "canvas.resetColors": { self.editor.resetColors() },
             "canvas.smaller": { self.editor.adjustToolSize(larger: false) }, "canvas.larger": { self.editor.adjustToolSize(larger: true) },
         ]

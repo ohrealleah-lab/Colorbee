@@ -369,6 +369,9 @@ final class DocumentWindow: NSWindow {
             // ⌘Z discards a shape that isn't placed yet (§23, stage 3b; review J, finding 16).
             menuItem.title = "Undo Shape"
             return true
+        case #selector(undo(_:)) where editor.pendingBadge != nil:
+            menuItem.title = "Undo Step Badge"
+            return true
         case #selector(undo(_:)):
             menuItem.title = editor.undoActionName.map { "Undo \($0)" } ?? "Undo"
             return editor.undoActionName != nil

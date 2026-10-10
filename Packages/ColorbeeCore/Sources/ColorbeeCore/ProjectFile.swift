@@ -51,6 +51,8 @@ public enum ProjectFile {
         /// piece's compressed size. Missing from projects saved before the pieces, which are one stream per layer.
         var pieceRows: Int?
         var pieces: [Int]?
+        /// An adjustment that changes only the layer below; missing means no.
+        var clipped: Bool?
     }
 
     /// An adjustment that reads back as none if it's of a kind this version doesn't know.
@@ -79,6 +81,7 @@ public enum ProjectFile {
                 blendMode: layer.blendMode.rawValue, isLocked: layer.isLocked,
                 adjustment: layer.adjustment.map(AdjustmentEntry.init), pixels: nil
             )
+            if layer.adjustment != nil, layer.clipsToLayerBelow { entry.clipped = true }
             if let pixels = compressed[layer.id] {
                 entry.pixels = blobs.count..<(blobs.count + pixels.data.count)
                 entry.pieceRows = pixels.pieceRows
@@ -276,6 +279,7 @@ public enum ProjectFile {
             layer.blendMode = BlendMode(rawValue: entry.blendMode) ?? .normal
             layer.isLocked = entry.isLocked
             layer.adjustment = entry.adjustment?.effect
+            layer.clipsToLayerBelow = entry.clipped == true && layer.adjustment != nil
             return layer
         }
         let canvas = Canvas(colorSpace: colorSpace, layers: layers, hasTransparentBackground: manifest.hasTransparentBackground,
@@ -312,6 +316,7 @@ public enum ProjectFile {
             layer.blendMode = BlendMode(rawValue: entry.blendMode) ?? .normal
             layer.isLocked = entry.isLocked
             layer.adjustment = entry.adjustment?.effect
+            layer.clipsToLayerBelow = entry.clipped == true && layer.adjustment != nil
             return layer
         }
         try LayerPixels.decompress(stored)

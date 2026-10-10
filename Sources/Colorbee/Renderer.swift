@@ -234,81 +234,95 @@ final class Renderer {
         encoder.setScissorRect(canvasScissor)
         sampling(zoom < 1)
         let floating = canvas.selection.floating
-        for layer in canvas.layers where layer.isVisible && layer.opacity > 0 {
+        /// Draws an adjustment layer onto `target`, changing what's drawn there so far: the image, or (for a clipped
+        /// adjustment) its layer drawn on its own. False if the GPU couldn't go on.
+        func drawAdjustment(_ layer: Layer, _ adjustment: Effect, onto target: MTLTexture) -> Bool {
+            uniforms.opacity = Float(layer.opacity)
+            uniforms.rect = deviceRect(canvas.bounds)
+            uniforms.keyEnabled = 0
+            let (kind, params) = Self.adjustmentUniforms(adjustment)
+            uniforms.adjustKind = kind
+            uniforms.adjustParams = params
+            uniforms.blendMode = Float(layer.blendMode.rawValue)
+            if case .photo(let edit) = adjustment, let lookup = lookupTexture(for: adjustment) {
+                // Detail sliders need blurred copies of what's below: pause the layer pass, blur, resume.
+                let a = edit.adjustments
+                let fine = a[.sharpness] > 0 || a[.noiseReduction] > 0, wide = a[.definition] > 0
+                let canvasRect = uniforms.rect
+                let source = target
+                if fine || wide {
+                    encoder.endEncoding()
+                    if fine { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.fineRadius * zoom * scale), slot: 0, commandBuffer: commandBuffer) }
+                    if wide { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.definitionRadius * zoom * scale), slot: 1, commandBuffer: commandBuffer) }
+                    let resume = MTLRenderPassDescriptor()
+                    resume.colorAttachments[0].texture = source
+                    resume.colorAttachments[0].loadAction = .load
+                    resume.colorAttachments[0].storeAction = .store
+                    guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume) else { return false }
+                    encoder = resumed
+                    encoder.setScissorRect(canvasScissor)
+                    sampling(zoom < 1)
+                }
+                let targets = preparedBlurTargets(width: source.width, height: source.height)
+                encoder.setFragmentTexture(lookup, index: 0)
+                encoder.setFragmentTexture(targets[0].blurred, index: 1)
+                encoder.setFragmentTexture(targets[0].coverageBlurred, index: 2)
+                encoder.setFragmentTexture(targets[1].blurred, index: 3)
+                encoder.setFragmentTexture(targets[1].coverageBlurred, index: 4)
+                uniforms.rect = canvasRect
+                uniforms.adjustParams = SIMD4(Float(lookup.width), fine ? Float(a[.sharpness] / 100) : 0,
+                                              wide ? Float(a[.definition] / 100) : 0, fine ? Float(a[.noiseReduction] / 100) : 0)
+                uniforms.photoParams = SIMD4(Float(a[.vignette]), 0, 0, 0)
+                draw(adjustPhotoPipeline)
+            } else if let table = channelTexture(for: adjustment) {
+                encoder.setFragmentTexture(table, index: 0)
+                draw(adjustChannelPipeline)
+            } else if let lookup = lookupTexture(for: adjustment) {
+                uniforms.adjustParams = SIMD4(Float(lookup.width), 0, 0, 0)
+                encoder.setFragmentTexture(lookup, index: 0)
+                draw(adjustLookupPipeline)
+            } else if kind >= 5 {
+                // Blur and Sharpen need the neighbors of each pixel: pause the layer pass, blur on the GPU, resume.
+                encoder.endEncoding()
+                let radius = kind == 5 ? Double(params.x) : 1
+                let canvasRect = uniforms.rect
+                blur(target, canvasRect: canvasRect, sigma: Float(radius * zoom * scale), slot: 0, commandBuffer: commandBuffer)
+                let resume = MTLRenderPassDescriptor()
+                resume.colorAttachments[0].texture = target
+                resume.colorAttachments[0].loadAction = .load
+                resume.colorAttachments[0].storeAction = .store
+                guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume), let targets = blurTargets.first else { return false }
+                encoder = resumed
+                encoder.setScissorRect(canvasScissor)
+                encoder.setFragmentTexture(targets.blurred, index: 0)
+                encoder.setFragmentTexture(targets.coverageBlurred, index: 1)
+                uniforms.rect = canvasRect
+                draw(adjustBlurPipeline)
+                sampling(zoom < 1)
+            } else {
+                draw(adjustPointPipeline)
+            }
+            uniforms.adjustKind = 0
+            return true
+        }
+
+        for (index, layer) in canvas.layers.enumerated() where layer.isVisible && layer.opacity > 0 {
+            // A clipped adjustment is drawn with the layer it changes, or not at all when there's none.
+            if layer.adjustment != nil, layer.clipsToLayerBelow { continue }
             uniforms.opacity = Float(layer.opacity)
             uniforms.rect = deviceRect(canvas.bounds)
             uniforms.keyEnabled = 0
             if let adjustment = layer.adjustment {
-                let (kind, params) = Self.adjustmentUniforms(adjustment)
-                uniforms.adjustKind = kind
-                uniforms.adjustParams = params
-                uniforms.blendMode = Float(layer.blendMode.rawValue)
-                if case .photo(let edit) = adjustment, let lookup = lookupTexture(for: adjustment) {
-                    // Detail sliders need blurred copies of what's below: pause the layer pass, blur, resume.
-                    let a = edit.adjustments
-                    let fine = a[.sharpness] > 0 || a[.noiseReduction] > 0, wide = a[.definition] > 0
-                    let canvasRect = uniforms.rect
-                    let source = layerPass.colorAttachments[0].texture!
-                    if fine || wide {
-                        encoder.endEncoding()
-                        if fine { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.fineRadius * zoom * scale), slot: 0, commandBuffer: commandBuffer) }
-                        if wide { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.definitionRadius * zoom * scale), slot: 1, commandBuffer: commandBuffer) }
-                        let resume = MTLRenderPassDescriptor()
-                        resume.colorAttachments[0].texture = source
-                        resume.colorAttachments[0].loadAction = .load
-                        resume.colorAttachments[0].storeAction = .store
-                        guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume) else { return }
-                        encoder = resumed
-                        encoder.setScissorRect(canvasScissor)
-                        sampling(zoom < 1)
-                    }
-                    let targets = preparedBlurTargets(width: source.width, height: source.height)
-                    encoder.setFragmentTexture(lookup, index: 0)
-                    encoder.setFragmentTexture(targets[0].blurred, index: 1)
-                    encoder.setFragmentTexture(targets[0].coverageBlurred, index: 2)
-                    encoder.setFragmentTexture(targets[1].blurred, index: 3)
-                    encoder.setFragmentTexture(targets[1].coverageBlurred, index: 4)
-                    uniforms.rect = canvasRect
-                    uniforms.adjustParams = SIMD4(Float(lookup.width), fine ? Float(a[.sharpness] / 100) : 0,
-                                                  wide ? Float(a[.definition] / 100) : 0, fine ? Float(a[.noiseReduction] / 100) : 0)
-                    uniforms.photoParams = SIMD4(Float(a[.vignette]), 0, 0, 0)
-                    draw(adjustPhotoPipeline)
-                } else if let table = channelTexture(for: adjustment) {
-                    encoder.setFragmentTexture(table, index: 0)
-                    draw(adjustChannelPipeline)
-                } else if let lookup = lookupTexture(for: adjustment) {
-                    uniforms.adjustParams = SIMD4(Float(lookup.width), 0, 0, 0)
-                    encoder.setFragmentTexture(lookup, index: 0)
-                    draw(adjustLookupPipeline)
-                } else if kind >= 5 {
-                    // Blur and Sharpen need the neighbors of each pixel: pause the layer pass, blur on the GPU, resume.
-                    encoder.endEncoding()
-                    let radius = kind == 5 ? Double(params.x) : 1
-                    let canvasRect = uniforms.rect
-                    blur(layerPass.colorAttachments[0].texture!, canvasRect: canvasRect, sigma: Float(radius * zoom * scale), slot: 0, commandBuffer: commandBuffer)
-                    let resume = MTLRenderPassDescriptor()
-                    resume.colorAttachments[0].texture = layerPass.colorAttachments[0].texture
-                    resume.colorAttachments[0].loadAction = .load
-                    resume.colorAttachments[0].storeAction = .store
-                    guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume), let targets = blurTargets.first else { return }
-                    encoder = resumed
-                    encoder.setScissorRect(canvasScissor)
-                    encoder.setFragmentTexture(targets.blurred, index: 0)
-                    encoder.setFragmentTexture(targets.coverageBlurred, index: 1)
-                    uniforms.rect = canvasRect
-                    draw(adjustBlurPipeline)
-                    sampling(zoom < 1)
-                } else {
-                    draw(adjustPointPipeline)
-                }
-                uniforms.adjustKind = 0
+                guard drawAdjustment(layer, adjustment, onto: layerPass.colorAttachments[0].texture!) else { return }
                 continue
             }
             let overlay = layer.id == canvas.activeLayer.id ? scene.overlay : nil
             let hasFloating = floating?.layerID == layer.id
             // Objects not yet placed go into their layer before it's blended, so on a layer that isn't Normal
             // at 100% they look as they will once placed (Leah; review F, finding 1).
-            let isolated = (hasFloating || overlay != nil) && (layer.blendMode != .normal || layer.opacity < 1)
+            // Its clipped adjustments change it alone, so it's drawn on its own first, then blended in.
+            let clips = canvas.clippedAdjustments(onLayerAt: index).filter { $0.isVisible && $0.opacity > 0 }
+            let isolated = ((hasFloating || overlay != nil) && (layer.blendMode != .normal || layer.opacity < 1)) || !clips.isEmpty
             if isolated {
                 encoder.endEncoding()
                 let isolatedPass = MTLRenderPassDescriptor()
@@ -346,6 +360,9 @@ final class Renderer {
                 draw(blendLayerPipeline)
             }
             if isolated {
+                for clip in clips {
+                    guard let target = isolatedTarget, drawAdjustment(clip, clip.adjustment!, onto: target) else { return }
+                }
                 encoder.endEncoding()
                 let resume = MTLRenderPassDescriptor()
                 resume.colorAttachments[0].texture = layerPass.colorAttachments[0].texture

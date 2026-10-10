@@ -468,6 +468,7 @@ public final class History {
             target.blendMode = record.blendMode
             target.isLocked = record.isLocked
             target.adjustment = record.adjustment
+            target.clipsToLayerBelow = record.clipsToLayerBelow
             target.buffer = record.buffer
             reversal.layers = current
         } else {
@@ -497,16 +498,11 @@ public final class History {
             if let before = entry.layers {
                 // Nothing newer touched this layer, so its record now is what this step left it as.
                 guard let record = before.records.first(where: { $0.layer.id == layer }) else { return nil }
-                let changedThisLayer = !(record.name == currentRecord.name && record.isVisible == currentRecord.isVisible
-                    && record.opacity == currentRecord.opacity && record.blendMode == currentRecord.blendMode
-                    && record.isLocked == currentRecord.isLocked && record.adjustment == currentRecord.adjustment
-                    && record.buffer === currentRecord.buffer)
+                let changedThisLayer = !record.matches(currentRecord)
                 guard changedThisLayer else { continue }
                 // Only a step that changed just this layer, and kept the same layers in the same order, stands alone.
                 let others = zip(before.records, now.records).allSatisfy { a, b in
-                    a.layer === b.layer && (a.layer.id == layer || (a.name == b.name && a.isVisible == b.isVisible
-                        && a.opacity == b.opacity && a.blendMode == b.blendMode && a.isLocked == b.isLocked
-                        && a.adjustment == b.adjustment && a.buffer === b.buffer))
+                    a.layer === b.layer && (a.layer.id == layer || a.matches(b))
                 }
                 return before.records.count == now.records.count && others ? index : nil
             }

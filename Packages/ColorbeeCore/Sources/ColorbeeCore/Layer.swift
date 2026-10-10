@@ -18,6 +18,9 @@ public final class Layer {
     public var isLocked = false
     /// Set for an adjustment layer (FR-8.4): it changes how the layers below look and holds no pixels.
     public var adjustment: Effect?
+    /// For an adjustment layer: it changes only the pixel layer it sits on, not everything below (a clipping mask;
+    /// Leah, 2026-10-10). See `Canvas.clipBaseIndex(forLayerAt:)`.
+    public var clipsToLayerBelow = false
 
     /// The adjustments an adjustment layer can be.
     public static func isAdjustable(_ effect: Effect) -> Bool {

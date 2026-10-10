@@ -54,6 +54,8 @@ enum Snapshot {
             editor.addAdjustmentLayer(choice)
             editor.showsLayersPanel = true
         }
+        // `-ColorbeeSnapshotClip YES`: that adjustment changes only the layer below.
+        if defaults.bool(forKey: "ColorbeeSnapshotClip") { editor.setClipsToLayerBelow(true) }
         // `-ColorbeeSnapshotExportPNG /path/to.png` also exports the page shown as a PNG with its camera details (stage 12).
         if let png = defaults.string(forKey: "ColorbeeSnapshotExportPNG") {
             try? editor.saveSnapshot().encoded(as: .png, includingCameraDetails: true).write(to: URL(fileURLWithPath: png))

@@ -114,6 +114,17 @@ private struct LayersPanel: View {
             .padding(.bottom, 8)
             .disabled(layers[active].isLocked)
 
+            if layers[active].adjustment != nil {
+                Toggle("Only the layer below", isOn: Binding(get: { layers[active].clipsToLayerBelow },
+                                                             set: { editor.setClipsToLayerBelow($0) }))
+                    .font(.system(size: 11.5))
+                    .controlSize(.small)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                    .disabled(layers[active].isLocked || (!layers[active].clipsToLayerBelow && !editor.canvas.canClip(layerAt: active)))
+                    .help("On: this adjustment changes only the layer under it. Off: everything below it")
+            }
+
             ScrollView {
                 VStack(spacing: 2) {
                     // Top of the stack first, as it's seen.
@@ -168,6 +179,14 @@ private struct LayersPanel: View {
             .help(layer.isVisible ? "Hide this layer" : "Show this layer")
             .accessibilityLabel(layer.isVisible ? "Hide \(layer.name)" : "Show \(layer.name)")
 
+            if layer.adjustment != nil, layer.clipsToLayerBelow {
+                // Clipped: it belongs to the layer under it.
+                Image(systemName: "arrow.turn.left.down")
+                    .font(.system(size: 10))
+                    .frame(width: 10)
+                    .opacity(0.7)
+                    .accessibilityHidden(true)
+            }
             Group {
                 if let choice = layer.adjustment.flatMap(AdjustmentChoice.init) {
                     // An adjustment layer has no pixels to show; its icon says what it does.
@@ -199,7 +218,10 @@ private struct LayersPanel: View {
                 }
                 Text(layer.adjustment == nil
                      ? "\(layer.blendMode.name) · \(Int((layer.opacity * 100).rounded()))%"
-                     : "Adjustment · \(layer.blendMode.name)")
+                     : layer.clipsToLayerBelow
+                        ? (editor.canvas.clipBaseIndex(forLayerAt: index) == nil ? "Layer below only: none"
+                            : layer.blendMode == .normal ? "Layer below only" : "Layer below only · \(layer.blendMode.name)")
+                        : "Adjustment · \(layer.blendMode.name)")
                     .font(.system(size: 10.5))
                     .opacity(0.7)
             }

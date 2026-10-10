@@ -3188,6 +3188,12 @@ final class Editor {
         layerSetting("Rename Layer", at: index) { $0.name = trimmed }
     }
 
+    /// An adjustment layer: change only the layer below it, or everything below (Leah, 2026-10-10).
+    func setClipsToLayerBelow(_ clips: Bool) {
+        guard canvas.activeLayer.adjustment != nil else { return }
+        layerSetting(clips ? "Only the Layer Below" : "All Layers Below", at: canvas.activeLayerIndex) { $0.clipsToLayerBelow = clips }
+    }
+
     func setBlendMode(_ mode: BlendMode) {
         layerSetting("Blend Mode", at: canvas.activeLayerIndex) { $0.blendMode = mode }
     }

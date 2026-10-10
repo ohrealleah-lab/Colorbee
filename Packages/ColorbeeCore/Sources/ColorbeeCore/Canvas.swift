@@ -110,6 +110,54 @@ public final class Canvas {
         layer.id == backgroundLayerID && layer.id == layers.first?.id && !hasTransparentBackground ? color2 : .clear
     }
 
+    // MARK: Clipped adjustments
+
+    /// The pixel layer a clipped adjustment at `index` changes: the nearest layer below that isn't itself a clipped
+    /// adjustment, if that's a pixel layer. Nil (no effect) when it's an adjustment or there's nothing below.
+    public func clipBaseIndex(forLayerAt index: Int) -> Int? {
+        guard layers.indices.contains(index) else { return nil }
+        var below = index - 1
+        while below >= 0, layers[below].adjustment != nil, layers[below].clipsToLayerBelow { below -= 1 }
+        return below >= 0 && layers[below].adjustment == nil ? below : nil
+    }
+
+    /// Whether the adjustment layer at `index` could be set to change only the layer below.
+    public func canClip(layerAt index: Int) -> Bool {
+        layers.indices.contains(index) && layers[index].adjustment != nil && clipBaseIndex(forLayerAt: index) != nil
+    }
+
+    /// The clipped adjustment layers on the pixel layer at `index`, bottom to top.
+    public func clippedAdjustments(onLayerAt index: Int) -> [Layer] {
+        guard layers.indices.contains(index), layers[index].adjustment == nil else { return [] }
+        var result: [Layer] = []
+        var above = index + 1
+        while above < layers.count, layers[above].adjustment != nil, layers[above].clipsToLayerBelow {
+            result.append(layers[above])
+            above += 1
+        }
+        return result
+    }
+
+    /// `stack` with each pixel layer's clipped adjustments applied to its own pixels (in a stand-in with the same id
+    /// and settings), and the clipped adjustments themselves left out.
+    private func clipped(_ stack: [Layer]) -> [Layer] {
+        guard stack.contains(where: { $0.clipsToLayerBelow && $0.adjustment != nil }) else { return stack }
+        return stack.compactMap { layer in
+            if layer.adjustment != nil { return layer.clipsToLayerBelow ? nil : layer }
+            guard let index = layers.firstIndex(where: { $0 === layer }) else { return layer }
+            let clips = clippedAdjustments(onLayerAt: index).filter { clip in stack.contains { $0 === clip } }
+            guard !clips.isEmpty else { return layer }
+            var buffer = layer.buffer
+            for clip in clips {
+                buffer = Compositing.adjust(buffer, by: clip.adjustment!, opacity: clip.opacity, mode: clip.blendMode)
+            }
+            let standIn = Layer(name: layer.name, buffer: buffer, id: layer.id)
+            standIn.opacity = layer.opacity
+            standIn.blendMode = layer.blendMode
+            return standIn
+        }
+    }
+
     // MARK: Thumbnails
 
     /// A small picture of the whole image for the History panel, made by compositing only the sampled
@@ -120,6 +168,10 @@ public final class Canvas {
         var pixels: [Pixel] = []
         pixels.reserveCapacity(width * height)
         let visible = layers.filter { $0.isVisible && $0.opacity > 0 }
+        // A pixel layer's clipped adjustments change its own pixels before it's blended.
+        let clips = Dictionary(uniqueKeysWithValues: visible.map { layer in
+            (ObjectIdentifier(layer), layers.firstIndex { $0 === layer }.map { clippedAdjustments(onLayerAt: $0).filter { clip in visible.contains { $0 === clip } } } ?? [])
+        })
         for ty in 0..<height {
             let y = min(size.height - 1, Int((Double(ty) + 0.5) / scale))
             for tx in 0..<width {
@@ -127,14 +179,21 @@ public final class Canvas {
                 var color = SIMD4<Float>.zero
                 for layer in visible {
                     if let adjustment = layer.adjustment {
-                        guard let transform = adjustment.pointwise else { continue }
+                        guard !layer.clipsToLayerBelow, let transform = adjustment.pointwise else { continue }
                         let below = Compositing.pixel(color)
                         var adjusted = transform(below)
                         adjusted.a = below.a
                         let goal = Compositing.premultiplied(adjusted)
                         color += (goal - color) * Float(layer.opacity)
                     } else {
-                        Compositing.blend(&color, layer.buffer[x, y], opacity: Float(layer.opacity), mode: layer.blendMode)
+                        var pixel = layer.buffer[x, y]
+                        for clip in clips[ObjectIdentifier(layer)] ?? [] {
+                            guard let transform = clip.adjustment?.pointwise else { continue }
+                            var adjusted = transform(pixel)
+                            adjusted.a = pixel.a
+                            pixel = Compositing.lerp(pixel, adjusted, Float(clip.opacity))
+                        }
+                        Compositing.blend(&color, pixel, opacity: Float(layer.opacity), mode: layer.blendMode)
                     }
                 }
                 pixels.append(Compositing.pixel(color))
@@ -150,7 +209,8 @@ public final class Canvas {
         LayerStackState(
             records: layers.map {
                 LayerStackState.Record(layer: $0, name: $0.name, isVisible: $0.isVisible, opacity: $0.opacity,
-                                       blendMode: $0.blendMode, isLocked: $0.isLocked, adjustment: $0.adjustment, buffer: $0.buffer)
+                                       blendMode: $0.blendMode, isLocked: $0.isLocked, adjustment: $0.adjustment,
+                                       clipsToLayerBelow: $0.clipsToLayerBelow, buffer: $0.buffer)
             },
             activeIndex: activeLayerIndex,
             hasTransparentBackground: hasTransparentBackground
@@ -166,6 +226,7 @@ public final class Canvas {
             layer.blendMode = record.blendMode
             layer.isLocked = record.isLocked
             layer.adjustment = record.adjustment
+            layer.clipsToLayerBelow = record.clipsToLayerBelow
             layer.buffer = record.buffer
             return layer
         }
@@ -191,7 +252,7 @@ public final class Canvas {
     func composite(_ stack: [Layer], onto base: PixelBuffer? = nil, transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) -> PixelBuffer {
         var current = base
         var segment: [Layer] = []
-        for layer in stack {
+        for layer in clipped(stack) {
             if let adjustment = layer.adjustment {
                 let below = segment.isEmpty && current != nil ? current! : compositePixels(segment, onto: current, transparentKey: transparentKey, resampling: resampling)
                 current = Compositing.adjust(below, by: adjustment, opacity: layer.opacity, mode: layer.blendMode)
@@ -332,7 +393,15 @@ struct LayerStackState {
         let blendMode: BlendMode
         let isLocked: Bool
         let adjustment: Effect?
+        let clipsToLayerBelow: Bool
         let buffer: PixelBuffer
+
+        /// The same settings and pixels as `other`.
+        func matches(_ other: Record) -> Bool {
+            name == other.name && isVisible == other.isVisible && opacity == other.opacity && blendMode == other.blendMode
+                && isLocked == other.isLocked && adjustment == other.adjustment && clipsToLayerBelow == other.clipsToLayerBelow
+                && buffer === other.buffer
+        }
     }
 
     let records: [Record]
@@ -342,10 +411,7 @@ struct LayerStackState {
     func isSame(as other: LayerStackState) -> Bool {
         records.count == other.records.count && activeIndex == other.activeIndex
             && hasTransparentBackground == other.hasTransparentBackground
-            && zip(records, other.records).allSatisfy { a, b in
-                a.layer === b.layer && a.name == b.name && a.isVisible == b.isVisible && a.opacity == b.opacity
-                    && a.blendMode == b.blendMode && a.isLocked == b.isLocked && a.adjustment == b.adjustment && a.buffer === b.buffer
-            }
+            && zip(records, other.records).allSatisfy { a, b in a.layer === b.layer && a.matches(b) }
     }
 }
 

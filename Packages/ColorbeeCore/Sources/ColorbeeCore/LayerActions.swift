@@ -32,6 +32,7 @@ public enum LayerActions {
     @discardableResult
     public static func applyAdjustment(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard canApplyAdjustment(canvas) else { return false }
+        if canvas.activeLayer.clipsToLayerBelow { return applyClippedAdjustment(canvas: canvas, history: history, context: context) }
         return change("Merge Adjustment", canvas: canvas, history: history, context: context) {
             let merged = canvas.layers.prefix(canvas.activeLayerIndex + 1).filter(\.isVisible)
             let target = merged[0]
@@ -39,10 +40,30 @@ public enum LayerActions {
             target.opacity = 1
             target.blendMode = .normal
             target.adjustment = nil
+            target.clipsToLayerBelow = false
             for layer in merged.dropFirst() {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
             }
             canvas.activeLayerIndex = canvas.layers.firstIndex { $0 === target }!
+            return true
+        }
+    }
+
+    /// A clipped adjustment goes into the layer it changes, with the visible clipped adjustments below it on that
+    /// layer, in order, so the picture keeps its look; hidden ones stay as they are.
+    private static func applyClippedAdjustment(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        change("Merge Adjustment", canvas: canvas, history: history, context: context) {
+            let index = canvas.activeLayerIndex
+            guard let baseIndex = canvas.clipBaseIndex(forLayerAt: index) else { return false }
+            let base = canvas.layers[baseIndex]
+            let merged = canvas.layers[(baseIndex + 1)...index].filter(\.isVisible)
+            for clip in merged {
+                base.buffer = Compositing.adjust(base.buffer, by: clip.adjustment!, opacity: clip.opacity, mode: clip.blendMode)
+            }
+            for clip in merged {
+                canvas.removeLayer(at: canvas.layers.firstIndex { $0 === clip }!)
+            }
+            canvas.activeLayerIndex = canvas.layers.firstIndex { $0 === base }!
             return true
         }
     }
@@ -52,6 +73,10 @@ public enum LayerActions {
         let index = canvas.activeLayerIndex
         let layer = canvas.layers[index]
         guard index > 0, layer.adjustment != nil, layer.isVisible else { return false }
+        if layer.clipsToLayerBelow {
+            guard let baseIndex = canvas.clipBaseIndex(forLayerAt: index) else { return false }
+            return !canvas.layers[baseIndex...index].contains { $0.isLocked && ($0.isVisible || $0 === canvas.layers[baseIndex]) }
+        }
         let merged = canvas.layers.prefix(index + 1).filter(\.isVisible)
         return merged.count > 1 && !merged.contains(where: \.isLocked)
     }
@@ -66,6 +91,7 @@ public enum LayerActions {
             copy.opacity = source.opacity
             copy.blendMode = source.blendMode
             copy.adjustment = source.adjustment
+            copy.clipsToLayerBelow = source.clipsToLayerBelow
             canvas.insertLayer(copy, at: canvas.activeLayerIndex + 1)
             canvas.activeLayerIndex += 1
             return true
@@ -122,6 +148,7 @@ public enum LayerActions {
             target.opacity = 1
             target.blendMode = .normal
             target.adjustment = nil
+            target.clipsToLayerBelow = false
             let active = canvas.activeLayer
             for layer in visible.dropFirst() {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
@@ -148,6 +175,7 @@ public enum LayerActions {
             bottom.blendMode = .normal
             bottom.isVisible = true
             bottom.adjustment = nil
+            bottom.clipsToLayerBelow = false
             while canvas.layers.count > 1 { canvas.removeLayer(at: 1) }
             canvas.activeLayerIndex = 0
             return true

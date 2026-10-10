@@ -110,6 +110,7 @@ enum MainMenu {
         "showCurves:": "Reshape the tones with a curve, for all colors together or one at a time.",
         "showSepia:": "Give the selection or image warm brown tones.",
         "showPosterize:": "Reduce each color channel to a few levels, for a flat poster look.",
+        "removeRedEye:": "Turn red pupils from a flash dark. With a selection, fixes the red inside it. On this Mac.",
         "showMotionBlur:": "Streak the selection or image along an angle, as if it moved.",
         "showAddNoise:": "Add grain, in color or monochrome.",
         "showEmboss:": "Turn the selection or image into a gray relief.",
@@ -336,6 +337,7 @@ enum MainMenu {
         menu.addItem(item("Curves…", "showCurves:"))
         menu.addItem(item("Sepia…", "showSepia:"))
         menu.addItem(item("Posterize…", "showPosterize:"))
+        menu.addItem(item("Remove Red-Eye", "removeRedEye:"))
         menu.addItem(.separator())
         // Each adjustment also comes as a layer that stays editable (FR-9.1).
         menu.addItem(submenu(adjustmentLayerMenu()))

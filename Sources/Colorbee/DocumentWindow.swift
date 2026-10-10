@@ -141,6 +141,7 @@ final class DocumentWindow: NSWindow {
     @objc func showCurves(_ sender: Any?) { editor?.beginEffect(.curves) }
     @objc func showSepia(_ sender: Any?) { editor?.beginEffect(.sepia) }
     @objc func showPosterize(_ sender: Any?) { editor?.beginEffect(.posterize) }
+    @objc func removeRedEye(_ sender: Any?) { editor?.removeRedEye() }
     @objc func autoContrast(_ sender: Any?) { editor?.autoContrast() }
     @objc func showAddNoise(_ sender: Any?) { editor?.beginEffect(.addNoise) }
     @objc func showMotionBlur(_ sender: Any?) { editor?.beginEffect(.motionBlur) }
@@ -356,6 +357,8 @@ final class DocumentWindow: NSWindow {
         case #selector(showSpotlight(_:)):
             // Spotlight changes what's around a selection, so it waits for one.
             return editor.hasSelection
+        case #selector(removeRedEye(_:)):
+            return !editor.isFindingEyes && editor.activeLayerTakesEdits
         case #selector(selectSubject(_:)), #selector(removeBackground(_:)), #selector(liftSubject(_:)):
             // One search at a time, and an adjustment layer has no picture to search (review D, finding 6).
             return !editor.isFindingSubject && editor.canvas.activeLayer.adjustment == nil

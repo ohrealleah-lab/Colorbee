@@ -2585,6 +2585,45 @@ final class Editor {
         }
     }
 
+    // MARK: Remove Red-Eye (FR-9.5)
+
+    /// Whether Vision is looking for eyes now.
+    private(set) var isFindingEyes = false
+
+    /// Darkens red pupils, as one step. With a selection, the red inside it; otherwise in the eyes Vision finds.
+    func removeRedEye() {
+        guard !isFindingEyes, !refusedBecauseLocked() else { return }
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        if let mask = canvas.selection.marquee {
+            let edit = history.beginEdit("Remove Red-Eye", on: canvas)
+            RedEye.fix(in: mask, layer: canvas.activeLayer, edit: edit)
+            var changed = false
+            recordingChanges { changed = history.commit(edit) }
+            if !changed { showNotice("No red-eye found") }
+            return onRender()
+        }
+        let layer = canvas.activeLayer
+        guard let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
+        let revision = history.revision
+        isFindingEyes = true
+        Task { @MainActor [weak self] in
+            let eyes = (try? await RedEye.findEyes(in: image)) ?? []
+            guard let self else { return }
+            self.isFindingEyes = false
+            // Something changed meanwhile, so the eyes may no longer be where they were found.
+            guard self.history.revision == revision, self.canvas.activeLayer.id == layer.id, self.activeLayerTakesEdits else {
+                return self.showNotice("The image changed while finding eyes. Try again.")
+            }
+            let edit = self.history.beginEdit("Remove Red-Eye", on: self.canvas)
+            RedEye.fix(eyes, in: self.canvas.activeLayer, edit: edit)
+            var changed = false
+            self.recordingChanges { changed = self.history.commit(edit) }
+            if !changed { self.showNotice(eyes.isEmpty ? "No eyes found. Select the red pupils and try again." : "No red-eye found") }
+            self.onRender()
+        }
+    }
+
     // MARK: Subjects (FR-9.5)
 
     enum SubjectAction {

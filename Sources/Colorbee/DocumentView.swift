@@ -35,9 +35,9 @@ struct DocumentView: View {
                         .frame(height: 28)
                         .glassEffect(.regular, in: Capsule())
                         .padding(.top, 12)
-                    } else if editor.isFindingSubject || editor.isReadingText {
-                        Label(editor.isReadingText ? "Reading text…" : "Finding the subject…",
-                              systemImage: editor.isReadingText ? "text.viewfinder" : "person.crop.rectangle")
+                    } else if editor.isFindingSubject || editor.isReadingText || editor.isFindingEyes {
+                        Label(editor.isReadingText ? "Reading text…" : editor.isFindingEyes ? "Finding eyes…" : "Finding the subject…",
+                              systemImage: editor.isReadingText ? "text.viewfinder" : editor.isFindingEyes ? "eye" : "person.crop.rectangle")
                             .font(.system(size: 12))
                             .padding(.horizontal, 12)
                             .frame(height: 28)

@@ -35,7 +35,7 @@ private struct SelectingGroups: ToolbarContent {
                 .disabled(editor.activeEffect != nil)
             ShapeGalleryButton(editor: editor)
                 .disabled(editor.activeEffect != nil)
-            ForEach([Tool.fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure, .stepBadge], id: \.self) {
+            ForEach([Tool.fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure, .redactBrush, .stepBadge], id: \.self) {
                 ToolButton(tool: $0, editor: editor)
             }
         }

@@ -188,6 +188,17 @@ private struct ToolOptions: View {
             TextOptions(style: $editor.textStyle)
         case .pencil:
             hint("1 px · Shift draws straight lines")
+        case .redactBrush:
+            Picker("Treatment", selection: $editor.redactTreatment) {
+                Text("Solid Fill").tag(RedactionTreatment.solidFill)
+                Text("Blur").tag(RedactionTreatment.blur)
+                Text("Pixelate").tag(RedactionTreatment.pixelate)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("How what you paint over is hidden. Solid Fill (Color 1) is the safest")
+            hint("Applied when you let go, on every layer · Shift paints a straight line")
         case .stepBadge:
             Picker("Badges", selection: $editor.badgeStyle) {
                 Text("1, 2, 3").tag(BadgeStyle.numbers)

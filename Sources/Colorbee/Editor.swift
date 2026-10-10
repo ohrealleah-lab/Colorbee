@@ -24,6 +24,7 @@ enum Tool: CaseIterable {
     case lassoSelect
     case magicWand
     case magnifier
+    case redactBrush
     case stepBadge
 
     var isSelectionTool: Bool {
@@ -36,7 +37,7 @@ enum Tool: CaseIterable {
     /// Tools that change the active layer's pixels.
     var changesPixels: Bool {
         switch self {
-        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text, .stepBadge: true
+        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text, .redactBrush, .stepBadge: true
         default: false
         }
     }
@@ -487,6 +488,12 @@ final class Editor {
         didSet { renderSoon() }
     }
     private(set) var pendingBadge: PendingBadge?
+    // The Redact Brush (FR-9.6). Solid Fill is the safest, so it's the default, as in Auto-Redact.
+    var redactTreatment: RedactionTreatment = .solidFill
+    var redactBrushSize = 24.0 {
+        didSet { renderSoon() }
+    }
+    @ObservationIgnored private var redactStroke: (area: RedactBrushArea, lock: AxisLock, secondary: Bool)?
     private enum BadgeDrag {
         case create
         case move(grab: Point2D, original: PendingBadge)
@@ -919,6 +926,7 @@ final class Editor {
             case .shape: Int(shapeLineWidth.rounded())
             case .eraser: eraserSize
             case .stepBadge: Int(badgeDiameter.rounded())
+            case .redactBrush: Int(redactBrushSize.rounded())
             default: nil
             }
         }
@@ -931,6 +939,7 @@ final class Editor {
             case .shape: shapeLineWidth = Double(clamped)
             case .eraser: eraserSize = clamped
             case .stepBadge: badgeDiameter = Double(clamped)
+            case .redactBrush: redactBrushSize = Double(clamped)
             default: break
             }
         }
@@ -941,6 +950,7 @@ final class Editor {
         switch tool {
         case .eraser: 1...100
         case .stepBadge: 16...128
+        case .redactBrush: 1...300
         default: 1...50
         }
     }
@@ -950,6 +960,7 @@ final class Editor {
         switch tool {
         case .eraser: [4, 6, 8, 10, 20]
         case .stepBadge: [24, 32, 48, 64, 96]
+        case .redactBrush: [8, 16, 24, 40, 64]
         default: [1, 2, 3, 4, 5]
         }
     }
@@ -964,6 +975,8 @@ final class Editor {
             shapeLineWidth = max(1, min(50, shapeLineWidth + (larger ? 1 : -1)))
         case .stepBadge:
             badgeDiameter = max(16, min(128, badgeDiameter + (larger ? 4 : -4)))
+        case .redactBrush:
+            redactBrushSize = max(1, min(300, redactBrushSize + (larger ? 4 : -4)))
         default:
             brushDiameter = max(1, min(50, brushDiameter + (larger ? 1 : -1)))
         }
@@ -988,6 +1001,7 @@ final class Editor {
         commitPendingShape()
         commitPendingText()
         commitPendingBadge()
+        endRedactStroke()
         endStroke()
         cancelOrEndSelectionDrag()
         if activeEffect != nil { cancelEffect() }
@@ -1543,6 +1557,49 @@ final class Editor {
         forgetShapeRender()
         shapeDrag = nil
         onRender()
+    }
+
+    // MARK: Redact Brush (FR-9.6)
+
+    /// Starts a stroke. Nothing changes until it ends; meanwhile the area shows see-through. It paints where you
+    /// paint, whatever is selected.
+    func beginRedactStroke(at point: Point2D, secondary: Bool) {
+        finishInteractions()
+        placeFloatingSelection()
+        let area = RedactBrushArea(diameter: redactBrushSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 120))
+        area.move(to: point)
+        redactStroke = (area, AxisLock(start: point), secondary)
+        onRender()
+    }
+
+    /// Shift keeps the stroke on one horizontal or vertical line, for a line of text.
+    func continueRedactStroke(to point: Point2D, constrain: Bool) {
+        guard var stroke = redactStroke else { return }
+        let target = constrain ? stroke.lock.constrain(point) : point
+        stroke.area.move(to: target)
+        redactStroke = stroke
+        onRender()
+    }
+
+    /// Redacts the area on every layer with pixels under it, as one step, like Batch Redact. Blur and Pixelate are
+    /// as strong as the brush is wide, as Auto-Redact's follow the text's height; Solid Fill uses Color 1, or Color 2
+    /// with the right button.
+    func endRedactStroke() {
+        guard let stroke = redactStroke else { return }
+        redactStroke = nil
+        guard let mask = stroke.area.mask else { return onRender() }
+        let strength = max(6, stroke.area.diameter / 3)
+        let effect: Effect = switch redactTreatment {
+        case .blur: .gaussianBlur(radius: strength)
+        case .pixelate: .pixelate(cellSize: Int(strength.rounded()))
+        case .solidFill: .solidFill(stroke.secondary ? color2 : color1)
+        }
+        redactEveryLayer(with: effect, in: mask, named: "Redact Brush")
+    }
+
+    /// The stroke's see-through area, for the screen.
+    func redactStrokePicture() -> (pixels: PixelBuffer, origin: IntPoint)? {
+        redactStroke?.area.picture
     }
 
     // MARK: Step badges (FR-5.3)
@@ -2736,10 +2793,11 @@ final class Editor {
     }
 
     /// Batch Redact on every layer under the selection, or the whole image, as one step.
-    private func redactEveryLayer(with effect: Effect) {
-        guard let area = canvas.selection.marquee ?? SelectionMask.rectangle(canvas.bounds, clippedTo: canvas.bounds) else { return }
+    /// `mask` is the area, the selection by default.
+    private func redactEveryLayer(with effect: Effect, in mask: SelectionMask? = nil, named name: String? = nil) {
+        guard let area = mask ?? canvas.selection.marquee ?? SelectionMask.rectangle(canvas.bounds, clippedTo: canvas.bounds) else { return }
         var outcome = AutoRedact.Outcome.nothingChanged
-        recordingChanges { outcome = AutoRedact.apply(effect, in: area, canvas: canvas, history: history) }
+        recordingChanges { outcome = AutoRedact.apply(effect, in: area, named: name, canvas: canvas, history: history) }
         if case .locked(let name) = outcome {
             onRefused()
             redactionMessage = "“\(name)” is locked, so nothing was redacted. Unlock it and try again."

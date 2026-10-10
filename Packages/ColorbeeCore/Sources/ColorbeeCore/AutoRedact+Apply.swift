@@ -24,11 +24,12 @@ extension AutoRedact {
 
     /// Batch Redact (FR-9.4): `effect` in `selection` on every layer with pixels under it, as one step, like
     /// Auto-Redact (Leah; review H, finding 3). If a locked layer has pixels there, nothing is changed.
-    public static func apply(_ effect: Effect, in selection: SelectionMask, canvas: Canvas, history: History) -> Outcome {
+    /// `name` is the step's name; the effect's own by default.
+    public static func apply(_ effect: Effect, in selection: SelectionMask, named name: String? = nil, canvas: Canvas, history: History) -> Outcome {
         let (layers, locked) = layersWithPixels(in: selection, canvas: canvas)
         if let locked { return .locked(layerName: locked.name) }
         guard !layers.isEmpty else { return .nothingChanged }
-        let edit = history.beginEdit(effect.name, on: canvas)
+        let edit = history.beginEdit(name ?? effect.name, on: canvas)
         for layer in layers {
             Effects.apply(effect, to: layer, selection: selection, edit: edit)
         }

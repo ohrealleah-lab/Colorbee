@@ -331,6 +331,7 @@ struct PendingShape: Equatable {
 /// A step badge still being placed (FR-5.3): it can be moved or removed until the next one, or another command,
 /// places it.
 struct PendingBadge: Equatable {
+    var style: BadgeStyle
     var value: Int
     var center: Point2D
     var arrowTip: Point2D?
@@ -474,8 +475,14 @@ final class Editor {
     var badgeStyle: BadgeStyle = .numbers {
         didSet { renderSoon() }
     }
-    /// What the next badge shows. It starts at 1 in each document and steps back when a badge is undone.
-    var nextBadge = 1
+    /// What the next badge of each style shows: numbers and letters count separately (Leah, 2026-10-10). Each starts
+    /// at the beginning in each document and steps back when one of its badges is undone.
+    private var nextBadges: [BadgeStyle: Int] = [:]
+    /// The next badge in the style chosen now.
+    var nextBadge: Int {
+        get { nextBadges[badgeStyle] ?? 1 }
+        set { nextBadges[badgeStyle] = max(1, newValue) }
+    }
     var badgeDiameter = 32.0 {
         didSet { renderSoon() }
     }
@@ -485,8 +492,8 @@ final class Editor {
         case move(grab: Point2D, original: PendingBadge)
     }
     @ObservationIgnored private var badgeDrag: BadgeDrag?
-    /// The value each placed badge's step showed, so undoing it steps the next number back.
-    @ObservationIgnored private var badgeSteps: [UUID: Int] = [:]
+    /// What each placed badge's step showed, so undoing it steps its style's next value back.
+    @ObservationIgnored private var badgeSteps: [UUID: (style: BadgeStyle, value: Int)] = [:]
     var gradientMode: GradientMode = .linear
     var symmetry: SymmetryMode = .off {
         didSet { renderSoon() }
@@ -1542,7 +1549,7 @@ final class Editor {
 
     var pendingBadgeSpec: StepBadgeSpec? {
         guard let badge = pendingBadge else { return nil }
-        return StepBadgeSpec(label: StepBadge.label(for: badge.value, style: badgeStyle), center: badge.center, diameter: badgeDiameter,
+        return StepBadgeSpec(label: StepBadge.label(for: badge.value, style: badge.style), center: badge.center, diameter: badgeDiameter,
                              fill: badge.swapped ? color2 : color1, ink: badge.swapped ? color1 : color2, arrowTip: badge.arrowTip)
     }
 
@@ -1565,7 +1572,7 @@ final class Editor {
         guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingSelection()
-        pendingBadge = PendingBadge(value: nextBadge, center: point, swapped: secondary)
+        pendingBadge = PendingBadge(style: badgeStyle, value: nextBadge, center: point, swapped: secondary)
         nextBadge += 1
         badgeDrag = .create
         onRender()
@@ -1598,14 +1605,14 @@ final class Editor {
         pendingBadge = nil
         badgeDrag = nil
         guard activeLayerTakesEdits, let rendered = StepBadge.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) else {
-            nextBadge = badge.value
+            nextBadges[badge.style] = badge.value
             onRender()
             return
         }
         let edit = history.beginEdit("Step Badge", on: canvas)
         Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.activeLayer, edit: edit)
         recordingChanges { history.commit(edit) }
-        if let step = history.undoStepID { badgeSteps[step] = badge.value }
+        if let step = history.undoStepID { badgeSteps[step] = (badge.style, badge.value) }
         onRender()
     }
 
@@ -1614,7 +1621,7 @@ final class Editor {
         guard let badge = pendingBadge else { return }
         pendingBadge = nil
         badgeDrag = nil
-        nextBadge = badge.value
+        nextBadges[badge.style] = badge.value
         onRender()
     }
 
@@ -3023,7 +3030,7 @@ final class Editor {
         }
         let step = history.undoStepID
         // Undoing a badge steps the next number back to it (FR-5.3).
-        if stepShownPage(undoing: true), let step, let value = badgeSteps[step] { nextBadge = value }
+        if stepShownPage(undoing: true), let step, let badge = badgeSteps[step] { nextBadges[badge.style] = badge.value }
     }
 
     func redo() {
@@ -3035,7 +3042,7 @@ final class Editor {
             return
         }
         let step = history.redoStepID
-        if stepShownPage(undoing: false), let step, let value = badgeSteps[step] { nextBadge = value + 1 }
+        if stepShownPage(undoing: false), let step, let badge = badgeSteps[step] { nextBadges[badge.style] = badge.value + 1 }
     }
 
     /// Undoes or redoes the newest step of the page shown, or of every page of a multi-page Auto-Redact it's part of.

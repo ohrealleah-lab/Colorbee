@@ -272,7 +272,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - The **Step Badge** tool (key N): click to place a numbered circle. Each click places the next number: 1, 2, 3…
 - The circle is filled with Color 1, with a thin outline and a bold number in Color 2 (Leah, 2026-10-10). Right-click swaps them, as for shapes.
 - **Size** sets the circle's diameter (16–128 px, 32 by default).
-- **Numbers or letters** (1, 2, 3 or A, B, C) in the palette bar, with a **Next** field for what the next badge shows. It starts at 1 in each document and steps back when a badge is undone.
+- **Numbers or letters** (1, 2, 3 or A, B, C) in the palette bar, with a **Next** field for what the next badge shows. Numbers and letters count separately: placing a letter badge doesn't move the numbers on, and switching shows that style's own Next (Leah, 2026-10-10). Each starts at 1 (or A) in each document and steps back when one of its badges is undone.
 - **Drag** from where you press to draw the badge with an arrow pointing to where you release, in the badge's color.
 - Like a shape, a badge stays editable until it's placed: drag to move it, Delete removes it. Placed badges are pixels.
 

@@ -201,7 +201,7 @@ private struct ToolOptions: View {
         case .pencil:
             hint("1 px · Shift draws straight lines")
         case .remove:
-            hint("Paint over what to remove; it's filled from around it when you let go · Esc stops a fill")
+            hint("For simple backgrounds: sky, walls, sand, screenshots · For busy spots, use the Clone Stamp · Esc stops a fill")
         case .redactBrush:
             Picker("Treatment", selection: $editor.redactTreatment) {
                 Text("Solid Fill").tag(RedactionTreatment.solidFill)

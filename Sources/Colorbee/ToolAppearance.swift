@@ -18,7 +18,7 @@ extension Tool {
         case .lassoSelect: "Draw around an area to select it."
         case .magicWand: "Click to select an area of similar color."
         case .magnifier: "Click to zoom in. Right-click or Option-click zooms out."
-        case .remove: "Paint over something to remove it. It's filled from around it."
+        case .remove: "Paint over something on a simple background to remove it."
         case .redactBrush: "Paint over anything to hide it, on every layer."
         case .stepBadge: "Click to place numbered steps. Drag to point an arrow."
         }

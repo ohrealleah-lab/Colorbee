@@ -157,4 +157,16 @@ struct PerformanceTests {
         #expect(park < .milliseconds(80), "parking took \(park)")
         #expect(unpark < .milliseconds(50), "bringing back took \(unpark)")
     }
+
+    /// Match Surroundings (FR-4.6): a 400-pixel-wide area in a 4000 × 4000 photo. The limit is about twice what it
+    /// took when set (2026-10-10).
+    @Test func removingALargeArea() throws {
+        let canvas = PerformanceFixture.photo(side: 4000)
+        let area = RedactBrushArea(diameter: 400, canvasBounds: canvas.bounds, overlayColor: .black)
+        area.move(to: Point2D(x: 2000, y: 2000))
+        let mask = try #require(area.mask)
+        let job = try #require(MatchSurroundings.Job(image: canvas.activeLayer.buffer, area: mask))
+        let time = try ContinuousClock().measure { _ = try job.run() }
+        #expect(time < .milliseconds(400), "took \(time)")
+    }
 }

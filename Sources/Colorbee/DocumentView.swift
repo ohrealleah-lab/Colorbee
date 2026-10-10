@@ -23,7 +23,7 @@ struct DocumentView: View {
             CanvasHost(view: canvasView)
                 .overlay { RedactionBadges(editor: editor) }
                 .overlay(alignment: .top) {
-                    if let progress = editor.removeProgress {
+                    if let progress = editor.fillProgress {
                         HStack(spacing: 8) {
                             ProgressView(value: progress)
                                 .progressViewStyle(.circular)
@@ -200,8 +200,10 @@ private struct ToolOptions: View {
             TextOptions(style: $editor.textStyle)
         case .pencil:
             hint("1 px · Shift draws straight lines")
-        case .remove:
-            hint("For simple backgrounds: sky, walls, sand, screenshots · For busy spots, use the Clone Stamp · Esc stops a fill")
+        case .retouch:
+            Toggle("Sample All Layers", isOn: $editor.retouchSamplesAllLayers)
+                .help("Read what all visible layers show and write into this one, so you can retouch on an empty layer above")
+            hint(editor.retouchKind.hint)
         case .redactBrush:
             Picker("Treatment", selection: $editor.redactTreatment) {
                 Text("Solid Fill").tag(RedactionTreatment.solidFill)

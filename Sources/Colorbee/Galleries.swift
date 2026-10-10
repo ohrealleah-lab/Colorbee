@@ -108,6 +108,71 @@ enum BrushPreview {
     }
 }
 
+// MARK: Retouch
+
+/// Picks the Retouch tool, and opens the gallery of retouching tools (FR-4.6).
+struct RetouchGalleryButton: View {
+    @Bindable var editor: Editor
+    @State private var isOpen = false
+
+    var body: some View {
+        Button {
+            editor.selectTool(.retouch)
+            isOpen.toggle()
+        } label: {
+            GalleryLabel(symbol: editor.retouchKind.symbol, selected: editor.tool == .retouch || isOpen)
+        }
+        .buttonStyle(.plain)
+        .help(ShortcutStore.shared.hint("Retouch", command: "canvas.retouch") + ": \(editor.retouchKind.name)")
+        .accessibilityLabel("Retouch")
+        .popover(isPresented: $isOpen, arrowEdge: .bottom) {
+            RetouchGallery(editor: editor) { isOpen = false }
+        }
+    }
+}
+
+private struct RetouchGallery: View {
+    @Bindable var editor: Editor
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Retouch").font(.system(size: 12, weight: .semibold))
+            VStack(spacing: 2) {
+                ForEach(RetouchKind.allCases, id: \.self) { kind in
+                    Button {
+                        editor.retouchKind = kind
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: kind.symbol)
+                                .frame(width: 22)
+                            Text(kind.name)
+                            Spacer()
+                        }
+                        .font(.system(size: 12))
+                        .foregroundStyle(editor.retouchKind == kind ? Color.accentColor : .primary)
+                        .padding(.horizontal, 8)
+                        .frame(height: 28)
+                        .background(editor.retouchKind == kind ? Theme.accentSoft : .clear, in: RoundedRectangle(cornerRadius: 7))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(kind.hint)
+                }
+            }
+            .focusEffectDisabled()
+            Divider()
+            Toggle("Sample All Layers", isOn: $editor.retouchSamplesAllLayers)
+                .font(.system(size: 11))
+                .controlSize(.small)
+                .help("Read what all visible layers show and write into this one, so you can retouch on an empty layer above")
+        }
+        .padding(12)
+        .frame(width: 220)
+    }
+}
+
 // MARK: Shapes
 
 /// Picks the Shapes tool, and opens the gallery of shapes (FR-5.1).

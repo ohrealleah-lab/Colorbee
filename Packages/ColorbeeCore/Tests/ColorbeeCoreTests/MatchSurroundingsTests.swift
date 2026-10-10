@@ -80,4 +80,25 @@ struct MatchSurroundingsTests {
         let (buffer, _) = sand()
         #expect(MatchSurroundings.Job(image: buffer, area: area { _, _ in false }) == nil)
     }
+
+    /// Spot Heal: a dust spot on a grainy gradient (like skin or sky) is healed to the tone right around it.
+    @Test func aSpotIsHealedToTheToneAroundIt() throws {
+        var state: UInt64 = 5
+        let buffer = PixelBuffer(width: 160, height: 120)
+        for y in 0..<120 {
+            for x in 0..<160 {
+                state = state &* 6364136223846793005 &+ 1442695040888963407
+                let level = UInt8(60 + x) &+ UInt8(state >> 60)
+                let dust = (x - 80) * (x - 80) + (y - 60) * (y - 60) < 5 * 5
+                buffer[x, y] = dust ? object : Pixel(r: level, g: level, b: level)
+            }
+        }
+        let spot = area { x, y in (x - 80) * (x - 80) + (y - 60) * (y - 60) < 7 * 7 }
+        let fill = try #require(MatchSurroundings.Job(image: buffer, area: spot, nearby: true, matchingTone: true)).run()
+        let filled = zip(fill.pixels, fill.filled).filter(\.1).map(\.0)
+        let mean = filled.reduce(0.0) { $0 + Double($1.r) } / Double(filled.count)
+        // Around the spot the background is about 140 (60 + 80, plus up to 15 of grain).
+        #expect(abs(mean - 147) < 6, "mean \(mean)")
+        #expect(filled.allSatisfy { $0.r == $0.g && $0.a == 255 })
+    }
 }

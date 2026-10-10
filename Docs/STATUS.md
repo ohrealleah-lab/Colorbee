@@ -44,7 +44,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 11. Import from iPhone or iPad | ⏸ Pinned 2026-10-10: works with no window open; not yet into an open document | High |
 | 12. RAW photos | ✅ Done | High |
 | 13a. Copy Text, Step Badges, Redact Brush | Built 2026-10-10; Copy Text and Step Badges passed Leah's tests, Redact Brush awaiting | Medium |
-| 13b. Match Surroundings: trial build, then Remove and Spot Heal | Trial passed 2026-10-10 (Remove for simple backgrounds; Clone Stamp for busy spots; AI fill left for later). Next: the Retouch gallery, Spot Heal, Sample All Layers | **High** |
+| 13b. Match Surroundings: trial build, then Remove and Spot Heal | Trial passed 2026-10-10 (Remove for simple backgrounds; Clone Stamp for busy spots; AI fill left for later). Retouch gallery, Spot Heal and Sample All Layers built 2026-10-10, awaiting Leah's test | **High** |
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | Decided, to build | Medium |
 | 13d. Soft selections (feather) | Decided, to build | **High** |
 | Help (FR-14.6) | Phases 1 and 2 built: the help book, ⌘?, search, screenshots, Getting started and Redact a screenshot | Medium (phase 6 high) |

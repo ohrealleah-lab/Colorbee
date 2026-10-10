@@ -25,8 +25,12 @@ public enum MatchSurroundings {
         let pixels: [SIMD4<Float>]
         let hole: [Bool]
 
-        /// Nil when the area is empty or there's nothing around it to fill from.
-        public init?(image: PixelBuffer, area mask: SelectionMask) {
+        /// Whether the fill's tone is evened out to its surroundings afterwards (Spot Heal).
+        let matchesTone: Bool
+
+        /// Nil when the area is empty or there's nothing around it to fill from. `nearby` looks only just around the
+        /// area (Spot Heal) instead of as far again as the area is big; `matchingTone` evens out the result's tone.
+        public init?(image: PixelBuffer, area mask: SelectionMask, nearby: Bool = false, matchingTone: Bool = false) {
             let bounds = IntRect(x: 0, y: 0, width: image.width, height: image.height)
             // The area's own extent, however loose the mask's bounds: the surroundings searched are measured from it,
             // and a far-off object must not be copied in.
@@ -40,8 +44,9 @@ public enum MatchSurroundings {
             }
             guard minX <= maxX else { return nil }
             let area = IntRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
-            // Enough surroundings to draw from: at least as much again as the area, on every side.
-            let margin = max(48, max(area.width, area.height))
+            // Enough surroundings to draw from: at least as much again as the area, on every side; for a spot, a ring
+            // about half its size, so it's healed from what's right there.
+            let margin = nearby ? max(16, max(area.width, area.height) / 2) : max(48, max(area.width, area.height))
             let context = IntRect(x: area.minX - margin, y: area.minY - margin,
                                   width: area.width + 2 * margin, height: area.height + 2 * margin).intersection(bounds)
             var pixels = [SIMD4<Float>](repeating: .zero, count: context.area)
@@ -64,6 +69,7 @@ public enum MatchSurroundings {
             self.area = area
             self.pixels = pixels
             self.hole = hole
+            matchesTone = matchingTone
         }
 
         /// Fills the area. `progress` gets 0...1; `isCancelled` is checked between passes.
@@ -101,6 +107,7 @@ public enum MatchSurroundings {
                 levels[index] = level
                 field = current
             }
+            if matchesTone { levels[0].matchTone() }
             return fill(from: levels[0])
         }
 
@@ -265,6 +272,78 @@ public enum MatchSurroundings {
                 }
             }
             return any && (high - low).max() <= 6
+        }
+
+        /// Evens out the fill's tone with its surroundings (a healing blend): at the edge, how far each filled pixel is
+        /// from the known pixels beside it; that difference is spread smoothly over the area and added in, so the
+        /// copied texture stays but its brightness and color meet the surroundings without a seam.
+        mutating func matchTone() {
+            var offsets = [SIMD4<Float>](repeating: .zero, count: width * height)
+            var known = hole.map { !$0 }
+            var edge: [Int] = []
+            for index in holeIndices {
+                let i = Int(index), x = i % width, y = i / width
+                var sum = SIMD4<Float>.zero, count: Float = 0
+                for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    let nx = x + dx, ny = y + dy
+                    guard nx >= 0, ny >= 0, nx < width, ny < height, !hole[ny * width + nx] else { continue }
+                    sum += pixels[ny * width + nx]
+                    count += 1
+                }
+                if count > 0 {
+                    offsets[i] = sum / count - pixels[i]
+                    edge.append(i)
+                }
+            }
+            // The edge's differences, smoothed along the edge, so only the tone is corrected, not each pixel's grain.
+            var onEdge = [Bool](repeating: false, count: width * height)
+            for i in edge { onEdge[i] = true }
+            let raw = offsets
+            for i in edge {
+                let x = i % width, y = i / width
+                var sum = SIMD4<Float>.zero, count: Float = 0
+                for dy in -3...3 {
+                    for dx in -3...3 {
+                        let nx = x + dx, ny = y + dy
+                        guard nx >= 0, ny >= 0, nx < width, ny < height, onEdge[ny * width + nx] else { continue }
+                        sum += raw[ny * width + nx]
+                        count += 1
+                    }
+                }
+                offsets[i] = sum / count
+                known[i] = true
+            }
+            var remaining = holeIndices.map(Int.init).filter { !known[$0] }
+            while !remaining.isEmpty {
+                var next: [Int] = []
+                var updates: [(Int, SIMD4<Float>)] = []
+                for i in remaining {
+                    let x = i % width, y = i / width
+                    var sum = SIMD4<Float>.zero, count: Float = 0
+                    for dy in -1...1 {
+                        for dx in -1...1 where dx != 0 || dy != 0 {
+                            let nx = x + dx, ny = y + dy
+                            guard nx >= 0, ny >= 0, nx < width, ny < height, hole[ny * width + nx], known[ny * width + nx] else { continue }
+                            sum += offsets[ny * width + nx]
+                            count += 1
+                        }
+                    }
+                    if count > 0 { updates.append((i, sum / count)) } else { next.append(i) }
+                }
+                guard !updates.isEmpty else { break }
+                for (i, value) in updates {
+                    offsets[i] = value
+                    known[i] = true
+                }
+                remaining = next
+            }
+            // Alpha isn't toned: a spot on an opaque photo stays opaque.
+            for index in holeIndices {
+                let i = Int(index)
+                var offset = offsets[i]
+                offset.w = 0
+                pixels[i] += offset
+            }
         }
 
         /// Fills the area from its edge inward, each pixel the average of the ones already known around it.

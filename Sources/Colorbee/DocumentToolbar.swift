@@ -33,8 +33,8 @@ private struct SelectingGroups: ToolbarContent {
             ToolButton(tool: .pencil, editor: editor)
             BrushGalleryButton(editor: editor)
                 .disabled(editor.activeEffect != nil)
-            // Stage 13b trial; it moves into the Retouch gallery with the other retouching tools.
-            ToolButton(tool: .remove, editor: editor)
+            RetouchGalleryButton(editor: editor)
+                .disabled(editor.activeEffect != nil)
             ShapeGalleryButton(editor: editor)
                 .disabled(editor.activeEffect != nil)
             ForEach([Tool.fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure, .redactBrush, .stepBadge], id: \.self) {

@@ -24,7 +24,7 @@ enum Tool: CaseIterable {
     case lassoSelect
     case magicWand
     case magnifier
-    case remove
+    case retouch
     case redactBrush
     case stepBadge
 
@@ -38,7 +38,7 @@ enum Tool: CaseIterable {
     /// Tools that change the active layer's pixels.
     var changesPixels: Bool {
         switch self {
-        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text, .remove, .redactBrush, .stepBadge: true
+        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text, .retouch, .redactBrush, .stepBadge: true
         default: false
         }
     }
@@ -495,16 +495,27 @@ final class Editor {
         didSet { renderSoon() }
     }
     @ObservationIgnored private var redactStroke: (area: RedactBrushArea, lock: AxisLock, secondary: Bool)?
-    // Remove (FR-4.6; stage 13b trial).
-    var removeBrushSize = 40.0 {
+    // Retouching (FR-4.6).
+    var retouchKind: RetouchKind = .remove {
         didSet { renderSoon() }
     }
-    @ObservationIgnored private var removeStroke: (area: RedactBrushArea, lock: AxisLock)?
+    /// Each retouching tool keeps its own size.
+    private var retouchSizes: [RetouchKind: Double] = [:] {
+        didSet { renderSoon() }
+    }
+    var retouchSize: Double {
+        get { retouchSizes[retouchKind] ?? retouchKind.defaultSize }
+        set { retouchSizes[retouchKind] = newValue }
+    }
+    /// Remove and Spot Heal read what all visible layers show and write into the active one, so retouching can go
+    /// on an empty layer above a photo and leave the photo as it was.
+    var retouchSamplesAllLayers = false
+    @ObservationIgnored private var retouchStroke: (area: RedactBrushArea, lock: AxisLock, kind: RetouchKind)?
     /// The area being filled, shown until the fill is done.
-    @ObservationIgnored private var removingArea: RedactBrushArea?
+    @ObservationIgnored private var fillingArea: RedactBrushArea?
     /// How far the fill has got, while one runs.
-    private(set) var removeProgress: Double?
-    @ObservationIgnored private var removeCancel: CancelFlag?
+    private(set) var fillProgress: Double?
+    @ObservationIgnored private var fillCancel: CancelFlag?
     private enum BadgeDrag {
         case create
         case move(grab: Point2D, original: PendingBadge)
@@ -938,7 +949,7 @@ final class Editor {
             case .eraser: eraserSize
             case .stepBadge: Int(badgeDiameter.rounded())
             case .redactBrush: Int(redactBrushSize.rounded())
-            case .remove: Int(removeBrushSize.rounded())
+            case .retouch: Int(retouchSize.rounded())
             default: nil
             }
         }
@@ -952,7 +963,7 @@ final class Editor {
             case .eraser: eraserSize = clamped
             case .stepBadge: badgeDiameter = Double(clamped)
             case .redactBrush: redactBrushSize = Double(clamped)
-            case .remove: removeBrushSize = Double(clamped)
+            case .retouch: retouchSize = Double(clamped)
             default: break
             }
         }
@@ -963,7 +974,7 @@ final class Editor {
         switch tool {
         case .eraser: 1...100
         case .stepBadge: 16...128
-        case .redactBrush, .remove: 1...300
+        case .redactBrush, .retouch: 1...300
         default: 1...50
         }
     }
@@ -974,7 +985,7 @@ final class Editor {
         case .eraser: [4, 6, 8, 10, 20]
         case .stepBadge: [24, 32, 48, 64, 96]
         case .redactBrush: [8, 16, 24, 40, 64]
-        case .remove: [10, 20, 40, 80, 160]
+        case .retouch: retouchKind.sizePresets
         default: [1, 2, 3, 4, 5]
         }
     }
@@ -991,8 +1002,8 @@ final class Editor {
             badgeDiameter = max(16, min(128, badgeDiameter + (larger ? 4 : -4)))
         case .redactBrush:
             redactBrushSize = max(1, min(300, redactBrushSize + (larger ? 4 : -4)))
-        case .remove:
-            removeBrushSize = max(1, min(300, removeBrushSize + (larger ? 4 : -4)))
+        case .retouch:
+            retouchSize = max(1, min(300, retouchSize + (larger ? 4 : -4)))
         default:
             brushDiameter = max(1, min(50, brushDiameter + (larger ? 1 : -1)))
         }
@@ -1018,7 +1029,7 @@ final class Editor {
         commitPendingText()
         commitPendingBadge()
         endRedactStroke()
-        endRemoveStroke()
+        endRetouchStroke()
         endStroke()
         cancelOrEndSelectionDrag()
         if activeEffect != nil { cancelEffect() }
@@ -1616,69 +1627,73 @@ final class Editor {
 
     /// The see-through area of a Redact Brush or Remove stroke, or of a fill under way, for the screen.
     func areaStrokePicture() -> (pixels: PixelBuffer, origin: IntPoint)? {
-        redactStroke?.area.picture ?? removeStroke?.area.picture ?? removingArea?.picture
+        redactStroke?.area.picture ?? retouchStroke?.area.picture ?? fillingArea?.picture
     }
 
     /// The size of the round brush outline under the pointer, for the tools that paint an area.
     var areaBrushSize: Double? {
         switch tool {
         case .redactBrush: redactBrushSize
-        case .remove: removeBrushSize
+        case .retouch: retouchSize
         default: nil
         }
     }
 
-    // MARK: Remove (FR-4.6; stage 13b trial)
+    // MARK: Retouching: Remove and Spot Heal (FR-4.6)
 
-    /// Starts painting over what to remove. Nothing changes until the stroke ends.
-    func beginRemoveStroke(at point: Point2D) {
+    /// Starts painting over what to remove or heal. Nothing changes until the stroke ends.
+    func beginRetouchStroke(at point: Point2D) {
         // One fill at a time.
-        guard removeProgress == nil else { return onRefused() }
+        guard fillProgress == nil else { return onRefused() }
         guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingSelection()
-        let area = RedactBrushArea(diameter: removeBrushSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 110))
+        let area = RedactBrushArea(diameter: retouchSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 110))
         area.move(to: point)
-        removeStroke = (area, AxisLock(start: point))
+        retouchStroke = (area, AxisLock(start: point), retouchKind)
         onRender()
     }
 
-    func continueRemoveStroke(to point: Point2D, constrain: Bool) {
-        guard var stroke = removeStroke else { return }
+    func continueRetouchStroke(to point: Point2D, constrain: Bool) {
+        guard var stroke = retouchStroke else { return }
         stroke.area.move(to: constrain ? stroke.lock.constrain(point) : point)
-        removeStroke = stroke
+        retouchStroke = stroke
         onRender()
     }
 
-    /// Fills the painted area from its surroundings in the background, then places it as one step, "Remove". If the
-    /// image changed meanwhile, the fill no longer fits it and is dropped.
-    func endRemoveStroke() {
-        guard let stroke = removeStroke else { return }
-        removeStroke = nil
+    /// Fills the painted area from its surroundings in the background, then places it as one step ("Remove" or
+    /// "Spot Heal"). Spot Heal looks only just around the spot and evens out the tone. If the image changed
+    /// meanwhile, the fill no longer fits it and is dropped.
+    func endRetouchStroke() {
+        guard let stroke = retouchStroke else { return }
+        retouchStroke = nil
         let layer = canvas.activeLayer
-        guard let mask = stroke.area.mask, let job = MatchSurroundings.Job(image: layer.buffer, area: mask) else { return onRender() }
+        let healing = stroke.kind == .spotHeal
+        let image = retouchSamplesAllLayers ? canvas.flattened() : layer.buffer
+        guard let mask = stroke.area.mask,
+              let job = MatchSurroundings.Job(image: image, area: mask, nearby: healing, matchingTone: healing) else { return onRender() }
         let flag = CancelFlag()
-        removeCancel = flag
-        removingArea = stroke.area
-        removeProgress = 0
+        fillCancel = flag
+        fillingArea = stroke.area
+        fillProgress = 0
         let revision = history.revision, layerID = layer.id, pageID = page.id
         Task { @MainActor [weak self] in
             let fill = await Task.detached(priority: .userInitiated) { [weak self] in
                 try? job.run(progress: { value in
-                    Task { @MainActor in if self?.removeCancel === flag { self?.removeProgress = value } }
+                    Task { @MainActor in if self?.fillCancel === flag { self?.fillProgress = value } }
                 }, isCancelled: { flag.isSet })
             }.value
-            guard let self, self.removeCancel === flag else { return }
-            self.removeCancel = nil
-            self.removeProgress = nil
-            self.removingArea = nil
+            guard let self, self.fillCancel === flag else { return }
+            self.fillCancel = nil
+            self.fillProgress = nil
+            self.fillingArea = nil
             guard let fill else { return self.onRender() }
             guard self.history.revision == revision, self.page.id == pageID, self.canvas.activeLayer.id == layerID,
                   self.activeLayerTakesEdits else {
                 self.showNotice("The image changed while filling. Try again.")
                 return self.onRender()
             }
-            let edit = self.history.beginEdit("Remove", on: self.canvas)
+            let edit = self.history.beginEdit(stroke.kind.name, on: self.canvas)
             fill.apply(to: self.canvas.activeLayer, edit: edit)
             self.recordingChanges { self.history.commit(edit) }
             self.onRender()
@@ -1686,12 +1701,12 @@ final class Editor {
     }
 
     /// Esc while a fill runs: stops it, and nothing changes.
-    func cancelRemove() {
-        guard let flag = removeCancel else { return }
+    func cancelFill() {
+        guard let flag = fillCancel else { return }
         flag.set()
-        removeCancel = nil
-        removeProgress = nil
-        removingArea = nil
+        fillCancel = nil
+        fillProgress = nil
+        fillingArea = nil
         onRender()
     }
 

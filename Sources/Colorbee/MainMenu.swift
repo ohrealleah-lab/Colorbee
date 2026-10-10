@@ -20,6 +20,7 @@ enum MainMenu {
         NSApp.windowsMenu = window
 
         let help = NSMenu(title: "Help")
+        help.addItem(item("Colorbee Help", "showHelp:", "?"))
         main.addItem(submenu(help))
         NSApp.helpMenu = help
         return main
@@ -28,6 +29,7 @@ enum MainMenu {
     /// Hover text for every command, keyed by its action.
     private static let tooltips: [String: String] = [
         "orderFrontStandardAboutPanel:": "Version and credits.",
+        "showHelp:": "How to use Colorbee: guides for the main jobs, and every tool, menu and setting.",
         "showSettings:": "Keyboard shortcuts and export presets.",
         "hide:": "Hide Colorbee's windows until you switch back.",
         "hideOtherApplications:": "Hide every other app's windows.",

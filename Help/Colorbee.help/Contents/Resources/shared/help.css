@@ -1,0 +1,30 @@
+/* Colorbee Help: the help viewer's own font and size, readable in light and dark mode (FR-14.6). */
+:root {
+    color-scheme: light dark;
+    --ink: #1d1d1f;
+    --soft-ink: #6e6e73;
+    --accent: #0a66d8;
+    --rule: #d2d2d7;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ink: #f5f5f7;
+        --soft-ink: #a1a1a6;
+        --accent: #4aa3ff;
+        --rule: #3a3a3c;
+    }
+}
+body {
+    font: -apple-system-body;
+    color: var(--ink);
+    max-width: 42em;
+    margin: 1.5em auto;
+    padding: 0 1em;
+    line-height: 1.45;
+}
+h1 { font-size: 1.6em; margin-bottom: 0.3em; }
+h2 { font-size: 1.2em; margin-top: 1.6em; border-bottom: 1px solid var(--rule); padding-bottom: 0.2em; }
+p.lead { color: var(--soft-ink); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+kbd { font-family: inherit; }

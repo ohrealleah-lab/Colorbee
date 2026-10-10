@@ -4,7 +4,7 @@ DERIVED := build
 APP     := $(DERIVED)/Build/Products/Debug/Colorbee.app
 BENCH   := $(DERIVED)/Build/Products/Release/Colorbee.app/Contents/MacOS/Colorbee -ColorbeeBenchmark YES -ApplePersistenceIgnoreState YES
 
-.PHONY: gen build test core perf run bench beta open clean
+.PHONY: gen build test core perf run bench beta help-index open clean
 
 gen:
 	xcodegen generate --quiet
@@ -21,6 +21,12 @@ test: core build
 # Release-only time limits and the 8000x8000 soak test (AC-27, NFR-7). Takes a few minutes.
 perf:
 	cd Packages/ColorbeeCore && swift test -c release --no-parallel --filter "SoakTests|PerformanceTests"
+
+# The help book's search index (FR-14.6). Run after changing a help page; the index is committed.
+HELP := Help/Colorbee.help/Contents/Resources/en.lproj
+help-index:
+	hiutil -I corespotlight -Caf $(HELP)/Colorbee.cshelpindex -s en $(HELP)
+	hiutil -I corespotlight -Fvf $(HELP)/Colorbee.cshelpindex
 
 # Signed, notarized beta zip for testers in build/Beta. Uses the keychain; may ask for its password.
 beta:

@@ -27,12 +27,18 @@ targets:
     platform: macOS
     sources:
       - Sources/Colorbee
+      # The help book (FR-14.6), copied into the app as one bundle.
+      - path: Help/Colorbee.help
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: ColorbeeCore
     info:
       path: Sources/Colorbee/Info.plist
       properties:
         CFBundleDisplayName: Colorbee
+        CFBundleHelpBookFolder: Colorbee.help
+        CFBundleHelpBookName: com.leah.Colorbee.help
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.graphics-design

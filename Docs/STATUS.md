@@ -43,6 +43,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 10b. PDF output, Auto-Redact on every page | ✅ Done | High |
 | 11. Import from iPhone or iPad | Decided, to build later | High (trial build), then medium |
 | 12. RAW photos | ✅ Done | High |
+| Help (FR-14.6) | Phase 1 built: the help book, ⌘?, search; pages next | Medium (phase 6 high) |
 
 ## What's built
 
@@ -178,6 +179,12 @@ Logs in `build/soak-results*.txt` (not committed).
 7. **Warning on quit.** Open two duplicated copies of E1 Screenshot.png, Auto-Redact each (Solid Fill, Apply), then ⌘Q. Expect the message on each window in turn; after the second answer, Colorbee quits. Reopen both: the redactions are there.
 
 ## Not yet checked by hand
+
+**Help, phase 1 (2026-10-09): not yet tested.** Plan: `Docs/HELP-PLAN.md`. Rebuild and run with the script first.
+1. Help ▸ Colorbee Help: Apple's help viewer opens on a "Colorbee Help" page saying the guide is coming soon.
+2. Press ⌘? from anywhere in Colorbee: the same page opens.
+3. Click the Help menu and type "colorbee" in its search field: "Colorbee Help" is listed under Help Topics.
+4. Turn on dark mode (Colorbee ▸ Settings ▸ General ▸ Dark, or your Mac's): the help page is readable, light text on dark.
 
 **Toolbar: Brushes and Shapes with the drawing tools (2026-10-05): passed Leah's hand test on 2026-10-05.** Any image.
 1. The toolbar's second group reads Pencil, Brushes, Shapes, Fill, Text, Eraser, Eyedropper, Magnifier, Gradient, Measure, and the Size box sits in its own group next to it.

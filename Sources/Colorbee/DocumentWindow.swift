@@ -185,6 +185,13 @@ final class DocumentWindow: NSWindow {
         editor?.toggleComparison()
     }
 
+    @objc func copyText(_ sender: Any?) {
+        editor?.copyText { text in
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+        }
+    }
+
     @objc func copyMerged(_ sender: Any?) {
         guard let editor else { return }
         copyToClipboard(selected: editor.selectedMergedPixels(), editor: editor)

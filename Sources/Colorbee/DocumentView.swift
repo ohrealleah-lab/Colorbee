@@ -23,8 +23,9 @@ struct DocumentView: View {
             CanvasHost(view: canvasView)
                 .overlay { RedactionBadges(editor: editor) }
                 .overlay(alignment: .top) {
-                    if editor.isFindingSubject {
-                        Label("Finding the subject…", systemImage: "person.crop.rectangle")
+                    if editor.isFindingSubject || editor.isReadingText {
+                        Label(editor.isReadingText ? "Reading text…" : "Finding the subject…",
+                              systemImage: editor.isReadingText ? "text.viewfinder" : "person.crop.rectangle")
                             .font(.system(size: 12))
                             .padding(.horizontal, 12)
                             .frame(height: 28)
@@ -32,6 +33,21 @@ struct DocumentView: View {
                             .padding(.top, 12)
                     }
                 }
+                // "Copied 42 words": fades by itself.
+                .overlay(alignment: .bottom) {
+                    if let notice = editor.notice {
+                        Text(notice.text)
+                            .font(.system(size: 13))
+                            .padding(.horizontal, 14)
+                            .frame(height: 30)
+                            .glassEffect(.regular, in: Capsule())
+                            .padding(.bottom, 16)
+                            .transition(.opacity)
+                            .id(notice.id)
+                            .accessibilityAddTraits(.updatesFrequently)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.3), value: editor.notice)
                 .alert("Couldn't use the subject", isPresented: Binding(get: { editor.subjectMessage != nil }, set: { if !$0 { editor.subjectMessage = nil } })) {
                     Button("OK") { editor.subjectMessage = nil }
                 } message: {

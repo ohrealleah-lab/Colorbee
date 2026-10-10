@@ -2148,6 +2148,47 @@ final class Editor {
 
     private func distance(_ a: Point2D, _ b: Point2D) -> Double { hypot(a.x - b.x, a.y - b.y) }
 
+    // MARK: Messages and Copy Text (FR-10.4)
+
+    /// A short message at the bottom of the canvas that fades by itself, such as "Copied 42 words" (Leah, 2026-10-10).
+    struct Notice: Equatable {
+        let id = UUID()
+        let text: String
+    }
+
+    private(set) var notice: Notice?
+
+    func showNotice(_ text: String) {
+        let shown = Notice(text: text)
+        notice = shown
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            if self?.notice == shown { self?.notice = nil }
+        }
+    }
+
+    /// Whether Copy Text is reading now.
+    private(set) var isReadingText = false
+
+    /// Copy Text: reads what you see in the selection (or the whole page) on this Mac and hands the text to `copy`.
+    /// The image is never changed, and it isn't an undo step.
+    func copyText(_ copy: @escaping @MainActor (String) -> Void) {
+        guard !isReadingText else { return }
+        let pixels = selectedMergedPixels() ?? canvas.flattened()
+        guard let image = try? ImageCodec.makeCGImage(pixels, colorSpace: canvas.colorSpace) else { return onRefused() }
+        isReadingText = true
+        Task { @MainActor [weak self] in
+            let text = (try? await TextReader.read(image)) ?? ""
+            guard let self else { return }
+            self.isReadingText = false
+            // With no text the clipboard is left as it was.
+            guard !text.isEmpty else { return self.showNotice("No text found") }
+            copy(text)
+            let words = TextReader.wordCount(text)
+            self.showNotice(words == 1 ? "Copied 1 word" : "Copied \(words) words")
+        }
+    }
+
     // MARK: Subjects (FR-9.5)
 
     enum SubjectAction {

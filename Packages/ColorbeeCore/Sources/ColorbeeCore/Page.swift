@@ -89,8 +89,10 @@ public final class Page {
     /// Brings the parked pixels back into the page's own buffers.
     public func unpark() throws {
         guard let data = parked else { return }
-        try ProjectFile.restore(data, into: canvas, layers: freedLayers)
-        unparkedFrom = (data, parkedThumbnail, history.revision, canvas.activeLayerIndex)
+        let inPieces = try ProjectFile.restore(data, into: canvas, layers: freedLayers)
+        // Bytes from before the pieces aren't kept for parking again: compressing anew stores the page in pieces, so
+        // later visits come back on all cores.
+        unparkedFrom = inPieces ? (data, parkedThumbnail, history.revision, canvas.activeLayerIndex) : nil
         parked = nil
         parkedThumbnail = nil
         freedLayers = []

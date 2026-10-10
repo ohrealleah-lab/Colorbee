@@ -3,7 +3,8 @@ import Foundation
 
 /// The .colorproj format (FR-8.5): one file holding every layer and its settings, so a project reopens
 /// exactly as it was saved. After a magic line comes a 4-byte length, a JSON manifest, then each pixel
-/// layer's rows as LZ4-compressed BGRA, exactly as stored in memory (straight alpha, no rounding).
+/// layer's rows as LZ4-compressed BGRA, exactly as stored in memory (straight alpha, no rounding), in pieces that
+/// compress on all cores (`LayerPixels`).
 public enum ProjectFile {
     public static let fileExtension = "colorproj"
     static let magic = Data("COLORBEE PROJECT 1\n".utf8)
@@ -46,6 +47,10 @@ public enum ProjectFile {
         var adjustment: AdjustmentEntry?
         /// Where this layer's compressed pixels sit in the data after the manifest. Nil for adjustment layers.
         var pixels: Range<Int>?
+        /// How the pixels are split into pieces compressed on their own (`LayerPixels`): rows per piece, and each
+        /// piece's compressed size. Missing from projects saved before the pieces, which are one stream per layer.
+        var pieceRows: Int?
+        var pieces: [Int]?
     }
 
     /// An adjustment that reads back as none if it's of a kind this version doesn't know.
@@ -66,18 +71,21 @@ public enum ProjectFile {
         var entries: [LayerEntry] = []
         let saved = stampingFloating ? canvas.layerBuffersAsSaved(transparentKey: transparentKey, resampling: resampling)
             : Dictionary(uniqueKeysWithValues: canvas.layers.filter { $0.adjustment == nil }.map { ($0.id, $0.buffer) })
+        let pixelLayers = canvas.layers.filter { $0.adjustment == nil && saved[$0.id] != nil }
+        let compressed = Dictionary(uniqueKeysWithValues: zip(pixelLayers.map(\.id), try LayerPixels.compress(pixelLayers.map { saved[$0.id]! })))
         for layer in canvas.layers {
-            var range: Range<Int>?
-            if layer.adjustment == nil, let buffer = saved[layer.id] {
-                let compressed = try (rows(of: buffer) as NSData).compressed(using: .lz4) as Data
-                range = blobs.count..<(blobs.count + compressed.count)
-                blobs.append(compressed)
-            }
-            entries.append(LayerEntry(
+            var entry = LayerEntry(
                 id: layer.id.rawValue, name: layer.name, isVisible: layer.isVisible, opacity: layer.opacity,
                 blendMode: layer.blendMode.rawValue, isLocked: layer.isLocked,
-                adjustment: layer.adjustment.map(AdjustmentEntry.init), pixels: range
-            ))
+                adjustment: layer.adjustment.map(AdjustmentEntry.init), pixels: nil
+            )
+            if let pixels = compressed[layer.id] {
+                entry.pixels = blobs.count..<(blobs.count + pixels.data.count)
+                entry.pieceRows = pixels.pieceRows
+                entry.pieces = pixels.pieces
+                blobs.append(pixels.data)
+            }
+            entries.append(entry)
         }
         let manifest = Manifest(
             width: canvas.size.width, height: canvas.size.height,
@@ -98,16 +106,20 @@ public enum ProjectFile {
 
     /// Puts a parked page's pixels back into the very layers they came from (FR-11.6), so the page's history
     /// still points at the right buffers. Only `layers` are filled; the canvas's layers mustn't have changed.
-    static func restore(_ data: Data, into canvas: Canvas, layers: Set<LayerID>) throws {
+    /// Returns whether every layer was stored in pieces, as this version writes them.
+    @discardableResult
+    static func restore(_ data: Data, into canvas: Canvas, layers: Set<LayerID>) throws -> Bool {
         let (manifest, blobs) = try manifestAndBlobs(data)
         guard manifest.layers.map(\.id) == canvas.layers.map(\.id.rawValue) else { throw Failure.damaged }
+        var stored: [LayerPixels.Stored] = []
         for (entry, layer) in zip(manifest.layers, canvas.layers) where layers.contains(layer.id) {
             guard let range = entry.pixels, range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
-            let raw = try (blobs[(blobs.startIndex + range.lowerBound)..<(blobs.startIndex + range.upperBound)] as NSData).decompressed(using: .lz4) as Data
-            guard raw.count == layer.buffer.width * layer.buffer.height * 4 else { throw Failure.damaged }
-            layer.buffer.reuseContents()
-            fill(layer.buffer, from: raw)
+            stored.append(LayerPixels.Stored(data: blobs[(blobs.startIndex + range.lowerBound)..<(blobs.startIndex + range.upperBound)],
+                                             pieceRows: entry.pieceRows, pieces: entry.pieces, buffer: layer.buffer))
         }
+        for layer in stored { layer.buffer.reuseContents() }
+        try LayerPixels.decompress(stored)
+        return stored.allSatisfy { $0.pieces != nil }
     }
 
     private static func manifestAndBlobs(_ data: Data) throws -> (Manifest, Data) {
@@ -285,15 +297,14 @@ public enum ProjectFile {
         let colorSpace = [manifest.iccProfile.flatMap { CGColorSpace(iccData: $0 as CFData) },
                           manifest.colorSpaceName.flatMap { CGColorSpace(name: $0 as CFString) }]
             .compactMap { $0 }.first { $0.model == .rgb } ?? Canvas.defaultColorSpace
+        var stored: [LayerPixels.Stored] = []
         let layers = try manifest.layers.map { entry -> Layer in
             let buffer = PixelBuffer(width: manifest.width, height: manifest.height)
             if let range = entry.pixels {
                 // Checked against the size before adding, so a huge offset can't overflow (review J, finding 20).
                 guard range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
                 let start = blobs.startIndex + range.lowerBound, end = blobs.startIndex + range.upperBound
-                let raw = try (blobs[start..<end] as NSData).decompressed(using: .lz4) as Data
-                guard raw.count == manifest.width * manifest.height * 4 else { throw Failure.damaged }
-                fill(buffer, from: raw)
+                stored.append(LayerPixels.Stored(data: blobs[start..<end], pieceRows: entry.pieceRows, pieces: entry.pieces, buffer: buffer))
             }
             let layer = Layer(name: entry.name, buffer: buffer, id: LayerID(rawValue: entry.id))
             layer.isVisible = entry.isVisible
@@ -303,6 +314,7 @@ public enum ProjectFile {
             layer.adjustment = entry.adjustment?.effect
             return layer
         }
+        try LayerPixels.decompress(stored)
         let canvas = Canvas(
             colorSpace: colorSpace, layers: layers, hasTransparentBackground: manifest.hasTransparentBackground,
             backgroundLayerID: manifest.backgroundLayerID.map { LayerID(rawValue: $0) },
@@ -310,26 +322,5 @@ public enum ProjectFile {
         )
         canvas.cameraDetails = manifest.cameraDetails
         return canvas
-    }
-
-    /// The pixels without row padding, so the file doesn't depend on in-memory alignment.
-    private static func rows(of buffer: PixelBuffer) -> Data {
-        var data = Data(count: buffer.width * buffer.height * 4)
-        // An empty layer is all zeros; reading it would make its memory count as used (FR-11.6, parking).
-        if buffer.isUntouched { return data }
-        data.withUnsafeMutableBytes { bytes in
-            for y in 0..<buffer.height {
-                (bytes.baseAddress! + y * buffer.width * 4).copyMemory(from: buffer.row(y), byteCount: buffer.width * 4)
-            }
-        }
-        return data
-    }
-
-    private static func fill(_ buffer: PixelBuffer, from data: Data) {
-        data.withUnsafeBytes { bytes in
-            for y in 0..<buffer.height {
-                UnsafeMutableRawPointer(buffer.row(y)).copyMemory(from: bytes.baseAddress! + y * buffer.width * 4, byteCount: buffer.width * 4)
-            }
-        }
     }
 }

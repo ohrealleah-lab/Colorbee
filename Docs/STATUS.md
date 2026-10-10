@@ -134,8 +134,12 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - GitHub Actions (`.github/workflows/build-release.yml`, like Honeycomb's): every push builds and runs the tests on a macOS 26 runner. A tag `vX.Y.Z-beta.N` also signs, notarizes and publishes the zip as a pre-release (version X.Y.Z, build N). Needs five repo secrets, the same as Honeycomb's: `APPLE_CERT_P12`, `APPLE_CERT_P12_PASSWORD`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_KEY_P8` (all set 2026-10-05). On GitHub's runner the tests run one at a time; side by side they stalled. First release: v0.9.0-beta.2, published 2026-10-05, checked as "Notarized Developer ID". Next beta: push the tag `v0.9.0-beta.3`.
 - Polish done 2026-10-03: effect previews in the background (`EffectPreview`), Copy in the background (`ClipboardImage`). Tested by hand 2026-10-03.
 
-**Later, from review round 4:** switching pages compresses the old page and expands the new one on the main thread
-(L15); on very large pages (8000 × 8000 with layers and a long history) a switch can pause for a second.
+**L15, from review round 4: done 2026-10-10.** Switching pages compressed the old page and expanded the new one a
+layer at a time on one core. Layers are now stored in pieces of about 4 MB (`LayerPixels`) that compress and expand
+on all cores: at 4000 × 4000 with three layers, leaving a page went from 0.24 s to 0.035 s and showing one from
+0.17 s to 0.021 s (`PerformanceTests`, `make perf`). Still on the main thread, as Leah chose (2026-10-10: just wait,
+much shorter). The first switch away from a page after many edits also writes old undo steps to disk (about 0.06 s
+at 4000 × 4000).
 
 **12 RAW photos (FR-11.8)** — done; tested by hand 2026-10-05. Built: `RawDeveloper` (macOS's RAW engine, CIRAWFilter), the Develop
 window (`DevelopWindow`), `DocumentController` (sends RAW files to it), `CameraDetails` (core, kept in .colorproj),

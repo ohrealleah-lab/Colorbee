@@ -123,4 +123,38 @@ struct PerformanceTests {
         let slowest = times.max()!
         #expect(slowest < .milliseconds(1000), "slowest step took \(slowest)")
     }
+
+    /// L15: leaving a page compresses it and showing one expands it, on all cores. At 4000 × 4000 with three layers
+    /// this took 0.24 s and 0.17 s on one core; on all of them about 0.035 s and 0.021 s (Leah's M2 Max, 2026-10-10).
+    /// 4000 keeps the run light; 8000 is four times the work.
+    @Test func switchingPagesCompressesAndExpandsOnAllCores() throws {
+        let side = 4000
+        let canvas = PerformanceFixture.photo(side: side)
+        let history = History(byteBudget: .max)
+        for shade in [0, 60] {
+            LayerActions.add(canvas: canvas, history: history, context: context)
+            canvas.activeLayer.buffer.fill(Pixel(r: UInt8(shade), g: 100, b: 200, a: 200), in: IntRect(x: 0, y: 0, width: side / 2, height: side))
+        }
+        let page = Page(canvas: canvas, history: history)
+        var shade: UInt8 = 0
+        let park = try (0..<3).map { _ in
+            // A change each time, so parking compresses rather than reusing the bytes it came back from.
+            shade &+= 1
+            let edit = history.beginEdit("Dot", on: canvas)
+            edit.willModify(IntRect(x: 0, y: 0, width: 1, height: 1), in: canvas.activeLayer)
+            canvas.activeLayer.buffer[0, 0] = Pixel(r: shade, g: 0, b: 0)
+            history.commit(edit)
+            let time = try ContinuousClock().measure { try page.park() }
+            try page.unpark()
+            return time
+        }.min()!
+        try page.park()
+        let unpark = try (0..<3).map { _ in
+            let time = try ContinuousClock().measure { try page.unpark() }
+            try page.park()
+            return time
+        }.min()!
+        #expect(park < .milliseconds(80), "parking took \(park)")
+        #expect(unpark < .milliseconds(50), "bringing back took \(unpark)")
+    }
 }

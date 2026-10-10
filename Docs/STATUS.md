@@ -180,7 +180,7 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
-**Help, phase 1 (2026-10-09): not yet tested.** Plan: `Docs/HELP-PLAN.md`. Rebuild and run with the script first.
+**Help, phase 1 (2026-10-09): screenshots taken by Leah on 2026-10-09 (step 5); steps 1–4 not yet tested.** Plan: `Docs/HELP-PLAN.md`. Rebuild and run with the script first.
 1. Help ▸ Colorbee Help: Apple's help viewer opens on a "Colorbee Help" page saying the guide is coming soon.
 2. Press ⌘? from anywhere in Colorbee: the same page opens.
 3. Click the Help menu and type "colorbee" in its search field: "Colorbee Help" is listed under Help Topics.

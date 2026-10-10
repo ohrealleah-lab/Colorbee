@@ -184,6 +184,8 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ## Not yet checked by hand
 
+**Page switching speed, L15 (2026-10-10): passed Leah's hand test on 2026-10-10.** `TestImages/Stage 9 Practice Photo.png` resized to 400% (6400 × 4000), three layers, three pages: switching feels instant, a stroke survives switching and undoes, the project saves and reopens exactly, and the older `Cant Copy.colorproj` opens as before.
+
 **Adjustment layers: Merge Adjustment and Copy (2026-10-09/10): passed Leah's hand test on 2026-10-10.** Leah's `Cant Copy.colorproj` (four layers, Adjust Photo on top).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.

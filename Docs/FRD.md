@@ -301,7 +301,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - Stage 9 adds Levels, Curves, Sepia and Posterize, plus Adjust Photo (all its sliders in one layer) and any photo filter (FR-9.5). Auto Contrast as an adjustment layer is a Levels layer with its points set automatically.
 - An adjustment layer changes how the layers below it look, without changing their pixels.
 - Its settings stay editable in the Adjustments panel. It can be hidden, reordered, deleted, or have its opacity changed like any layer.
-- **Apply Adjustment** turns it into pixels on the layer below.
+- **Apply Adjustment** merges it and every visible layer below it into one pixel layer, so the picture looks the same. Layers above stay as they are; hidden layers below are kept. ⌘C on an adjustment layer copies what you see (like Copy Merged).
 
 ### FR-8.5 Saving with layers
 - **.colorproj** keeps everything: layers, names, opacity, blend modes, visibility and adjustment layers.
@@ -740,6 +740,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-09 | Leah's "Cant Copy" bug: **Apply Adjustment** keeps the look everywhere. It merges the adjustment layer and every visible layer below it into one pixel layer, at the lowest of them, as one undo step; layers above are untouched. Before, it baked the adjustment into only the layer just below, so anything showing through from lower layers lost the adjustment. **Copy (⌘C) on an adjustment layer** copies what you see, like Copy Merged; on a pixel layer it still copies just that layer. My choices (veto any): hidden layers below stay as separate hidden layers (like Merge Visible); Apply is unavailable when the adjustment layer is hidden (it changes nothing) or when any visible layer it would merge is locked. Merge Down on an adjustment layer does the same as Apply. |
 | 2026-10-06 | Help (Leah): a standard Mac Help Book (Help ▸ Colorbee Help, Cmd+?, offline, found by the Help menu's search); task guides first, then a full reference; a few key screenshots, light mode only, retaken by a script; no "What's new" page (beta notes stay in Start Here.txt). See FR-14.6 and `Docs/HELP-PLAN.md`. (Veto any, Claude's choices: the contextual ? buttons go in the Auto-Redact sheet, Settings ▸ Shortcuts and Export Presets, Resize and Skew, Canvas Properties and the Develop window; the Menus and Keyboard shortcuts pages are generated from the app, so they can't drift.) |
 | 2026-10-05 | Toolbar (Leah): Brushes and Shapes join the drawing tools' group, right after the Pencil, instead of a group of their own: they're all drawing tools. |
 | 2026-10-05 | Palette bar (Leah): **Edit Colors…** is removed, since double-clicking Color 1 or Color 2 opens the same color picker. **Palettes** are hidden, not removed: too much for the bar's space; the code stays and one switch (`PaletteStore.isShown`) brings the menu back. Colorbee keeps using the palette that was active (Paint Classic). |

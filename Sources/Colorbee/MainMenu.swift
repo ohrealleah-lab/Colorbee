@@ -74,7 +74,7 @@ enum MainMenu {
         "nextPage:": "Show the page after this one.",
         "toggleAdjustmentsPanel:": "Show or hide the Adjustments panel, where an adjustment layer's settings live.",
         "newAdjustmentLayer:": "Add an adjustment layer: it changes how the layers below look, without changing their pixels.",
-        "applyAdjustment:": "Turn the active adjustment layer into pixels on the layer below.",
+        "applyAdjustment:": "Merge the active adjustment layer and the layers below it into one layer, keeping the look.",
         "newLayer:": "Add a transparent layer above the active one.",
         "duplicateLayer:": "Copy the active layer, with its settings, just above it.",
         "deleteLayer:": "Delete the active layer. The only layer, or a locked one, can't be deleted.",

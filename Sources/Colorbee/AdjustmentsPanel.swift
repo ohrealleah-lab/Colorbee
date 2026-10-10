@@ -218,7 +218,7 @@ struct AdjustmentsPanel: View {
                     }
                     Button("Apply") { editor.applyAdjustmentLayer() }
                         .disabled(!LayerActions.canApplyAdjustment(editor.canvas))
-                        .help("Apply Adjustment: turn it into pixels on the layer below")
+                        .help("Apply Adjustment: merge it and the layers below it into one layer, keeping the look")
                 }
                 .controlSize(.small)
             } else {

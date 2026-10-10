@@ -73,7 +73,10 @@ final class DocumentWindow: NSWindow {
     /// Copies the selection, or the whole image when nothing is selected (FR-10.3).
     @objc func copy(_ sender: Any?) {
         guard let editor else { return }
-        copyToClipboard(selected: editor.selectedPixels(), editor: editor)
+        // An adjustment layer has no pixels of its own, so copying it alone pasted as nothing. It copies what you see
+        // instead, like Copy Merged (Leah, 2026-10-09).
+        let isAdjustment = editor.canvas.activeLayer.adjustment != nil
+        copyToClipboard(selected: isAdjustment ? editor.selectedMergedPixels() : editor.selectedPixels(), editor: editor)
     }
 
     /// The selected pixels (made now, so they're the selection as it is), or the whole image from a

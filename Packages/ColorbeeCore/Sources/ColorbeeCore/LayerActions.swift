@@ -25,26 +25,35 @@ public enum LayerActions {
         }
     }
 
-    /// Apply Adjustment: the active adjustment layer becomes pixels on the layer below it, and goes away.
+    /// Apply Adjustment: the active adjustment layer and every visible layer below it become one pixel layer, at the
+    /// lowest of them, so the picture looks exactly the same (Leah, 2026-10-09). Baking it into the layer just below
+    /// changed the look whenever that layer didn't cover everything the adjustment did. Hidden layers below stay as
+    /// they are, like Merge Visible, and layers above aren't touched.
     @discardableResult
     public static func applyAdjustment(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard canApplyAdjustment(canvas) else { return false }
         return change("Apply Adjustment", canvas: canvas, history: history, context: context) {
-            let index = canvas.activeLayerIndex
-            let adjustmentLayer = canvas.layers[index], lower = canvas.layers[index - 1]
-            guard let adjustment = adjustmentLayer.adjustment else { return false }
-            lower.buffer = Compositing.adjust(lower.buffer, by: adjustment, opacity: adjustmentLayer.opacity, mode: adjustmentLayer.blendMode)
-            canvas.removeLayer(at: index)
-            canvas.activeLayerIndex = index - 1
+            let merged = canvas.layers.prefix(canvas.activeLayerIndex + 1).filter(\.isVisible)
+            let target = merged[0]
+            target.buffer = canvas.composite(merged)
+            target.opacity = 1
+            target.blendMode = .normal
+            target.adjustment = nil
+            for layer in merged.dropFirst() {
+                canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
+            }
+            canvas.activeLayerIndex = canvas.layers.firstIndex { $0 === target }!
             return true
         }
     }
 
+    /// A hidden adjustment changes nothing, so there's nothing to apply.
     public static func canApplyAdjustment(_ canvas: Canvas) -> Bool {
         let index = canvas.activeLayerIndex
-        guard index > 0, canvas.layers[index].adjustment != nil else { return false }
-        let lower = canvas.layers[index - 1]
-        return !lower.isLocked && lower.adjustment == nil && !canvas.layers[index].isLocked
+        let layer = canvas.layers[index]
+        guard index > 0, layer.adjustment != nil, layer.isVisible else { return false }
+        let merged = canvas.layers.prefix(index + 1).filter(\.isVisible)
+        return merged.count > 1 && !merged.contains(where: \.isLocked)
     }
 
     /// A copy of the active layer, with its settings, just above it.

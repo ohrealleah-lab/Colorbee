@@ -368,6 +368,52 @@ struct AdjustmentLayerTests {
         #expect(canvas.layers[0].buffer[1, 1] == .white)
     }
 
+    // Leah's "Cant Copy" project: a cut-out subject over a background, with an adjustment on top. Baking it into
+    // the subject alone left the background unadjusted.
+    @Test func applyAdjustmentKeepsTheLookOverSeveralLayersAndUndoesInOneStep() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.buffer.fill(red, in: IntRect(x: 0, y: 0, width: 4, height: 4))
+        canvas.activeLayer.opacity = 0.5
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.isVisible = false
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.buffer.fill(red, in: IntRect(x: 6, y: 6, width: 2, height: 2))
+        canvas.activeLayerIndex = 3
+        let looks = canvas.flattened().contentHash()
+        let before = canvas.layers.map(\.id)
+        let undoCount = history.undoCount
+
+        #expect(LayerActions.applyAdjustment(canvas: canvas, history: history, context: context))
+        #expect(canvas.flattened().contentHash() == looks)
+        // The merged layer at the bottom, the hidden layer kept, the layer above untouched.
+        #expect(canvas.layers.map(\.id) == [before[0], before[2], before[4]])
+        #expect(canvas.activeLayerIndex == 0)
+        #expect(canvas.layers[0].adjustment == nil && canvas.layers[0].opacity == 1)
+        #expect(canvas.layers[0].buffer[7, 7] == .black)
+        #expect(canvas.layers[1].isVisible == false)
+        #expect(history.undoCount == undoCount + 1)
+
+        history.undo(on: canvas)
+        #expect(canvas.layers.map(\.id) == before)
+        #expect(canvas.layers[0].buffer[7, 7] == .white)
+        #expect(canvas.flattened().contentHash() == looks)
+    }
+
+    @Test func applyAdjustmentNeedsAVisibleAdjustmentAndUnlockedLayersBelow() {
+        let (canvas, history) = makeCanvas()
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        #expect(LayerActions.canApplyAdjustment(canvas))
+        canvas.activeLayer.isVisible = false
+        #expect(!LayerActions.canApplyAdjustment(canvas))
+        canvas.activeLayer.isVisible = true
+        canvas.layers[0].isLocked = true
+        #expect(!LayerActions.canApplyAdjustment(canvas))
+        canvas.layers[0].isVisible = false
+        #expect(!LayerActions.canApplyAdjustment(canvas))
+    }
+
     @Test func mergeDownOnAnAdjustmentAppliesIt() {
         let (canvas, history) = makeCanvas()
         LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)

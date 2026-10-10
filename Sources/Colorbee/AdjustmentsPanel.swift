@@ -202,7 +202,7 @@ struct AdjustmentsPanel: View {
                         set: { editor.setLayerVisible($0, at: editor.activeLayerIndex) }
                     ))
                     .font(.system(size: 12))
-                    // With Auto, Reset and Apply beside it, the narrow panel otherwise wrapped the label.
+                    // With Auto, Reset and Merge beside it, the narrow panel otherwise wrapped the label.
                     .fixedSize()
                     .help("Show or hide this adjustment")
                     Spacer()
@@ -216,9 +216,9 @@ struct AdjustmentsPanel: View {
                         Button("Reset") { editor.setAdjustment(choice.startingAdjustment) }
                             .help("Back to the starting settings")
                     }
-                    Button("Apply") { editor.applyAdjustmentLayer() }
+                    Button("Merge") { editor.applyAdjustmentLayer() }
                         .disabled(!LayerActions.canApplyAdjustment(editor.canvas))
-                        .help("Apply Adjustment: merge it and the layers below it into one layer, keeping the look")
+                        .help("Merge the adjustment and the layers below it into one layer, keeping the look")
                 }
                 .controlSize(.small)
             } else {

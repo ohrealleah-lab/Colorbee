@@ -63,7 +63,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - Layer menu: New ⇧⌘N, Duplicate ⌘J, Delete ⌘⌫, Merge Down ⇧⌘E, Merge Visible ⌥⇧⌘E, Flatten, Hide/Show, Lock/Unlock, Layer Properties…. Edit ▸ Copy Merged ⇧⌘C.
 - 17 blend modes (W3C math in `BlendMode.swift`, mirrored in `Shaders.metal`); layers composite off screen in half floats. Exports use the same math.
 - Locked layers refuse pixel changes (beep, 'not allowed' pointer). All layer changes are undo steps (whole-stack snapshots, buffers swapped not copied).
-- Adjustment layers (stage 6b): Brightness/Contrast, Hue/Saturation, Desaturate, Invert, Gaussian Blur, Sharpen; edited in the Adjustments panel; Apply Adjustment. Display: point adjustments in the blend shader, Blur/Sharpen via MPS mid-pass with edge renormalization.
+- Adjustment layers (stage 6b): Brightness/Contrast, Hue/Saturation, Desaturate, Invert, Gaussian Blur, Sharpen; edited in the Adjustments panel; Merge Adjustment (was Apply Adjustment). Display: point adjustments in the blend shader, Blur/Sharpen via MPS mid-pass with edge renormalization.
 - Undo on Active Layer ⌥⌘Z (`History.undoOnLayer`), Revert Layer (pixel copies kept at each explicit save).
 - `.colorproj` (`ProjectFile`): JSON manifest + LZ4 exact pixels + ICC. Layered images save as projects; Save As offers only .colorproj for them; Export makes flat copies.
 

@@ -25,14 +25,14 @@ public enum LayerActions {
         }
     }
 
-    /// Apply Adjustment: the active adjustment layer and every visible layer below it become one pixel layer, at the
+    /// Merge Adjustment: the active adjustment layer and every visible layer below it become one pixel layer, at the
     /// lowest of them, so the picture looks exactly the same (Leah, 2026-10-09). Baking it into the layer just below
     /// changed the look whenever that layer didn't cover everything the adjustment did. Hidden layers below stay as
     /// they are, like Merge Visible, and layers above aren't touched.
     @discardableResult
     public static func applyAdjustment(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard canApplyAdjustment(canvas) else { return false }
-        return change("Apply Adjustment", canvas: canvas, history: history, context: context) {
+        return change("Merge Adjustment", canvas: canvas, history: history, context: context) {
             let merged = canvas.layers.prefix(canvas.activeLayerIndex + 1).filter(\.isVisible)
             let target = merged[0]
             target.buffer = canvas.composite(merged)
@@ -89,7 +89,7 @@ public enum LayerActions {
     }
 
     /// Combines the active layer into the one below, using its blend mode and opacity. The result keeps
-    /// the lower layer's name and settings. On an adjustment layer this is Apply Adjustment.
+    /// the lower layer's name and settings. On an adjustment layer this is Merge Adjustment.
     @discardableResult
     public static func mergeDown(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         if canvas.activeLayer.adjustment != nil { return applyAdjustment(canvas: canvas, history: history, context: context) }

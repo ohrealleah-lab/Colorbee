@@ -300,7 +300,7 @@ enum MainMenu {
         menu.addItem(item("Flatten", "flattenImage:"))
         menu.addItem(.separator())
         menu.addItem(submenu(adjustmentLayerMenu()))
-        menu.addItem(item("Apply Adjustment", "applyAdjustment:"))
+        menu.addItem(item("Merge Adjustment", "applyAdjustment:"))
         menu.addItem(item("Revert Layer", "revertLayer:"))
         menu.addItem(.separator())
         menu.addItem(item("Hide Layer", "toggleLayerVisibility:"))

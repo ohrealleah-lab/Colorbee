@@ -6,6 +6,13 @@ import QuartzCore
 
 /// The drawing surface: renders the canvas with Metal and turns mouse, trackpad and keys into edits.
 final class CanvasView: NSView {
+    /// File ▸ Import from iPhone or iPad while the canvas has focus (FR-11.7): the SwiftUI views around it don't
+    /// pass the request on to the window, so the canvas asks the window itself.
+    override func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?, returnType: NSPasteboard.PasteboardType?) -> Any? {
+        window?.validRequestor(forSendType: sendType, returnType: returnType)
+            ?? super.validRequestor(forSendType: sendType, returnType: returnType)
+    }
+
     private enum Drag {
         case primary
         case secondary

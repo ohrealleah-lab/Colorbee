@@ -41,7 +41,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 9. Photo editing | ✅ Done | High |
 | 10a. Pages | ✅ Done | High |
 | 10b. PDF output, Auto-Redact on every page | ✅ Done | High |
-| 11. Import from iPhone or iPad | ✅ Built, awaiting Leah's hand test | High (trial build), then medium |
+| 11. Import from iPhone or iPad | ⏸ Pinned 2026-10-10: works with no window open; not yet into an open document | High |
 | 12. RAW photos | ✅ Done | High |
 | Help (FR-14.6) | Phases 1 and 2 built: the help book, ⌘?, search, screenshots, Getting started and Redact a screenshot | Medium (phase 6 high) |
 
@@ -151,6 +151,17 @@ arrive as a Letter-size PDF with one JPEG per page, photos as a JPEG (plus a TIF
 (the File menu item and receiving, through `validRequestor` in `DocumentWindow` and `AppDelegate`),
 `PDFPages.scannedPage` (each scan's own JPEG, its profile, the resolution that fits Letter; other pages drawn like a
 PDF's), `PageStack.insert(_:at:named:)` (several pages as one step) and `Editor.importPages`.
+
+**Pinned (Leah, 2026-10-10): importing into an open document doesn't work yet.** With a document window open, the
+iPhone's Take Photo / Scan Documents items were greyed out; with no window open they work (a new document opens).
+Found with temporary logging: the window's first responder is SwiftUI's `KeyViewProxy`, and it and
+`NSHostingView<DocumentView>` answer `validRequestor` with nil without passing it on, so `DocumentWindow`'s
+`validRequestor` is never asked. Tried since (uncommitted at first, committed with this note, not yet working by
+Leah's test): `.importsItemProviders` on `DocumentView` (SwiftUI's own way), and `CanvasView` asking its window. Next:
+ask Leah what she saw this time (still greyed out, or something else after scanning), then log again. Ideas: make
+the canvas first responder when the File menu opens, or an `NSHostingView` subclass that passes `validRequestor` on.
+Also in the same change, untested: File ▸ Open Recent showed twice on macOS 26 (one AppKit adds, one Colorbee
+made); Colorbee's is removed. Leah's hand-test steps are in the conversation of 2026-10-10 (Three Page Test.pdf).
 
 **10 Pages and PDF documents (FR-11.6)** — done; tested by hand 2026-10-04. Decisions in §23.
 - 10a built 2026-10-04: pages in core (`Page`, `PageStack`, project format 2, `PDFPages`), the page sidebar (`PageSidebar`), the Page menu, and PDFs, multi-page TIFFs and animated GIFs opening with every page. The frame bar is gone.

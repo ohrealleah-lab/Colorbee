@@ -317,8 +317,10 @@ final class DocumentWindow: NSWindow {
     @objc func actualSize(_ sender: Any?) { editor?.zoomToActualSize() }
     @objc func zoomToFit(_ sender: Any?) { editor?.zoomToFit() }
 
+    private lazy var continuityImport = ContinuityImport { [weak self] in self?.editor }
+
     override func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?, returnType: NSPasteboard.PasteboardType?) -> Any? {
-        ContinuityImport.requestor(for: editor, sendType: sendType, returnType: returnType)
+        continuityImport.requestor(sendType: sendType, returnType: returnType)
             ?? super.validRequestor(forSendType: sendType, returnType: returnType)
     }
 

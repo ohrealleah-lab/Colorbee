@@ -64,6 +64,8 @@ struct DocumentView: View {
             }
         }
         .toolbar { DocumentToolbar(editor: editor) }
+        // File ▸ Import from iPhone or iPad while a SwiftUI view has focus (FR-11.7).
+        .importsItemProviders(ContinuityImport.contentTypes) { ContinuityImport.receive($0, into: editor) }
         .sheet(isPresented: $editor.isCanvasPropertiesOpen) {
             CanvasPropertiesSheet(editor: editor)
         }

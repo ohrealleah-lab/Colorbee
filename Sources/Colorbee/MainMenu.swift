@@ -177,9 +177,7 @@ enum MainMenu {
         importItem.identifier = NSMenuItem.importFromDeviceIdentifier
         menu.addItem(importItem)
         menu.addItem(item("Open…", "openDocument:", "o"))
-        let recent = NSMenu(title: "Open Recent")
-        recent.addItem(item("Clear Menu", "clearRecentDocuments:"))
-        menu.addItem(submenu(recent))
+        // No Open Recent here: macOS adds its own after Open…, and one made here showed as a second (Leah, 2026-10-10).
         menu.addItem(.separator())
         menu.addItem(item("Close", "performClose:", "w"))
         menu.addItem(item("Save", "saveDocument:", "s"))

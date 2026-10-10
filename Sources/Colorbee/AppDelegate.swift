@@ -25,9 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ImageDocument.removeShareFolders()
     }
 
+    private let continuityImport = ContinuityImport { nil }
+
     /// Import from iPhone or iPad with no window open (FR-11.7).
     @objc func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?, returnType: NSPasteboard.PasteboardType?) -> Any? {
-        ContinuityImport.requestor(for: nil, sendType: sendType, returnType: returnType)
+        continuityImport.requestor(sendType: sendType, returnType: returnType)
     }
 
     @objc func showSettings(_ sender: Any?) {

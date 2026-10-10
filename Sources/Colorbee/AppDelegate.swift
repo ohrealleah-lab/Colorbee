@@ -25,6 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ImageDocument.removeShareFolders()
     }
 
+    /// Import from iPhone or iPad with no window open (FR-11.7).
+    @objc func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?, returnType: NSPasteboard.PasteboardType?) -> Any? {
+        ContinuityImport.requestor(for: nil, sendType: sendType, returnType: returnType)
+    }
+
     @objc func showSettings(_ sender: Any?) {
         SettingsWindowController.shared.showWindow(nil)
         SettingsWindowController.shared.window?.makeKeyAndOrderFront(nil)

@@ -669,6 +669,17 @@ final class Editor {
         changePages(recorded: true) { try pages.insert(copy, at: pages.currentIndex + 1) }
     }
 
+    /// Pages from an iPhone or iPad (FR-11.7), after the page shown, in order, showing the first: one step, "Import".
+    func importPages(_ stored: [ProjectFile.StoredPage]) {
+        guard !stored.isEmpty, !isRedacting else { return onRefused() }
+        do {
+            let added = try stored.map { try Page(stored: $0, history: Editor.makeHistory()) }
+            changePages(recorded: true) { try pages.insert(added, at: pages.currentIndex + 1, named: "Import") }
+        } catch {
+            onRefused()
+        }
+    }
+
     func deletePage() {
         guard pages.pages.count > 1 else { return onRefused() }
         changePages(recorded: true) { try pages.remove(at: pages.currentIndex) }

@@ -40,6 +40,18 @@ final class ImageDocument: NSDocument {
         document.showWindows()
     }
 
+    /// A new untitled document of `stored` pages (FR-11.7: an import with no window open). One page saves as a PNG
+    /// like a pasted image; several as a project.
+    static func open(_ stored: [ProjectFile.StoredPage]) throws {
+        let document = ImageDocument()
+        try document.open(stored, showing: 0)
+        document.fileType = stored.count > 1 ? UTType.colorbeeProject.identifier : UTType.png.identifier
+        NSDocumentController.shared.addDocument(document)
+        document.makeWindowControllers()
+        document.updateChangeCount(.changeDone)
+        document.showWindows()
+    }
+
     override class var autosavesInPlace: Bool {
         true
     }

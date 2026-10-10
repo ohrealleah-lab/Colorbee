@@ -7,13 +7,13 @@ public final class PageStack {
     public private(set) var currentIndex: Int
 
     private enum Change {
-        case insert(Page, at: Int)
+        case insert([Page], at: Int, name: String)
         case remove(Page, at: Int)
         case move(from: Int, to: Int)
 
         var name: String {
             switch self {
-            case .insert: "Add Page"
+            case .insert(_, _, let name): name
             case .remove: "Delete Page"
             case .move: "Move Page"
             }
@@ -41,12 +41,13 @@ public final class PageStack {
 
     /// Pages out of the document that undo or redo can still bring back (deleted ones, or added ones undone).
     public var restorablePages: [Page] {
-        (undoSteps + redoSteps).compactMap { step in
+        (undoSteps + redoSteps).map { step -> [Page] in
             switch step.change {
-            case .insert(let page, _), .remove(let page, _): pages.contains { $0 === page } ? nil : page
-            case .move: nil
+            case .insert(let added, _, _): added.filter { page in !pages.contains { $0 === page } }
+            case .remove(let page, _): pages.contains { $0 === page } ? [] : [page]
+            case .move: []
             }
-        }
+        }.flatMap { $0 }
     }
 
     /// Shows another page: the new one is brought back, the one shown parked.
@@ -81,9 +82,9 @@ public final class PageStack {
         return (remaining, shown)
     }
 
-    private func inserting(_ page: Page, at index: Int) -> [Page] {
+    private func inserting(_ added: [Page], at index: Int) -> [Page] {
         var all = pages
-        all.insert(page, at: min(max(0, index), all.count))
+        all.insert(contentsOf: added, at: min(max(0, index), all.count))
         return all
     }
 
@@ -106,9 +107,16 @@ public final class PageStack {
 
     /// Adds `page` (parked or not) at `index` and shows it.
     public func insert(_ page: Page, at index: Int) throws {
+        try insert([page], at: index, named: "Add Page")
+    }
+
+    /// Adds `added` at `index` as one step, showing the first; every other one should already be parked. Undoing it
+    /// shows the page before them again (FR-11.7: the page that was shown when pages were imported after it).
+    public func insert(_ added: [Page], at index: Int, named name: String) throws {
+        guard let first = added.first else { return }
         let index = min(max(0, index), pages.count)
-        try change(to: inserting(page, at: index), showing: page)
-        record(.insert(page, at: index))
+        try change(to: inserting(added, at: index), showing: first)
+        record(.insert(added, at: index, name: name))
     }
 
     /// Deletes the page at `index`; the last page can't be deleted. Shows the page after it, or before.
@@ -164,8 +172,8 @@ public final class PageStack {
 
     private func apply(_ change: Change) throws {
         switch change {
-        case .insert(let page, let index):
-            try self.change(to: inserting(page, at: index), showing: page)
+        case .insert(let added, let index, _):
+            try self.change(to: inserting(added, at: index), showing: added[0])
         case .remove(let page, _):
             guard let index = pages.firstIndex(where: { $0 === page }), pages.count > 1 else { return }
             let after = removing(at: index)
@@ -177,12 +185,17 @@ public final class PageStack {
 
     private func apply(inverseOf change: Change) throws {
         switch change {
-        case .insert(let page, _):
-            guard let index = pages.firstIndex(where: { $0 === page }), pages.count > 1 else { return }
+        case .insert(let added, _, _) where added.count == 1:
+            guard let index = pages.firstIndex(where: { $0 === added[0] }), pages.count > 1 else { return }
             let after = removing(at: index)
             try self.change(to: after.pages, showing: after.shown)
+        case .insert(let added, _, _):
+            let remaining = pages.filter { page in !added.contains { $0 === page } }
+            guard !remaining.isEmpty, let first = pages.firstIndex(where: { $0 === added[0] }) else { return }
+            let shown = added.contains { $0 === current } ? remaining[max(0, min(first - 1, remaining.count - 1))] : current
+            try self.change(to: remaining, showing: shown)
         case .remove(let page, let index):
-            try self.change(to: inserting(page, at: index), showing: page)
+            try self.change(to: inserting([page], at: index), showing: page)
         case .move(let source, let destination):
             moveWithoutRecording(from: destination, to: source)
         }

@@ -175,6 +175,30 @@ struct PageTests {
         try stack.undo()
         #expect(stack.pages.count == 2 && stack.currentIndex == 0 && !stack.current.isParked)
     }
+
+    /// FR-11.7: scanned pages go in after the page shown, in order, as one step; undo shows that page again.
+    @Test func importedPagesGoInAfterTheShownPageAsOneStep() throws {
+        let first = page(1), second = page(2)
+        try second.park()
+        let stack = PageStack(pages: [first, second])
+        let scans = [page(10), page(11), page(12)]
+        for scan in scans { try scan.park() }
+
+        try stack.insert(scans, at: 1, named: "Import")
+        #expect(stack.pages.map(\.id) == [first, scans[0], scans[1], scans[2], second].map(\.id))
+        #expect(stack.current === scans[0] && !scans[0].isParked)
+        #expect(stack.pages.filter { !$0.isParked }.count == 1)
+        #expect(stack.undoName == "Import")
+
+        try stack.undo()
+        #expect(stack.pages.map(\.id) == [first, second].map(\.id))
+        #expect(stack.current === first && !first.isParked)
+        #expect(stack.pages.filter { !$0.isParked }.count == 1)
+        #expect(Set(stack.restorablePages.map(\.id)) == Set(scans.map(\.id)))
+
+        try stack.redo()
+        #expect(stack.pages.count == 5 && stack.current === scans[0])
+    }
 }
 
 struct PageProjectTests {

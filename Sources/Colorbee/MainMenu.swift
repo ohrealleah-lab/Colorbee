@@ -172,6 +172,10 @@ enum MainMenu {
         let menu = NSMenu(title: "File")
         menu.addItem(item("New", "newDocument:", "n"))
         menu.addItem(item("Paste into New Image", "pasteIntoNewImage:", "v", [.command, .shift]))
+        // macOS fills this in with nearby iPhones and iPads (Continuity Camera, FR-11.7).
+        let importItem = NSMenuItem(title: "Import from iPhone or iPad", action: nil, keyEquivalent: "")
+        importItem.identifier = NSMenuItem.importFromDeviceIdentifier
+        menu.addItem(importItem)
         menu.addItem(item("Open…", "openDocument:", "o"))
         let recent = NSMenu(title: "Open Recent")
         recent.addItem(item("Clear Menu", "clearRecentDocuments:"))

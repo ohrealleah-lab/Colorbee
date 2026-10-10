@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import ImageIO
 
 /// Reads PDF pages as pixels (FR-11.6), with Core Graphics. Fonts, vectors and form fields aren't kept.
 public enum PDFPages {
@@ -54,5 +55,82 @@ public enum PDFPages {
         let decoded = try ImageCodec.decode(image)
         let canvas = Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)], hasTransparentBackground: false)
         return (canvas, scale * 72)
+    }
+
+    /// A page scanned by an iPhone or iPad (FR-11.7): the phone puts each scan, as one JPEG, on a Letter page. The
+    /// JPEG itself becomes the page, with the phone's own pixels and no white strips beside it (Leah, 2026-10-10), at
+    /// the resolution that fits it on the page as the phone placed it. Any other kind of page is drawn like an opened
+    /// PDF's, at `resolution`.
+    public static func scannedPage(_ data: Data, page index: Int, resolution: Double) throws -> (canvas: Canvas, resolution: Double) {
+        let document = try document(data)
+        guard let page = document.page(at: index + 1) else { throw Failure.unreadable }
+        let box = page.getBoxRect(.cropBox)
+        guard page.rotationAngle % 360 == 0, box.width > 0, box.height > 0, let scan = soleJPEG(on: page),
+              let decoded = try? decodeScan(scan) else {
+            return try render(data, page: index, resolution: resolution)
+        }
+        let canvas = Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)], hasTransparentBackground: false)
+        let fitted = max(Double(decoded.buffer.width) / (box.width / 72), Double(decoded.buffer.height) / (box.height / 72))
+        return (canvas, fitted)
+    }
+
+    /// The page's only image, if it's a JPEG with nothing masking it, and its color space from the PDF.
+    private static func soleJPEG(on page: CGPDFPage) -> (jpeg: Data, colorSpace: CGColorSpace?)? {
+        guard let pageDictionary = page.dictionary, let resources = dictionary("Resources", in: pageDictionary),
+              let objects = dictionary("XObject", in: resources) else { return nil }
+        var images: [CGPDFStreamRef] = []
+        var others = 0
+        CGPDFDictionaryApplyBlock(objects, { _, object, _ in
+            var stream: CGPDFStreamRef?
+            if CGPDFObjectGetValue(object, .stream, &stream), let stream, let info = CGPDFStreamGetDictionary(stream),
+               name("Subtype", in: info) == "Image" {
+                images.append(stream)
+            } else {
+                others += 1
+            }
+            return true
+        }, nil)
+        guard images.count == 1, others == 0, let info = CGPDFStreamGetDictionary(images[0]) else { return nil }
+        var mask: CGPDFObjectRef?
+        guard !CGPDFDictionaryGetObject(info, "SMask", &mask), !CGPDFDictionaryGetObject(info, "Mask", &mask),
+              !CGPDFDictionaryGetObject(info, "Decode", &mask) else { return nil }
+        var format = CGPDFDataFormat.raw
+        guard let bytes = CGPDFStreamCopyData(images[0], &format), format == .jpegEncoded else { return nil }
+        return (bytes as Data, iccColorSpace(in: info))
+    }
+
+    /// The JPEG's pixels, in its own profile, or the PDF's when the JPEG has none.
+    private static func decodeScan(_ scan: (jpeg: Data, colorSpace: CGColorSpace?)) throws -> DecodedImage {
+        guard let source = CGImageSourceCreateWithData(scan.jpeg as CFData, nil) else { throw Failure.unreadable }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
+        guard properties[kCGImagePropertyProfileName] == nil, let pdfSpace = scan.colorSpace,
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil), image.colorSpace?.model == pdfSpace.model,
+              let tagged = image.copy(colorSpace: pdfSpace) else {
+            return try ImageCodec.decode(scan.jpeg)
+        }
+        return try ImageCodec.decode(tagged)
+    }
+
+    /// An ICCBased color space: [/ICCBased stream].
+    private static func iccColorSpace(in info: CGPDFDictionaryRef) -> CGColorSpace? {
+        var array: CGPDFArrayRef?
+        var family: UnsafePointer<CChar>?
+        var stream: CGPDFStreamRef?
+        guard CGPDFDictionaryGetArray(info, "ColorSpace", &array), let array, CGPDFArrayGetName(array, 0, &family),
+              let family, String(cString: family) == "ICCBased", CGPDFArrayGetStream(array, 1, &stream), let stream else { return nil }
+        var format = CGPDFDataFormat.raw
+        guard let profile = CGPDFStreamCopyData(stream, &format), format == .raw else { return nil }
+        return CGColorSpace(iccData: profile)
+    }
+
+    private static func dictionary(_ key: String, in dictionary: CGPDFDictionaryRef) -> CGPDFDictionaryRef? {
+        var result: CGPDFDictionaryRef?
+        return CGPDFDictionaryGetDictionary(dictionary, key, &result) ? result : nil
+    }
+
+    private static func name(_ key: String, in dictionary: CGPDFDictionaryRef) -> String? {
+        var value: UnsafePointer<CChar>?
+        guard CGPDFDictionaryGetName(dictionary, key, &value), let value else { return nil }
+        return String(cString: value)
     }
 }

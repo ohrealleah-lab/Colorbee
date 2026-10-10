@@ -494,16 +494,21 @@ Any Colorbee document can have pages, so Colorbee can also make its own PDFs fro
   PDFs, TIFFs and GIFs, saving projects, memory); 10b output (Export as PDF, Auto-Redact on every page, the
   resolution setting).
 
-### FR-11.7 Import from iPhone or iPad (stage 11, planned)
+### FR-11.7 Import from iPhone or iPad (stage 11)
 Scan with the phone, finish on the Mac: book pages (open-source ones), forms to redact, quick photos. Uses macOS
 Continuity Camera; details and reasoning in `Docs/Proposals/Import from iPhone.md`.
 
 - **File ▸ Import from iPhone or iPad**, the system's submenu (devices, each with Take Photo, Scan Documents and
-  Add Sketch), as in Preview. Also on the page sidebar's right-click menu.
+  Add Sketch), as in Preview. (Not on the page sidebar's right-click menu: macOS offers it only in AppKit menus.)
 - With a document open, what arrives is added as **new pages just after the page being viewed**, in the order
-  scanned, showing the first; one undo step. With no document open, it becomes a new untitled document.
-- Each page keeps the phone's own pixels (no resampling), paper size and color profile; a photo counts as 144 DPI.
-  The phone decides the scan's resolution.
+  scanned, showing the first; one undo step ("Import"), which shows the page you were on again. With no document
+  open, it becomes a new untitled document.
+- **Scans** arrive as a PDF with each scan as one JPEG on a Letter page. Each page is that JPEG: the phone's own
+  pixels, no white strips, its color profile kept (Leah, 2026-10-10). Its resolution makes it as large as fits on the
+  Letter page, as the phone placed it (a scan of about 1,600 × 2,600 pixels prints about 6.8 × 11 in). A page
+  that isn't one JPEG is drawn like an opened PDF's, at the PDF resolution in Settings.
+- **Photos and sketches** arrive as a JPEG, about 1440 × 1920 from an iPhone (Continuity Camera sends a reduced
+  size); one page at 144 DPI. The phone decides the scan's and photo's resolution.
 - Add Sketch stays in the menu.
 - **Not in the first version:** searchable text in exported PDFs (later, as an opt-in that's off and refused on
   any redacted page) and splitting a two-page spread (later, "Split Page in Half").
@@ -727,6 +732,7 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [ ] AC-40 Typing "redact" in the Help menu's search lists the Redact a screenshot guide.
 - [ ] AC-41 Every menu command appears in the Menus reference with its default shortcut.
 - [ ] AC-42 Each contextual ? button opens the matching section.
+- [ ] AC-43 Scan Documents from an iPhone adds the scans as pages after the page shown, at the phone's own pixel size, as one undo step; with no window open, they open as a new document.
 
 ---
 
@@ -740,6 +746,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-10 | Import from iPhone or iPad (stage 11), from Leah's trial scans: scans arrive as a Letter-size PDF with one JPEG per page (about 1,600 × 2,600 px); photos as a 1440 × 1920 JPEG in Display P3. Leah chose each scan's own picture, without the Letter page's white strips. My choices (veto any): the page sidebar's right-click menu doesn't get the item (macOS offers it only in AppKit menus, and that menu is SwiftUI); the undo step is named "Import" and undoing it shows the page you were on; a scan prints as large as fits on Letter, as the phone placed it; pages that aren't one JPEG are drawn like an opened PDF; a photo uses the phone's JPEG rather than the TIFF copy macOS also offers; importing is refused while Auto-Redact is redacting. |
 | 2026-10-10 | Switching pages (L15), my choices (veto any): .colorproj layers are stored in pieces of about 4 MB, each compressed on its own and joined into one LZ4 stream, so every core can work on them. Older Colorbee versions still open the new files, and new ones open older files (a layer at a time, as before). A page from an older file is stored in pieces the next time it's parked. Files are 0.1% larger. While a page comes back, Colorbee still just waits, much more briefly (Leah). |
 | 2026-10-10 | **Apply Adjustment is renamed Merge Adjustment** (Leah): the Adjustments panel's button is **Merge** and the Layer menu item **Merge Adjustment**, since it combines layers. **Merge Down** is unavailable on an adjustment layer (greyed out in the menu and the Layers panel), so "Down" always means the one layer below; this replaces the 2026-10-03 rule that Merge Down on an adjustment layer applied it. |
 | 2026-10-09 | Leah's "Cant Copy" bug: **Apply Adjustment** (now Merge Adjustment) keeps the look everywhere. It merges the adjustment layer and every visible layer below it into one pixel layer, at the lowest of them, as one undo step; layers above are untouched. Before, it baked the adjustment into only the layer just below, so anything showing through from lower layers lost the adjustment. **Copy (⌘C) on an adjustment layer** copies what you see, like Copy Merged; on a pixel layer it still copies just that layer. My choices (veto any): hidden layers below stay as separate hidden layers (like Merge Visible); Apply is unavailable when the adjustment layer is hidden (it changes nothing) or when any visible layer it would merge is locked. Merge Down on an adjustment layer does the same as Apply (changed 2026-10-10: unavailable). |

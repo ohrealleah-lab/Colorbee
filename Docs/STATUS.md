@@ -41,7 +41,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 9. Photo editing | ✅ Done | High |
 | 10a. Pages | ✅ Done | High |
 | 10b. PDF output, Auto-Redact on every page | ✅ Done | High |
-| 11. Import from iPhone or iPad | Decided, to build later | High (trial build), then medium |
+| 11. Import from iPhone or iPad | ✅ Built, awaiting Leah's hand test | High (trial build), then medium |
 | 12. RAW photos | ✅ Done | High |
 | Help (FR-14.6) | Phases 1 and 2 built: the help book, ⌘?, search, screenshots, Getting started and Redact a screenshot | Medium (phase 6 high) |
 
@@ -146,8 +146,11 @@ window (`DevelopWindow`), `DocumentController` (sends RAW files to it), `CameraD
 and Include camera details in Export…. Test file: `TestImages/Stage 12/Test Camera.dng`, a synthetic DNG with
 made-up camera details, serial number, owner and GPS location (made by a small script, not a real photo).
 
-**11 Import from iPhone or iPad (FR-11.7)** — decided 2026-10-04, to build later (Leah). Start with the trial
-build in `Docs/Proposals/Import from iPhone.md`; Leah scans on her iPhone.
+**11 Import from iPhone or iPad (FR-11.7)** — built 2026-10-10. Trial build first (Leah scanned on her iPhone): scans
+arrive as a Letter-size PDF with one JPEG per page, photos as a JPEG (plus a TIFF copy). Built: `ContinuityImport`
+(the File menu item and receiving, through `validRequestor` in `DocumentWindow` and `AppDelegate`),
+`PDFPages.scannedPage` (each scan's own JPEG, its profile, the resolution that fits Letter; other pages drawn like a
+PDF's), `PageStack.insert(_:at:named:)` (several pages as one step) and `Editor.importPages`.
 
 **10 Pages and PDF documents (FR-11.6)** — done; tested by hand 2026-10-04. Decisions in §23.
 - 10a built 2026-10-04: pages in core (`Page`, `PageStack`, project format 2, `PDFPages`), the page sidebar (`PageSidebar`), the Page menu, and PDFs, multi-page TIFFs and animated GIFs opening with every page. The frame bar is gone.

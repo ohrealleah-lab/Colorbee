@@ -43,6 +43,10 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 10b. PDF output, Auto-Redact on every page | ✅ Done | High |
 | 11. Import from iPhone or iPad | ✅ Built, awaiting Leah's hand test | High (trial build), then medium |
 | 12. RAW photos | ✅ Done | High |
+| 13a. Copy Text, Step Badges, Redact Brush | Decided, to build | Medium |
+| 13b. Match Surroundings: Remove, Spot Heal, Erase to Background | Decided, to build | **High** |
+| 13c. Clone Stamp, local brushes, Remove Red-Eye | Decided, to build | Medium |
+| 13d. Soft selections (feather) | Decided, to build | **High** |
 | Help (FR-14.6) | Phases 1 and 2 built: the help book, ⌘?, search, screenshots, Getting started and Redact a screenshot | Medium (phase 6 high) |
 
 ## What's built

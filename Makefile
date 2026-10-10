@@ -32,7 +32,7 @@ help-index:
 help-shots: gen
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release \
 		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -quiet build
-	Scripts/help-shots.sh
+	SCENES="$(SCENES)" Scripts/help-shots.sh
 
 # Signed, notarized beta zip for testers in build/Beta. Uses the keychain; may ask for its password.
 beta:

@@ -34,12 +34,24 @@ scenes=(
     "9|develop|$raw|The Develop window. Wait for the photo to show, then press $key, then Space, then Option-click the Develop window."
 )
 
+# `make help-shots SCENES="5 6"` takes only those; all of them by default.
+only=(${=SCENES:-})
+# Each scene opens a copy, in a scratch folder: Colorbee autosaves, and a scene that edits (Before/After redacts)
+# would otherwise write into the sample itself.
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+
 echo "Colorbee help screenshots: ${#scenes} pictures, about five minutes."
 echo "For each one, Colorbee opens set up for the picture. Take it as described, then come back here and press Return."
 echo
 
 for entry in "${scenes[@]}"; do
     IFS='|' read -r number name file instructions <<< "$entry"
+    if (( ${#only} )) && (( ! ${only[(Ie)$number]} )); then continue; fi
+    copy="$scratch/$number/${file:t}"
+    mkdir -p "${copy:h}"
+    cp "$file" "$copy"
+    file=$copy
     marker=$(mktemp)
     # Something else on the clipboard first, so an old picture there isn't taken for the new one.
     print -n "" | pbcopy

@@ -145,7 +145,7 @@ private struct LayersPanel: View {
                 footerButton("plus.square.on.square", "Duplicate Layer", ShortcutStore.shared.hint("Duplicate Layer", command: "duplicateLayer:")) { editor.duplicateLayer() }
                 footerButton("trash", "Delete Layer", ShortcutStore.shared.hint("Delete Layer", command: "deleteLayer:")) { editor.deleteLayer() }
                     .disabled(!LayerActions.canDelete(editor.canvas))
-                footerButton("arrow.down.to.line", "Merge Down", ShortcutStore.shared.hint("Merge Down", command: "mergeDown:") + ", or Merge Adjustment on an adjustment layer") { editor.mergeDown() }
+                footerButton("arrow.down.to.line", "Merge Down", ShortcutStore.shared.hint("Merge Down", command: "mergeDown:")) { editor.mergeDown() }
                     .disabled(!LayerActions.canMergeDown(editor.canvas))
                 Spacer()
                 AddAdjustmentMenu(editor: editor)

@@ -89,10 +89,10 @@ public enum LayerActions {
     }
 
     /// Combines the active layer into the one below, using its blend mode and opacity. The result keeps
-    /// the lower layer's name and settings. On an adjustment layer this is Merge Adjustment.
+    /// the lower layer's name and settings. Unavailable on an adjustment layer, which Merge Adjustment merges with every
+    /// layer below: "Down" should always mean the one layer below (Leah, 2026-10-10).
     @discardableResult
     public static func mergeDown(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
-        if canvas.activeLayer.adjustment != nil { return applyAdjustment(canvas: canvas, history: history, context: context) }
         guard canMergeDown(canvas) else { return false }
         return change("Merge Down", canvas: canvas, history: history, context: context) {
             let index = canvas.activeLayerIndex
@@ -105,7 +105,7 @@ public enum LayerActions {
     }
 
     public static func canMergeDown(_ canvas: Canvas) -> Bool {
-        if canvas.activeLayer.adjustment != nil { return canApplyAdjustment(canvas) }
+        if canvas.activeLayer.adjustment != nil { return false }
         let index = canvas.activeLayerIndex
         // Pixels can't be merged into an adjustment layer, which has none.
         return index > 0 && !canvas.layers[index].isLocked && !canvas.layers[index - 1].isLocked && canvas.layers[index - 1].adjustment == nil

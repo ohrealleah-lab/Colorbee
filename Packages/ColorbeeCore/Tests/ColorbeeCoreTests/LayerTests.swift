@@ -414,11 +414,12 @@ struct AdjustmentLayerTests {
         #expect(!LayerActions.canApplyAdjustment(canvas))
     }
 
-    @Test func mergeDownOnAnAdjustmentAppliesIt() {
+    @Test func mergeDownIsUnavailableOnAnAdjustmentLayer() {
         let (canvas, history) = makeCanvas()
         LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
-        #expect(LayerActions.mergeDown(canvas: canvas, history: history, context: context))
-        #expect(canvas.layers[0].buffer[1, 1] == .black)
+        #expect(!LayerActions.canMergeDown(canvas))
+        #expect(!LayerActions.mergeDown(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 2)
     }
 
     @Test func pixelsCantMergeIntoAnAdjustmentLayer() {

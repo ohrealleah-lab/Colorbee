@@ -21,7 +21,7 @@ final class ShortcutStore {
         ("canvas.fill", "Fill", "g"), ("canvas.text", "Text", "t"), ("canvas.eyedropper", "Eyedropper", "i"),
         ("canvas.magnifier", "Magnifier", "z"), ("canvas.rectangleSelect", "Rectangle Select", "m"),
         ("canvas.lassoSelect", "Free-Form Select", "l"), ("canvas.magicWand", "Magic Wand", "w"),
-        ("canvas.shape", "Shapes", "u"), ("canvas.measure", "Measure", "r"), ("canvas.redactBrush", "Redact Brush", "k"),
+        ("canvas.shape", "Shapes", "u"), ("canvas.measure", "Measure", "r"), ("canvas.remove", "Remove", "j"), ("canvas.redactBrush", "Redact Brush", "k"),
         ("canvas.stepBadge", "Step Badge", "n"),
         ("canvas.swapColors", "Swap Colors", "x"), ("canvas.resetColors", "Default Colors", "d"),
         ("canvas.smaller", "Smaller Size", "["), ("canvas.larger", "Larger Size", "]"),

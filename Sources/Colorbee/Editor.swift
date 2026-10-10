@@ -24,6 +24,7 @@ enum Tool: CaseIterable {
     case lassoSelect
     case magicWand
     case magnifier
+    case remove
     case redactBrush
     case stepBadge
 
@@ -37,7 +38,7 @@ enum Tool: CaseIterable {
     /// Tools that change the active layer's pixels.
     var changesPixels: Bool {
         switch self {
-        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text, .redactBrush, .stepBadge: true
+        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text, .remove, .redactBrush, .stepBadge: true
         default: false
         }
     }
@@ -494,6 +495,16 @@ final class Editor {
         didSet { renderSoon() }
     }
     @ObservationIgnored private var redactStroke: (area: RedactBrushArea, lock: AxisLock, secondary: Bool)?
+    // Remove (FR-4.6; stage 13b trial).
+    var removeBrushSize = 40.0 {
+        didSet { renderSoon() }
+    }
+    @ObservationIgnored private var removeStroke: (area: RedactBrushArea, lock: AxisLock)?
+    /// The area being filled, shown until the fill is done.
+    @ObservationIgnored private var removingArea: RedactBrushArea?
+    /// How far the fill has got, while one runs.
+    private(set) var removeProgress: Double?
+    @ObservationIgnored private var removeCancel: CancelFlag?
     private enum BadgeDrag {
         case create
         case move(grab: Point2D, original: PendingBadge)
@@ -927,6 +938,7 @@ final class Editor {
             case .eraser: eraserSize
             case .stepBadge: Int(badgeDiameter.rounded())
             case .redactBrush: Int(redactBrushSize.rounded())
+            case .remove: Int(removeBrushSize.rounded())
             default: nil
             }
         }
@@ -940,6 +952,7 @@ final class Editor {
             case .eraser: eraserSize = clamped
             case .stepBadge: badgeDiameter = Double(clamped)
             case .redactBrush: redactBrushSize = Double(clamped)
+            case .remove: removeBrushSize = Double(clamped)
             default: break
             }
         }
@@ -950,7 +963,7 @@ final class Editor {
         switch tool {
         case .eraser: 1...100
         case .stepBadge: 16...128
-        case .redactBrush: 1...300
+        case .redactBrush, .remove: 1...300
         default: 1...50
         }
     }
@@ -961,6 +974,7 @@ final class Editor {
         case .eraser: [4, 6, 8, 10, 20]
         case .stepBadge: [24, 32, 48, 64, 96]
         case .redactBrush: [8, 16, 24, 40, 64]
+        case .remove: [10, 20, 40, 80, 160]
         default: [1, 2, 3, 4, 5]
         }
     }
@@ -977,6 +991,8 @@ final class Editor {
             badgeDiameter = max(16, min(128, badgeDiameter + (larger ? 4 : -4)))
         case .redactBrush:
             redactBrushSize = max(1, min(300, redactBrushSize + (larger ? 4 : -4)))
+        case .remove:
+            removeBrushSize = max(1, min(300, removeBrushSize + (larger ? 4 : -4)))
         default:
             brushDiameter = max(1, min(50, brushDiameter + (larger ? 1 : -1)))
         }
@@ -1002,6 +1018,7 @@ final class Editor {
         commitPendingText()
         commitPendingBadge()
         endRedactStroke()
+        endRemoveStroke()
         endStroke()
         cancelOrEndSelectionDrag()
         if activeEffect != nil { cancelEffect() }
@@ -1597,9 +1614,85 @@ final class Editor {
         redactEveryLayer(with: effect, in: mask, named: "Redact Brush")
     }
 
-    /// The stroke's see-through area, for the screen.
-    func redactStrokePicture() -> (pixels: PixelBuffer, origin: IntPoint)? {
-        redactStroke?.area.picture
+    /// The see-through area of a Redact Brush or Remove stroke, or of a fill under way, for the screen.
+    func areaStrokePicture() -> (pixels: PixelBuffer, origin: IntPoint)? {
+        redactStroke?.area.picture ?? removeStroke?.area.picture ?? removingArea?.picture
+    }
+
+    /// The size of the round brush outline under the pointer, for the tools that paint an area.
+    var areaBrushSize: Double? {
+        switch tool {
+        case .redactBrush: redactBrushSize
+        case .remove: removeBrushSize
+        default: nil
+        }
+    }
+
+    // MARK: Remove (FR-4.6; stage 13b trial)
+
+    /// Starts painting over what to remove. Nothing changes until the stroke ends.
+    func beginRemoveStroke(at point: Point2D) {
+        // One fill at a time.
+        guard removeProgress == nil else { return onRefused() }
+        guard !refusedBecauseLocked() else { return }
+        finishInteractions()
+        placeFloatingSelection()
+        let area = RedactBrushArea(diameter: removeBrushSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 110))
+        area.move(to: point)
+        removeStroke = (area, AxisLock(start: point))
+        onRender()
+    }
+
+    func continueRemoveStroke(to point: Point2D, constrain: Bool) {
+        guard var stroke = removeStroke else { return }
+        stroke.area.move(to: constrain ? stroke.lock.constrain(point) : point)
+        removeStroke = stroke
+        onRender()
+    }
+
+    /// Fills the painted area from its surroundings in the background, then places it as one step, "Remove". If the
+    /// image changed meanwhile, the fill no longer fits it and is dropped.
+    func endRemoveStroke() {
+        guard let stroke = removeStroke else { return }
+        removeStroke = nil
+        let layer = canvas.activeLayer
+        guard let mask = stroke.area.mask, let job = MatchSurroundings.Job(image: layer.buffer, area: mask) else { return onRender() }
+        let flag = CancelFlag()
+        removeCancel = flag
+        removingArea = stroke.area
+        removeProgress = 0
+        let revision = history.revision, layerID = layer.id, pageID = page.id
+        Task { @MainActor [weak self] in
+            let fill = await Task.detached(priority: .userInitiated) { [weak self] in
+                try? job.run(progress: { value in
+                    Task { @MainActor in if self?.removeCancel === flag { self?.removeProgress = value } }
+                }, isCancelled: { flag.isSet })
+            }.value
+            guard let self, self.removeCancel === flag else { return }
+            self.removeCancel = nil
+            self.removeProgress = nil
+            self.removingArea = nil
+            guard let fill else { return self.onRender() }
+            guard self.history.revision == revision, self.page.id == pageID, self.canvas.activeLayer.id == layerID,
+                  self.activeLayerTakesEdits else {
+                self.showNotice("The image changed while filling. Try again.")
+                return self.onRender()
+            }
+            let edit = self.history.beginEdit("Remove", on: self.canvas)
+            fill.apply(to: self.canvas.activeLayer, edit: edit)
+            self.recordingChanges { self.history.commit(edit) }
+            self.onRender()
+        }
+    }
+
+    /// Esc while a fill runs: stops it, and nothing changes.
+    func cancelRemove() {
+        guard let flag = removeCancel else { return }
+        flag.set()
+        removeCancel = nil
+        removeProgress = nil
+        removingArea = nil
+        onRender()
     }
 
     // MARK: Step badges (FR-5.3)

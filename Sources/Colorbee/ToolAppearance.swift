@@ -18,6 +18,7 @@ extension Tool {
         case .lassoSelect: "Draw around an area to select it."
         case .magicWand: "Click to select an area of similar color."
         case .magnifier: "Click to zoom in. Right-click or Option-click zooms out."
+        case .remove: "Paint over something to remove it. It's filled from around it."
         case .redactBrush: "Paint over anything to hide it, on every layer."
         case .stepBadge: "Click to place numbered steps. Drag to point an arrow."
         }
@@ -46,6 +47,7 @@ extension Tool {
         case .lassoSelect: "Free-Form Select"
         case .magicWand: "Magic Wand"
         case .magnifier: "Magnifier"
+        case .remove: "Remove"
         case .redactBrush: "Redact Brush"
         case .stepBadge: "Step Badge"
         }
@@ -67,6 +69,7 @@ extension Tool {
         case .lassoSelect: "lasso"
         case .magicWand: "wand.and.stars"
         case .magnifier: "plus.magnifyingglass"
+        case .remove: "wand.and.rays"
         case .redactBrush: "eye.slash"
         case .stepBadge: "1.circle"
         }

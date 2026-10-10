@@ -23,7 +23,19 @@ struct DocumentView: View {
             CanvasHost(view: canvasView)
                 .overlay { RedactionBadges(editor: editor) }
                 .overlay(alignment: .top) {
-                    if editor.isFindingSubject || editor.isReadingText {
+                    if let progress = editor.removeProgress {
+                        HStack(spacing: 8) {
+                            ProgressView(value: progress)
+                                .progressViewStyle(.circular)
+                                .controlSize(.small)
+                            Text("Filling… Esc stops")
+                        }
+                        .font(.system(size: 12))
+                        .padding(.horizontal, 12)
+                        .frame(height: 28)
+                        .glassEffect(.regular, in: Capsule())
+                        .padding(.top, 12)
+                    } else if editor.isFindingSubject || editor.isReadingText {
                         Label(editor.isReadingText ? "Reading text…" : "Finding the subject…",
                               systemImage: editor.isReadingText ? "text.viewfinder" : "person.crop.rectangle")
                             .font(.system(size: 12))
@@ -188,6 +200,8 @@ private struct ToolOptions: View {
             TextOptions(style: $editor.textStyle)
         case .pencil:
             hint("1 px · Shift draws straight lines")
+        case .remove:
+            hint("Paint over what to remove; it's filled from around it when you let go · Esc stops a fill")
         case .redactBrush:
             Picker("Treatment", selection: $editor.redactTreatment) {
                 Text("Solid Fill").tag(RedactionTreatment.solidFill)

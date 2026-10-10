@@ -21,6 +21,7 @@ final class CanvasView: NSView {
         case gradient
         case badge
         case redact
+        case remove
         case divider
         case shape
         case text(start: Point2D)
@@ -259,7 +260,7 @@ final class CanvasView: NSView {
             transparentKey: editor.selectionContext.transparentKey,
             smoothFloating: editor.smoothResize,
             overlay: comparing ? nil : editor.renderedPendingShape() ?? editor.renderedPendingText() ?? editor.renderedPendingBadge()
-                ?? editor.redactStrokePicture(),
+                ?? editor.areaStrokePicture(),
             handlePoints: comparing ? [] : editor.activeEffect?.isCanvasTool == true ? editor.canvasToolHandles : handlePoints(selection),
             roundHandlePoints: comparing ? [] : [editor.pendingShapeRotateHandle].compactMap { $0 },
             showsPixelGrid: editor.showsPixelGrid,
@@ -308,9 +309,9 @@ final class CanvasView: NSView {
             frame(minX, minY, maxX, maxY, color: SIMD4(0, 0, 0, 1))
             frame(minX + inset, minY + inset, maxX - inset, maxY - inset, color: SIMD4(1, 1, 1, 1))
         }
-        if editor.tool == .redactBrush, !spaceHeld, editor.comparison == nil, let hoverPoint {
+        if let size = editor.areaBrushSize, !spaceHeld, editor.comparison == nil, let hoverPoint {
             // The brush's size, round: black on the edge and white just inside it, so it shows on any colors.
-            let radius = max(editor.redactBrushSize / 2, 4 / editor.viewport.zoom)
+            let radius = max(size / 2, 4 / editor.viewport.zoom)
             for (offset, color) in [(0.0, SIMD4<Float>(0, 0, 0, 1)), (1.5 / editor.viewport.zoom, SIMD4<Float>(1, 1, 1, 1))] {
                 let r = max(0.5, radius - offset), segments = 48
                 for index in 0..<segments {
@@ -458,7 +459,7 @@ final class CanvasView: NSView {
         let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         editor.pointer = editor.canvas.bounds.contains(pixel) ? pixel : nil
         hoverPoint = point
-        if editor.tool == .eraser || editor.tool == .redactBrush { setNeedsRender() }
+        if editor.tool == .eraser || editor.areaBrushSize != nil { setNeedsRender() }
         if drag == nil { currentCursor(at: point).set() }
     }
 
@@ -572,6 +573,9 @@ final class CanvasView: NSView {
         case .redactBrush:
             drag = .redact
             editor.beginRedactStroke(at: point, secondary: secondary)
+        case .remove:
+            drag = .remove
+            editor.beginRemoveStroke(at: point)
         case .text:
             // A handle or the border moves or resizes the open text box; a click elsewhere places it,
             // and the next click starts a new one.
@@ -624,6 +628,9 @@ final class CanvasView: NSView {
         case .redact:
             editor.continueRedactStroke(to: imagePoint(event), constrain: event.modifierFlags.contains(.shift))
             updatePointer(event)
+        case .remove:
+            editor.continueRemoveStroke(to: imagePoint(event), constrain: event.modifierFlags.contains(.shift))
+            updatePointer(event)
         case .text(let start):
             editor.updateTextDragFrame(from: start, to: imagePoint(event))
             updatePointer(event)
@@ -663,6 +670,8 @@ final class CanvasView: NSView {
             editor.endBadge()
         case .redact:
             editor.endRedactStroke()
+        case .remove:
+            editor.endRemoveStroke()
         case .canvasResize:
             let size = editor.canvasResizePreview
             editor.canvasResizePreview = nil
@@ -880,7 +889,9 @@ final class CanvasView: NSView {
         default:
             switch (event.charactersIgnoringModifiers, plain) {
             case ("\u{1b}", true):
-                if editor.pendingShape != nil {
+                if editor.removeProgress != nil {
+                    editor.cancelRemove()
+                } else if editor.pendingShape != nil {
                     editor.cancelPendingShape()
                 } else if editor.pendingBadge != nil {
                     editor.cancelPendingBadge()
@@ -911,6 +922,7 @@ final class CanvasView: NSView {
             "canvas.lassoSelect": { self.editor.selectTool(.lassoSelect) }, "canvas.magicWand": { self.editor.selectTool(.magicWand) },
             "canvas.shape": { self.editor.selectTool(.shape) }, "canvas.measure": { self.editor.selectTool(.measure) },
             "canvas.stepBadge": { self.editor.selectTool(.stepBadge) }, "canvas.redactBrush": { self.editor.selectTool(.redactBrush) },
+            "canvas.remove": { self.editor.selectTool(.remove) },
             "canvas.swapColors": { self.editor.swapColors() }, "canvas.resetColors": { self.editor.resetColors() },
             "canvas.smaller": { self.editor.adjustToolSize(larger: false) }, "canvas.larger": { self.editor.adjustToolSize(larger: true) },
         ]

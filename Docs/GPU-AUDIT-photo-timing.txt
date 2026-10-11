@@ -3,7 +3,7 @@
 // depending on ../Packages/ColorbeeCore by path (product "ColorbeeCore"). Copy Sources/Colorbee/RawDeveloper.swift
 // next to this file (rename this file main.swift). Then: swift build -c release
 // and: .build/release/rawtime /path/to/photo.cr3
-// Develops the CR3 to full size, then times Adjust Photo (app vs a remember-each-color prototype, with an exactness check) and Straighten (app vs vImage).
+// Develops the CR3 to full size, then times Adjust Photo (app vs a remember-each-color prototype, with an exactness check) and Straighten (app vs vImage rotation, with a pixel-difference check).
 // Run on a quiet Mac; each figure is the fastest of 5.
 import ColorbeeCore
 import Accelerate
@@ -109,31 +109,61 @@ for run in 0..<3 {
 }
 print("TIMING5 all sliders together, real photo:", bestA)
 
-// Straighten alternatives, 45 MP, one layer, 3 degrees: the app's own rotation vs vImage's.
-let radians = 3.0 * Double.pi / 180
+// Straighten: how close is vImage's rotation to the app's?
 let sizeOut = Warp.straightenedSize(IntSize(width: w, height: h), angle: 3, cropToFit: true)
-let appRot = ContinuousClock().measure {
-    let e = history.beginEdit("S", on: canvas); _ = e
-    _ = ImageActions.straighten(angle: 3, cropToFit: true, canvas: canvas, history: history, context: SelectionContext(color2: .white))
-}
+let original = canvas.layers[0].buffer.copy()
+_ = ImageActions.straighten(angle: 3, cropToFit: true, canvas: canvas, history: history, context: SelectionContext(color2: .white))
+let appResult = canvas.layers[0].buffer
+print("INFO straightened size \(appResult.width)x\(appResult.height)")
 history.undo(on: canvas)
-print("TIMING6 app straighten (1 layer, via ImageActions):", appRot)
-@MainActor func vimageRotate(highQuality: Bool) {
-    let premult = buffer.copy()
+
+@MainActor func vimageRotate(angle: Double, delta: Double, quality: Bool) -> PixelBuffer {
+    let premult = original.copy()
     var s = vImage_Buffer(data: premult.baseAddress, height: vImagePixelCount(h), width: vImagePixelCount(w), rowBytes: premult.bytesPerRow)
     vImagePremultiplyData_RGBA8888(&s, &s, vImage_Flags(kvImageNoFlags))
     let out = PixelBuffer(width: sizeOut.width, height: sizeOut.height)
     var d = vImage_Buffer(data: out.baseAddress, height: vImagePixelCount(sizeOut.height), width: vImagePixelCount(sizeOut.width), rowBytes: out.bytesPerRow)
-    let c = cos(radians), sn = sin(radians)
-    let cx = Double(w) / 2, cy = Double(h) / 2, ox = Double(sizeOut.width) / 2, oy = Double(sizeOut.height) / 2
-    // maps source point to destination point: rotate about the source center, then move to the destination center
+    let r = angle * Double.pi / 180
+    let c = cos(r), sn = sin(r)
+    let cx = Double(w) / 2 + delta, cy = Double(h) / 2 + delta, ox = Double(sizeOut.width) / 2 + delta, oy = Double(sizeOut.height) / 2 + delta
     var t = vImage_AffineTransform(a: c, b: sn, c: -sn, d: c, tx: ox - (c * cx - sn * cy), ty: oy - (sn * cx + c * cy))
     var clear: [UInt8] = [0, 0, 0, 0]
-    _ = vImageAffineWarp_ARGB8888(&s, &d, nil, &t, &clear, vImage_Flags(kvImageBackgroundColorFill | (highQuality ? kvImageHighQualityResampling : 0)))
+    _ = vImageAffineWarp_ARGB8888(&s, &d, nil, &t, &clear, vImage_Flags(kvImageBackgroundColorFill | (quality ? kvImageHighQualityResampling : 0)))
     vImageUnpremultiplyData_RGBA8888(&d, &d, vImage_Flags(kvImageNoFlags))
+    return out
 }
-for hq in [false, true] {
+func compare(_ a: PixelBuffer, _ b: PixelBuffer) -> String {
+    var sum = 0, count = 0, over2 = 0, over8 = 0, maxDiff = 0
+    for y in stride(from: 0, to: a.height, by: 3) {
+        let ra = a.row(y), rb = b.row(y)
+        for x in stride(from: 0, to: a.width, by: 3) {
+            let p = ra[x], q = rb[x]
+            let dr = abs(Int(p.r) - Int(q.r)), dg = abs(Int(p.g) - Int(q.g)), db = abs(Int(p.b) - Int(q.b)), da = abs(Int(p.a) - Int(q.a))
+            let m = max(dr, dg, db, da)
+            sum += dr + dg + db; count += 3
+            if m > 2 { over2 += 1 }
+            if m > 8 { over8 += 1 }
+            maxDiff = max(maxDiff, m)
+        }
+    }
+    let n = (a.height + 2) / 3 * ((a.width + 2) / 3)
+    return String(format: "mean |diff| %.2f of 255, pixels off by >2: %.1f%%, >8: %.2f%%, max %d", Double(sum) / Double(count), Double(over2) / Double(n) * 100, Double(over8) / Double(n) * 100, maxDiff)
+}
+for delta in [-0.5, 0.0, 0.5] {
+    for quality in [false, true] {
+        let r = vimageRotate(angle: -3, delta: delta, quality: quality)
+        print("TIMING7 vImage (turned -3) center shift \(delta), high quality \(quality): \(compare(appResult, r))")
+    }
+}
+for q in [false, true] {
     var best = Duration.seconds(100)
-    for _ in 0..<3 { let t = ContinuousClock().measure { vimageRotate(highQuality: hq) }; if t < best { best = t } }
-    print("TIMING6 vImage affine warp, high quality \(hq):", best)
+    for _ in 0..<3 { let t = ContinuousClock().measure { _ = vimageRotate(angle: -3, delta: 0, quality: q) }; if t < best { best = t } }
+    print("TIMING7 speed, high quality \(q): \(best)")
 }
+var bestApp = Duration.seconds(100)
+for _ in 0..<3 {
+    let t = ContinuousClock().measure { _ = ImageActions.straighten(angle: 3, cropToFit: true, canvas: canvas, history: history, context: SelectionContext(color2: .white)) }
+    history.undo(on: canvas)
+    if t < bestApp { bestApp = t }
+}
+print("TIMING7 app straighten, fastest of 3:", bestApp)

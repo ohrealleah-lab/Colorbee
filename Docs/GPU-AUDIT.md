@@ -20,6 +20,7 @@ After that, a small CPU-only cleanup of serial loops (recommendation 4). None of
 4. Her normal photo is a 12 MP iPhone shot; 45 MP RAW photos will happen.
 5. A preview must be the same as the applied result. This rules out GPU previews, since the GPU would give slightly different pixels. The adjustment-layer shaders already differ slightly from the CPU code.
 6. Timing runs approved (including her CR3).
+7. **Straighten: do both option A (background) and option B (vImage rotation).** Leah chose B because it's significantly faster. (Decision 2026-10-10; log it in FRD §23.)
 
 ## How the timings were made (two throwaway scripts)
 
@@ -99,13 +100,22 @@ Measured on Leah's CR3 developed to 8192 × 5464 (44.8 million pixels), color sl
 
 ## Straighten
 
-- Measured on the CR3, one layer: 0.9 s once, in a single noisy run (the synthetic photo gave 431 ms; machine under load). Three layers earlier: 1.3 s at 45 MP, 333 ms at 12 MP.
+**Decision (Leah, 2026-10-10): build option A and option B together.**
+
 - Why it lags: the slider preview is a real history step. Each tick undoes the last one and re-straightens every layer **on the main thread**, so the whole app waits.
-- Options:
-  - **A. Compute in the background, swap in on the main thread.** Same Warp code, so identical pixels. The window stays responsive, though the preview still updates only every ~0.4–0.9 s per layer on a 45 MP photo. Updates are merged so it never queues up.
-  - **B. A faster rotation (vImage affine warp).** Measured 278 ms for 45 MP, one layer (premultiply + rotate + unpremultiply included) against 898 ms: about 3×, with no quality-flag difference. It changes the pixels slightly from today's bilinear rotation; preview and result would still match each other. Do this only if A isn't enough.
-  - **C. Tighten the existing rotation loop** (it premultiplies each source pixel four times and calls a closure per pixel). Probably 1.5–2×, identical pixels. Not measured.
-- Recommended: A first, then C if still slow.
+- Measured on the CR3 at 45 MP, one layer, 3 degrees, Crop to Fit (output 7604 × 5071): today's rotation **386 ms** (fastest of 3). Three layers earlier: 1.3 s at 45 MP, 333 ms at 12 MP.
+- **A. Compute in the background, swap in on the main thread.** Same code, identical pixels. The window stays responsive. Updates are merged so they never queue.
+- **B. Rotate with vImage (`vImageAffineWarp_ARGB8888`) instead of the hand-written bilinear loop** (`Warp.rotated`). On the CR3, with the premultiply and unpremultiply steps included: **154 ms** against 386 ms, about **2.5×**. (An earlier single, cold run gave 278 vs 898 ms, about 3×; use 2.5×.) The high-quality flag costs a little more (180 ms) and doesn't improve the match, so leave it off.
+- **How different B looks,** compared pixel by pixel with today's rotation on the same photo (every third pixel): mean difference **0.4 out of 255**; 1.9% of pixels differ by more than 2; 0.03% by more than 8; the largest difference is 34, found at the frame's edges. Neither a half-pixel shift of the center nor the quality flag changed this. In short: not visible, but not byte-identical to today's.
+- A + B together: roughly 150 ms per layer at 45 MP, with the app responsive.
+
+How to build B (notes for the engineer):
+- vImage turns the opposite way to `Warp.rotated`: pass the **negated angle**. (A first try with the wrong sign gave a 33/255 mean difference, which is how it was caught.)
+- vImage needs premultiplied pixels: `vImagePremultiplyData_RGBA8888`, warp, then `vImageUnpremultiplyData_RGBA8888`, as `Resampling.swift` already does.
+- Fill the corners with `.clear` for Crop to Fit off (Color 2 for a solid background is applied by the caller today; check `Canvas.vacatedFill`).
+- The preview and the applied result both use the new code, so they still match each other. This changes Straighten's pixels slightly from before, so: any exact-value Straighten tests in `WarpTests.swift` need new expectations (use a tolerance), and the change should be logged in FRD §23.
+- Perspective Correction can't use this: it's a projective warp and vImage's affine warp can't do it. It stays on the current code (421 ms at 45 MP, one-shot, not a slider).
+- Drop Shadow and Border share the same "preview as a step" path as Straighten (`Editor.renderDecorationPreview`); doing A for Straighten may let them use it too.
 
 ## Serial loops worth fixing (CPU only, same results)
 
@@ -128,9 +138,9 @@ The serial copy loops cost 15 ms (12 MP) and 66 ms (45 MP) each, against 2 ms an
    - Measured: color part 653 → 25 ms on the CR3, identical output. Whole Adjust Photo with all sliders 1.2 s → about 0.5–0.65 s (estimate), because the detail blurs remain.
    - Risk: low to medium. Exact-match tests make it safe; needs thread-safe table writes, a fallback for noisy photos and a size cutoff.
    - Architecture change: none (CPU only, same results).
-3. **Straighten: compute the preview in the background (option A), then tighten the loop (option C) if needed.**
-   - Result: the app stays responsive; identical pixels. Update rate on a 45 MP photo is still ~0.4–0.9 s per layer unless C helps.
-   - Risk: medium. The preview is a history step today, so the background version must not disturb undo (compute from the original layer buffers, swap results in on the main thread).
+3. **Straighten: background preview (A) plus a vImage rotation (B). Leah has chosen both.**
+   - Result: the app stays responsive, and each update costs about 150 ms per layer at 45 MP instead of 386 ms.
+   - Risk: medium. The preview is a history step today, so the background version must not disturb undo (compute from the original layer buffers, swap results in on the main thread). B changes Straighten's pixels very slightly (mean 0.4/255), so update the Warp tests and log it in FRD §23.
    - Architecture change: none, but it touches how "preview as a step" works (`Editor.renderDecorationPreview`); Drop Shadow and Border share it.
 4. **Fix the serial loops (blur copies, Sharpen, Skew), results unchanged.**
    - Estimated (from replica loops; not built): blur 58 → ~30 ms (12 MP), 202 → ~80 ms (45 MP); Sharpen about 3×; Adjust Photo detail part down by ~15–20%; Skew with both directions about 4–5×.
@@ -140,6 +150,5 @@ Not recommended: any GPU rewrite of blur, flatten, effects or export.
 
 ## Open questions for Leah
 
-1. Which of recommendations 1–4 should the engineer session build, and in what order? Claude's suggestion: 1, then 2, then 3, then 4.
-2. For Straighten, is option A (background, same pixels, still ~0.4–0.9 s per update on a 45 MP photo) enough, or do you want option B as well (about 3× faster, but the rotation would look very slightly different from today's)?
-3. Re-run both timing scripts on a quiet Mac after each fix to confirm the gain.
+1. Which of recommendations 1–4 should the engineer session build, and in what order? Claude's suggestion: 1, then 2, then 3 (A and B), then 4.
+2. Re-run the three timing scripts on a quiet Mac after each fix to confirm the gain.

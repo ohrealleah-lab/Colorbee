@@ -8,18 +8,27 @@ _Written 2026-10-10 for Leah; updated the same day with her answers, real timing
 
 **The one real lag is the RAW Develop window's sliders**, as Leah reported. It is not a missing-GPU problem: Core Image already uses the GPU. Each slider tick builds a brand-new `CIRAWFilter` and so re-reads the RAW file (about 0.4–1.3 s per tick on her 45 MP CR3). Reusing one filter for previews cut every Develop slider to about 35–100 ms, with identical pixels (recommendation 1). It is a small change in the app target.
 
-After that, a small CPU-only cleanup of serial loops (recommendation 2). Neither needs an architecture change.
+**Leah's later answers add two more real pain points:** Straighten lags on big or multi-layer photos, and Adjust Photo's 1.2 s on a 45 MP photo is not acceptable. Both have CPU-only fixes with identical previews (recommendations 2 and 3). The Adjust Photo one is the best find of the audit: remembering each color's result made the color part **25× faster (653 → 25 ms) with byte-identical output** on her real photo.
+
+After that, a small CPU-only cleanup of serial loops (recommendation 4). None of this needs an architecture change.
 
 ## Leah's answers (2026-10-10)
 
 1. Sliders aren't laggy, except **on a big RAW photo in the Develop window**, where they lag. She supplied a 45 MP Canon CR3 (`7762545337.cr3`, 8192 × 5464) to time.
-2. Her normal photo is a 12 MP iPhone shot; 45 MP RAW photos will happen.
-3. A preview must be the same as the applied result. This rules out GPU previews, since the GPU would give slightly different pixels. The adjustment-layer shaders already differ slightly from the CPU code.
-4. Timing runs approved.
+2. Straighten **is** laggy (on big or multi-layer photos).
+3. About 1.2 s per Adjust Photo update on a 45 MP photo is **not** acceptable.
+4. Her normal photo is a 12 MP iPhone shot; 45 MP RAW photos will happen.
+5. A preview must be the same as the applied result. This rules out GPU previews, since the GPU would give slightly different pixels. The adjustment-layer shaders already differ slightly from the CPU code.
+6. Timing runs approved (including her CR3).
 
-## How the timings were made
+## How the timings were made (two throwaway scripts)
 
-- A throwaway Swift Testing file ran in Release on Leah's M2 Max. It is saved as [GPU-AUDIT-timing.txt](GPU-AUDIT-timing.txt) so it can be re-run after any speedup. It is not part of the test suite.
+- [GPU-AUDIT-timing.txt](GPU-AUDIT-timing.txt): synthetic 12 MP and 45 MP photos for effects, flatten, Straighten, Skew, PDF and more.
+- [GPU-AUDIT-raw-timing.txt](GPU-AUDIT-raw-timing.txt): the Develop window's previews on Leah's CR3, today's way against one reused filter.
+- [GPU-AUDIT-photo-timing.txt](GPU-AUDIT-photo-timing.txt): Adjust Photo on the same photo developed to 45 MP, the remember-each-color prototype, and the Straighten rotation comparison.
+- Details of the synthetic-photo script:
+
+- It ran in Release on Leah's M2 Max. It is not part of the test suite.
 - To run it, copy it to `Packages/ColorbeeCore/Tests/ColorbeeCoreTests/ScratchTiming.swift` and run `swift test -c release --no-parallel --filter ScratchTiming` in `Packages/ColorbeeCore`. It takes about 30 seconds. Don't commit it: it would run in `make test` in Debug and take minutes.
 - The test image is a noisy gradient, which is photo-like and doesn't compress trivially. Each number is the fastest of 3 runs (12 MP, 4000 × 3000) or 2 runs (45 MP, 8256 × 5504).
 - Effects include the history before-image recording. The live preview numbers use `EffectPreview.render`, the path the sliders use.
@@ -73,6 +82,31 @@ Made with a second throwaway script, saved as [GPU-AUDIT-raw-timing.txt](GPU-AUD
 - **Pixels:** in a separate run the two ways gave byte-identical 1600 px previews for every control tried (exposure, temperature, tint, highlights, shadows, contrast, noise reduction, sharpness).
 - **To build it:** `RawDeveloper.swift` says "each render makes its own filter, so previews and the final render can run on other threads". Keep that for the final develop. For previews, keep one filter, used one preview at a time under a lock (`DevelopSession` already allows only one preview render at once), and let the final develop keep making its own.
 
+## Adjust Photo and the other per-color effects: remember each color
+
+A pixel's new color depends only on its old color (red, green, blue). A photo has far fewer different colors than pixels, so each different color can be worked out once and remembered. The result is exactly the same as working out every pixel.
+
+Measured on Leah's CR3 developed to 8192 × 5464 (44.8 million pixels), color sliders only (exposure, brilliance, shadows, contrast, saturation, vibrance, warmth):
+
+- Different colors in the photo: **1,216,377, only 2.7% of the pixels**. After the detail sliders have run: 1,395,896 (3.1%).
+- The app today: **628–653 ms**.
+- A throwaway prototype using the same per-pixel function, with a 64 MB table (one entry per possible color, cleared each run): **25 ms**, including clearing the table.
+- **Output byte-identical to the app's** (content hashes equal).
+- Detail sliders only (sharpness, definition, noise reduction): 477 ms. All sliders together: 1,233 ms. The colors step is not the cost when the detail sliders are in use, so the expected total with the memory is about **0.5–0.65 s**, and about **0.35–0.45 s** with the serial-loop fix (recommendation 4) as well. These two totals are estimates.
+- Limits to design for: the vignette depends on position, not color, so it can't be remembered; a very noisy photo has more distinct colors and gains less (the worst case should cost little extra, so skip the table for small images or fall back when most colors are new); the table needs thread-safe writes in the real version (the prototype wrote without locks); 64 MB of temporary memory.
+- Same trick helps the other per-color effects: Hue/Saturation (167 ms at 45 MP), Sepia, and adjustment layers that bake an effect.
+- The earlier "switch to Float" idea is no longer needed for speed. Remembering colors is faster and changes nothing.
+
+## Straighten
+
+- Measured on the CR3, one layer: 0.9 s once, in a single noisy run (the synthetic photo gave 431 ms; machine under load). Three layers earlier: 1.3 s at 45 MP, 333 ms at 12 MP.
+- Why it lags: the slider preview is a real history step. Each tick undoes the last one and re-straightens every layer **on the main thread**, so the whole app waits.
+- Options:
+  - **A. Compute in the background, swap in on the main thread.** Same Warp code, so identical pixels. The window stays responsive, though the preview still updates only every ~0.4–0.9 s per layer on a 45 MP photo. Updates are merged so it never queues up.
+  - **B. A faster rotation (vImage affine warp).** Measured 278 ms for 45 MP, one layer (premultiply + rotate + unpremultiply included) against 898 ms: about 3×, with no quality-flag difference. It changes the pixels slightly from today's bilinear rotation; preview and result would still match each other. Do this only if A isn't enough.
+  - **C. Tighten the existing rotation loop** (it premultiplies each source pixel four times and calls a closure per pixel). Probably 1.5–2×, identical pixels. Not measured.
+- Recommended: A first, then C if still slow.
+
 ## Serial loops worth fixing (CPU only, same results)
 
 The serial copy loops cost 15 ms (12 MP) and 66 ms (45 MP) each, against 2 ms and 5 ms for a plain row copy. The blur uses two of them, plus another in Sharpen and Adjust Photo, so they're about half of a blur's time.
@@ -84,28 +118,28 @@ The serial copy loops cost 15 ms (12 MP) and 66 ms (45 MP) each, against 2 ms an
 - **Pointwise effects**: hoist the per-pixel "is this selected" check when there's no selection. Small.
 - Not worth doing now: sharp resize (33 ms), a Flatten fast path for opaque pixels (Flatten is already 189 ms at 45 MP), and `vImageTableLookUp` for Levels/Curves (already 9–36 ms).
 
-## Recommendations (revised again)
+## Recommendations (final, after Leah's answers)
 
 1. **Develop window: reuse one `CIRAWFilter` for previews.**
    - Measured speedup: about 10× per slider tick (0.42–1.3 s down to about 35–100 ms on the 45 MP CR3); pixels identical.
-   - Risk: low. It's contained in `RawDeveloper` (app target). Care points: one preview at a time under a lock, and the final develop still makes its own filter.
+   - Risk: low. Contained in `RawDeveloper` (app target). One preview at a time under a lock; the final develop still makes its own filter.
    - Architecture change: none. Core Image already does this on the GPU.
-   - This is the one thing Leah has actually felt, so do this first.
-2. **Fix the serial loops (blur copies, Sharpen, Skew), results unchanged.**
-   - Estimated speedup (from the replica loop timings; not yet built): blur 58 → ~30 ms (12 MP), 202 → ~80 ms (45 MP); Sharpen about 3× (107 → ~35 ms, 399 → ~120 ms); Adjust Photo about 15–20% (1,200 → ~1,000 ms at 45 MP); Skew with both directions about 4–5× (1,250 → ~300 ms at 45 MP).
-   - Risk: low. Existing exact-value tests cover the pixels.
-   - Architecture change: none.
-   - Honest value: small at 12 MP, where nothing is slow. It matters for 45 MP photos. Low priority.
-3. **Straighten's slider preview runs on the main thread.** About 110–330 ms per tick at 12 MP and 0.4–1.3 s at 45 MP, against the rule that the main thread never blocks for more than a frame. The fix would be to run it in the background with updates merged, as effect previews do, which keeps the preview identical. Only worth doing if Leah finds it laggy on a big or multi-layer photo (question 1).
-4. **Adjust Photo at 45 MP** takes about 1.2 s per slider update. Leave it unless it bothers Leah. A faster option is the `Float` change, explained below; it needs Leah's decision and the audit does not recommend it by default.
-
-**What "switch to Float" means, in plain words.** Adjust Photo works out each pixel's new color with very precise numbers (`Double`, about 15–16 digits). The Mac's chip can do the same sums on less precise numbers (`Float`, about 7 digits) roughly twice as fast. The end result is rounded to a whole number from 0 to 255, so almost every pixel comes out exactly the same. A few pixels sitting right on a rounding edge would land one step (1 out of 255) different, which nobody can see. The preview and the applied result would both use the same new math, so they would still match each other. The catches: a photo edited in an older version would come out one step different in a few pixels if re-applied, and the screen shader for adjustment layers would match the CPU a little less closely or more closely than now, which would have to be checked. The expected gain is small (Adjust Photo would drop by perhaps a third at most), so it is not worth doing unless 1.2 s on 45 MP bothers Leah.
+2. **Adjust Photo (and other per-color effects): remember each color.**
+   - Measured: color part 653 → 25 ms on the CR3, identical output. Whole Adjust Photo with all sliders 1.2 s → about 0.5–0.65 s (estimate), because the detail blurs remain.
+   - Risk: low to medium. Exact-match tests make it safe; needs thread-safe table writes, a fallback for noisy photos and a size cutoff.
+   - Architecture change: none (CPU only, same results).
+3. **Straighten: compute the preview in the background (option A), then tighten the loop (option C) if needed.**
+   - Result: the app stays responsive; identical pixels. Update rate on a 45 MP photo is still ~0.4–0.9 s per layer unless C helps.
+   - Risk: medium. The preview is a history step today, so the background version must not disturb undo (compute from the original layer buffers, swap results in on the main thread).
+   - Architecture change: none, but it touches how "preview as a step" works (`Editor.renderDecorationPreview`); Drop Shadow and Border share it.
+4. **Fix the serial loops (blur copies, Sharpen, Skew), results unchanged.**
+   - Estimated (from replica loops; not built): blur 58 → ~30 ms (12 MP), 202 → ~80 ms (45 MP); Sharpen about 3×; Adjust Photo detail part down by ~15–20%; Skew with both directions about 4–5×.
+   - Risk: low. Architecture change: none.
 
 Not recommended: any GPU rewrite of blur, flatten, effects or export.
 
 ## Open questions for Leah
 
-1. Have you tried Straighten on a 45 MP photo, or on a 12 MP photo with several layers? That is the one canvas slider path measured at more than a frame on the main thread.
-2. Is about 1.2 s per Adjust Photo update on a 45 MP photo acceptable? If not, are you open to the one-step `Float` change?
-3. Do you want recommendation 2 (the serial loops) done now, or left until a 45 MP photo actually feels slow? I'd lean toward waiting.
-4. Open on a quiet Mac: the CR3 numbers above were taken while other things were running. Re-run [GPU-AUDIT-raw-timing.txt](GPU-AUDIT-raw-timing.txt) after fix 1 to confirm the gain.
+1. Which of recommendations 1–4 should the engineer session build, and in what order? Claude's suggestion: 1, then 2, then 3, then 4.
+2. For Straighten, is option A (background, same pixels, still ~0.4–0.9 s per update on a 45 MP photo) enough, or do you want option B as well (about 3× faster, but the rotation would look very slightly different from today's)?
+3. Re-run both timing scripts on a quiet Mac after each fix to confirm the gain.

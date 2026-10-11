@@ -10,6 +10,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Strokes must see every input sample (NFR-2).
         NSEvent.isMouseCoalescingEnabled = false
         let menu = MainMenu.make()
+        // `make help`: the menus as built, before this Mac's changed shortcuts are applied; then quit.
+        if let path = HelpDump.path {
+            do { try HelpDump.write(menu, to: path) } catch { fputs("\(error)\n", stderr); exit(1) }
+            exit(0)
+        }
         NSApp.mainMenu = menu
         // Every menu command and canvas key, with any changed shortcuts (FR-15.3).
         ShortcutStore.shared.register(menu)

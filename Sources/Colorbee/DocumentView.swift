@@ -140,7 +140,7 @@ private struct ToolOptions: View {
     var body: some View {
         switch editor.tool {
         case .brush:
-            hint("\(editor.brush.name) · Shift has no effect · pressure \(editor.usesPressure ? "on" : "off")")
+            hint("\(editor.brush.name) · Shift keeps the stroke straight · pressure \(editor.usesPressure ? "on" : "off")")
         case .eraser:
             Toggle("Color Eraser", isOn: $editor.colorEraserMode)
                 .help("On: dragging replaces only Color 1 with Color 2. Right-drag always does.")

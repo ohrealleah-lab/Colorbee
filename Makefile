@@ -4,7 +4,7 @@ DERIVED := build
 APP     := $(DERIVED)/Build/Products/Debug/Colorbee.app
 BENCH   := $(DERIVED)/Build/Products/Release/Colorbee.app/Contents/MacOS/Colorbee -ColorbeeBenchmark YES -ApplePersistenceIgnoreState YES
 
-.PHONY: gen build test core perf run bench beta help-index help-shots open clean
+.PHONY: gen build test core perf run bench beta help help-index help-shots open clean
 
 gen:
 	xcodegen generate --quiet
@@ -21,6 +21,13 @@ test: core build
 # Release-only time limits and the 8000x8000 soak test (AC-27, NFR-7). Takes a few minutes.
 perf:
 	cd Packages/ColorbeeCore && swift test -c release --no-parallel --filter "SoakTests|PerformanceTests"
+
+# The help book's Menus and Keyboard Shortcuts pages, generated from Colorbee's own menus (no window opens), then the
+# search index. Run after adding, renaming or re-keying a menu command.
+help: build
+	build/Build/Products/Debug/Colorbee.app/Contents/MacOS/Colorbee -ApplePersistenceIgnoreState YES -ColorbeeDumpMenus build/menus.json
+	python3 -I Scripts/help-pages.py build/menus.json $(HELP)
+	$(MAKE) help-index
 
 # The help book's search index (FR-14.6). Run after changing a help page; the index is committed.
 HELP := Help/Colorbee.help/Contents/Resources/en.lproj

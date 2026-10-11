@@ -129,6 +129,8 @@ enum MainMenu {
         "showPixelate:": "Turn the selection (or image) into large square blocks.",
         "showSharpen:": "Make edges crisper.",
         "applySolidFill:": "Cover every selected area with Color 1. The most secure way to hide text.",
+        "batchRedactBlur:": "Blur every selected area, each on its own, as one step.",
+        "batchRedactPixelate:": "Pixelate every selected area, each on its own, as one step.",
         "showAutoRedact:": "Find emails, phone numbers, keys and more on this Mac, then hide the ones you choose.",
         "performMiniaturize:": "Minimize this window to the Dock.",
         "performZoom:": "Make this window as large as it needs to be.",
@@ -178,6 +180,7 @@ enum MainMenu {
         // macOS fills this in with nearby iPhones and iPads (Continuity Camera, FR-11.7).
         let importItem = NSMenuItem(title: "Import from iPhone or iPad", action: nil, keyEquivalent: "")
         importItem.identifier = NSMenuItem.importFromDeviceIdentifier
+        importItem.toolTip = "Take a photo or scan a document with a nearby iPhone or iPad, straight into Colorbee."
         menu.addItem(importItem)
         menu.addItem(item("Open…", "openDocument:", "o"))
         // No Open Recent here: macOS adds its own after Open…, and one made here showed as a second (Leah, 2026-10-10).
@@ -193,7 +196,9 @@ enum MainMenu {
         let presets = NSMenu(title: "Export As")
         // Filled in when it opens, from the presets in Settings.
         presets.delegate = ExportPresetMenuTitles.shared
-        menu.addItem(submenu(presets))
+        let presetsItem = submenu(presets)
+        presetsItem.toolTip = "Save a PNG at a common size, such as Slack (760 px). Edit the sizes in Settings ▸ Export Presets."
+        menu.addItem(presetsItem)
         menu.addItem(.separator())
         menu.addItem(item("Share…", "shareDocument:"))
         menu.addItem(item("Set as Desktop Picture", "setDesktopPicture:"))

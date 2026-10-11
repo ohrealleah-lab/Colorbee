@@ -9,7 +9,9 @@ extension Effects {
         let noiseReduction = adjustments[.noiseReduction] / 100, vignette = adjustments[.vignette]
         let fine = sharpness > 0 || noiseReduction > 0 ? blurred(buffer, region: region, sigma: PhotoAdjustments.fineRadius, selection: selection) : nil
         let wide = definition > 0 ? blurred(buffer, region: region, sigma: PhotoAdjustments.definitionRadius, selection: selection) : nil
-        let color = edit.colorTransform
+        let transform = edit.colorTransform
+        let memory = region.width * region.height >= ColorMemory.minimumPixels ? ColorMemory(transform) : nil
+        let color = memory.map { memory in { memory($0) } } ?? transform
         let result = PixelBuffer(width: region.width, height: region.height)
         func straight(_ pixel: Pixel) -> SIMD3<Double> { SIMD3(Double(pixel.r), Double(pixel.g), Double(pixel.b)) / 255 }
         ParallelRows.forEach(region.minY..<region.maxY) { rows in

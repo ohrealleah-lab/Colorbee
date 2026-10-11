@@ -74,7 +74,8 @@ extension PixelBuffer {
         return result
     }
 
-    /// Slides each row sideways (or each column up or down) in proportion to its position.
+    /// Slides each row sideways (or each column up or down) in proportion to its position. Output rows are worked
+    /// out in parallel; a vertical skew walks each output row across the columns, so memory is read in order.
     private func skewed(_ slope: Double, horizontally: Bool, resampling: Resampling) -> PixelBuffer {
         let lines = horizontally ? height : width
         let length = horizontally ? width : height
@@ -82,25 +83,27 @@ extension PixelBuffer {
         let result = horizontally
             ? PixelBuffer(width: width + extra, height: height)
             : PixelBuffer(width: width, height: height + extra)
-        for line in 0..<lines {
-            let shift = ResizeSkew.shift(slope, index: line, count: lines)
-            for target in 0..<(length + extra) {
-                let source = Double(target) - shift
-                let pixel: Pixel
-                switch resampling {
-                case .nearestNeighbor:
-                    let nearest = Int((source + 0.5).rounded(.down))
-                    pixel = nearest >= 0 && nearest < length ? (horizontally ? self[nearest, line] : self[line, nearest]) : .clear
-                case .smooth:
-                    let lower = Int(source.rounded(.down))
-                    let fraction = source - Double(lower)
-                    func sample(_ index: Int) -> Pixel {
-                        guard index >= 0, index < length else { return .clear }
-                        return horizontally ? self[index, line] : self[line, index]
-                    }
-                    pixel = Self.blend(sample(lower), sample(lower + 1), fraction)
+        let shifts = (0..<lines).map { ResizeSkew.shift(slope, index: $0, count: lines) }
+        func pixel(line: Int, target: Int) -> Pixel {
+            let source = Double(target) - shifts[line]
+            func sample(_ index: Int) -> Pixel {
+                guard index >= 0, index < length else { return .clear }
+                return horizontally ? self[index, line] : self[line, index]
+            }
+            switch resampling {
+            case .nearestNeighbor:
+                return sample(Int((source + 0.5).rounded(.down)))
+            case .smooth:
+                let lower = Int(source.rounded(.down))
+                return Self.blend(sample(lower), sample(lower + 1), source - Double(lower))
+            }
+        }
+        ParallelRows.forEach(0..<result.height) { rows in
+            for y in rows {
+                let row = result.row(y)
+                for x in 0..<result.width {
+                    row[x] = horizontally ? pixel(line: y, target: x) : pixel(line: x, target: y)
                 }
-                if horizontally { result[target, line] = pixel } else { result[line, target] = pixel }
             }
         }
         return result

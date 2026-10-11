@@ -188,11 +188,17 @@ public enum Effects {
             return .zero
         }
         edit.willModify(region, in: layer)
-        for y in region.minY..<region.maxY {
-            let source = result.row(y - origin.y)
-            let destination = layer.buffer.row(y)
-            for x in region.minX..<region.maxX where isSelected(selection, x, y) {
-                destination[x] = mixed(destination[x], source[x - origin.x], weight(selection, x, y))
+        ParallelRows.forEach(region.minY..<region.maxY) { rows in
+            for y in rows {
+                let source = result.row(y - origin.y)
+                let destination = layer.buffer.row(y)
+                guard selection != nil else {
+                    (destination + region.minX).update(from: source + (region.minX - origin.x), count: region.width)
+                    continue
+                }
+                for x in region.minX..<region.maxX where isSelected(selection, x, y) {
+                    destination[x] = mixed(destination[x], source[x - origin.x], weight(selection, x, y))
+                }
             }
         }
         return region
@@ -207,11 +213,17 @@ public enum Effects {
         let work = IntRect(x: region.minX - margin, y: region.minY - margin, width: region.width + 2 * margin, height: region.height + 2 * margin)
             .intersection(buffer.bounds)
         let scratch = PixelBuffer(width: work.width, height: work.height)
-        for y in work.minY..<work.maxY {
-            let source = buffer.row(y)
-            let destination = scratch.row(y - work.minY)
-            for x in work.minX..<work.maxX where isSelected(selection, x, y) {
-                destination[x - work.minX] = source[x]
+        ParallelRows.forEach(work.minY..<work.maxY) { rows in
+            for y in rows {
+                let source = buffer.row(y)
+                let destination = scratch.row(y - work.minY)
+                guard selection != nil else {
+                    destination.update(from: source + work.minX, count: work.width)
+                    continue
+                }
+                for x in work.minX..<work.maxX where isSelected(selection, x, y) {
+                    destination[x - work.minX] = source[x]
+                }
             }
         }
         let result = boxBlurred(scratch, boxWidth: boxWidth)
@@ -219,19 +231,23 @@ public enum Effects {
             // Unselected pixels were left out as transparent; divide by how much of each pixel's
             // neighborhood was selected so edge pixels keep their real opacity.
             let coverage = PixelBuffer(width: work.width, height: work.height)
-            for y in work.minY..<work.maxY {
-                let row = coverage.row(y - work.minY)
-                for x in work.minX..<work.maxX where isSelected(selection, x, y) {
-                    row[x - work.minX] = .white
+            ParallelRows.forEach(work.minY..<work.maxY) { rows in
+                for y in rows {
+                    let row = coverage.row(y - work.minY)
+                    for x in work.minX..<work.maxX where isSelected(selection, x, y) {
+                        row[x - work.minX] = .white
+                    }
                 }
             }
             let blurredCoverage = boxBlurred(coverage, boxWidth: boxWidth)
-            for y in 0..<work.height {
-                let pixels = result.row(y)
-                let weights = blurredCoverage.row(y)
-                for x in 0..<work.width where weights[x].a > 0 {
-                    let alpha = Double(pixels[x].a) * 255 / Double(weights[x].a)
-                    pixels[x].a = UInt8(min(255, alpha.rounded()))
+            ParallelRows.forEach(0..<work.height) { rows in
+                for y in rows {
+                    let pixels = result.row(y)
+                    let weights = blurredCoverage.row(y)
+                    for x in 0..<work.width where weights[x].a > 0 {
+                        let alpha = Double(pixels[x].a) * 255 / Double(weights[x].a)
+                        pixels[x].a = UInt8(min(255, alpha.rounded()))
+                    }
                 }
             }
         }
@@ -242,16 +258,18 @@ public enum Effects {
     private static func sharpened(_ buffer: PixelBuffer, region: IntRect, amount: Double, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
         let (blurred, origin) = blurred(buffer, region: region, sigma: 1, selection: selection)
         let result = PixelBuffer(width: blurred.width, height: blurred.height)
-        for y in 0..<blurred.height {
-            let sourceRow = buffer.row(y + origin.y)
-            let softRow = blurred.row(y)
-            let destination = result.row(y)
-            for x in 0..<blurred.width {
-                let original = sourceRow[x + origin.x], soft = softRow[x]
-                func boost(_ value: UInt8, _ blurredValue: UInt8) -> UInt8 {
-                    UInt8(min(255, max(0, (Double(value) + amount * (Double(value) - Double(blurredValue))).rounded())))
+        ParallelRows.forEach(0..<blurred.height) { rows in
+            for y in rows {
+                let sourceRow = buffer.row(y + origin.y)
+                let softRow = blurred.row(y)
+                let destination = result.row(y)
+                for x in 0..<blurred.width {
+                    let original = sourceRow[x + origin.x], soft = softRow[x]
+                    func boost(_ value: UInt8, _ blurredValue: UInt8) -> UInt8 {
+                        UInt8(min(255, max(0, (Double(value) + amount * (Double(value) - Double(blurredValue))).rounded())))
+                    }
+                    destination[x] = Pixel(r: boost(original.r, soft.r), g: boost(original.g, soft.g), b: boost(original.b, soft.b), a: original.a)
                 }
-                destination[x] = Pixel(r: boost(original.r, soft.r), g: boost(original.g, soft.g), b: boost(original.b, soft.b), a: original.a)
             }
         }
         return (result, origin)

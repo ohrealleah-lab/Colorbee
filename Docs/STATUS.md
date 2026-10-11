@@ -13,8 +13,7 @@ _Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-1. [Help, phase 4: the reference](#test-help-phase-4-the-reference): 5 quick checks, about 10 minutes.
-2. [Adjust Photo, Sharpen and Skew are faster](#test-adjust-photo-sharpen-and-skew-are-faster): 5 steps, about 5 minutes.
+Nothing waiting right now.
 
 ---
 
@@ -56,7 +55,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 written (the reference), waiting for Leah's test. Next: phase 5, the ? buttons | Medium (phase 6 high) |
+| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Next: phase 5, the ? buttons | Medium (phase 6 high) |
 
 ## What's built
 
@@ -239,7 +238,7 @@ _2026-10-11: passed Leah's hand test on 2026-10-11._ Found by the new Editor tes
 4. Click to make badge 4, then Edit ▸ Copy (⌘C) with nothing selected and Edit ▸ Paste into New Image (⇧⌘V): the new image has badge 4.
 
 ### Test: Adjust Photo, Sharpen and Skew are faster
-_2026-10-11, not yet tested._ GPU audit recommendations 2 and 4. Adjust Photo remembers each color's result on images of 2 MP and up (`ColorMemory`: a 64 MB table shared by all cores with atomic writes, freed after each run). The serial loops in blur (copy-in, coverage, alpha), Effects' copy-back, Sharpen and Skew now run on all cores. Results are byte-identical: 22 outputs (blur, Sharpen, Adjust Photo all and color-only, at 0.06 and 2.2 MP, with and without a soft selection, with see-through pixels; Skew both ways, smooth and sharp) hashed the same with the old and new code. Synthetic 45 MP timings, taken while a game was running: Sharpen 349 → 168 ms, Skew both ways 1,089 → 170 ms, Adjust Photo color only 580 → 230 ms, all sliders 1,006 → 769 ms; blur unchanged (its time is vImage's). Rebuild with the script (option 2) first. Use Leah's CR3 (Downloads/7762545337.cr3) and `TestImages/Stage 9 Practice Photo.png`.
+_2026-10-11: passed Leah's hand test on 2026-10-11._ GPU audit recommendations 2 and 4. Adjust Photo remembers each color's result on images of 2 MP and up (`ColorMemory`: a 64 MB table shared by all cores with atomic writes, freed after each run). The serial loops in blur (copy-in, coverage, alpha), Effects' copy-back, Sharpen and Skew now run on all cores. Results are byte-identical: 22 outputs (blur, Sharpen, Adjust Photo all and color-only, at 0.06 and 2.2 MP, with and without a soft selection, with see-through pixels; Skew both ways, smooth and sharp) hashed the same with the old and new code. Synthetic 45 MP timings, taken while a game was running: Sharpen 349 → 168 ms, Skew both ways 1,089 → 170 ms, Adjust Photo color only 580 → 230 ms, all sliders 1,006 → 769 ms; blur unchanged (its time is vImage's). Rebuild with the script (option 2) first. Use Leah's CR3 (Downloads/7762545337.cr3) and `TestImages/Stage 9 Practice Photo.png`.
 1. Open the CR3 and click Open in the Develop window.
 2. Adjustments ▸ Adjust Photo…: drag Exposure and Warmth. The preview follows faster than before (it used to take about a second per change).
 3. Turn up Sharpness and Definition too, then Apply. The photo looks the same as the preview. ⌘Z undoes it in one step.
@@ -247,7 +246,7 @@ _2026-10-11, not yet tested._ GPU audit recommendations 2 and 4. Adjust Photo re
 5. Image ▸ Resize and Skew… (⌘E) with 20° horizontal and 20° vertical skew: it finishes in a moment.
 
 ### Test: Help, phase 4: the reference
-_2026-10-11, written, not yet tested._ Seven reference pages: Tools, Menus, Keyboard shortcuts, Panels, Settings, Privacy and Troubleshooting. Menus and Keyboard shortcuts are generated from the app by `make help` (`HelpDump.swift` writes the menus as JSON with `-ColorbeeDumpMenus`, no window; `Scripts/help-pages.py` writes the pages). Also: tooltips added for Batch Redact ▸ Blur… and Pixelate…, Export As and Import from iPhone or iPad; the brush hint no longer says "Shift has no effect". The Settings ▸ Shortcuts picture is still current. Rebuild with the script (option 2) first.
+_2026-10-11: passed Leah's hand test on 2026-10-11._ Seven reference pages: Tools, Menus, Keyboard shortcuts, Panels, Settings, Privacy and Troubleshooting. Menus and Keyboard shortcuts are generated from the app by `make help` (`HelpDump.swift` writes the menus as JSON with `-ColorbeeDumpMenus`, no window; `Scripts/help-pages.py` writes the pages). Also: tooltips added for Batch Redact ▸ Blur… and Pixelate…, Export As and Import from iPhone or iPad; the brush hint no longer says "Shift has no effect". The Settings ▸ Shortcuts picture is still current. Rebuild with the script (option 2) first.
 1. Help ▸ Colorbee Help: the contents page has a Reference list with seven pages.
 2. Open any menu, pick three commands, and find each on the **Menus** page with the same name and shortcut.
 3. In Settings ▸ Shortcuts, compare five shortcuts with the **Keyboard shortcuts** page.

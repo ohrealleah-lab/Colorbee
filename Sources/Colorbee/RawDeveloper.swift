@@ -2,6 +2,7 @@ import ColorbeeCore
 import CoreImage
 import Foundation
 import ImageIO
+import Synchronization
 import UniformTypeIdentifiers
 
 /// The Develop window's controls (FR-11.8). Exposure is in stops; Temperature in kelvin; Tint, Shadows and
@@ -41,8 +42,9 @@ enum RawDevelopError: LocalizedError {
 }
 
 /// Develops a camera RAW file with macOS's own RAW engine (the one Photos and Preview use), at RAW precision,
-/// into Colorbee's 8-bit Display P3 pixels (FR-11.8). Each render makes its own filter, so previews and the final
-/// render can run on other threads.
+/// into Colorbee's 8-bit Display P3 pixels (FR-11.8). Previews share one filter, one at a time: making a new one
+/// re-reads and decodes the file, about 0.4 s for a 45 MP photo against 30 ms for a reused one, with identical
+/// pixels (Docs/GPU-AUDIT.md). The final develop makes its own, so it can run beside a preview.
 final class RawDeveloper: Sendable {
     let url: URL
     let cameraDefaults: DevelopSettings
@@ -50,6 +52,8 @@ final class RawDeveloper: Sendable {
     /// Upright size, in pixels.
     let size: IntSize
     let cameraDetails: CameraDetails?
+    /// The previews' filter, made on the first preview.
+    private let previewFilter = Mutex<CIRAWFilter?>(nil)
 
     // CIContext is safe to share between threads.
     nonisolated(unsafe) private static let context = CIContext(options: [.cacheIntermediates: false, .workingFormat: CIFormat.RGBAh])
@@ -80,9 +84,8 @@ final class RawDeveloper: Sendable {
         cameraDetails = CameraDetails(properties: properties)
     }
 
-    /// The developed photo, scaled by `scale` (1 for full size), still at RAW precision.
-    private func image(_ settings: DevelopSettings, scale: Double) -> CIImage? {
-        guard let filter = CIRAWFilter(imageURL: url) else { return nil }
+    /// The developed photo, scaled by `scale` (1 for full size), still at RAW precision, from `filter`.
+    private func image(_ settings: DevelopSettings, scale: Double, filter: CIRAWFilter) -> CIImage? {
         filter.scaleFactor = Float(scale)
         filter.exposure = Float(settings.exposure)
         filter.neutralTemperature = Float(settings.temperature)
@@ -108,13 +111,19 @@ final class RawDeveloper: Sendable {
     /// A small picture for the Develop window, at most `maxSide` pixels on its longer side.
     func preview(_ settings: DevelopSettings, maxSide: Int) -> CGImage? {
         let scale = min(1, Double(maxSide) / Double(max(size.width, size.height)))
-        guard let image = image(settings, scale: scale) else { return nil }
-        return Self.context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: Self.colorSpace)
+        return previewFilter.withLock { reused in
+            if reused == nil { reused = CIRAWFilter(imageURL: url) }
+            guard let filter = reused, let image = image(settings, scale: scale, filter: filter) else { return nil }
+            // Rendered while the lock is held: the image reads the filter's settings as it renders.
+            return Self.context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: Self.colorSpace)
+        }
     }
 
     /// The full-size photo as a one-layer canvas in Display P3, with its camera details.
     func develop(_ settings: DevelopSettings) throws -> Canvas {
-        guard let image = image(settings, scale: 1) else { throw RawDevelopError.unreadable }
+        guard let filter = CIRAWFilter(imageURL: url), let image = image(settings, scale: 1, filter: filter) else {
+            throw RawDevelopError.unreadable
+        }
         // The size of this render, not the camera-default one: a setting such as Lens Correction can change it
         // (review L, finding 17).
         let size = IntSize(width: Int(image.extent.width.rounded()), height: Int(image.extent.height.rounded()))

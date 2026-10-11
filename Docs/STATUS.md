@@ -13,9 +13,7 @@ _Last updated: 2026-10-11 · 493 core tests passing, plus `make perf`_
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-1. [Shift straightens the brushes and Eraser](#test-shift-straightens-the-brushes-and-eraser): 6 steps, about 2 minutes.
-2. [Help guides, phase 3](#test-help-guides-phase-3): read each new guide with Colorbee beside it. One guide at a time is fine.
-3. [Help, phase 1](#test-help-phase-1): 4 quick steps (⌘?, Help search, dark mode).
+Nothing waiting right now.
 
 ---
 
@@ -57,7 +55,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| Help (FR-14.6) | Phases 1 and 2 passed; phase 3 written (the six other task guides, and stage 13 in Getting started and Redact a screenshot), waiting for Leah's test and new screenshots | Medium (phase 6 high) |
+| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Next: phase 4, the reference | Medium (phase 6 high) |
 
 ## What's built
 
@@ -221,7 +219,7 @@ Logs in `build/soak-results*.txt` (not committed).
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
 ### Test: Shift straightens the brushes and Eraser
-_2026-10-10, not yet tested._ Holding Shift while dragging keeps the stroke on one line, across or up and down from where it started, as the Pencil always did. Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`.
+_2026-10-10: passed Leah's hand test on 2026-10-11._ Holding Shift while dragging keeps the stroke on one line, across or up and down from where it started, as the Pencil always did. Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`.
 1. Brushes ▸ Marker, yellow Color 1. Hold Shift and drag along the "Email" row, wobbling the mouse up and down: the highlight stays perfectly level.
 2. Hold Shift and drag mostly downward: the stroke goes straight down instead.
 3. Without Shift, the stroke follows the mouse as before.
@@ -229,7 +227,7 @@ _2026-10-10, not yet tested._ Holding Shift while dragging keeps the stroke on o
 5. ⌘Z undoes each stroke in one step.
 
 ### Test: Help guides, phase 3
-_2026-10-10, written, not yet tested._ Six new guides: Annotate an image, Work with layers, Fix up a photo, Pages and PDFs, Pixel art, and Save, export and share. Getting started gains the Retouch, Redact Brush and Step Badge tools and their keys (J, S, K, N); Redact a screenshot gains the Redact Brush. Written from the FRD and checked against the code (menu names, labels, keys). Notes: the iPhone import section describes only importing with no document open, since importing into an open document is pinned; Shift now straightens the brushes and Eraser too (Leah, 2026-10-10), so the highlighter tip uses it.
+_2026-10-10: passed Leah's hand test on 2026-10-11._ Six new guides: Annotate an image, Work with layers, Fix up a photo, Pages and PDFs, Pixel art, and Save, export and share. Getting started gains the Retouch, Redact Brush and Step Badge tools and their keys (J, S, K, N); Redact a screenshot gains the Redact Brush. Written from the FRD and checked against the code (menu names, labels, keys). Notes: the iPhone import section describes only importing with no document open, since importing into an open document is pinned; Shift now straightens the brushes and Eraser too (Leah, 2026-10-10), so the highlighter tip uses it.
 1. **Screenshots: taken by Claude on 2026-10-10** (window, toolbar, layers), with Leah's OK for screen access. The scene window is now 1440 points wide so the whole toolbar shows. Open the three pictures in `Help/Colorbee.help/Contents/Resources/en.lproj/images/` and check they look right.
 2. Rebuild with the script (option 2). Help ▸ Colorbee Help: the contents page lists eight guides.
 3. Follow each new guide with Colorbee open beside it, one at a time, using `TestImages/Help/Sample Screenshot.png` (Annotate, Pages), `TestImages/Stage 9 Practice Photo.png` (Fix up a photo, Layers), `TestImages/Stage 13/Red Eye Practice.png` (red-eye), `TestImages/Stage 12/Test Camera.dng` (RAW) and a new 32 × 32 image (Pixel art). Every step should work, and every menu name and key should match.
@@ -246,7 +244,7 @@ every menu name and key should match; note anything unclear.
 5. Switch Colorbee to Dark (Settings ▸ General): both pages and their pictures read well.
 
 ### Test: Help, phase 1
-_2026-10-09: screenshots taken by Leah (step 5); steps 1–4 not yet tested. Phase 2's test covered most of this, so it's quick._ Plan: `Docs/HELP-PLAN.md`. Rebuild and run with the script first.
+_2026-10-09: screenshots taken by Leah (step 5); steps 1–4 passed Leah's hand test on 2026-10-11._ Plan: `Docs/HELP-PLAN.md`. Rebuild and run with the script first.
 1. Help ▸ Colorbee Help: Apple's help viewer opens on a "Colorbee Help" page saying the guide is coming soon.
 2. Press ⌘? from anywhere in Colorbee: the same page opens.
 3. Click the Help menu and type "colorbee" in its search field: "Colorbee Help" is listed under Help Topics.

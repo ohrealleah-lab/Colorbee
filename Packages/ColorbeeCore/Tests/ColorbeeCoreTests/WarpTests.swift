@@ -42,6 +42,17 @@ struct StraightenTests {
         #expect(canvas.size == IntSize(width: 100, height: 100) && canvas.activeLayer.buffer.contentHash() == original)
     }
 
+    /// A quarter or half turn lands every pixel exactly, which pins down vImage's center and direction.
+    @Test func quarterAndHalfTurnsAreExact() {
+        let buffer = PixelBuffer(width: 9, height: 6)
+        for y in 0..<6 { for x in 0..<9 { buffer[x, y] = Pixel(r: UInt8(x * 25), g: UInt8(y * 40), b: 7) } }
+        let half = Warp.rotated(buffer, angle: 180, size: IntSize(width: 9, height: 6), fill: .clear)
+        let quarter = Warp.rotated(buffer, angle: 90, size: IntSize(width: 6, height: 9), fill: .clear)
+        for y in 0..<6 { for x in 0..<9 { #expect(half[x, y] == buffer[8 - x, 5 - y]) } }
+        // Clockwise: the new (x, y) shows the old (y, height - 1 - x).
+        for y in 0..<9 { for x in 0..<6 { #expect(quarter[x, y] == buffer[y, 5 - x]) } }
+    }
+
     @Test func positiveAnglesTurnClockwise() {
         let canvas = Canvas(size: IntSize(width: 201, height: 201), colorSpace: Canvas.defaultColorSpace, background: .white)
         canvas.activeLayer.buffer.fill(.black, in: IntRect(x: 0, y: 99, width: 201, height: 3))

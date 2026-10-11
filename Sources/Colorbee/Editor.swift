@@ -2449,6 +2449,12 @@ final class Editor {
 
     /// Whether a Drop Shadow, Border or Straighten preview step is in the history right now.
     @ObservationIgnored private var decorationPreviewed = false
+    /// Straighten's preview: whether a turn is being worked out in the background, whether newer settings wait for
+    /// it, which angle and Crop to fit the preview step shows, and a count that makes a stale turn be dropped.
+    @ObservationIgnored private(set) var straightenRunning = false
+    @ObservationIgnored private var straightenWanted = false
+    @ObservationIgnored private(set) var straightenShown: (angle: Double, cropToFit: Bool)?
+    @ObservationIgnored private var straightenToken = 0
 
     // MARK: Straighten, Perspective Correction and Crop (FR-9.5)
 
@@ -2746,8 +2752,10 @@ final class Editor {
         perform(pick.action, mask: pick.scan.mask(for: [index]))
     }
 
-    /// Drop Shadow and Border: takes back the last preview step and draws the new one.
-    private func renderDecorationPreview(_ kind: EffectKind) {
+    /// Drop Shadow and Border: takes back the last preview step and draws the new one. Straighten does this in the
+    /// background, unless `now` (Apply needs exactly the settings on screen).
+    private func renderDecorationPreview(_ kind: EffectKind, now: Bool = false) {
+        if kind == .straighten, !now { return renderStraightenPreview() }
         if decorationPreviewed {
             history.undo(on: canvas)
             // The undone preview was never applied, so it mustn't be redoable, even if this tick draws nothing
@@ -2770,9 +2778,69 @@ final class Editor {
                                canvas: canvas, history: history, context: selectionContext)
         }
         decorationPreviewed = drawn
+        if kind == .straighten { straightenShown = (value(0), value(1) < 0.5) }
         if canvas.size != canvasSize { canvasDidResize() }
         selectionDidChange()
         onRender()
+    }
+
+    /// The Straighten slider's settings: the angle, and whether Crop to fit is on.
+    private var straightenSettings: (angle: Double, cropToFit: Bool) {
+        let values = effectValues, parameters = EffectKind.straighten.parameters
+        func value(_ index: Int) -> Double { values.indices.contains(index) ? values[index] : parameters[index].defaultValue }
+        return (value(0), value(1) < 0.5)
+    }
+
+    /// Straighten turns every layer of a big photo in about 0.15 s each, so the preview is worked out in the
+    /// background from the original layers and swapped in when it's ready, keeping the app responsive; settings
+    /// changed meanwhile are merged into the next turn (Leah, 2026-10-11). The preview already on screen stays until then.
+    private func renderStraightenPreview() {
+        guard !straightenRunning else {
+            straightenWanted = true
+            return
+        }
+        let settings = straightenSettings
+        if let shown = straightenShown, shown == settings { return }
+        // The plan reads the original layers: take the shown preview back for a moment, as autosave does.
+        if decorationPreviewed { history.undo(on: canvas) }
+        let plan = StraightenPlan(angle: settings.angle, cropToFit: settings.cropToFit, canvas: canvas, context: selectionContext)
+        if decorationPreviewed { history.redo(on: canvas) }
+        guard let plan else {
+            // Too small an angle to turn: show the original.
+            return renderDecorationPreview(.straighten, now: true)
+        }
+        straightenRunning = true
+        let token = straightenToken, work = UnsafeTransfer(plan)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let buffers = UnsafeTransfer(work.value.render())
+            await MainActor.run { [weak self] in self?.showStraightenPreview(work.value, buffers: buffers.value, token: token) }
+        }
+    }
+
+    private func showStraightenPreview(_ plan: StraightenPlan, buffers: [LayerID: PixelBuffer], token: Int) {
+        guard token == straightenToken, activeEffect == .straighten else { return }
+        straightenRunning = false
+        if decorationPreviewed {
+            history.undo(on: canvas)
+            history.forgetRedo()
+            decorationPreviewed = false
+        }
+        decorationPreviewed = ImageActions.straighten(plan, buffers: buffers, canvas: canvas, history: history, context: selectionContext)
+        straightenShown = (plan.angle, plan.cropToFit)
+        if canvas.size != canvasSize { canvasDidResize() }
+        selectionDidChange()
+        onRender()
+        if straightenWanted {
+            straightenWanted = false
+            renderStraightenPreview()
+        }
+    }
+
+    /// Drops a Straighten turn still being worked out; its result won't be shown.
+    private func stopStraightenPreview() {
+        straightenToken += 1
+        straightenRunning = false
+        straightenWanted = false
     }
 
     /// Called as the slider moves. Updates are merged, so only the latest value is ever computed
@@ -3013,7 +3081,16 @@ final class Editor {
             return
         }
         if activeEffect?.previewsAsStep == true {
-            if activeEffect == .straighten { zoomToFit() }
+            if activeEffect == .straighten {
+                // Apply keeps exactly the settings on screen: if they're still being turned, finish it here.
+                let settings = straightenSettings
+                if straightenRunning || straightenShown.map({ $0 != settings }) ?? true {
+                    stopStraightenPreview()
+                    renderDecorationPreview(.straighten, now: true)
+                }
+                straightenShown = nil
+                zoomToFit()
+            }
             activeEffect = nil
             // The preview already is the step; it counts as a change only now.
             if decorationPreviewed {
@@ -3114,9 +3191,13 @@ final class Editor {
         previewGeneration += 1
         previewRunning = false
         previewWanted = false
+        stopStraightenPreview()
+        straightenShown = nil
     }
 
     func cancelEffect() {
+        stopStraightenPreview()
+        straightenShown = nil
         if activeEffect?.previewsAsStep == true, decorationPreviewed {
             history.undo(on: canvas)
             history.forgetRedo()

@@ -1,3 +1,4 @@
+import Accelerate
 import Foundation
 
 /// Straighten and Perspective Correction (FR-9.5): every output pixel is looked up in the original image,
@@ -30,16 +31,37 @@ public enum Warp {
     }
 
     /// `buffer` turned clockwise by `angle` degrees about its center, onto `size` (centered), over `fill`.
-    static func rotated(_ buffer: PixelBuffer, angle: Double, size: IntSize, fill: Pixel) -> PixelBuffer {
-        let radians = angle * .pi / 180
+    /// Turned clockwise by `angle` degrees about its center into a `size` buffer, with Apple's vImage: about 2.5×
+    /// faster than looking up each pixel, with differences too small to see (mean 0.4 of 255; Leah, 2026-10-11,
+    /// Docs/GPU-AUDIT.md). Premultiplied, so transparent areas don't darken the edges; outside the original is `fill`.
+    /// With `extendingEdges` (Crop to fit, where the result lies inside the original), the original's own edge pixels
+    /// are repeated instead, so the borders don't pick up the fill.
+    static func rotated(_ buffer: PixelBuffer, angle: Double, size: IntSize, fill: Pixel, extendingEdges: Bool = false) -> PixelBuffer {
+        // vImage counts rows from the bottom, so a clockwise turn on screen is a negative angle to it.
+        let radians = -angle * .pi / 180
         let c = cos(radians), s = sin(radians)
-        let sourceCenter = Point2D(x: Double(buffer.width) / 2, y: Double(buffer.height) / 2)
-        let targetCenter = Point2D(x: Double(size.width) / 2, y: Double(size.height) / 2)
-        return warped(buffer, size: size, fill: fill) { x, y in
-            let u = x - targetCenter.x, v = y - targetCenter.y
-            // The inverse turn: counterclockwise, back into the original.
-            return Point2D(x: u * c + v * s + sourceCenter.x, y: -u * s + v * c + sourceCenter.y)
+        let sourceCenter = (x: Double(buffer.width) / 2, y: Double(buffer.height) / 2)
+        let targetCenter = (x: Double(size.width) / 2, y: Double(size.height) / 2)
+        // vImage maps source to destination: x' = a·x + c·y + tx, y' = b·x + d·y + ty.
+        var transform = vImage_AffineTransform_Double(
+            a: c, b: s, c: -s, d: c,
+            tx: targetCenter.x - c * sourceCenter.x + s * sourceCenter.y,
+            ty: targetCenter.y - s * sourceCenter.x - c * sourceCenter.y)
+        let premultiplied = buffer.copy()
+        var source = premultiplied.vImageBuffer
+        vImagePremultiplyData_RGBA8888(&source, &source, vImage_Flags(kvImageNoFlags))
+        let result = PixelBuffer(width: size.width, height: size.height)
+        var destination = result.vImageBuffer
+        // The fill, premultiplied, in the buffer's own byte order.
+        func scaled(_ value: UInt8) -> UInt8 { UInt8((Double(value) * Double(fill.a) / 255).rounded()) }
+        let background = Pixel(r: scaled(fill.r), g: scaled(fill.g), b: scaled(fill.b), a: fill.a)
+        withUnsafeBytes(of: background) { bytes in
+            var color = Array(bytes.bindMemory(to: UInt8.self))
+            let edges = extendingEdges ? kvImageEdgeExtend : kvImageBackgroundColorFill
+            _ = vImageAffineWarpD_ARGB8888(&source, &destination, nil, &transform, &color, vImage_Flags(edges))
         }
+        vImageUnpremultiplyData_RGBA8888(&destination, &destination, vImage_Flags(kvImageNoFlags))
+        return result
     }
 
     /// The four corners (top left, top right, bottom right, bottom left, in image coordinates) stretched to a
@@ -176,15 +198,18 @@ extension ImageActions {
     /// Fit the empty corners are trimmed; otherwise the canvas grows and they get Color 2 on a solid image.
     @discardableResult
     public static func straighten(angle: Double, cropToFit: Bool, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
-        let angle = min(max(angle, -45), 45)
-        guard abs(angle) >= 0.05 else { return false }
-        let size = Warp.straightenedSize(canvas.size, angle: angle, cropToFit: cropToFit)
-        guard size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return false }
-        // An empty layer still needs drawing when its new corners get Color 2 (review A, finding 8).
-        let needsDrawing = { (layer: Layer) in canvas.vacatedFill(for: layer, color2: context.color2) != .clear }
-        return replaceEveryLayer("Straighten", size: size, canvas: canvas, history: history, context: context, drawsEmptyLayer: needsDrawing) { layer in
-            Warp.rotated(layer.buffer, angle: angle, size: size, fill: canvas.vacatedFill(for: layer, color2: context.color2))
-        }
+        guard let plan = StraightenPlan(angle: angle, cropToFit: cropToFit, canvas: canvas, context: context) else { return false }
+        return straighten(plan, buffers: plan.render(), canvas: canvas, history: history, context: context)
+    }
+
+    /// Commits a Straighten worked out from `plan` (possibly in the background) as one step. The canvas must
+    /// still hold the layers the plan was made from.
+    @discardableResult
+    public static func straighten(_ plan: StraightenPlan, buffers: [LayerID: PixelBuffer], canvas: Canvas, history: History,
+                                  context: SelectionContext) -> Bool {
+        guard plan.matches(canvas) else { return false }
+        return replaceEveryLayer("Straighten", size: plan.size, canvas: canvas, history: history, context: context,
+                                 drawsEmptyLayer: { _ in true }) { layer in buffers[layer.id]! }
     }
 
     /// Perspective Correction (FR-9.5): the four corners (top left, top right, bottom right, bottom left) become
@@ -227,5 +252,48 @@ extension ImageActions {
         canvas.replaceContents(size: size, buffers: buffers)
         canvas.selection = .none
         return history.commit(edit)
+    }
+}
+
+/// A Straighten worked out from the canvas as it is now, so the turning itself can run off the main thread
+/// (the slider's live preview; Leah, 2026-10-11). It holds the original layer buffers, which must not change while
+/// it renders: during the Straighten session they're in the canvas or in the newest undo step, which is never spilled.
+public struct StraightenPlan: @unchecked Sendable {
+    public let angle: Double
+    public let cropToFit: Bool
+    public let size: IntSize
+    private let layers: [(id: LayerID, buffer: PixelBuffer, generation: Int, fill: Pixel, draws: Bool)]
+
+    public init?(angle: Double, cropToFit: Bool, canvas: Canvas, context: SelectionContext) {
+        let angle = min(max(angle, -45), 45)
+        guard abs(angle) >= 0.05 else { return nil }
+        let size = Warp.straightenedSize(canvas.size, angle: angle, cropToFit: cropToFit)
+        guard size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return nil }
+        self.angle = angle
+        self.cropToFit = cropToFit
+        self.size = size
+        layers = canvas.layers.map { layer in
+            let fill = canvas.vacatedFill(for: layer, color2: context.color2)
+            // An empty layer still needs drawing when its new corners get Color 2 (review A, finding 8).
+            return (layer.id, layer.buffer, layer.buffer.generation, fill, !layer.holdsNoPixels || fill != .clear)
+        }
+    }
+
+    /// Each layer's new buffer. Safe to run off the main thread.
+    public func render() -> [LayerID: PixelBuffer] {
+        var buffers: [LayerID: PixelBuffer] = [:]
+        for layer in layers {
+            buffers[layer.id] = layer.draws
+                ? Warp.rotated(layer.buffer, angle: angle, size: size, fill: layer.fill, extendingEdges: cropToFit)
+                : PixelBuffer(size: size)
+        }
+        return buffers
+    }
+
+    /// Whether `canvas` still has exactly the layers, buffers and pixels this was made from.
+    func matches(_ canvas: Canvas) -> Bool {
+        canvas.layers.count == layers.count && zip(canvas.layers, layers).allSatisfy { layer, planned in
+            layer.id == planned.id && layer.buffer === planned.buffer && layer.buffer.generation == planned.generation
+        }
     }
 }

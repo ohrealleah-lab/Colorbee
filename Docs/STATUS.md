@@ -13,7 +13,7 @@ _Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+1. [Straighten stays responsive](#test-straighten-stays-responsive): 6 steps, about 5 minutes.
 
 ---
 
@@ -236,6 +236,15 @@ _2026-10-11: passed Leah's hand test on 2026-10-11._ Found by the new Editor tes
 2. File ▸ Export… (⌥⌘S) as a PNG on the Desktop, then open that PNG: all three badges are there, including 3.
 3. Back in Colorbee, badge 3 can no longer be dragged (it's placed), and ⌘Z removes only badge 3. The next click makes a new 3.
 4. Click to make badge 4, then Edit ▸ Copy (⌘C) with nothing selected and Edit ▸ Paste into New Image (⇧⌘V): the new image has badge 4.
+
+### Test: Straighten stays responsive
+_2026-10-11, not yet tested._ GPU audit recommendation 3, both parts (Leah's choice). A: the slider's preview is turned in the background (`StraightenPlan`: plan on the main thread, render off it, commit on it) and swapped in when ready; moves made meanwhile are merged; Apply finishes the newest angle right away; Cancel, Undo or any other command drops a turn in progress. B: rotation uses vImage (`Warp.rotated`): 450 → 205 ms at 45 MP; quarter and half turns land exactly (new test); with Crop to fit the edge pixels are repeated. Drop Shadow and Border are unchanged. 4 new app tests (`StraightenPreviewTests`). Rebuild with the script (option 2) first. Use Leah's CR3 (Downloads/7762545337.cr3), developed and opened, ideally with a second layer (Layer ▸ Duplicate Layer).
+1. Image ▸ Straighten…, then drag the angle slider back and forth quickly. The slider and the window keep moving smoothly; the photo catches up a moment later instead of the whole app freezing.
+2. Let go at about 3°. The preview settles on 3°.
+3. Move the slider, and press Apply straight away, before the preview catches up. The result is turned by the angle the slider shows.
+4. ⌘Z: the photo is back as it was, in one step. ⌘⇧Z turns it again.
+5. Open Straighten again, move the slider, and press Cancel (or Esc) at once. Nothing changes, and there's nothing new to undo.
+6. Draw a line along something that should be level: the angle and preview follow, as before.
 
 ### Test: Adjust Photo, Sharpen and Skew are faster
 _2026-10-11: passed Leah's hand test on 2026-10-11._ GPU audit recommendations 2 and 4. Adjust Photo remembers each color's result on images of 2 MP and up (`ColorMemory`: a 64 MB table shared by all cores with atomic writes, freed after each run). The serial loops in blur (copy-in, coverage, alpha), Effects' copy-back, Sharpen and Skew now run on all cores. Results are byte-identical: 22 outputs (blur, Sharpen, Adjust Photo all and color-only, at 0.06 and 2.2 MP, with and without a soft selection, with see-through pixels; Skew both ways, smooth and sharp) hashed the same with the old and new code. Synthetic 45 MP timings, taken while a game was running: Sharpen 349 → 168 ms, Skew both ways 1,089 → 170 ms, Adjust Photo color only 580 → 230 ms, all sliders 1,006 → 769 ms; blur unchanged (its time is vImage's). Rebuild with the script (option 2) first. Use Leah's CR3 (Downloads/7762545337.cr3) and `TestImages/Stage 9 Practice Photo.png`.

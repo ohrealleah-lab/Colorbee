@@ -1162,11 +1162,12 @@ final class Editor {
         if changed { onRender() }
     }
 
-    /// With `constrain`, the pencil stays on one horizontal or vertical line from where it started (`AxisLock`).
+    /// With `constrain`, the pencil, brush or eraser stays on one horizontal or vertical line from where it started
+    /// (`AxisLock`), for highlighting a line of text (Leah, 2026-10-10).
     func continueStroke(to point: Point2D, constrain: Bool, pressure: Double = 1) {
         guard var active = activeStroke else { return }
         var target = point
-        if constrain, tool == .pencil {
+        if constrain {
             target = active.axisLock.constrain(point)
         }
         active.pressureRange = min(active.pressureRange.lowerBound, pressure)...max(active.pressureRange.upperBound, pressure)

@@ -202,9 +202,11 @@ These let you build several separate regions for batch redaction (FR-9.4).
 - Size is 1–50px. Every brush follows the Alpha slider.
 - **Pressure:** on a Force Touch trackpad or a pen tablet, pressure changes brush size (and opacity where it makes sense). Other devices draw at full pressure.
 - Brushes follow Symmetry (FR-7.3).
+- **Shift** keeps the stroke on one horizontal or vertical line from where it started, as for the Pencil, for highlighting a line of text (Leah, 2026-10-10).
 
 ### FR-4.3 Eraser
 - Square eraser. Sizes every 2px from 2 to 20px, plus 30 and 40px, or custom. **[** and **]** change the size.
+- **Shift** keeps the stroke straight across or up and down, as for the Pencil and brushes (Leah, 2026-10-10).
 - **Left-drag:** paints Color 2, or transparency on a transparent layer.
 - **Right-drag (Color Eraser):** replaces *only* pixels that match Color 1 with Color 2. The default tolerance is 0% (exact match); a tolerance setting is available.
 
@@ -829,6 +831,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-10 | Shift on the brushes and Eraser (Leah): holding Shift keeps the stroke on one horizontal or vertical line from where it started, like the Pencil, so the Marker can highlight a line of text. |
 | 2026-10-10 | Soft selections (13d), my choices (veto any): Feather in the selection tools is applied when the drag ends (the outline already sits where pixels are half selected, so it looks the same while dragging) and isn't offered for the Magic Wand; Edit ▸ Feather… starts at 10 px, and like Invert Selection it changes the selection without adding an undo step; feathering is a Gaussian about the radius wide each way, and a selection reaching the canvas edge stays fully selected there; Subtract takes away in proportion; Copy and moving take a partly selected pixel's color with its alpha scaled, and Delete or moving leave the rest (on the background layer, mixed toward Color 2); Fill, Gradient, effects and adjustments mix by how selected each pixel is; Auto-Redact, Batch Redact and the Redact Brush harden the selection first; Select Subject keeps Vision's soft edge (the trial's cut at half is gone). |
 | 2026-10-10 | Sidebar (Leah): turning off its last panel with the switcher closes the sidebar, as ⌘L already did; opening it with no panel chosen shows the Layers panel, so it's never an empty shell. A window saved with an open, empty sidebar opens with it closed. |
 | 2026-10-10 | **Only the layer below** for adjustment layers (Leah: she cut a character out onto its own layer and wanted to saturate it without touching the background). My choices (veto any): a switch under the blend mode in the Layers panel, shown for adjustment layers; it clips to the nearest layer below that isn't itself a clipped adjustment, and has no effect if that's an ordinary adjustment layer; a hidden layer hides its clipped adjustments too; Merge Adjustment on a clipped one bakes it, with the visible clipped ones beneath it, into that layer; a floating selection on that layer shows its clipped adjustments on screen but not in a copy made while it's floating (it's placed first for exports anyway). |

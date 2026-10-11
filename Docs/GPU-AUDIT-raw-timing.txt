@@ -1,0 +1,67 @@
+// RAW Develop timing for the GPU audit (2026-10-10). Not part of the app or its tests.
+// Setup: make a scratch SwiftPM executable package named "rawtime" (swift-tools 6.2, macOS 26) outside the repo,
+// depending on ../Packages/ColorbeeCore by path (product "ColorbeeCore"). Copy Sources/Colorbee/RawDeveloper.swift
+// next to this file (rename this file main.swift). Then: swift build -c release
+// and: .build/release/rawtime /path/to/photo.cr3
+// Compares RawDeveloper.preview (a new CIRAWFilter per call, as the Develop window does now) with one reused filter.
+// Run on a quiet Mac; each figure is the fastest of 5.
+import ColorbeeCore
+import CoreImage
+import Foundation
+
+func ms(_ body: () -> Void) -> String {
+    let d = ContinuousClock().measure(body)
+    return String(format: "%.0f ms", Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15)
+}
+func rss() -> Int {
+    var u = rusage(); getrusage(RUSAGE_SELF, &u); return Int(u.ru_maxrss) >> 20
+}
+
+let url = URL(fileURLWithPath: CommandLine.arguments[1])
+var developer: RawDeveloper!
+
+developer = try! RawDeveloper(url: url)
+let base = developer.cameraDefaults
+let side = 1600
+let context = CIContext(options: [.cacheIntermediates: false, .workingFormat: CIFormat.RGBAh])
+let space = Canvas.defaultColorSpace
+var filter: CIRAWFilter! = CIRAWFilter(imageURL: url)
+filter.scaleFactor = Float(side) / Float(max(developer.size.width, developer.size.height))
+// ---- Part 2: reused filter, every control, and are the pixels identical to the app's way?
+@MainActor func reusedImage(_ s: DevelopSettings) -> CGImage? {
+    filter.exposure = Float(s.exposure)
+    filter.neutralTemperature = Float(s.temperature)
+    filter.neutralTint = Float(s.tint)
+    if developer.support.noiseReduction { filter.luminanceNoiseReductionAmount = Float(s.noiseReduction / 100) }
+    if developer.support.sharpness { filter.sharpnessAmount = Float(s.sharpness / 100) }
+    guard var image = filter.outputImage else { return nil }
+    if s.highlights != 0 || s.shadows != 0 {
+        image = image.applyingFilter("CIHighlightShadowAdjust", parameters: [
+            "inputHighlightAmount": 1 + max(-1, min(0, s.highlights / 100)), "inputShadowAmount": s.shadows / 100, "inputRadius": 0])
+    }
+    if s.contrast != 0 { image = image.applyingFilter("CIColorControls", parameters: [kCIInputContrastKey: 1 + s.contrast / 100 * 0.5]) }
+    return context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: space)
+}
+func bytes(_ i: CGImage) -> Data { i.dataProvider!.data! as Data }
+
+
+
+let moves: [(String, (inout DevelopSettings, Double) -> Void)] = [
+    ("exposure", { $0.exposure = 0.2 + $1 * 2 }),
+    ("temperature", { $0.temperature = base.temperature - 300 - $1 * 3000 }),
+    ("tint", { $0.tint = 5 + $1 * 400 }),
+    ("highlights", { $0.highlights = -10 - $1 * 400 }),
+    ("shadows", { $0.shadows = 10 + $1 * 400 }),
+    ("contrast", { $0.contrast = 5 + $1 * 300 }),
+    ("noise reduction", { $0.noiseReduction = 10 + $1 * 400 }),
+    ("sharpness", { $0.sharpness = 10 + $1 * 400 }),
+]
+func best(_ n: Int, _ body: (Double) -> Void) -> Double {
+    (0..<n).map { i in let d = ContinuousClock().measure { body(Double(i + 1) * 0.01) }; return Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15 }.min()!
+}
+_ = reusedImage(base); _ = developer.preview(base, maxSide: side)
+for (name, move) in moves {
+    let tf = best(5) { k in var s = base; move(&s, k); _ = developer.preview(s, maxSide: side) }
+    let tr = best(5) { k in var s = base; move(&s, k + 0.07); _ = reusedImage(s) }
+    print(String(format: "TIMING4 %@ (that slider changes each run): app way %.0f ms, reused filter %.0f ms (fastest of 5)", name, tf, tr))
+}

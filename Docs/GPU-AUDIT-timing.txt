@@ -1,0 +1,157 @@
+import Foundation
+import Testing
+@testable import ColorbeeCore
+
+// Throwaway timing for the GPU audit. Never committed.
+@Suite(.serialized)
+struct ScratchTiming {
+    let context = SelectionContext(color2: .white)
+
+    func photo(_ width: Int, _ height: Int) -> Canvas {
+        let canvas = Canvas(size: IntSize(width: width, height: height), colorSpace: Canvas.defaultColorSpace, background: .white)
+        fill(canvas.layers[0].buffer)
+        return canvas
+    }
+
+    func fill(_ buffer: PixelBuffer) {
+        ParallelRows.forEach(0..<buffer.height) { rows in
+            for y in rows {
+                let row = buffer.row(y)
+                for x in 0..<buffer.width {
+                    let n = Int(Noise.hash(x: x, y: y, channel: 1) & 15) - 8
+                    func v(_ base: Int) -> UInt8 { UInt8(max(0, min(255, base + n))) }
+                    row[x] = Pixel(r: v((x / 7) & 255), g: v((y / 5) & 255), b: v(((x ^ y) / 9) & 255))
+                }
+            }
+        }
+    }
+
+    func ms(_ d: Duration) -> String { String(format: "%.0f ms", Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15) }
+
+    func fastest(_ runs: Int, _ body: () -> Void) -> Duration {
+        (0..<runs).map { _ in ContinuousClock().measure(body) }.min()!
+    }
+
+    func report(_ label: String, _ d: Duration) { print("TIMING \(label): \(ms(d))") }
+
+    func effect(_ label: String, _ size: String, _ canvas: Canvas, _ effect: Effect, runs: Int) {
+        let history = History(byteBudget: .max)
+        var best = Duration.seconds(100)
+        for _ in 0..<runs {
+            let edit = history.beginEdit("E", on: canvas)
+            let t = ContinuousClock().measure { Effects.apply(effect, to: canvas.activeLayer, selection: nil, edit: edit) }
+            history.commit(edit)
+            history.undo(on: canvas)
+            best = min(best, t)
+        }
+        report("\(label) @\(size)", best)
+    }
+
+    @Test func timings() throws {
+        let sizes: [(String, Int, Int, Int)] = [("12MP", 4000, 3000, 3), ("45MP", 8256, 5504, 2)]
+        for (name, w, h, runs) in sizes {
+            let canvas = photo(w, h)
+            let buffer = canvas.activeLayer.buffer
+
+            effect("blur r8", name, canvas, .gaussianBlur(radius: 8), runs: runs)
+            effect("sharpen 50", name, canvas, .sharpen(amount: 50), runs: runs)
+            effect("hue/sat", name, canvas, .hueSaturation(hue: 30, saturation: 10, lightness: 0), runs: runs)
+            effect("invert", name, canvas, .invert, runs: runs)
+            effect("pixelate 12", name, canvas, .pixelate(cellSize: 12), runs: runs)
+
+            let colorOnly = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20, .brilliance: 20, .shadows: 30, .contrast: 15, .saturation: 20, .vibrance: 20, .warmth: 10]))
+            let withDetail = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20, .brilliance: 20, .shadows: 30, .contrast: 15, .saturation: 20, .vibrance: 20, .warmth: 10,
+                                                                      .sharpness: 40, .definition: 30, .noiseReduction: 30, .vignette: 20]))
+            effect("adjust photo (color only)", name, canvas, .photo(colorOnly), runs: runs)
+            effect("adjust photo (all sliders)", name, canvas, .photo(withDetail), runs: runs)
+
+            // The live preview path: a full copy of the layer, then the effect.
+            report("preview render blur @\(name)", fastest(runs) { _ = EffectPreview.render(.gaussianBlur(radius: 8), from: buffer, regions: nil) })
+            report("preview render adjust photo all @\(name)", fastest(runs) { _ = EffectPreview.render(.photo(withDetail), from: buffer, regions: nil) })
+
+            // Resize / skew
+            let half = IntSize(width: w * 4 / 5, height: h * 4 / 5)
+            report("resize smooth 80% @\(name)", fastest(runs) { _ = buffer.resampled(to: half, using: .smooth) })
+            report("resize sharp 80% @\(name)", fastest(runs) { _ = buffer.resampled(to: half, using: .nearestNeighbor) })
+            report("skew h10 smooth @\(name)", fastest(runs) { _ = buffer.resizedAndSkewed(ResizeSkew(size: buffer.size, horizontalSkew: 10, resampling: .smooth)) })
+            report("skew h10 sharp @\(name)", fastest(runs) { _ = buffer.resizedAndSkewed(ResizeSkew(size: buffer.size, horizontalSkew: 10, resampling: .nearestNeighbor)) })
+            report("skew h10+v10 smooth @\(name)", fastest(runs) { _ = buffer.resizedAndSkewed(ResizeSkew(size: buffer.size, horizontalSkew: 10, verticalSkew: 10, resampling: .smooth)) })
+
+            // Replicas of the serial copy loops in Effects (copy-back with the per-pixel selected check, no selection)
+            let target = PixelBuffer(width: w, height: h)
+            report("serial copy loop w/ isSelected @\(name)", fastest(runs) {
+                for y in 0..<h {
+                    let s = buffer.row(y), d = target.row(y)
+                    for x in 0..<w where Effects.isSelected(nil, x, y) { d[x] = s[x] }
+                }
+            })
+            report("row memcpy @\(name)", fastest(runs) { for y in 0..<h { target.row(y).update(from: buffer.row(y), count: w) } })
+
+            // Replica of SubjectScan.bytes(of:): a 1024-wide float mask expanded to the image
+            let mw = 1024, mh = 768
+            let mask = [Float](repeating: 0.5, count: mw * mh)
+            var out = [UInt8](repeating: 0, count: w * h)
+            report("subject mask expand (serial replica) @\(name)", fastest(runs) {
+                mask.withUnsafeBufferPointer { m in
+                    for y in 0..<h {
+                        let row = m.baseAddress! + mh.nonzeroBitCount * 0 + min(mh - 1, y * mh / h) * mw
+                        for x in 0..<w { out[y * w + x] = UInt8((min(max(row[min(mw - 1, x * mw / w)], 0), 1) * 255).rounded()) }
+                    }
+                }
+            })
+
+            // Flatten: three layers (opaque photo, semi-transparent multiply, adjustment on top)
+            let layered = photo(w, h)
+            let history = History(byteBudget: .max)
+            LayerActions.add(canvas: layered, history: history, context: context)
+            layered.activeLayer.buffer.fill(Pixel(r: 100, g: 100, b: 200, a: 128), in: IntRect(x: 0, y: 0, width: w / 2, height: h / 2))
+            layered.activeLayer.blendMode = .multiply
+            LayerActions.addAdjustment(.brightnessContrast(brightness: 10, contrast: 10), named: "B/C", canvas: layered, history: history, context: context)
+            report("flatten 2 layers + adjustment @\(name)", fastest(runs) { _ = layered.flattened() })
+            let plain = photo(w, h)
+            LayerActions.add(canvas: plain, history: history, context: context)
+            plain.activeLayer.buffer.copyContents(from: canvas.activeLayer.buffer)
+            report("flatten 2 opaque normal layers @\(name)", fastest(runs) { _ = plain.flattened() })
+
+            // Straighten (every layer): 1 layer and 3 layers
+            for layerCount in [1, 3] {
+                let c = photo(w, h)
+                let hist = History(byteBudget: .max)
+                for _ in 1..<layerCount { LayerActions.add(canvas: c, history: hist, context: context); c.activeLayer.buffer.fill(Pixel(r: 9, g: 9, b: 9, a: 200)) }
+                var best = Duration.seconds(100)
+                for _ in 0..<runs {
+                    let t = ContinuousClock().measure { ImageActions.straighten(angle: 3, cropToFit: true, canvas: c, history: hist, context: context) }
+                    hist.undo(on: c)
+                    best = min(best, t)
+                }
+                report("straighten 3deg, \(layerCount) layer(s) @\(name)", best)
+            }
+
+            // Perspective correction on one layer
+            let corners = [Point2D(x: Double(w) * 0.05, y: Double(h) * 0.08), Point2D(x: Double(w) * 0.95, y: Double(h) * 0.03),
+                           Point2D(x: Double(w) * 0.97, y: Double(h) * 0.95), Point2D(x: Double(w) * 0.02, y: Double(h) * 0.9)]
+            let pc = photo(w, h)
+            let ph = History(byteBudget: .max)
+            var bestP = Duration.seconds(100)
+            for _ in 0..<runs {
+                let t = ContinuousClock().measure { ImageActions.correctPerspective(corners: corners, canvas: pc, history: ph, context: context) }
+                ph.undo(on: pc)
+                bestP = min(bestP, t)
+            }
+            report("perspective, 1 layer @\(name)", bestP)
+        }
+
+        // PDF pages: letter at 200 and 300 DPI
+        for (label, w, h) in [("200dpi", 1700, 2200), ("300dpi", 2550, 3300)] {
+            let page = photo(w, h)
+            let flat = page.flattened()
+            report("pdf encodePage \(label)", fastest(2) { _ = try? PDFWriter.encodePage(flat, colorSpace: Canvas.defaultColorSpace, resolution: label == "200dpi" ? 200 : 300) })
+        }
+    }
+}
+
+extension PixelBuffer {
+    fileprivate func copyContents(from other: PixelBuffer) {
+        for y in 0..<height { row(y).update(from: other.row(y), count: width) }
+    }
+}

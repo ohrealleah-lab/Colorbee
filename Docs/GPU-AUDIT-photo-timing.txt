@@ -1,0 +1,169 @@
+// Adjust Photo and Straighten timing for the GPU audit (2026-10-10). Not part of the app or its tests.
+// Setup: make a scratch SwiftPM executable package named "rawtime" (swift-tools 6.2, macOS 26) outside the repo,
+// depending on ../Packages/ColorbeeCore by path (product "ColorbeeCore"). Copy Sources/Colorbee/RawDeveloper.swift
+// next to this file (rename this file main.swift). Then: swift build -c release
+// and: .build/release/rawtime /path/to/photo.cr3
+// Develops the CR3 to full size, then times Adjust Photo (app vs a remember-each-color prototype, with an exactness check) and Straighten (app vs vImage rotation, with a pixel-difference check).
+// Run on a quiet Mac; each figure is the fastest of 5.
+import ColorbeeCore
+import Accelerate
+import CoreImage
+import Foundation
+
+func ms(_ body: () -> Void) -> String {
+    let d = ContinuousClock().measure(body)
+    return String(format: "%.0f ms", Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15)
+}
+func rss() -> Int {
+    var u = rusage(); getrusage(RUSAGE_SELF, &u); return Int(u.ru_maxrss) >> 20
+}
+
+let url = URL(fileURLWithPath: CommandLine.arguments[1])
+var developer: RawDeveloper!
+
+
+developer = try! RawDeveloper(url: url)
+let canvas = try! developer.develop(developer.cameraDefaults)
+let buffer = canvas.layers[0].buffer
+let w = buffer.width, h = buffer.height
+print("INFO developed \(w)x\(h)")
+
+// How many different colors does a real 45 MP photo hold?
+var seen = [UInt64](repeating: 0, count: 1 << 18)
+for y in 0..<h { let row = buffer.row(y); for x in 0..<w { let p = row[x]; let k = Int(p.r) << 16 | Int(p.g) << 8 | Int(p.b); seen[k >> 6] |= 1 << UInt64(k & 63) } }
+let distinct = seen.reduce(0) { $0 + $1.nonzeroBitCount }
+print("INFO distinct colors: \(distinct) of \(w * h) pixels (\(String(format: "%.1f", Double(distinct) / Double(w * h) * 100))%)")
+
+let colorOnly = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20, .brilliance: 20, .shadows: 30, .contrast: 15, .saturation: 20, .vibrance: 20, .warmth: 10]))
+let history = History(byteBudget: .max)
+var baseline = Duration.seconds(100)
+for run in 0..<3 {
+    let edit = history.beginEdit("E", on: canvas)
+    let t = ContinuousClock().measure { Effects.apply(.photo(colorOnly), to: canvas.activeLayer, selection: nil, edit: edit) }
+    history.commit(edit)
+    if t < baseline { baseline = t }
+    if run < 2 { history.undo(on: canvas) }
+}
+print("TIMING5 baseline adjust photo (color only, real photo):", baseline)
+let expected = buffer.contentHash()
+history.undo(on: canvas)
+
+// Prototype: same per-pixel function, but each distinct color is worked out once and remembered.
+let transform = colorOnly.colorTransform
+let cache = UnsafeMutablePointer<UInt32>.allocate(capacity: 1 << 24)
+nonisolated(unsafe) let cacheRef = cache
+let target = PixelBuffer(width: w, height: h)
+nonisolated(unsafe) let src = buffer
+nonisolated(unsafe) let dst = target
+func run() {
+    memset(cacheRef, 0, (1 << 24) * 4)
+    let bands = 64
+    DispatchQueue.concurrentPerform(iterations: bands) { band in
+        for y in (h * band / bands)..<(h * (band + 1) / bands) {
+            let s = src.row(y), d = dst.row(y)
+            for x in 0..<w {
+                let p = s[x]
+                let k = Int(p.r) << 16 | Int(p.g) << 8 | Int(p.b)
+                let c = cacheRef[k]
+                if c != 0 {
+                    d[x] = Pixel(r: UInt8(c >> 16 & 255), g: UInt8(c >> 8 & 255), b: UInt8(c & 255), a: p.a)
+                } else {
+                    let q = transform(p)
+                    cacheRef[k] = 0x8000_0000 | UInt32(q.r) << 16 | UInt32(q.g) << 8 | UInt32(q.b)
+                    d[x] = q
+                }
+            }
+        }
+    }
+}
+var proto = Duration.seconds(100)
+for _ in 0..<3 { let t = ContinuousClock().measure(run); if t < proto { proto = t } }
+print("TIMING5 prototype with per-color memory:", proto)
+print("INFO identical to the app's result:", target.contentHash() == expected)
+
+// Detail sliders only (sharpness, definition, noise reduction): time, and how many different colors come out
+// (those are the inputs the color step would see).
+let detailOnly = PhotoEdit(adjustments: PhotoAdjustments([.sharpness: 40, .definition: 30, .noiseReduction: 30]))
+var bestD = Duration.seconds(100)
+for run in 0..<3 {
+    let edit = history.beginEdit("D", on: canvas)
+    let t = ContinuousClock().measure { Effects.apply(.photo(detailOnly), to: canvas.activeLayer, selection: nil, edit: edit) }
+    history.commit(edit)
+    if t < bestD { bestD = t }
+    if run < 2 { history.undo(on: canvas) }
+}
+print("TIMING5 detail sliders only (no color sliders), real photo:", bestD)
+var seen2 = [UInt64](repeating: 0, count: 1 << 18)
+for y in 0..<h { let row = buffer.row(y); for x in 0..<w { let p = row[x]; let k = Int(p.r) << 16 | Int(p.g) << 8 | Int(p.b); seen2[k >> 6] |= 1 << UInt64(k & 63) } }
+let distinct2 = seen2.reduce(0) { $0 + $1.nonzeroBitCount }
+print("INFO distinct colors after detail step: \(distinct2) (\(String(format: "%.1f", Double(distinct2) / Double(w * h) * 100))%)")
+history.undo(on: canvas)
+let all = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20, .brilliance: 20, .shadows: 30, .contrast: 15, .saturation: 20, .vibrance: 20, .warmth: 10, .sharpness: 40, .definition: 30, .noiseReduction: 30, .vignette: 20]))
+var bestA = Duration.seconds(100)
+for run in 0..<3 {
+    let edit = history.beginEdit("A", on: canvas)
+    let t = ContinuousClock().measure { Effects.apply(.photo(all), to: canvas.activeLayer, selection: nil, edit: edit) }
+    history.commit(edit)
+    if t < bestA { bestA = t }
+    history.undo(on: canvas)
+}
+print("TIMING5 all sliders together, real photo:", bestA)
+
+// Straighten: how close is vImage's rotation to the app's?
+let sizeOut = Warp.straightenedSize(IntSize(width: w, height: h), angle: 3, cropToFit: true)
+let original = canvas.layers[0].buffer.copy()
+_ = ImageActions.straighten(angle: 3, cropToFit: true, canvas: canvas, history: history, context: SelectionContext(color2: .white))
+let appResult = canvas.layers[0].buffer
+print("INFO straightened size \(appResult.width)x\(appResult.height)")
+history.undo(on: canvas)
+
+@MainActor func vimageRotate(angle: Double, delta: Double, quality: Bool) -> PixelBuffer {
+    let premult = original.copy()
+    var s = vImage_Buffer(data: premult.baseAddress, height: vImagePixelCount(h), width: vImagePixelCount(w), rowBytes: premult.bytesPerRow)
+    vImagePremultiplyData_RGBA8888(&s, &s, vImage_Flags(kvImageNoFlags))
+    let out = PixelBuffer(width: sizeOut.width, height: sizeOut.height)
+    var d = vImage_Buffer(data: out.baseAddress, height: vImagePixelCount(sizeOut.height), width: vImagePixelCount(sizeOut.width), rowBytes: out.bytesPerRow)
+    let r = angle * Double.pi / 180
+    let c = cos(r), sn = sin(r)
+    let cx = Double(w) / 2 + delta, cy = Double(h) / 2 + delta, ox = Double(sizeOut.width) / 2 + delta, oy = Double(sizeOut.height) / 2 + delta
+    var t = vImage_AffineTransform(a: c, b: sn, c: -sn, d: c, tx: ox - (c * cx - sn * cy), ty: oy - (sn * cx + c * cy))
+    var clear: [UInt8] = [0, 0, 0, 0]
+    _ = vImageAffineWarp_ARGB8888(&s, &d, nil, &t, &clear, vImage_Flags(kvImageBackgroundColorFill | (quality ? kvImageHighQualityResampling : 0)))
+    vImageUnpremultiplyData_RGBA8888(&d, &d, vImage_Flags(kvImageNoFlags))
+    return out
+}
+func compare(_ a: PixelBuffer, _ b: PixelBuffer) -> String {
+    var sum = 0, count = 0, over2 = 0, over8 = 0, maxDiff = 0
+    for y in stride(from: 0, to: a.height, by: 3) {
+        let ra = a.row(y), rb = b.row(y)
+        for x in stride(from: 0, to: a.width, by: 3) {
+            let p = ra[x], q = rb[x]
+            let dr = abs(Int(p.r) - Int(q.r)), dg = abs(Int(p.g) - Int(q.g)), db = abs(Int(p.b) - Int(q.b)), da = abs(Int(p.a) - Int(q.a))
+            let m = max(dr, dg, db, da)
+            sum += dr + dg + db; count += 3
+            if m > 2 { over2 += 1 }
+            if m > 8 { over8 += 1 }
+            maxDiff = max(maxDiff, m)
+        }
+    }
+    let n = (a.height + 2) / 3 * ((a.width + 2) / 3)
+    return String(format: "mean |diff| %.2f of 255, pixels off by >2: %.1f%%, >8: %.2f%%, max %d", Double(sum) / Double(count), Double(over2) / Double(n) * 100, Double(over8) / Double(n) * 100, maxDiff)
+}
+for delta in [-0.5, 0.0, 0.5] {
+    for quality in [false, true] {
+        let r = vimageRotate(angle: -3, delta: delta, quality: quality)
+        print("TIMING7 vImage (turned -3) center shift \(delta), high quality \(quality): \(compare(appResult, r))")
+    }
+}
+for q in [false, true] {
+    var best = Duration.seconds(100)
+    for _ in 0..<3 { let t = ContinuousClock().measure { _ = vimageRotate(angle: -3, delta: 0, quality: q) }; if t < best { best = t } }
+    print("TIMING7 speed, high quality \(q): \(best)")
+}
+var bestApp = Duration.seconds(100)
+for _ in 0..<3 {
+    let t = ContinuousClock().measure { _ = ImageActions.straighten(angle: 3, cropToFit: true, canvas: canvas, history: history, context: SelectionContext(color2: .white)) }
+    history.undo(on: canvas)
+    if t < bestApp { bestApp = t }
+}
+print("TIMING7 app straighten, fastest of 3:", bestApp)

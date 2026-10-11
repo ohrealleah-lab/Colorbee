@@ -13,7 +13,7 @@ _Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-1. [Straighten stays responsive](#test-straighten-stays-responsive): 6 steps, about 5 minutes.
+Nothing waiting right now.
 
 ---
 
@@ -238,7 +238,7 @@ _2026-10-11: passed Leah's hand test on 2026-10-11._ Found by the new Editor tes
 4. Click to make badge 4, then Edit ▸ Copy (⌘C) with nothing selected and Edit ▸ Paste into New Image (⇧⌘V): the new image has badge 4.
 
 ### Test: Straighten stays responsive
-_2026-10-11, not yet tested._ GPU audit recommendation 3, both parts (Leah's choice). A: the slider's preview is turned in the background (`StraightenPlan`: plan on the main thread, render off it, commit on it) and swapped in when ready; moves made meanwhile are merged; Apply finishes the newest angle right away; Cancel, Undo or any other command drops a turn in progress. B: rotation uses vImage (`Warp.rotated`): 450 → 205 ms at 45 MP; quarter and half turns land exactly (new test); with Crop to fit the edge pixels are repeated. Drop Shadow and Border are unchanged. 4 new app tests (`StraightenPreviewTests`). Rebuild with the script (option 2) first. Use Leah's CR3 (Downloads/7762545337.cr3), developed and opened, ideally with a second layer (Layer ▸ Duplicate Layer).
+_2026-10-11: passed Leah's hand test on 2026-10-11; she prefers the crisper rotation._ GPU audit recommendation 3, both parts (Leah's choice). A: the slider's preview is turned in the background (`StraightenPlan`: plan on the main thread, render off it, commit on it) and swapped in when ready; moves made meanwhile are merged; Apply finishes the newest angle right away; Cancel, Undo or any other command drops a turn in progress. B: rotation uses vImage (`Warp.rotated`): 450 → 205 ms at 45 MP; quarter and half turns land exactly (new test); with Crop to fit the edge pixels are repeated. Drop Shadow and Border are unchanged. 4 new app tests (`StraightenPreviewTests`). Rebuild with the script (option 2) first. Use Leah's CR3 (Downloads/7762545337.cr3), developed and opened, ideally with a second layer (Layer ▸ Duplicate Layer).
 1. Image ▸ Straighten…, then drag the angle slider back and forth quickly. The slider and the window keep moving smoothly; the photo catches up a moment later instead of the whole app freezing.
 2. Let go at about 3°. The preview settles on 3°.
 3. Move the slider, and press Apply straight away, before the preview catches up. The result is turned by the angle the slider shows.

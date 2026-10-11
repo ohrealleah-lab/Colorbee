@@ -7,13 +7,14 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-11 · 493 core tests passing, plus `make perf`_
+_Last updated: 2026-10-11 · 493 core tests and 71 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 1. [Help, phase 4: the reference](#test-help-phase-4-the-reference): 5 quick checks, about 10 minutes.
+2. [Saving keeps the last Step Badge](#test-saving-keeps-the-last-step-badge): 4 steps, about 3 minutes.
 
 ---
 
@@ -135,13 +136,13 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - `make perf`: Release-only time limits at 1080p (NFR-6) and 8000 × 8000, and the soak test (AC-27; `COLORBEE_SOAK_MINUTES=30` for NFR-7).
 - `-ColorbeeSaveCheck YES [-BenchmarkCanvas N]`: background launch that saves a PNG and reports time, the longest main-thread pause and memory.
 - VoiceOver labels for the canvas, color wells, swatch grid and icon buttons.
+- App tests (2026-10-11): `Tests/ColorbeeTests`, 71 Swift Testing tests of the `Editor` (strokes and Shift, undo steps, locked and adjustment layers, Step Badges, placing pending shapes, text and badges, FR-3.2 selection drags, Redact Brush, Retouch, repeatability, random actions undone). They run inside Colorbee, which starts hidden for them (`TestHost`: no Dock icon, windows or focus). `make test` runs them after the core tests (about 35 s in all); GitHub runs them on every push. `make coverage` reports line coverage: app 7.3%, `Editor.swift` 33.8%, core 95.4% (2026-10-11; the app was 0% before).
 - `make beta` (`Scripts/make-beta.sh`): Developer ID signing, hardened runtime, notarization, stapling, zip with `Docs/Beta/Start Here.txt`. Version 0.9.0.
 
 ## Not built yet (by stage)
 
 **Next up (Leah, 2026-10-11)**
 - Help: bump the help book's version on every rebuild, so macOS's help cache (helpd) shows new pages; then phases 5 (? buttons) and 6 (accuracy review).
-- Tests for the `Editor` (the app layer between input and the core), for example that Shift straightens a brush stroke. The core has 95% line coverage (493 tests, 2026-10-11); the app target has no automated tests.
 
 **8 Hardening**
 - (Done again 2026-10-10, see AC-27.) The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
@@ -228,6 +229,13 @@ _2026-10-11: passed Leah's hand test on 2026-10-11._ GPU audit recommendation 1:
 2. Drag Exposure back and forth. The preview keeps up with the slider instead of lagging.
 3. Try Temperature, Shadows and Noise Reduction: all quick.
 4. Click Open. The photo opens looking like the last preview.
+
+### Test: Saving keeps the last Step Badge
+_2026-10-11, fixed, not yet tested._ Found by the new Editor tests: the badge you clicked last is still being placed (you can drag it) until your next click, and Save, Export, Share, Print and Copy left it out of what they wrote, though it showed on screen. They now place it first, as they already did for shapes and text. Autosave still leaves it movable. Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`.
+1. Open the screenshot, pick Step Badge (N) and click three places: 1, 2, 3. Don't click anything else.
+2. File ▸ Export… (⌥⌘S) as a PNG on the Desktop, then open that PNG: all three badges are there, including 3.
+3. Back in Colorbee, badge 3 can no longer be dragged (it's placed), and ⌘Z removes only badge 3. The next click makes a new 3.
+4. Click to make badge 4, then Edit ▸ Copy (⌘C) with nothing selected and Edit ▸ Paste into New Image (⇧⌘V): the new image has badge 4.
 
 ### Test: Help, phase 4: the reference
 _2026-10-11, written, not yet tested._ Seven reference pages: Tools, Menus, Keyboard shortcuts, Panels, Settings, Privacy and Troubleshooting. Menus and Keyboard shortcuts are generated from the app by `make help` (`HelpDump.swift` writes the menus as JSON with `-ColorbeeDumpMenus`, no window; `Scripts/help-pages.py` writes the pages). Also: tooltips added for Batch Redact ▸ Blur… and Pixelate…, Export As and Import from iPhone or iPad; the brush hint no longer says "Shift has no effect". The Settings ▸ Shortcuts picture is still current. Rebuild with the script (option 2) first.

@@ -4,7 +4,7 @@ DERIVED := build
 APP     := $(DERIVED)/Build/Products/Debug/Colorbee.app
 BENCH   := $(DERIVED)/Build/Products/Release/Colorbee.app/Contents/MacOS/Colorbee -ColorbeeBenchmark YES -ApplePersistenceIgnoreState YES
 
-.PHONY: gen build test core perf run bench beta help help-index help-shots open clean
+.PHONY: gen build test core app-test coverage perf run bench beta help help-index help-shots open clean
 
 gen:
 	xcodegen generate --quiet
@@ -16,7 +16,28 @@ build: gen
 core:
 	cd Packages/ColorbeeCore && swift test
 
-test: core build
+test: core app-test
+
+# The app tests (Tests/ColorbeeTests) build the app too. They run inside Colorbee, which starts hidden: no Dock icon,
+# windows or focus. One process: parallel testing would start several copies of the app.
+app-test: gen
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug \
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -parallel-testing-enabled NO -quiet test
+
+# Line coverage of the core and the app (the app tests run with coverage on). Separate from `make test`: slower.
+COVERAGE := $(DERIVED)/Coverage.xcresult
+coverage: gen
+	cd Packages/ColorbeeCore && swift test --enable-code-coverage -q
+	@echo "== Core =="
+	@cd Packages/ColorbeeCore && xcrun llvm-cov report .build/debug/ColorbeeCorePackageTests.xctest/Contents/MacOS/ColorbeeCorePackageTests \
+		-instr-profile .build/debug/codecov/default.profdata -ignore-filename-regex='(\.build|Tests)/' | tail -1
+	rm -rf $(COVERAGE)
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug \
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -parallel-testing-enabled NO -quiet \
+		-enableCodeCoverage YES -resultBundlePath $(COVERAGE) test
+	@echo "== App =="
+	@xcrun xccov view --report --only-targets $(COVERAGE) | grep -E 'Colorbee.app'
+	@xcrun xccov view --report --files-for-target Colorbee.app $(COVERAGE) | grep -E 'Editor\.swift'
 
 # Release-only time limits and the 8000x8000 soak test (AC-27, NFR-7). Takes a few minutes.
 perf:

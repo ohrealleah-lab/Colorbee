@@ -1,7 +1,7 @@
 name: Build, test and release
 
-# Every push and pull request: build and run the core tests, as a check. A version tag (for example
-# v0.9.0-beta.3) also signs Colorbee with Leah's Developer ID, has Apple notarize it, and publishes the zip
+# Every push and pull request: run the core tests, build the app and run its tests, as a check. A version tag (for
+# example v0.9.0-beta.3) also signs Colorbee with Leah's Developer ID, has Apple notarize it, and publishes the zip
 # (Colorbee.app and "Start Here.txt") as a GitHub Release, the same shape as Honeycomb's release workflow.
 # A tag with a dash (a beta) becomes a pre-release.
 on:
@@ -36,9 +36,10 @@ jobs:
         timeout-minutes: 25
         run: cd Packages/ColorbeeCore && swift test --no-parallel
 
-      - name: Build the app
+      # Builds the app, then runs the app tests (Editor behavior) inside it, started hidden.
+      - name: Build the app and run its tests
         timeout-minutes: 20
-        run: make build
+        run: make app-test
 
       # ── Tag pushes only: package, sign, notarize, release ─────────────────────────────────────────────
 

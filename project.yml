@@ -130,10 +130,34 @@ targets:
         MARKETING_VERSION: 0.9.0
         CURRENT_PROJECT_VERSION: 2
 
+  # The app tests (Swift Testing). They run inside Colorbee, which starts hidden for them (`TestHost`).
+  ColorbeeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests/ColorbeeTests
+    dependencies:
+      - target: Colorbee
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.leah.ColorbeeTests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Colorbee.app/Contents/MacOS/Colorbee
+        BUNDLE_LOADER: $(TEST_HOST)
+
 schemes:
   Colorbee:
     build:
       targets:
         Colorbee: all
+        ColorbeeTests: [test]
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - ColorbeeTests
+      commandLineArguments:
+        "-ApplePersistenceIgnoreState YES": true
+      environmentVariables:
+        COLORBEE_TESTING: "1"

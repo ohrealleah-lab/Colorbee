@@ -3854,8 +3854,8 @@ final class Editor {
         try withoutEffectPreview { try snapshot(of: canvas).encodedProject() }
     }
 
-    /// A copy of the document for saving or output, without any live effect preview. A shape or text still being
-    /// edited is placed first, so what's written is what's shown (review K, finding 1); autosave passes false, so it
+    /// A copy of the document for saving or output, without any live effect preview. A shape, text or Step Badge still
+    /// being edited is placed first, so what's written is what's shown (review K, finding 1); autosave passes false, so it
     /// doesn't fix in place what's still being edited.
     func saveSnapshot(placingPending: Bool = true) -> SaveSnapshot {
         if placingPending { placePendingObjects() }
@@ -3874,6 +3874,7 @@ final class Editor {
     func placePendingObjects() {
         commitPendingShape()
         commitPendingText()
+        commitPendingBadge()
     }
 
     private func snapshot(of canvas: ColorbeeCore.Canvas) -> SaveSnapshot {

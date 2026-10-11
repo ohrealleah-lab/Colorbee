@@ -13,7 +13,9 @@ A native macOS raster editor: MS Paint's immediacy plus redaction, annotation, l
 ```bash
 make gen      # regenerate Colorbee.xcodeproj from project.yml (run after adding/removing files)
 make build    # debug build of the app
-make test     # core unit tests (fast, headless) + full app build
+make test     # core unit tests + app build and app tests (Editor); about 35 s, no windows
+make app-test # app build and app tests only
+make coverage # line coverage of the core and the app (slower; not part of make test)
 make core     # core unit tests only (swift test)
 make run      # Release build, then launch (Debug pixel loops are ~50x slower; use run for real use)
 make perf      # Release-only time limits + 8000x8000 soak test (AC-27). A few minutes; no windows.
@@ -33,6 +35,7 @@ Sources/Colorbee/            App target: SwiftUI shell + AppKit canvas view + Me
 Packages/ColorbeeCore/       Local Swift package: pixel model, history, selection, tool logic, effects
   Sources/ColorbeeCore/
   Tests/ColorbeeCoreTests/
+Tests/ColorbeeTests/         App tests (Editor behavior), run inside Colorbee started hidden (TestHost.swift)
 Scripts/make-beta.sh         Beta packaging (Developer ID signing, notarization)
 Docs/FRD.md                  Requirements (source of truth)
 Docs/Beta/Start Here.txt     The note that ships in the beta zip for testers
@@ -77,6 +80,7 @@ Docs/reference/              Original v1 spec, kept for reference only
 - Tests use **Swift Testing** (`import Testing`, `@Test`, `#expect`), not XCTest. Performance tests are Swift Testing too, with explicit time limits, enabled only in Release (`make perf`): SwiftPM can't store XCTest baselines.
 - Every core algorithm gets unit tests. Pixel algorithms get exact-value tests on small images.
 - Undo property test: N random operations → undo all → the image hash must equal the original.
+- App tests (`Tests/ColorbeeTests`) drive the `Editor` the way `CanvasView` does, on small canvases. They run inside Colorbee, which `TestHost` starts with no Dock icon, windows or focus; never open a window or take focus in them. They share Colorbee's settings, so never save preferences (custom colors, clipboard history, redaction patterns) from a test.
 - No comments that restate the code. Comment only non-obvious *why*.
 - One type per file when it's more than trivial. Files named after their primary type.
 

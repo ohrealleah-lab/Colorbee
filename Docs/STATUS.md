@@ -139,6 +139,10 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 ## Not built yet (by stage)
 
+**Next up (Leah, 2026-10-11)**
+- Help: bump the help book's version on every rebuild, so macOS's help cache (helpd) shows new pages; then phases 5 (? buttons) and 6 (accuracy review).
+- Tests for the `Editor` (the app layer between input and the core), for example that Shift straightens a brush stroke. The core has 95% line coverage (493 tests, 2026-10-11); the app target has no automated tests.
+
 **8 Hardening**
 - (Done again 2026-10-10, see AC-27.) The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.

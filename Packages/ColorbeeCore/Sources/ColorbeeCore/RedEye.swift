@@ -28,16 +28,24 @@ public enum RedEye {
                 for (pupil, outline) in [(landmarks.leftPupil, landmarks.leftEye), (landmarks.rightPupil, landmarks.rightEye)] {
                     guard let outline, outline.pointCount > 0 else { continue }
                     let points = outline.pointsInImage(imageSize: size)
-                    let xs = points.map(\.x), ys = points.map(\.y)
-                    let width = (xs.max()! - xs.min()!), height = (ys.max()! - ys.min()!)
-                    let center = pupil?.pointsInImage(imageSize: size).first
-                        ?? CGPoint(x: (xs.max()! + xs.min()!) / 2, y: (ys.max()! + ys.min()!) / 2)
-                    // Vision's y runs up from the bottom.
-                    eyes.append(Eye(center: Point2D(x: center.x, y: size.height - center.y), radius: max(3, max(width * 0.32, height * 0.6))))
+                    if let eye = eye(outline: points, pupil: pupil?.pointsInImage(imageSize: size).first, imageHeight: size.height) {
+                        eyes.append(eye)
+                    }
                 }
             }
             return eyes
         }.value
+    }
+
+    /// The circle around one eye, from Vision's outline of it and its pupil (in Vision's image coordinates, y up);
+    /// nil for an empty outline. Without a pupil, the outline's middle is used.
+    static func eye(outline points: [CGPoint], pupil: CGPoint?, imageHeight: Double) -> Eye? {
+        let xs = points.map(\.x), ys = points.map(\.y)
+        guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max() else { return nil }
+        let width = maxX - minX, height = maxY - minY
+        let center = pupil ?? CGPoint(x: (maxX + minX) / 2, y: (maxY + minY) / 2)
+        // Vision's y runs up from the bottom.
+        return Eye(center: Point2D(x: center.x, y: imageHeight - center.y), radius: max(3, max(width * 0.32, height * 0.6)))
     }
 
     /// Darkens the red pixels inside `eyes`. Returns whether anything changed.

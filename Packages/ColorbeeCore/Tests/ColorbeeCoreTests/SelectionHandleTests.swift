@@ -67,4 +67,25 @@ struct SelectionHandleTests {
         #expect(canvas.selection.marquee?.bounds == IntRect(x: 10, y: 10, width: 15, height: 7))
         #expect(canvas.activeLayer.buffer.contentHash() == before)
     }
+
+    @Test func handlesSitOnTheCornersAndEdgeMiddles() {
+        let expected: [SelectionHandle: Point2D] = [
+            .topLeft: Point2D(x: 10, y: 10), .top: Point2D(x: 30, y: 10), .topRight: Point2D(x: 50, y: 10),
+            .right: Point2D(x: 50, y: 20), .bottomRight: Point2D(x: 50, y: 30), .bottom: Point2D(x: 30, y: 30),
+            .bottomLeft: Point2D(x: 10, y: 30), .left: Point2D(x: 10, y: 20),
+        ]
+        for handle in SelectionHandle.allCases {
+            #expect(handle.point(on: rect) == expected[handle], "\(handle)")
+        }
+        // An odd size puts the edge handles between pixels.
+        #expect(SelectionHandle.top.point(on: IntRect(x: 0, y: 0, width: 5, height: 3)) == Point2D(x: 2.5, y: 0))
+        #expect(SelectionHandle.left.point(on: IntRect(x: 0, y: 0, width: 5, height: 3)) == Point2D(x: 0, y: 1.5))
+    }
+
+    @Test func proportionalTopAndBottomEdgesGrowAroundTheCenter() {
+        let taller = SelectionHandle.bottom.resize(rect, by: Point2D(x: 99, y: 20), keepProportions: true)
+        #expect(taller == IntRect(x: -10, y: 10, width: 80, height: 40))
+        let shorter = SelectionHandle.top.resize(rect, by: Point2D(x: 0, y: 10), keepProportions: true)
+        #expect(shorter == IntRect(x: 20, y: 20, width: 20, height: 10))
+    }
 }

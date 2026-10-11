@@ -86,4 +86,31 @@ struct PaintStyleTests {
         #expect(first?.pixels.contentHash() == second?.pixels.contentHash())
         #expect(first?.pixels.contentHash() != nil)
     }
+
+    @Test func everyStyleHasItsOwnName() {
+        let names = PaintStyle.allCases.map(\.name)
+        #expect(!names.contains(""))
+        #expect(Set(names).count == names.count)
+    }
+
+    @Test func solidMarkerAndWatercolorFillAmountsAreExact() {
+        #expect(PaintStyle.solid.fillAmount(x: 3, y: 4, mask: 0.37, interior: 0.2) == 0.37)
+        #expect(PaintStyle.marker.fillAmount(x: 3, y: 4, mask: 0.8, interior: 0.2) == 0.8 * Brush.markerOpacity)
+        // Watercolor is strongest at the edge and fades to 0.35 well inside.
+        #expect(abs(PaintStyle.watercolor.fillAmount(x: 0, y: 0, mask: 1, interior: 0) - 0.8) < 1e-12)
+        #expect(abs(PaintStyle.watercolor.fillAmount(x: 0, y: 0, mask: 1, interior: 1) - 0.35) < 1e-12)
+        #expect(PaintStyle.solid.brush == nil)
+        #expect(PaintStyle.allCases.filter { $0 != .solid }.allSatisfy { $0.brush != nil })
+    }
+
+    @Test(arguments: PaintStyle.allCases)
+    func noFillWhereTheShapeDoesntCover(style: PaintStyle) {
+        for y in 0..<8 {
+            for x in 0..<8 {
+                #expect(style.fillAmount(x: x, y: y, mask: 0, interior: 0.5) == 0)
+                let amount = style.fillAmount(x: x, y: y, mask: 1, interior: 0.5)
+                #expect(amount >= 0 && amount <= 1)
+            }
+        }
+    }
 }

@@ -1,3 +1,4 @@
+import CoreVideo
 import Testing
 @testable import ColorbeeCore
 
@@ -64,5 +65,67 @@ struct SubjectTests {
         let canvas = Canvas(size: IntSize(width: 10, height: 4), colorSpace: Canvas.defaultColorSpace, background: .white)
         canvas.activeLayer.isLocked = true
         #expect(!SubjectActions.removeBackground(scan().mask(), canvas: canvas, history: History(byteBudget: .max), context: context))
+    }
+
+    @Test func anEmptyScanFindsNothing() {
+        let empty = SubjectScan(size: IntSize(width: 3, height: 2), masks: [])
+        #expect(empty.isEmpty && !scan().isEmpty)
+        #expect(empty.subject(at: IntPoint(x: 1, y: 1)) == nil)
+        #expect(empty.mask() == [UInt8](repeating: 0, count: 6))
+    }
+
+    @Test func clicksOffTheImageAndUnknownSubjectsAreIgnored() {
+        let scan = scan()
+        for point in [IntPoint(x: -1, y: 0), IntPoint(x: 0, y: -1), IntPoint(x: 10, y: 0), IntPoint(x: 0, y: 4)] {
+            #expect(scan.subject(at: point) == nil)
+        }
+        #expect(scan.mask(for: [7]) == [UInt8](repeating: 0, count: 40))
+        #expect(scan.mask(for: [1, 7]) == scan.mask(for: [1]))
+    }
+
+    @Test func aMaskOfTheWrongSizeIsRefusedWithoutAStep() {
+        let canvas = Canvas(size: IntSize(width: 10, height: 4), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max)
+        let short = [UInt8](repeating: 255, count: 39)
+        #expect(!SubjectActions.removeBackground(short, canvas: canvas, history: history, context: context))
+        #expect(!SubjectActions.liftToNewLayer(short, canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 1 && !history.canUndo)
+    }
+
+    // Turning Vision's float mask into bytes (Vision itself only runs in the app).
+
+    private func floatMask(width: Int, height: Int, _ values: [Float]) throws -> CVPixelBuffer {
+        var buffer: CVPixelBuffer?
+        CVPixelBufferCreate(nil, width, height, kCVPixelFormatType_OneComponent32Float, nil, &buffer)
+        let mask = try #require(buffer)
+        CVPixelBufferLockBaseAddress(mask, [])
+        let base = try #require(CVPixelBufferGetBaseAddress(mask))
+        let rowBytes = CVPixelBufferGetBytesPerRow(mask)
+        for y in 0..<height {
+            let row = (base + y * rowBytes).assumingMemoryBound(to: Float.self)
+            for x in 0..<width { row[x] = values[y * width + x] }
+        }
+        CVPixelBufferUnlockBaseAddress(mask, [])
+        return mask
+    }
+
+    @Test func visionMaskValuesBecomeBytesAndOutOfRangeValuesAreClamped() throws {
+        let mask = try floatMask(width: 3, height: 2, [0, 0.5, 1, -0.2, 1.7, 0.25])
+        #expect(SubjectScan.bytes(of: mask, size: IntSize(width: 3, height: 2)) == [0, 128, 255, 0, 255, 64])
+    }
+
+    @Test func aSmallerVisionMaskIsStretchedToTheImage() throws {
+        let mask = try floatMask(width: 2, height: 2, [0, 1, 1, 0])
+        #expect(SubjectScan.bytes(of: mask, size: IntSize(width: 4, height: 4)) == [
+            0, 0, 255, 255,
+            0, 0, 255, 255,
+            255, 255, 0, 0,
+            255, 255, 0, 0,
+        ])
+    }
+
+    @Test func aLargerVisionMaskIsSampledDownToTheImage() throws {
+        let mask = try floatMask(width: 4, height: 2, [1, 0, 0.5, 0, 0, 0, 0, 1])
+        #expect(SubjectScan.bytes(of: mask, size: IntSize(width: 2, height: 1)) == [255, 128])
     }
 }

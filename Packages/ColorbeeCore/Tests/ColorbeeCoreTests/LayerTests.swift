@@ -64,6 +64,41 @@ struct BlendModeTests {
             #expect(abs(Int(a) - Int(e)) <= 1)
         }
     }
+
+    @Test func dodgeAndBurnBetweenTheirEdges() {
+        #expect(close(BlendMode.colorDodge.blend(SIMD3(0.25, 0.75, 0.4), gray), SIMD3(0.5, 1, 0.8)))
+        #expect(close(BlendMode.colorBurn.blend(SIMD3(0.75, 0.25, 0.6), gray), SIMD3(0.5, 0, 0.2)))
+    }
+
+    @Test func softLightLightensWithALightSource() {
+        // Dark backdrops (at or under a quarter) use the W3C polynomial; lighter ones use the square root.
+        let blended = BlendMode.softLight.blend(SIMD3(0.16, 0.64, 0.36), SIMD3(1, 1, 0.75))
+        #expect(close(blended, SIMD3(0.398336, 0.8, 0.48)))
+    }
+
+    @Test func hueFromAGraySourceLeavesGrayAtTheBackdropLightness() {
+        let hued = BlendMode.hue.blend(SIMD3(0.8, 0.2, 0.2), gray)
+        #expect(close(hued, SIMD3(repeating: 0.38)))
+    }
+
+    @Test func colorClipsIntoRangeOnWhiteAndBlack() {
+        let red = SIMD3<Float>(1, 0, 0)
+        #expect(close(BlendMode.color.blend(SIMD3(repeating: 1), red), SIMD3(repeating: 1)))
+        #expect(close(BlendMode.color.blend(.zero, red), .zero))
+    }
+
+    @Test func multiplyOnAnOpaqueBackdropMultipliesTheBytes() {
+        var backdrop = Compositing.premultiplied(Pixel(r: 200, g: 100, b: 50))
+        Compositing.blend(&backdrop, Pixel(r: 100, g: 200, b: 255), opacity: 1, mode: .multiply)
+        #expect(Compositing.pixel(backdrop) == Pixel(r: 78, g: 78, b: 50))
+    }
+
+    @Test func everyModeHasItsOwnNameAndOnePlaceInTheMenu() {
+        let names = BlendMode.allCases.map(\.name)
+        #expect(!names.contains(""))
+        #expect(Set(names).count == names.count)
+        #expect(BlendMode.groups.flatMap { $0 } == BlendMode.allCases)
+    }
 }
 
 struct LayerActionTests {

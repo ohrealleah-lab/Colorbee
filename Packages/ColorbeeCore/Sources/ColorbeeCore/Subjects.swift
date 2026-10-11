@@ -32,7 +32,7 @@ public struct SubjectScan: Sendable {
     }
 
     /// A float mask from Vision as bytes, resampled to `size` if Vision's differs.
-    private static func bytes(of buffer: CVPixelBuffer, size: IntSize) -> [UInt8] {
+    static func bytes(of buffer: CVPixelBuffer, size: IntSize) -> [UInt8] {
         CVPixelBufferLockBaseAddress(buffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
         let width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer)

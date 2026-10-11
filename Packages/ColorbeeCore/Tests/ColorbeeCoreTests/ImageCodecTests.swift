@@ -38,6 +38,62 @@ struct ImageCodecTests {
             try ImageCodec.decode(Data([1, 2, 3]))
         }
     }
+
+    /// A gray image (made here, 2 × 1: black and white) in a device gray color space.
+    private func grayImage() throws -> CGImage {
+        let context = try #require(CGContext(data: nil, width: 2, height: 1, bitsPerComponent: 8, bytesPerRow: 2,
+                                             space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue))
+        let bytes = try #require(context.data).assumingMemoryBound(to: UInt8.self)
+        bytes[0] = 0
+        bytes[1] = 255
+        return try #require(context.makeImage())
+    }
+
+    @Test func aGrayImageOpensInSRGB() throws {
+        let decoded = try ImageCodec.decode(grayImage())
+        #expect(decoded.colorSpace.name == CGColorSpace.sRGB)
+        #expect(decoded.buffer[0, 0] == .black)
+        #expect(decoded.buffer[1, 0] == .white)
+    }
+
+    @Test func nonRGBColorSpacesAreRefused() throws {
+        let cmyk = try #require(CGColorSpace(name: CGColorSpace.genericCMYK))
+        #expect(throws: ImageCodecError.unsupportedColorSpace) {
+            try ImageCodec.decode(grayImage(), convertingTo: cmyk)
+        }
+        #expect(throws: ImageCodecError.unsupportedColorSpace) {
+            try ImageCodec.makeCGImage(PixelBuffer(width: 1, height: 1), colorSpace: CGColorSpaceCreateDeviceGray())
+        }
+    }
+
+    @Test func formatsThisMacCantWriteFailToEncode() {
+        for format in ImageFileFormat.allCases where !format.canWrite {
+            #expect(throws: ImageCodecError.encodingFailed) {
+                try ImageCodec.encode(PixelBuffer(width: 1, height: 1), colorSpace: Canvas.defaultColorSpace, as: format)
+            }
+        }
+    }
+
+    @Test func nonImageTypesHaveNoFormat() {
+        #expect(ImageFileFormat(type: .plainText) == nil)
+        #expect(ImageFileFormat(type: .pdf) == nil)
+    }
+
+    @Test func everyFormatHasItsOwnName() {
+        let names = ImageFileFormat.allCases.map(\.name)
+        #expect(!names.contains(""))
+        #expect(Set(names).count == names.count)
+    }
+
+    @Test func everyErrorHasAPlainMessage() {
+        let errors: [ImageCodecError] = [.unreadableData, .tooLarge, .unsupportedColorSpace, .conversionFailed(-21773), .encodingFailed]
+        let messages = errors.map { $0.errorDescription ?? "" }
+        #expect(!messages.contains(""))
+        #expect(Set(messages).count == messages.count)
+        // No error codes in what people read (review J, finding 27).
+        #expect(!messages.contains { $0.contains("-21773") })
+        #expect(ImageCodecError.tooLarge.errorDescription?.contains(ResizeSkew.maxSide.formatted()) == true)
+    }
 }
 
 struct TIFFCompressionTests {

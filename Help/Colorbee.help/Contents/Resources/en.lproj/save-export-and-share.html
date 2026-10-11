@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Save, export and share</title>
+    <meta name="AppleTitle" content="Save, export and share">
+    <meta name="description" content="Which file formats Colorbee saves and what each keeps, when an image becomes a project, Export and Export As presets, sharing and printing, autosave and earlier versions.">
+    <meta name="keywords" content="save, save as, export, export as, preset, format, PNG, JPEG, HEIC, TIFF, GIF, BMP, WebP, colorproj, project, quality, share, AirDrop, print, desktop picture, autosave, versions, revert">
+    <link rel="stylesheet" href="../shared/help.css">
+</head>
+<body>
+    <nav class="back"><a href="index.html">Colorbee Help</a></nav>
+    <a name="save"></a>
+    <h1>Save, export and share</h1>
+    <p class="lead">Save keeps your work. Export makes a copy for someone else. And Colorbee saves as you go, so
+        nothing is lost if you quit.</p>
+
+    <a name="formats"></a>
+    <h2>Formats</h2>
+    <table>
+        <tr><th>Format</th><th>Good for</th><th>What to know</th></tr>
+        <tr><td>PNG</td><td>Screenshots, pixel art, anything with transparency</td><td>Keeps every pixel exactly. The default.</td></tr>
+        <tr><td>JPEG</td><td>Photos</td><td>Smaller files, with a quality setting. Transparent areas become Color 2.</td></tr>
+        <tr><td>HEIC</td><td>Photos</td><td>Smaller than JPEG at the same quality.</td></tr>
+        <tr><td>TIFF</td><td>Print and archiving</td><td>Uncompressed or LZW.</td></tr>
+        <tr><td>GIF</td><td>Simple graphics</td><td>256 colors at most, and pixels are either clear or solid.</td></tr>
+        <tr><td>BMP</td><td>Older apps</td><td>No compression.</td></tr>
+        <tr><td>Colorbee project (.colorproj)</td><td>Work in progress</td><td>Keeps layers, adjustment layers and pages.</td></tr>
+    </table>
+    <p>Colorbee also opens WebP images, but can't save them.</p>
+
+    <a name="project"></a>
+    <h2>Image or project?</h2>
+    <p>An image with one layer and one page saves as an ordinary image, such as a PNG. Once it has more layers, an adjustment layer, or more pages, it saves as a Colorbee project, so nothing is flattened away.</p>
+    <p>If you opened a PNG or JPEG and then added a layer, the original file is left alone, and the next save asks where to put the project. When you want a flat copy to share, use Export.</p>
+
+    <a name="saving"></a>
+    <h2>Save and Save As</h2>
+    <ul>
+        <li><strong>Save</strong> (⌘S) saves the document. A new image asks for a name and format the first time.</li>
+        <li><strong>Save As…</strong> (⇧⌘S) saves under a new name or in another format.</li>
+        <li>For new images, the Save panel starts on the format you used last.</li>
+        <li>Saving never clears undo: you can still undo past a save.</li>
+    </ul>
+
+    <a name="export"></a>
+    <h2>Export</h2>
+    <ul>
+        <li><strong>File ▸ Export…</strong> (⌥⌘S) saves a copy in any format, combining the visible layers. Your document isn't changed. It has a quality setting for JPEG and HEIC, the compression for TIFF, and <strong>Include camera details</strong> for photos. It remembers your last choices.</li>
+        <li><strong>File ▸ Export As</strong> saves a PNG at a common size, such as Slack (760 px wide), 1280 or 1920 px, Mobile or Square 1024. The shape is kept, and a smaller image is never made bigger. Edit the list in Colorbee ▸ Settings ▸ Export Presets.</li>
+        <li><strong>File ▸ Export as PDF…</strong> saves every page as one PDF. See <a href="pages-and-pdfs.html#export-pdf">Pages and PDFs</a>.</li>
+    </ul>
+    <figure>
+        <img src="images/export-presets.png" alt="Settings, Export Presets tab: a list of presets with their names and pixel sizes, a Scaling choice, and Add Preset and Reset to Defaults buttons.">
+        <figcaption>Settings ▸ Export Presets.</figcaption>
+    </figure>
+
+    <a name="share"></a>
+    <h2>Share, print and more</h2>
+    <ul>
+        <li><strong>Copy</strong> (⌘C) with nothing selected copies the whole image, to paste into another app.</li>
+        <li><strong>File ▸ Share…</strong> sends it with AirDrop, Messages, Mail and more.</li>
+        <li><strong>File ▸ Print…</strong> (⌘P) prints it, scaled to fit the page.</li>
+        <li><strong>File ▸ Set as Desktop Picture</strong> uses it as your desktop picture.</li>
+    </ul>
+    <p>In a document with pages, these use the page you're looking at.</p>
+
+    <a name="autosave"></a>
+    <h2>Autosave and earlier versions</h2>
+    <ul>
+        <li>Colorbee saves your work as you go, the standard Mac way. When you quit and open Colorbee again, your windows come back as they were, including untitled ones.</li>
+        <li><strong>File ▸ Revert To</strong> goes back to the last save, or to an earlier version with Browse All Versions.</li>
+        <li><strong>File ▸ Duplicate</strong> opens a copy in a new window.</li>
+    </ul>
+    <p class="note">After a redaction, earlier versions still show what you hid. When you save, Colorbee offers to remove them. See <a href="redact-a-screenshot.html#copies">Redact a screenshot</a>.</p>
+
+    <p><a href="index.html">More guides</a></p>
+</body>
+</html>

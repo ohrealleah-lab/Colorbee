@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pages and PDFs</title>
+    <meta name="AppleTitle" content="Pages and PDFs">
+    <meta name="description" content="Open and edit PDFs page by page, use the page sidebar and the Page menu, scan from an iPhone, and export every page as a PDF.">
+    <meta name="keywords" content="page, pages, PDF, page sidebar, new page, duplicate page, delete page, move page, TIFF, GIF, Export as PDF, resolution, DPI, scan, iPhone, iPad, Continuity Camera">
+    <link rel="stylesheet" href="../shared/help.css">
+</head>
+<body>
+    <nav class="back"><a href="index.html">Colorbee Help</a></nav>
+    <a name="pages"></a>
+    <h1>Pages and PDFs</h1>
+    <p class="lead">Any Colorbee document can have pages. Open a PDF to redact or mark up every page, or put several
+        screenshots together and export them as one PDF.</p>
+
+    <a name="open-pdf"></a>
+    <h2>Open a PDF</h2>
+    <p>Open it with File ▸ Open… or drag it onto Colorbee. Every page opens at once, as an image.</p>
+    <ul>
+        <li>Pages open at the resolution set in Colorbee ▸ Settings ▸ General: 150, 200 (recommended) or 300 DPI. Higher is sharper but uses more memory.</li>
+        <li>A PDF becomes pictures of its pages, so its text, fonts and form fields can't be edited as text. It opens as an untitled copy, and the original PDF is never changed.</li>
+        <li>Multi-page TIFFs and animated GIFs open the same way, one page per frame.</li>
+    </ul>
+
+    <a name="sidebar"></a>
+    <h2>The page sidebar</h2>
+    <p>Once a document has more than one page, the page sidebar shows down the left side. View ▸ Page Sidebar (⌥⌘2) shows or hides it.</p>
+    <ul>
+        <li><strong>Click</strong> a page to edit it. The Layers panel and the rest show that page.</li>
+        <li><strong>Drag</strong> a page to move it. The list scrolls as you drag near its top or bottom.</li>
+        <li><strong>Right-click</strong> a page for New Page, Duplicate Page and Delete Page.</li>
+    </ul>
+
+    <a name="page-menu"></a>
+    <h2>The Page menu</h2>
+    <table>
+        <tr><th>Command</th><th>What it does</th></tr>
+        <tr><td>New Page</td><td>A blank page after this one, the same size, filled with Color 2.</td></tr>
+        <tr><td>Duplicate Page</td><td>A copy of this page, with its layers, just after it.</td></tr>
+        <tr><td>Delete Page</td><td>Removes this page.</td></tr>
+        <tr><td>Move Page Up and Move Page Down</td><td>Moves this page one place.</td></tr>
+        <tr><td>Previous Page (⌥⌘↑) and Next Page (⌥⌘↓)</td><td>Shows the page before or after.</td></tr>
+    </table>
+
+    <a name="undo"></a>
+    <h2>Undo on pages</h2>
+    <p>Each page remembers its own changes. ⌘Z undoes the last change on the page you're looking at, and View ▸ History shows only that page's steps. Adding, duplicating, deleting and moving pages can be undone too, when that's the newest thing you did in the document.</p>
+
+    <a name="redact"></a>
+    <h2>Redact a PDF</h2>
+    <ul>
+        <li><strong>Effects ▸ Auto-Redact…</strong> checks every page. The list is grouped by page, and clicking an item shows it. One ⌘Z undoes it on every page.</li>
+        <li><strong>Batch Redact</strong> and the <strong>Redact Brush</strong> work on the page you're looking at.</li>
+    </ul>
+    <p>See <a href="redact-a-screenshot.html">Redact a screenshot</a> for the details.</p>
+
+    <a name="make-pdf"></a>
+    <h2>Make a PDF from screenshots</h2>
+    <ol>
+        <li>Paste the first screenshot with File ▸ Paste into New Image (⇧⌘V).</li>
+        <li>Choose Page ▸ New Page, then paste the next screenshot onto it with ⌘V. If it's bigger than the page, Colorbee offers to make the page bigger.</li>
+        <li>Repeat for each screenshot, then choose File ▸ Export as PDF….</li>
+    </ol>
+
+    <a name="iphone"></a>
+    <h2>Scan with your iPhone or iPad</h2>
+    <p>With no Colorbee document open, choose File ▸ Import from iPhone or iPad, then your device and Scan Documents or Take Photo. When you finish on the phone, what you scanned opens in Colorbee as a new document, one page per scan.</p>
+    <p class="note">Your iPhone or iPad needs to be signed in to the same Apple Account as your Mac, with Wi-Fi and Bluetooth on.</p>
+
+    <a name="export-pdf"></a>
+    <h2>Export as PDF</h2>
+    <p>File ▸ Export as PDF… saves every page, in order, as one PDF.</p>
+    <ul>
+        <li>Each page is saved as pixels, as you see it. No text hides under a redaction, though it also means the text can't be selected or searched.</li>
+        <li>The file holds no details about who made it or when.</li>
+        <li>Pages from a PDF keep the size they opened at. A screenshot page counts as a Retina screenshot, so a 1440-pixel-wide screenshot makes a 10-inch-wide page.</li>
+    </ul>
+    <p>Other kinds of export (Export…, Export As, Copy, Share and Print) use the page you're looking at. To keep every page for later editing, save the document: it saves as a Colorbee project.</p>
+
+    <p><a href="index.html">More guides</a></p>
+</body>
+</html>

@@ -48,7 +48,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| Help (FR-14.6) | Phases 1 and 2 built: the help book, ⌘?, search, screenshots, Getting started and Redact a screenshot | Medium (phase 6 high) |
+| Help (FR-14.6) | Phases 1 and 2 passed; phase 3 written (the six other task guides, and stage 13 in Getting started and Redact a screenshot), waiting for Leah's test and new screenshots | Medium (phase 6 high) |
 
 ## What's built
 
@@ -133,7 +133,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 ## Not built yet (by stage)
 
 **8 Hardening**
-- The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
+- (Done again 2026-10-10, see AC-27.) The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
 - Beta 0.9.0 (1) built, notarized and stapled on 2026-10-03 (`build/Beta/Colorbee-0.9.0-1.zip`, 1.8 MB); Gatekeeper accepts it as "Notarized Developer ID". Leah's `colorbee-notary` keychain profile is set up. Bump `CURRENT_PROJECT_VERSION` in project.yml for each new beta.
 - Beta 0.9.0 (2) built, notarized and stapled on 2026-10-05 (`build/Beta/Colorbee-0.9.0-2.zip`, 2.7 MB): pages and PDFs, RAW photos, review round 4, Appearance, scrubbing. "Start Here.txt" updated.
 - GitHub Actions (`.github/workflows/build-release.yml`, like Honeycomb's): every push builds and runs the tests on a macOS 26 runner. A tag `vX.Y.Z-beta.N` also signs, notarizes and publishes the zip as a pre-release (version X.Y.Z, build N). Needs five repo secrets, the same as Honeycomb's: `APPLE_CERT_P12`, `APPLE_CERT_P12_PASSWORD`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_KEY_P8` (all set 2026-10-05). On GitHub's runner the tests run one at a time; side by side they stalled. First release: v0.9.0-beta.2, published 2026-10-05, checked as "Notarized Developer ID". Next beta: push the tag `v0.9.0-beta.3`.
@@ -189,6 +189,7 @@ Five 30-minute 8000×8000 soaks. The fifth ran 108 rounds with no crash and exac
 6,500 steps went a little over a second (whole-image Flatten, Sharpen, Blur; worst 1.7 s). Leah accepted that
 (§23). Fixed along the way: redo after spilled crops, flips and rotations giving layers new buffers, slow undo
 (parallel fingerprints), Flatten compositing, and replaced layers written out in the background on one core.
+**Re-run 2026-10-10** (after stage 13; Mac free): the 30-minute soak ran 105 rounds with no crash and exact undo and redo; 13 steps went a little over a second (Sharpen, Flatten; worst 1.34 s), the same as accepted. The 10 performance tests all passed.
 Logs in `build/soak-results*.txt` (not committed).
 
 **Done 2026-10-04 (agreed with Leah): all 7 steps passed Leah's hand test on 2026-10-04.**
@@ -209,6 +210,20 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+**Shift straightens the brushes and Eraser (2026-10-10): not yet tested.** Holding Shift while dragging keeps the stroke on one line, across or up and down from where it started, as the Pencil always did. Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`.
+1. Brushes ▸ Marker, yellow Color 1. Hold Shift and drag along the "Email" row, wobbling the mouse up and down: the highlight stays perfectly level.
+2. Hold Shift and drag mostly downward: the stroke goes straight down instead.
+3. Without Shift, the stroke follows the mouse as before.
+4. Repeat step 1 with the Round brush and with the Eraser (E): both stay level.
+5. ⌘Z undoes each stroke in one step.
+
+**Help, phase 3 (2026-10-10): written, not yet tested.** Six new guides: Annotate an image, Work with layers, Fix up a photo, Pages and PDFs, Pixel art, and Save, export and share. Getting started gains the Retouch, Redact Brush and Step Badge tools and their keys (J, S, K, N); Redact a screenshot gains the Redact Brush. Written from the FRD and checked against the code (menu names, labels, keys). Notes: the iPhone import section describes only importing with no document open, since importing into an open document is pinned; Shift now straightens the brushes and Eraser too (Leah, 2026-10-10), so the highlighter tip uses it.
+1. **Screenshots first (about five minutes, Mac free).** `make help-shots SCENES="1 2 6"`: the whole window and the toolbar now have the Retouch, Redact Brush and Step Badge buttons, and the Layers panel shows "Only the layer below". 7 and 9 are still current.
+2. Rebuild with the script (option 2). Help ▸ Colorbee Help: the contents page lists eight guides.
+3. Follow each new guide with Colorbee open beside it, one at a time, using `TestImages/Help/Sample Screenshot.png` (Annotate, Pages), `TestImages/Stage 9 Practice Photo.png` (Fix up a photo, Layers), `TestImages/Stage 13/Red Eye Practice.png` (red-eye), `TestImages/Stage 12/Test Camera.dng` (RAW) and a new 32 × 32 image (Pixel art). Every step should work, and every menu name and key should match.
+4. In the Help menu's search field type "clone", "PDF" and "pixel": each finds the right guide.
+5. Dark mode (Settings ▸ General ▸ Dark): every page reads well.
 
 **Help, phase 2 (2026-10-09): all 5 steps passed Leah's hand test on 2026-10-09.** Rebuild and run with the script first, then follow each guide exactly as
 written on a clean launch, using `TestImages/Help/Sample Screenshot.png` (made-up details). Every step should work and

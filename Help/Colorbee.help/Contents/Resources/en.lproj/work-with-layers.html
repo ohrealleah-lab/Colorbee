@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Work with layers</title>
+    <meta name="AppleTitle" content="Work with layers">
+    <meta name="description" content="Keep parts of an image separate with layers: add, duplicate, merge and flatten them, set blend modes and opacity, lock them, and change their look with adjustment layers.">
+    <meta name="keywords" content="layer, layers, new layer, merge down, merge visible, flatten, blend mode, opacity, lock, hide, adjustment layer, only the layer below, clipping, merge adjustment, undo on active layer, revert layer, project, colorproj">
+    <link rel="stylesheet" href="../shared/help.css">
+</head>
+<body>
+    <nav class="back"><a href="index.html">Colorbee Help</a></nav>
+    <a name="layers"></a>
+    <h1>Work with layers</h1>
+    <p class="lead">Layers are like sheets of clear film stacked on your image. Draw on one without touching the
+        others, move it, hide it, or change how it looks.</p>
+
+    <a name="when"></a>
+    <h2>When to use layers</h2>
+    <ul>
+        <li>Annotations you might want to change later, kept off the screenshot itself.</li>
+        <li>A subject lifted off its background, to edit on its own (Image ▸ Lift Subject to New Layer).</li>
+        <li>Color changes you can tweak or undo at any time, with adjustment layers.</li>
+    </ul>
+    <p>You don't need layers for quick jobs. A new image has one layer, and the Layers panel stays hidden until you want it.</p>
+
+    <a name="panel"></a>
+    <h2>The Layers panel</h2>
+    <figure>
+        <img src="images/layers.png" alt="The Layers panel with several layers, including an adjustment layer, each with an eye and a padlock, and the blend mode and opacity controls at the top.">
+        <figcaption>The Layers panel.</figcaption>
+    </figure>
+    <p>Show it with View ▸ Layers (⌘L) or the Layers button at the right of the toolbar.</p>
+    <ul>
+        <li><strong>Click</strong> a layer to make it active. Every tool, effect and adjustment works on the active layer only.</li>
+        <li><strong>Double-click</strong> to rename it. <strong>Drag</strong> to change the order.</li>
+        <li>The <strong>eye</strong> hides or shows a layer. The <strong>padlock</strong> locks it, so it can't be painted on, moved, changed, merged into or deleted. A locked layer can still be hidden and reordered.</li>
+        <li><strong>Blend mode</strong> and <strong>Opacity</strong>, at the top of the panel, set how the active layer mixes with the ones below.</li>
+        <li>The buttons along the bottom add, duplicate, delete and merge down.</li>
+    </ul>
+
+    <a name="commands"></a>
+    <h2>Adding and combining</h2>
+    <table>
+        <tr><th>Command</th><th>What it does</th></tr>
+        <tr><td>New Layer (⇧⌘N)</td><td>A clear layer above the active one.</td></tr>
+        <tr><td>Duplicate Layer (⌘J)</td><td>A copy of the active layer, just above it.</td></tr>
+        <tr><td>Delete Layer (⌘⌫)</td><td>Removes the active layer.</td></tr>
+        <tr><td>Merge Down (⇧⌘E)</td><td>Combines the active layer into the one below it.</td></tr>
+        <tr><td>Merge Visible (⌥⇧⌘E)</td><td>Combines every visible layer into one. Hidden layers stay.</td></tr>
+        <tr><td>Flatten</td><td>Combines all visible layers into one, and drops hidden layers.</td></tr>
+    </table>
+    <p>All of these are in the Layer menu. Merging keeps how the picture looks.</p>
+
+    <a name="adjustment-layers"></a>
+    <h2>Adjustment layers</h2>
+    <p>An adjustment layer changes how the layers below it look, without changing their pixels. You can change its settings, hide it or delete it at any time.</p>
+    <ol>
+        <li>Choose Layer ▸ New Adjustment Layer, or Adjustment ▾ in the Layers panel, and pick one: Hue/Saturation, Adjust Photo, Levels, Curves and more.</li>
+        <li>Its settings open in the Adjustments panel. Change them and watch the image update.</li>
+        <li>To change them later, click the adjustment layer and open View ▸ Adjustments Panel.</li>
+    </ol>
+
+    <a name="layer-below"></a>
+    <h3>Change just one layer</h3>
+    <p>Normally an adjustment changes everything below it. To change only the layer right under it, such as a lifted subject but not its background, select the adjustment layer and turn on <strong>Only the layer below</strong> in the Layers panel.</p>
+    <ul>
+        <li>The adjustment is shown with an arrow and "Layer below only".</li>
+        <li>You can stack several of these on one layer, and they apply in order.</li>
+        <li>If the layer under it is an ordinary adjustment layer, or there's nothing under it, it says "Layer below only: none" and changes nothing.</li>
+    </ul>
+
+    <a name="merge-adjustment"></a>
+    <h3>Merge Adjustment</h3>
+    <p>Layer ▸ Merge Adjustment, or Merge in the Adjustments panel, makes the adjustment permanent: it combines the adjustment and every visible layer below it into one pixel layer, looking just the same. Layers above it aren't touched. With Only the layer below, it goes into that one layer instead.</p>
+
+    <a name="undo"></a>
+    <h2>Undo for one layer</h2>
+    <ul>
+        <li><strong>Edit ▸ Undo on Active Layer</strong> (⌥⌘Z) undoes the last change on the active layer only, leaving later changes on other layers in place.</li>
+        <li><strong>Layer ▸ Revert Layer</strong> puts the active layer back as it was at the last save.</li>
+    </ul>
+
+    <a name="saving"></a>
+    <h2>Saving a layered image</h2>
+    <p>Once an image has more than one layer, or an adjustment layer, it saves as a Colorbee project (.colorproj). A project keeps every layer, its name, blend mode, opacity and visibility, and the adjustment layers.</p>
+    <p>If you opened a PNG or JPEG and added layers, the original file is left as it was, and the next save asks where to put the project. For a flat copy to share, use File ▸ Export…: it combines the visible layers and leaves your document as it is.</p>
+
+    <p><a href="index.html">More guides</a></p>
+</body>
+</html>

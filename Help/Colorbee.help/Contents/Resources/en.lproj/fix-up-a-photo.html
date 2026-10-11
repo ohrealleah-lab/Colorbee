@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fix up a photo</title>
+    <meta name="AppleTitle" content="Fix up a photo">
+    <meta name="description" content="Quick photo fixes: Adjust Photo and its filters, Levels and Curves, straightening, perspective, removing the background, retouching spots and objects, red-eye, and developing RAW photos.">
+    <meta name="keywords" content="photo, adjust photo, auto, filter, levels, curves, exposure, white balance, straighten, perspective, remove background, lift subject, select subject, retouch, remove, spot heal, clone stamp, lighten, darken, smudge, red-eye, RAW, develop, camera details">
+    <link rel="stylesheet" href="../shared/help.css">
+</head>
+<body>
+    <nav class="back"><a href="index.html">Colorbee Help</a></nav>
+    <a name="photo"></a>
+    <h1>Fix up a photo</h1>
+    <p class="lead">Quick fixes for a dark, tilted or cluttered photo. Everything here works on your Mac, and each
+        fix is one step you can undo.</p>
+    <p>Most of these change the selection if there is one, or else the active layer.</p>
+
+    <a name="adjust-photo"></a>
+    <h2>Adjust Photo</h2>
+    <p>Adjustments ▸ Adjust Photo… opens a panel at the side with the sliders you'd find in the iPhone's Photos app: Exposure, Brilliance, Highlights, Shadows, Contrast, Brightness, Black Point, Saturation, Vibrance, Warmth, Tint, Sharpness, Definition, Noise Reduction and Vignette.</p>
+    <ul>
+        <li><strong>Auto</strong> looks at the photo and sets the light, color and white balance for you. The sliders it moved are marked, and you can fine-tune any of them.</li>
+        <li><strong>Warmth</strong> and <strong>Tint</strong> fix a color cast: cooler to warmer, and green to magenta.</li>
+        <li><strong>Vibrance</strong> boosts dull colors more than bright ones, so skin stays natural.</li>
+        <li><strong>Filters</strong> such as Vivid, Dramatic, Mono and Noir each have an intensity slider. Save as Filter… keeps your own settings as a filter.</li>
+    </ul>
+    <p class="note">For a change you can keep tweaking later, use Adjust Photo as an adjustment layer instead (Layer ▸ New Adjustment Layer). See <a href="work-with-layers.html#adjustment-layers">Work with layers</a>.</p>
+
+    <a name="tones"></a>
+    <h2>Levels, Curves and Auto Contrast</h2>
+    <ul>
+        <li><strong>Auto Contrast</strong> stretches the darkest pixels to black and the lightest to white, in one click. Good for a washed-out photo or scan.</li>
+        <li><strong>Levels…</strong> sets the black point, white point and midtones, with a histogram. Auto sets them from the image.</li>
+        <li><strong>Curves…</strong> reshapes the tones with points you drag, for all colors at once or one at a time.</li>
+    </ul>
+
+    <a name="straighten"></a>
+    <h2>Straighten, perspective and crop</h2>
+    <ul>
+        <li><strong>Image ▸ Straighten…</strong> turns the image a little, to level a horizon or a crooked scan. Drag the slider, or draw a line along something that should be level. <strong>Crop to fit</strong> trims the empty corners.</li>
+        <li><strong>Image ▸ Perspective Correction…</strong> squares up a photo of a whiteboard, a document or a building. Drag the four corners onto what should be a rectangle, then press Return.</li>
+        <li><strong>Image ▸ Crop…</strong> crops with a box you drag, free or in a set shape.</li>
+    </ul>
+
+    <a name="subject"></a>
+    <h2>Subjects and backgrounds</h2>
+    <ul>
+        <li><strong>Image ▸ Remove Background</strong> makes everything but the subject transparent, with soft edges.</li>
+        <li><strong>Image ▸ Lift Subject to New Layer</strong> copies the subject onto its own layer, leaving the photo as it is.</li>
+        <li><strong>Edit ▸ Select Subject</strong> selects the subject, with a soft edge, so you can change just it, or just the background after Edit ▸ Invert Selection.</li>
+    </ul>
+    <p>With several people or things, Colorbee asks you to click the one you want, or press Return for all of them. Screenshots and text have no subject, so you'll see "No subject found".</p>
+
+    <a name="retouch"></a>
+    <h2>Retouch: remove things and touch up spots</h2>
+    <p>Click Retouch in the toolbar (or press J) and choose a tool from the gallery. The palette bar shows a tip for each one.</p>
+    <table>
+        <tr><th>Tool</th><th>What it's for</th></tr>
+        <tr><td>Remove</td><td>Paint over something and let go: it's filled from its surroundings. Best on simple backgrounds such as sky, walls, sand, grass and the flat parts of screenshots. Esc stops a large fill.</td></tr>
+        <tr><td>Spot Heal</td><td>Click a speck of dust or a blemish, or brush over a thin scratch.</td></tr>
+        <tr><td>Clone Stamp (S)</td><td>Option-click where to copy from, then paint. Best for busy spots where Remove smears, such as leaves, bricks and edges.</td></tr>
+        <tr><td>Lighten and Darken</td><td>Brighten or deepen just where you paint. Range picks Shadows, Midtones or Highlights.</td></tr>
+        <tr><td>Saturate and Desaturate</td><td>Make colors more or less vivid where you paint.</td></tr>
+        <tr><td>Blur and Sharpen</td><td>Soften or crisp up where you paint.</td></tr>
+        <tr><td>Smudge</td><td>Drag colors along, like a finger through wet paint.</td></tr>
+    </table>
+    <ul>
+        <li><strong>Strength</strong> and <strong>Hardness</strong> are in the palette bar. Going over the same place in one stroke doesn't add up; a new stroke adds more.</li>
+        <li><strong>Clone Stamp options:</strong> Aligned keeps the same distance from the source from stroke to stroke. Match Tone blends the copied pixels into the colors around them.</li>
+        <li><strong>Keep the original safe:</strong> add an empty layer above the photo and turn on <strong>Sample All Layers</strong> (Remove, Spot Heal and Clone Stamp). The fixes go on the new layer, and the photo stays untouched.</li>
+    </ul>
+
+    <a name="red-eye"></a>
+    <h2>Red-eye</h2>
+    <p>Choose Adjustments ▸ Remove Red-Eye. Colorbee finds the eyes and turns red pupils dark, keeping the little highlight. If it doesn't find them (a pet, or a face turned away), select the red pupils first and choose it again: it fixes the red inside the selection.</p>
+
+    <a name="raw"></a>
+    <h2>RAW photos</h2>
+    <p>Colorbee opens the RAW files macOS can read, from Canon, Sony, Nikon, Fujifilm and DNG cameras. Each one opens in the Develop window first.</p>
+    <figure>
+        <img src="images/develop.png" alt="The Develop window: a large preview of the photo, with Exposure, Temperature, Tint, Highlights, Shadows, Contrast, Noise Reduction and Sharpness sliders beside it, and Reset to Camera, Cancel and Open buttons.">
+        <figcaption>The Develop window.</figcaption>
+    </figure>
+    <ul>
+        <li>Every slider starts at the camera's own setting. <strong>Reset to Camera</strong> goes back to them.</li>
+        <li><strong>Highlights</strong> only goes down, to bring back bright skies. To brighten, use Exposure.</li>
+        <li>A greyed-out control is one macOS can't use for this camera.</li>
+        <li><strong>Develop before you open.</strong> The Develop window works with the full detail of the RAW file. After opening, the photo is an ordinary image, so big changes to light and color are best made here.</li>
+        <li>Press Return to open the photo. It opens as an untitled copy, and the RAW file is never changed. To develop it differently, open the RAW file again.</li>
+    </ul>
+
+    <a name="camera-details"></a>
+    <h2>Camera details</h2>
+    <p>Photos from a camera or phone keep their camera, lens, ISO, shutter speed, aperture, focal length and date taken. They're written to an exported file only if you turn on <strong>Include camera details</strong> in File ▸ Export…. Colorbee never keeps the location, serial numbers or the owner's name.</p>
+
+    <p><a href="index.html">More guides</a></p>
+</body>
+</html>

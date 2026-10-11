@@ -14,7 +14,6 @@ _Last updated: 2026-10-11 · 493 core tests passing, plus `make perf`_
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 1. [Help, phase 4: the reference](#test-help-phase-4-the-reference): 5 quick checks, about 10 minutes.
-2. [RAW Develop sliders are fast](#test-raw-develop-sliders-are-fast): 4 steps, about 2 minutes.
 
 ---
 
@@ -224,7 +223,7 @@ Logs in `build/soak-results*.txt` (not committed).
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
 ### Test: RAW Develop sliders are fast
-_2026-10-11, not yet tested._ GPU audit recommendation 1: the Develop window's previews reuse one `CIRAWFilter` instead of re-reading the file on every change. On Leah's 45 MP CR3 a preview went from about 390 ms to 33–47 ms, byte-identical to a fresh decode (checked with a scratch tool). The final develop still makes its own filter. Rebuild with the script (option 2) first. Use Leah's own 45 MP CR3 (or any large RAW photo).
+_2026-10-11: passed Leah's hand test on 2026-10-11._ GPU audit recommendation 1: the Develop window's previews reuse one `CIRAWFilter` instead of re-reading the file on every change. On Leah's 45 MP CR3 a preview went from about 390 ms to 33–47 ms, byte-identical to a fresh decode (checked with a scratch tool). The final develop still makes its own filter. Rebuild with the script (option 2) first. Use Leah's own 45 MP CR3 (or any large RAW photo).
 1. File ▸ Open the CR3. The Develop window opens; the first preview takes about as long as before.
 2. Drag Exposure back and forth. The preview keeps up with the slider instead of lagging.
 3. Try Temperature, Shadows and Noise Reduction: all quick.

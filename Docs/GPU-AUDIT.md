@@ -1,6 +1,6 @@
 # GPU acceleration audit
 
-_Written 2026-10-10 for Leah; updated the same day with her answers, real timings and a timing of her CR3._ **A proposal for Leah to decide, not a plan.** No Colorbee code was changed._
+_Written 2026-10-10 for Leah; updated the same day with her answers, real timings and a timing of her CR3; re-checked against `main` and re-timed on a quiet Mac on 2026-10-11 (below)._ **A proposal for Leah to decide, not a plan.** No Colorbee code was changed.
 
 ## Bottom line
 
@@ -11,6 +11,37 @@ _Written 2026-10-10 for Leah; updated the same day with her answers, real timing
 **Leah's later answers add two more real pain points:** Straighten lags on big or multi-layer photos, and Adjust Photo's 1.2 s on a 45 MP photo is not acceptable. Both have CPU-only fixes with identical previews (recommendations 2 and 3). The Adjust Photo one is the best find of the audit: remembering each color's result made the color part **25× faster (653 → 25 ms) with byte-identical output** on her real photo.
 
 After that, a small CPU-only cleanup of serial loops (recommendation 4). None of this needs an architecture change.
+
+## Re-check and re-run (2026-10-11)
+
+**Re-checked against `main` after stage 13:** still true. `RawDeveloper` still makes a new `CIRAWFilter` per call;
+Straighten's preview still runs on the main thread (`Editor.renderDecorationPreview`); the serial loops in
+`Effects.blurred`, `Effects.applyToRegion`, `Effects.sharpened` and `PixelBuffer.skewed` are unchanged apart from soft
+selections' per-pixel weight. Stage 13's Remove and Retouch tools came after the audit; they're CPU-only and Remove has
+its own time limit in `PerformanceTests`, so nothing changes.
+
+**Re-timed with the game closed** (load average about 4.5–6, from macOS's own photo analysis and Spotlight indexing).
+All three scripts ran unchanged against today's `main`. Everything is 5–25% faster than the busy-Mac numbers; the
+conclusions are the same.
+
+| Measure | 2026-10-10 (busy) | 2026-10-11 (quiet) |
+|---|---|---|
+| RAW Develop slider tick, today's way | 423–1,349 ms | 385–398 ms |
+| RAW Develop slider tick, one reused filter | 32–98 ms | 24–35 ms |
+| Adjust Photo color step, 45 MP CR3 | 628–653 ms | 586 ms |
+| Same, remembering each color | 25 ms (identical output) | 25 ms (identical output) |
+| Adjust Photo, all sliders, CR3 | 1,233 ms | 1,056 ms |
+| Straighten 1 layer, CR3: today / vImage | 386 / 154 ms | 371 / 163 ms |
+| Straighten vImage vs today, mean difference | 0.4 / 255 | 0.4 / 255 (max 34, at the edges) |
+| Synthetic 45 MP: blur / Sharpen / Skew h+v | 202 / 399 / 1,250 ms | 152 / 349 / 1,089 ms |
+| Synthetic 45 MP: Straighten 3 layers | 1,315 ms | 1,076 ms |
+
+**Design notes added on re-review:**
+- Remembering colors: the prototype wrote to the shared table from several cores without locks, which isn't safe in
+  Swift; the real version needs atomic writes (or another safe scheme). It also uses 64 MB per update, so use it only
+  on large images, given the soak's memory history.
+- Suggested order (Claude, 2026-10-11): 1 (RAW Develop), then 2 and 4 together (with the detail sliders on, the blur
+  loops are most of Adjust Photo's time), then 3 (Straighten A and B).
 
 ## Leah's answers (2026-10-10)
 

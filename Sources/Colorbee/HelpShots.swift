@@ -10,7 +10,8 @@ enum HelpShots {
 
     static func startIfRequested(window: NSWindow, editor: Editor) {
         guard scene > 0 else { return }
-        window.setContentSize(NSSize(width: 1280, height: 820))
+        // Wide enough that the whole toolbar shows, with no » overflow (stage 13 added three tools).
+        window.setContentSize(NSSize(width: 1440, height: 820))
         window.center()
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)

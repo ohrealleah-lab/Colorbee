@@ -7,7 +7,15 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
+_Last updated: 2026-10-11 · 493 core tests passing, plus `make perf`_
+
+## Waiting for Leah's tests
+
+Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
+
+1. [Shift straightens the brushes and Eraser](#test-shift-straightens-the-brushes-and-eraser): 6 steps, about 2 minutes.
+2. [Help guides, phase 3](#test-help-guides-phase-3): read each new guide with Colorbee beside it. One guide at a time is fine.
+3. [Help, phase 1](#test-help-phase-1): 4 quick steps (⌘?, Help search, dark mode).
 
 ---
 
@@ -18,6 +26,7 @@ _Last updated: 2026-10-03 · 272 core tests passing, plus `make perf`_
 - **Say the recommended model and effort before each stage** (Opus throughout; high for design-heavy work, medium for routine UI).
 - Log any behavior choices Claude makes on its own in FRD §23, phrased "veto any".
 - Prefer plain explanations. Leah tests features by hand and reports back; give her a short "please try" list after each stage.
+- **Keep "Waiting for Leah's tests" at the top current:** add each new test there with a link to its steps (a `### Test: …` heading), and remove it when it passes. Also give Leah the steps in chat; the file is long.
 - Work locally (no cloud sessions: the build needs macOS and Xcode). The repo is public on GitHub at github.com/ohrealleah-lab/Colorbee so employers can see it: keep commits and docs presentable, never commit secrets or personal data, and push after each commit.
 
 ## Build order progress (FRD §20)
@@ -211,14 +220,16 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-**Shift straightens the brushes and Eraser (2026-10-10): not yet tested.** Holding Shift while dragging keeps the stroke on one line, across or up and down from where it started, as the Pencil always did. Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`.
+### Test: Shift straightens the brushes and Eraser
+_2026-10-10, not yet tested._ Holding Shift while dragging keeps the stroke on one line, across or up and down from where it started, as the Pencil always did. Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`.
 1. Brushes ▸ Marker, yellow Color 1. Hold Shift and drag along the "Email" row, wobbling the mouse up and down: the highlight stays perfectly level.
 2. Hold Shift and drag mostly downward: the stroke goes straight down instead.
 3. Without Shift, the stroke follows the mouse as before.
 4. Repeat step 1 with the Round brush and with the Eraser (E): both stay level.
 5. ⌘Z undoes each stroke in one step.
 
-**Help, phase 3 (2026-10-10): written, not yet tested.** Six new guides: Annotate an image, Work with layers, Fix up a photo, Pages and PDFs, Pixel art, and Save, export and share. Getting started gains the Retouch, Redact Brush and Step Badge tools and their keys (J, S, K, N); Redact a screenshot gains the Redact Brush. Written from the FRD and checked against the code (menu names, labels, keys). Notes: the iPhone import section describes only importing with no document open, since importing into an open document is pinned; Shift now straightens the brushes and Eraser too (Leah, 2026-10-10), so the highlighter tip uses it.
+### Test: Help guides, phase 3
+_2026-10-10, written, not yet tested._ Six new guides: Annotate an image, Work with layers, Fix up a photo, Pages and PDFs, Pixel art, and Save, export and share. Getting started gains the Retouch, Redact Brush and Step Badge tools and their keys (J, S, K, N); Redact a screenshot gains the Redact Brush. Written from the FRD and checked against the code (menu names, labels, keys). Notes: the iPhone import section describes only importing with no document open, since importing into an open document is pinned; Shift now straightens the brushes and Eraser too (Leah, 2026-10-10), so the highlighter tip uses it.
 1. **Screenshots: taken by Claude on 2026-10-10** (window, toolbar, layers), with Leah's OK for screen access. The scene window is now 1440 points wide so the whole toolbar shows. Open the three pictures in `Help/Colorbee.help/Contents/Resources/en.lproj/images/` and check they look right.
 2. Rebuild with the script (option 2). Help ▸ Colorbee Help: the contents page lists eight guides.
 3. Follow each new guide with Colorbee open beside it, one at a time, using `TestImages/Help/Sample Screenshot.png` (Annotate, Pages), `TestImages/Stage 9 Practice Photo.png` (Fix up a photo, Layers), `TestImages/Stage 13/Red Eye Practice.png` (red-eye), `TestImages/Stage 12/Test Camera.dng` (RAW) and a new 32 × 32 image (Pixel art). Every step should work, and every menu name and key should match.
@@ -234,7 +245,8 @@ every menu name and key should match; note anything unclear.
 4. In the Help menu's search field type "redact": Redact a screenshot is listed. Type "keys": Getting started is listed.
 5. Switch Colorbee to Dark (Settings ▸ General): both pages and their pictures read well.
 
-**Help, phase 1 (2026-10-09): screenshots taken by Leah on 2026-10-09 (step 5); steps 1–4 not yet tested.** Plan: `Docs/HELP-PLAN.md`. Rebuild and run with the script first.
+### Test: Help, phase 1
+_2026-10-09: screenshots taken by Leah (step 5); steps 1–4 not yet tested. Phase 2's test covered most of this, so it's quick._ Plan: `Docs/HELP-PLAN.md`. Rebuild and run with the script first.
 1. Help ▸ Colorbee Help: Apple's help viewer opens on a "Colorbee Help" page saying the guide is coming soon.
 2. Press ⌘? from anywhere in Colorbee: the same page opens.
 3. Click the Help menu and type "colorbee" in its search field: "Colorbee Help" is listed under Help Topics.

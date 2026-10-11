@@ -1,82 +1,93 @@
 # GPU acceleration audit
 
-_Written 2026-10-10 for Leah. **A proposal for Leah to decide, not a plan.** No code was changed and nothing heavy was run._
+_Written 2026-10-10 for Leah; updated the same day with her answers and real timings. **A proposal for Leah to decide, not a plan.** No Colorbee code was changed._
 
-**Read this before acting on it:**
-- The audit was read at commit `7c85d0c`. Since then `Effects.swift`, `Canvas.swift`, `SelectionMask.swift`, `Subjects.swift` and `Editor.swift` changed (stage 13: soft-edged selections, Redact Brush). Line numbers below are from the old state; re-find each loop by name, and check that the soft-edge selection work didn't already change it.
-- "Measured" means the `PerformanceTests` limits (set at about 2× the real time) and the soak logs in `build/soak-results*.txt`, at 8000 × 8000 (64 megapixels) on Leah's M2 Max. "Est." means a guess from reading the code, not timed.
-- CLAUDE.md's architecture (the CPU owns the pixels; Metal is for display only) is locked. Nothing here needs it changed except where a row says so.
+## Bottom line
 
-## The main finding
+**Nothing needs the GPU, and Leah's answers rule it out anyway.** Measured on her M2 Max, every everyday edit on a 12 MP phone photo takes 10–330 ms. The slowest edits on a 45 MP RAW photo take 1.2–1.3 s. Leah also said previews must match the applied result, and a GPU can't give that for most of this code (Metal has no `Double`).
 
-The cost of copying pixels to the GPU is mostly not the problem. On Apple Silicon memory is shared, and Colorbee already gives layer buffers to Metal without copying (`Renderer.texture(for:)`, `bytesNoCopy`). The real obstacles to a GPU path:
+What is worth doing is a small CPU-only cleanup: serial loops that waste time next to code that is already parallel (recommendation 1). Nothing in it needs an architecture change.
 
-- **Exactness.** Metal has no `Double`. The CPU effects use `Double`, so a GPU result would differ in the last bit.
-- **The screen and export already differ slightly.** The screen composites in half floats, export in Float32. A GPU flatten would change some exported bytes.
+## Leah's answers (2026-10-10)
+
+1. Sliders aren't laggy today.
+2. Her normal photo is a 12 MP iPhone shot; 45 MP RAW photos will happen.
+3. A preview must be the same as the applied result. This rules out GPU previews, since the GPU would give slightly different pixels. The adjustment-layer shaders already differ slightly from the CPU code.
+4. Timing runs approved.
+
+## How the timings were made
+
+- A throwaway Swift Testing file ran in Release on Leah's M2 Max. It is saved as [GPU-AUDIT-timing.txt](GPU-AUDIT-timing.txt) so it can be re-run after any speedup. It is not part of the test suite.
+- To run it, copy it to `Packages/ColorbeeCore/Tests/ColorbeeCoreTests/ScratchTiming.swift` and run `swift test -c release --no-parallel --filter ScratchTiming` in `Packages/ColorbeeCore`. It takes about 30 seconds. Don't commit it: it would run in `make test` in Debug and take minutes.
+- The test image is a noisy gradient, which is photo-like and doesn't compress trivially. Each number is the fastest of 3 runs (12 MP, 4000 × 3000) or 2 runs (45 MP, 8256 × 5504).
+- Effects include the history before-image recording. The live preview numbers use `EffectPreview.render`, the path the sliders use.
+- The code was read at commit `7c85d0c`; `main` has since changed `Effects.swift`, `Canvas.swift`, `SelectionMask.swift`, `Subjects.swift` and `Editor.swift` (stage 13). Line numbers are not given; find each loop by function name and check that the soft-edge selection work didn't already change it.
+
+## Why copying to the GPU is not the problem
+
+On Apple Silicon memory is shared, and Colorbee already gives layer buffers to Metal without copying (`Renderer.texture(for:)`, `bytesNoCopy`). The real obstacles are:
+- **Exactness.** Metal has no `Double`; the CPU effects use `Double`.
+- **Screen vs export.** The screen composites in half floats, export in Float32. A GPU flatten would change some exported bytes.
 - **Size limits.** Apple GPUs cap textures at 16,384 px; Colorbee allows 30,000.
-- **Memory.** A GPU path needs extra temporary buffers, a worry after the 30-minute soak crashed the Mac (STATUS.md).
-- **Upkeep.** Every GPU path is a second copy of an algorithm to keep in step with the CPU one.
+- **Memory.** Extra temporary buffers are a worry after the 30-minute soak crashed the Mac.
+- **Upkeep.** Each GPU path is a second copy of an algorithm to keep in step.
 
-## Table
+## Table (measured)
 
-| Area | Uses now | How slow | GPU worth it? | Why |
-|---|---|---|---|---|
-| Display (`Renderer`, `Shaders.metal`) | Metal already, MPS blur | Real time | Already GPU | Nothing to add. |
-| Flatten / `Canvas.composite` (export, merge, Copy Merged) | `ParallelRows`, Float32 SIMD | ~0.4 s (limit 0.8 s); worst 2.3 s in the soak | No | A GPU version would change some exported bytes. |
-| Adjustment layers baked in (`Compositing.adjust`) | Copy plus `ParallelRows` | Adds to the effect's time | No | The screen already does this on the GPU. |
-| Gaussian blur | vImage box blur ×3, plus serial copy loops | 0.45–0.95 s | No | A GPU Gaussian would look different from today's box blur. The serial loops are the cheap fix. |
-| Sharpen | Blur plus a serial `Double` loop | 0.4–1.4 s (slowest effect in the soak) | No | Cheap CPU fix. |
-| Invert, Brightness/Contrast, Hue/Sat, Levels, Curves, Sepia, Posterize | `ParallelRows`, closure per pixel | ~0.3 s (limit 0.6 s); tens of ms at 12 MP (est.) | No | `Double` math can't match bit for bit. Already fast. |
-| Adjust Photo (apply) | `ParallelRows`, many `pow()` calls, 1–2 blurs | Not measured; est. 1–2 s at 64 MP, 0.2–0.4 s at 12 MP | Maybe | Heaviest per-pixel code, and it has no perf test. |
-| Live slider previews (blur, Adjust Photo, Levels…) | CPU in a background task, copying the whole layer every tick (`EffectPreview.render`) | Est. 50–400 ms per tick at 12 MP | Yes, preview only | The adjustment-layer shaders already exist. Apply stays on the CPU. |
-| Straighten / Drop Shadow / Border previews | A real history step, undone and redone every tick, on the main thread (`Editor.renderDecorationPreview`) | Not measured; likely laggy with several layers (est.) | Maybe, preview only | Needs fixing either way. |
-| Straighten / Perspective apply (`Warp`) | `ParallelRows`, bilinear | Est. 0.1–0.3 s per 12 MP layer | No | GPU bilinear uses coarser weights, so it wouldn't match. |
-| Resize (smooth) | vImage Lanczos | Fast | No | Already Accelerate. |
-| Resize (sharp / nearest) | Serial loop, two divides per pixel | Est. 0.2–0.3 s at 64 MP | No | Cheap CPU fix. |
-| Skew (`ResizeSkew.skewed`) | Serial `Double` loop, divide per pixel | Est. 1–3 s at 64 MP | No | The biggest unparallelized loop. |
-| Remove Background / Select Subject | Vision, plus a serial mask conversion | Mostly Vision (a second or more); conversion est. 50–200 ms | Already accelerated | Vision uses the Neural Engine and GPU. |
-| Auto-Redact | Vision text recognition, one tile at a time | Mostly Vision | Already accelerated | Tiles could possibly run side by side. Unsure it helps. |
-| PDF export | `ParallelRows` flatten, Apple zlib per page, pages in parallel | Est. 0.2–0.5 s per page at 200–300 DPI | No | Compression isn't GPU work. |
-| RAW develop | Core Image, Metal-backed | A few seconds for a big file | Already GPU | A fresh `CIRAWFilter` per preview may repeat work. Measure first. |
-| Fill, Magic Wand, undo, history spill | Scanline fill, LZ4 on all cores | 0.3–0.4 s; worst undo 0.33 s | No | Sequential or compression work. |
+| Area | Uses now | 12 MP | 45 MP | GPU? | Why |
+|---|---|---|---|---|---|
+| Display (`Renderer`, `Shaders.metal`) | Metal, MPS blur | real time | real time | Already GPU | Nothing to add. |
+| Flatten, 2 layers + adjustment | `ParallelRows`, Float32 | 47 ms | 189 ms | No | Opaque Normal layers only: 16 / 60 ms. A GPU flatten would change exported bytes. |
+| Gaussian blur r8 | vImage box blur ×3, serial copy loops | 58 ms | 202 ms | No | A GPU Gaussian would look different. About half the time is the serial copy loops (below). |
+| Sharpen | Blur plus a serial `Double` loop | 107 ms | 399 ms | No | About twice the blur's time; the serial loop is the difference. |
+| Hue/Saturation | `ParallelRows`, `Double` closure | 39 ms | 167 ms | No | `Double` can't match on a GPU. Fast already. |
+| Invert / Pixelate | `ParallelRows` | 9 / 25 ms | 36 / 97 ms | No | Fast already. |
+| Adjust Photo, color sliders only | `ParallelRows`, `Double`, many `pow()` | 168 ms | 682 ms | No | Can't match bit for bit. |
+| Adjust Photo, all sliders (sharpness, definition, noise, vignette too) | Same plus two blurs | 308 ms | 1,200 ms | No | The slowest effect. Its two blurs include the serial copy loops. |
+| Live slider preview (same code) | `EffectPreview.render`, background, coalesced | blur 63 ms, Adjust Photo 307 ms | blur 227 ms, Adjust Photo 1,188 ms | No (previews must match) | Fine at 12 MP, as Leah found. About 1.2 s per Adjust Photo update on 45 MP. |
+| Straighten, 1 layer | `ParallelRows`, bilinear | 109 ms | 431 ms | No | Hardware bilinear uses coarser weights; wouldn't match. |
+| Straighten, 3 layers | same | 333 ms | 1,315 ms | No | The slider preview does this **on the main thread** every tick (`Editor.renderDecorationPreview`). |
+| Perspective Correction, 1 layer | same | 109 ms | 421 ms | No | One-shot. |
+| Resize smooth (80%) | vImage Lanczos | 50 ms | 216 ms | No | Already Accelerate. |
+| Resize sharp (80%) | Serial loop | 9 ms | 33 ms | No | Not a problem (my first guess was far too high). |
+| Skew, horizontal only (smooth) | Serial `Double` loop | 106 ms | 401 ms | No | One-shot. |
+| Skew, horizontal + vertical (smooth) | Serial; the vertical pass is cache-unfriendly | 323 ms | 1,250 ms | No | The slowest unparallelized loop. |
+| Remove Background / Select Subject | Vision (Neural Engine / GPU), serial mask expand | expand 25 ms per subject | expand 97 ms per subject | Already accelerated | Vision's own time was not timed. |
+| Auto-Redact | Vision, one tile at a time | not timed | not timed | Already accelerated | Vision-dominated. |
+| PDF export, one Letter page | `ParallelRows` flatten, Apple zlib | 310 ms (200 DPI page, 3.7 MP) | 690 ms (300 DPI page, 8.4 MP) | No | Pages encode in parallel. Compression isn't GPU work. |
+| RAW develop | Core Image, Metal-backed | not timed | not timed | Already GPU | No RAW file was used. A new `CIRAWFilter` per preview may repeat work; measure with a real file before touching it. |
+| Fill, Magic Wand, undo, history | Scanline fill, LZ4 on all cores | — | — | No | From the earlier 64 MP logs: fill and wand 0.3–0.4 s, worst undo 0.33 s. Sequential or compression work. |
 
-At 1080p everything meets NFR-6 (100 ms), so nothing there needs help.
+At 1080p everything meets NFR-6 (100 ms). For scale, the earlier 64 MP (8000 × 8000) numbers were: Flatten ~0.4 s, blur ~0.5 s, Sharpen up to 1.4 s in the soak.
 
-## Cheap wins without touching the architecture
+## Serial loops worth fixing (CPU only, same results)
 
-Each should give identical results, so the existing tests would catch any difference.
+The serial copy loops cost 15 ms (12 MP) and 66 ms (45 MP) each, against 2 ms and 5 ms for a plain row copy. The blur uses two of them, plus another in Sharpen and Adjust Photo, so they're about half of a blur's time.
 
-- **Sharpen's loop** (`Effects.sharpened`): serial, so parallelize it.
-- **Blur and effect copy loops** (`Effects.applyToRegion` copy-back; `Effects.blurred` copy-in and coverage fill): serial, checking the selection pixel by pixel. With no selection a plain row copy would do.
-- **Skew** (`PixelBuffer.skewed`): each row or column is independent, so `ParallelRows` fits.
-- **Sharp resize** (`PixelBuffer.resampled`, nearest-neighbor case): precompute the column lookups and parallelize.
-- **Subject mask conversion** (`SubjectScan.bytes(of:)`, `mask(for:)`, `SubjectActions.select`): serial full-image loops.
-- **Pointwise effects** (`Effects.applyToRegion`): hoist the "is this pixel selected" check out of the loop when there's no selection.
-- **Levels, Curves, Posterize, Invert**: `vImageTableLookUp` is bit-exact, but only about 2–3× on code that's already fast.
-- **Flatten** (`Canvas.compositePixels`): a fast path for fully opaque Normal pixels, which round-trip exactly.
-- **`PixelBuffer.hasTransparency`**: a serial full scan on every open. Minor.
+- **`Effects.blurred`** (copy-in and coverage fill) **and `Effects.applyToRegion`** (copy-back): parallelize, or with no selection use a row copy. This helps blur, Sharpen and Adjust Photo (both its blurs).
+- **`Effects.sharpened`**: serial `Double` loop; parallelize.
+- **Skew** (`PixelBuffer.skewed`): each row (or column) is independent. Parallelize, vertical pass especially.
+- **`SubjectScan.bytes(of:)`, `mask(for:)`, `SubjectActions.select`**: serial full-image loops, small next to Vision (25 / 97 ms per subject).
+- **Pointwise effects**: hoist the per-pixel "is this selected" check when there's no selection. Small.
+- Not worth doing now: sharp resize (33 ms), a Flatten fast path for opaque pixels (Flatten is already 189 ms at 45 MP), and `vImageTableLookUp` for Levels/Curves (already 9–36 ms).
 
-## Top 3 recommendations
+## Recommendations (revised)
 
-1. **Parallelize the serial loops (Sharpen, Skew, blur copies, sharp resize, subject mask).**
-   - Speedup: Sharpen ~2–3×, whole-layer blur 20–35% faster, Skew ~6–8×, sharp resize ~5× (est.).
-   - Risk: low, since results are identical.
+1. **Fix the serial loops (blur copies, Sharpen, Skew), results unchanged.**
+   - Estimated speedup (from the replica loop timings; not yet built): blur 58 → ~30 ms (12 MP), 202 → ~80 ms (45 MP); Sharpen about 3× (107 → ~35 ms, 399 → ~120 ms); Adjust Photo about 15–20% (1,200 → ~1,000 ms at 45 MP); Skew with both directions about 4–5× (1,250 → ~300 ms at 45 MP).
+   - Risk: low. Existing exact-value tests cover the pixels.
    - Architecture change: none.
-2. **Preview on the GPU, apply on the CPU.**
-   - What: live slider previews use the existing adjustment-layer shaders. Straighten could preview as a rotated quad. Apply still runs the exact CPU code through history.
-   - Speedup: a slider tick goes from hundreds of milliseconds (est.) to one frame.
-   - Risk: medium. The preview would differ slightly from the applied result (blur softness, tiny color steps). Straighten also needs its main-thread problem fixed.
-   - Architecture change: probably none, since the CPU still owns the pixels. It is a behavior change, so it needs Leah's decision and a note in FRD §23. Time the current previews before building anything.
-3. **Flatten fast paths for opaque pixels.**
-   - Speedup: ~1.5–2× on typical photo stacks (est.). Flatten is the most common slowest step in the soak logs.
-   - Risk: low, with exact-match tests.
-   - Architecture change: none.
+   - Honest value: small at 12 MP, where nothing is slow. It matters only for 45 MP RAW photos. Low priority.
+2. **Straighten's slider preview runs on the main thread.** It is about 110–330 ms per tick at 12 MP, and 0.4–1.3 s at 45 MP, against the rule that the main thread never blocks for more than a frame. Leah hasn't noticed it at 12 MP. The fix would be to run it in the background with updates merged, as effect previews do, which keeps the preview identical to the result. Only worth doing if Leah finds it laggy on a big or multi-layer photo (question 1).
+3. **Adjust Photo at 45 MP** takes about 1.2 s per slider update.
+   - Leave it unless it bothers Leah.
+   - A faster option is to switch its per-pixel math from `Double` to `Float`. That would change some pixels by one level, in the preview and the result alike, so they would still match. It would make the CPU path differ a little from the old saved results and from the adjustment-layer shader. That needs Leah's decision, and the audit does not recommend it by default.
 
-Not recommended: a GPU rewrite of blur, flatten or export. It would need an architecture change for little gain and would break exact-match output.
+Not recommended: any GPU rewrite of blur, flatten, effects or export.
 
 ## Open questions for Leah
 
-1. Do slider previews feel laggy today on real photos? Which ones: Adjust Photo, Levels, blur or Straighten? That decides whether #2 is worth doing.
-2. What sizes does Leah usually edit, 12 MP phone shots or 45 MP RAW? 8000 × 8000 is a stress case.
-3. May a preview differ slightly from the applied result? If it must be pixel-identical, GPU previews are out.
-4. May Claude time Adjust Photo, Straighten, Skew and Sharpen in Release at 12 MP (about 30 seconds, under 1 GB, not `make perf`)? A throwaway timing script, no repo changes.
+1. Have you tried Straighten on a 45 MP photo, or on a 12 MP photo with several layers? That is the one slider path measured at more than a frame on the main thread.
+2. Is about 1.2 s per Adjust Photo update on a 45 MP RAW acceptable? If not, are you open to the one-level `Float` change in recommendation 3?
+3. Do you want recommendation 1 done now, or left until a 45 MP photo actually feels slow?
+4. Can you give me a real RAW file to time RAW develop with? I didn't time it.

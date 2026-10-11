@@ -159,7 +159,7 @@ public enum Effects {
                 for y in rows {
                     let row = layer.buffer.row(y)
                     for x in region.minX..<region.maxX where isSelected(selection, x, y) {
-                        row[x] = transform(row[x])
+                        row[x] = mixed(row[x], transform(row[x]), weight(selection, x, y))
                     }
                 }
             }
@@ -192,7 +192,7 @@ public enum Effects {
             let source = result.row(y - origin.y)
             let destination = layer.buffer.row(y)
             for x in region.minX..<region.maxX where isSelected(selection, x, y) {
-                destination[x] = source[x - origin.x]
+                destination[x] = mixed(destination[x], source[x - origin.x], weight(selection, x, y))
             }
         }
         return region
@@ -274,7 +274,19 @@ public enum Effects {
         return second
     }
 
-    /// Whether a pixel is selected; no selection means everything is. Reads the mask's storage directly.
+    /// How much of a pixel is selected, 0...255; all of it without a selection.
+    @inline(__always)
+    static func weight(_ selection: SelectionMask?, _ x: Int, _ y: Int) -> UInt8 {
+        selection?[x, y] ?? 255
+    }
+
+    /// `changed` where a pixel is fully selected, mixed with `original` where it's partly selected (FR-3.4).
+    @inline(__always)
+    static func mixed(_ original: Pixel, _ changed: Pixel, _ weight: UInt8) -> Pixel {
+        weight == 255 ? changed : Compositing.lerp(original, changed, Float(weight) / 255)
+    }
+
+    /// Whether a pixel is selected at all; no selection means everything is. Reads the mask's storage directly.
     @inline(__always)
     static func isSelected(_ selection: SelectionMask?, _ x: Int, _ y: Int) -> Bool {
         guard let selection else { return true }

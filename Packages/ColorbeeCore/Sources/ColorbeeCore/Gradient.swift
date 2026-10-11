@@ -58,7 +58,9 @@ public enum Gradients {
                     case .diamond: (abs(along) + abs(across)) / length
                     case .conical: (atan2(across, along) + .pi) / (2 * .pi)
                     }
-                    row[x] = Compositing.over(row[x], mix(startColor, endColor, min(1, max(0, t))))
+                    let color = mix(startColor, endColor, min(1, max(0, t)))
+                    let amount = selection?[x, y] ?? 255
+                    row[x] = amount == 255 ? Compositing.over(row[x], color) : Compositing.over(row[x], color, coverage: Float(amount) / 255)
                 }
             }
         }

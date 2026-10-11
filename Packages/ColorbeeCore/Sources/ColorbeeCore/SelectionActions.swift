@@ -217,7 +217,7 @@ public enum SelectionActions {
             for y in area.minY..<area.maxY {
                 let row = layer.buffer.row(y)
                 for x in area.minX..<area.maxX where mask[x, y] > 0 {
-                    row[x] = fill
+                    row[x] = row[x].vacated(by: mask[x, y], fill: fill)
                 }
             }
         case .floating:
@@ -251,7 +251,7 @@ public enum SelectionActions {
             let source = image.row(y)
             let destination = result.row(y - bounds.minY)
             for x in bounds.minX..<bounds.maxX where mask[x, y] > 0 {
-                destination[x - bounds.minX] = source[x]
+                destination[x - bounds.minX] = source[x].taking(mask[x, y])
             }
         }
         return result

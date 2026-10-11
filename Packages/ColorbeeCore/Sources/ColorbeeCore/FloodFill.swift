@@ -16,8 +16,15 @@ public enum FloodFill {
         let region = connectedRegion(in: source ?? layer.buffer, from: seed, tolerance: tolerance, selection: selection)
         guard !region.bounds.isEmpty else { return .zero }
         edit.willModify(region.bounds, in: layer)
+        let soft = selection?.isSoft == true
         for span in region.spans {
-            (layer.buffer.row(span.y) + span.minX).update(repeating: color, count: span.maxX - span.minX + 1)
+            let row = layer.buffer.row(span.y)
+            guard soft, let selection else {
+                (row + span.minX).update(repeating: color, count: span.maxX - span.minX + 1)
+                continue
+            }
+            // Partly selected pixels are filled partly (FR-3.4).
+            for x in span.minX...span.maxX { row[x] = Effects.mixed(row[x], color, selection[x, span.y]) }
         }
         return region.bounds
     }

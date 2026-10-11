@@ -115,6 +115,18 @@ fragment float4 ants_fragment(QuadOut in [[stage_in]],
     return float4(shade, shade, shade, 1);
 }
 
+// Edit ▸ Feather…'s preview: a red tint over what isn't selected, fading in across a soft edge. The quad covers the
+// canvas; adjustParams is the mask's rect in image pixels.
+fragment float4 tint_fragment(QuadOut in [[stage_in]],
+                              texture2d<float> mask [[texture(0)]],
+                              sampler maskSampler [[sampler(0)]],
+                              constant QuadUniforms &u [[buffer(0)]]) {
+    float2 maskUV = (in.uv * u.imageSize - u.adjustParams.xy) / u.adjustParams.zw;
+    float selected = (all(maskUV >= 0.0) && all(maskUV <= 1.0)) ? mask.sample(maskSampler, maskUV).r : 0.0;
+    float alpha = 0.45 * (1.0 - selected);
+    return float4(0.9 * alpha, 0.15 * alpha, 0.2 * alpha, alpha);
+}
+
 // Pixel grid: one drawable pixel along each image pixel's top and left edge, in whichever of
 // black or white contrasts with what's underneath.
 fragment float4 grid_fragment(QuadOut in [[stage_in]],

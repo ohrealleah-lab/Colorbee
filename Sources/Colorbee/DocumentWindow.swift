@@ -143,6 +143,7 @@ final class DocumentWindow: NSWindow {
     @objc func showSepia(_ sender: Any?) { editor?.beginEffect(.sepia) }
     @objc func showPosterize(_ sender: Any?) { editor?.beginEffect(.posterize) }
     @objc func removeRedEye(_ sender: Any?) { editor?.removeRedEye() }
+    @objc func showFeather(_ sender: Any?) { editor?.beginFeather() }
     @objc func autoContrast(_ sender: Any?) { editor?.autoContrast() }
     @objc func showAddNoise(_ sender: Any?) { editor?.beginEffect(.addNoise) }
     @objc func showMotionBlur(_ sender: Any?) { editor?.beginEffect(.motionBlur) }
@@ -360,6 +361,8 @@ final class DocumentWindow: NSWindow {
         switch menuItem.action {
         case #selector(showSpotlight(_:)):
             // Spotlight changes what's around a selection, so it waits for one.
+            return editor.hasSelection
+        case #selector(showFeather(_:)):
             return editor.hasSelection
         case #selector(removeRedEye(_:)):
             return !editor.isFindingEyes && editor.activeLayerTakesEdits

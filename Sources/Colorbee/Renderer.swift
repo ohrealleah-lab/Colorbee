@@ -46,6 +46,8 @@ struct RenderScene {
     let highlights: [(rect: IntRect, active: Bool)]
     /// Crop: the canvas outside this rectangle is shaded.
     var dimmedOutside: IntRect? = nil
+    /// Edit ▸ Feather…'s preview: a tint over what isn't selected, fading in across a soft edge.
+    var tintsOutsideSelection = false
     /// Before/After: the earlier image and how to show it.
     let comparison: (before: PixelBuffer, layout: Comparison.Layout, dividerX: Double)?
 }
@@ -60,6 +62,7 @@ final class Renderer {
     private let queue: MTLCommandQueue
     private let layerPipeline: MTLRenderPipelineState
     private let checkerPipeline: MTLRenderPipelineState
+    private let tintPipeline: MTLRenderPipelineState
     private let antsPipeline: MTLRenderPipelineState
     private let gridPipeline: MTLRenderPipelineState
     private let solidPipeline: MTLRenderPipelineState
@@ -135,6 +138,7 @@ final class Renderer {
         layerPipeline = pipeline(fragment: "layer_fragment")
         checkerPipeline = pipeline(fragment: "checker_fragment")
         antsPipeline = pipeline(fragment: "ants_fragment")
+        tintPipeline = pipeline(fragment: "tint_fragment")
         gridPipeline = pipeline(fragment: "grid_fragment", blended: false)
         solidPipeline = pipeline(fragment: "solid_fragment")
         linePipeline = pipeline(fragment: "solid_fragment", vertex: "line_vertex")
@@ -434,6 +438,13 @@ final class Renderer {
         }
         pixelTextures = pixelTextures.filter { liveBuffers.contains($0.key) }
 
+        if let outline = scene.outline, scene.tintsOutsideSelection {
+            uniforms.rect = deviceRect(canvas.bounds)
+            uniforms.adjustParams = SIMD4(Float(outline.rect.minX), Float(outline.rect.minY), Float(outline.rect.width), Float(outline.rect.height))
+            encoder.setFragmentSamplerState(maskSampler, index: 0)
+            encoder.setFragmentTexture(texture(for: outline.mask), index: 0)
+            draw(tintPipeline)
+        }
         if let outline = scene.outline {
             uniforms.rect = deviceRect(outline.rect)
             encoder.setFragmentSamplerState(maskSampler, index: 0)

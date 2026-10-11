@@ -2189,7 +2189,12 @@ final class Editor {
     }
 
     private func commitSelectionPreview(deselecting: Bool) {
-        let preview = marqueePreview
+        var preview = marqueePreview
+        if selectionFeather >= 0.5, let drawn = drawnSelection, let shape = drawn.shape {
+            preview = SelectionMask.combine(canvas.selection.outline, with: shape.feathered(radius: selectionFeather, clippedTo: canvas.bounds),
+                                            mode: drawn.mode)
+        }
+        drawnSelection = nil
         marqueePreview = nil
         recordingChanges {
             if deselecting {
@@ -2199,6 +2204,13 @@ final class Editor {
             }
         }
     }
+
+    /// The selection tools' Feather (FR-3.4): how soft each new rectangle, ellipse or free-form selection's edge is,
+    /// in pixels. It's applied when the drag ends, so dragging stays quick; the outline shows where pixels are half
+    /// selected, which feathering doesn't move.
+    var selectionFeather = 0.0
+    /// The shape being drawn and how it combines, for feathering it when the drag ends.
+    @ObservationIgnored private var drawnSelection: (shape: SelectionMask?, mode: SelectionCombineMode)?
 
     private func updateSelectionPreview(to point: Point2D, shiftDown: Bool) {
         let shape: SelectionMask?
@@ -2221,6 +2233,7 @@ final class Editor {
         default:
             return
         }
+        drawnSelection = (shape, mode)
         marqueePreview = SelectionMask.combine(canvas.selection.outline, with: shape, mode: mode)
         selectionBounds = marqueePreview?.bounds
         onRender()
@@ -2254,6 +2267,46 @@ final class Editor {
 
     func deselect() {
         performSelectionCommand { SelectionActions.deselect(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    // MARK: Edit ▸ Feather… (FR-3.4)
+
+    /// The radius being tried while the Feather sheet is open; the canvas tints what isn't selected meanwhile.
+    private(set) var featherRadius: Double?
+    @ObservationIgnored private var featherOriginal: SelectionMask?
+
+    func beginFeather() {
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        guard let mask = canvas.selection.marquee else { return onRefused() }
+        featherOriginal = mask
+        setFeatherRadius(featherRadius ?? 10)
+    }
+
+    func setFeatherRadius(_ radius: Double) {
+        guard let original = featherOriginal else { return }
+        let clamped = min(100, max(1, radius.rounded()))
+        featherRadius = clamped
+        marqueePreview = original.feathered(radius: clamped, clippedTo: canvas.bounds)
+        onRender()
+    }
+
+    func applyFeather() {
+        let feathered = marqueePreview
+        endFeather()
+        recordingChanges { SelectionActions.select(feathered, mode: .replace, canvas: canvas, history: history, context: selectionContext) }
+        selectionDidChange()
+    }
+
+    func cancelFeather() {
+        endFeather()
+        onRender()
+    }
+
+    private func endFeather() {
+        featherOriginal = nil
+        featherRadius = nil
+        marqueePreview = nil
     }
 
     func invertSelection() {

@@ -49,10 +49,15 @@ struct SubjectTests {
         #expect(canvas.layers.count == 1)
     }
 
-    @Test func selectingCutsTheSoftEdgeAtHalf() {
+    /// Stage 13 (FR-3.4): the selection keeps Vision's soft edge rather than cutting it at half.
+    @Test func selectingKeepsTheSoftEdge() throws {
         let canvas = Canvas(size: IntSize(width: 10, height: 4), colorSpace: Canvas.defaultColorSpace, background: .white)
-        SubjectActions.select(scan().mask(for: [1]), canvas: canvas, history: History(byteBudget: .max), context: context)
-        #expect(canvas.selection.bounds == IntRect(x: 7, y: 0, width: 3, height: 4))
+        let mask = scan().mask(for: [1])
+        SubjectActions.select(mask, canvas: canvas, history: History(byteBudget: .max), context: context)
+        let selection = try #require(canvas.selection.marquee)
+        #expect(selection.bounds == IntRect(x: 6, y: 0, width: 4, height: 4))
+        #expect(selection[6, 0] == mask[6] && selection[6, 0] > 0 && selection[6, 0] < 255)
+        #expect(selection[8, 0] == 255)
     }
 
     @Test func aLockedLayerRefuses() {

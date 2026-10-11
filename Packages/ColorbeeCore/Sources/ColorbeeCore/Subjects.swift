@@ -100,10 +100,9 @@ public enum SubjectActions {
         return history.commit(edit)
     }
 
-    /// Selects the subject. Selections are all-or-nothing, so the soft edge is cut at half.
+    /// Selects the subject, keeping Vision's soft edge (FR-3.4).
     public static func select(_ mask: [UInt8], canvas: Canvas, history: History, context: SelectionContext) {
-        let values = mask.map { $0 >= 128 ? UInt8(255) : 0 }
-        let selection = SelectionMask(bounds: canvas.bounds, values: values).trimmed()
+        let selection = SelectionMask(bounds: canvas.bounds, values: mask).trimmed()
         SelectionActions.select(selection, mode: .replace, canvas: canvas, history: history, context: context)
     }
 

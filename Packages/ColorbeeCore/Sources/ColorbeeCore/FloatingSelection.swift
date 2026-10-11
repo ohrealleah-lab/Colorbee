@@ -35,9 +35,11 @@ public struct FloatingSelection {
             let source = layer.buffer.row(y)
             let destination = pixels.row(y - area.minY)
             for x in area.minX..<area.maxX where selection[x, y] > 0 {
-                destination[x - area.minX] = source[x]
-                maskValues[(y - area.minY) * area.width + (x - area.minX)] = 255
-                if let holeFill { source[x] = holeFill }
+                // A half-selected pixel is lifted halfway: half comes along, half stays (FR-3.4).
+                let amount = selection[x, y]
+                destination[x - area.minX] = source[x].taking(amount)
+                maskValues[(y - area.minY) * area.width + (x - area.minX)] = amount
+                if let holeFill { source[x] = source[x].vacated(by: amount, fill: holeFill) }
             }
         }
         let mask = SelectionMask(bounds: IntRect(size: area.size), values: maskValues)
@@ -148,5 +150,20 @@ public enum SelectionState {
         default:
             false
         }
+    }
+}
+
+extension Pixel {
+    /// The part of this pixel that's `amount` (0...255) selected, for copying or lifting: its alpha scaled.
+    func taking(_ amount: UInt8) -> Pixel {
+        amount == 255 ? self : Pixel(r: r, g: g, b: b, a: UInt8((Int(a) * Int(amount) + 127) / 255))
+    }
+
+    /// What's left when the `amount`-selected part is removed: `fill` where fully selected; partly selected, mixed
+    /// towards it, or (for a transparent fill) its alpha reduced so its color stays.
+    func vacated(by amount: UInt8, fill: Pixel) -> Pixel {
+        if amount == 255 { return fill }
+        if fill.a == 0 { return Pixel(r: r, g: g, b: b, a: UInt8((Int(a) * (255 - Int(amount)) + 127) / 255)) }
+        return Compositing.lerp(self, fill, Float(amount) / 255)
     }
 }

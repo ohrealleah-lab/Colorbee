@@ -97,6 +97,9 @@ struct DocumentView: View {
         .sheet(isPresented: $editor.isCanvasPropertiesOpen) {
             CanvasPropertiesSheet(editor: editor)
         }
+        .sheet(isPresented: Binding(get: { editor.featherRadius != nil }, set: { if !$0 { editor.cancelFeather() } })) {
+            FeatherSheet(editor: editor)
+        }
         .sheet(isPresented: $editor.isResizeSkewOpen) {
             ResizeSkewSheet(editor: editor, base: editor.resizeSkewBaseSize, appliesToSelection: editor.hasSelection)
         }
@@ -192,6 +195,16 @@ private struct ToolOptions: View {
                 .help("Select by the colors of all visible layers together, not just this layer")
             selectionOptions
         case .rectangleSelect, .ellipseSelect, .lassoSelect:
+            Text("Feather")
+            HStack(spacing: 2) {
+                TextField("Feather", value: Binding(get: { Int(editor.selectionFeather) }, set: { editor.selectionFeather = Double(min(100, max(0, $0))) }),
+                          format: .number)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 44)
+                    .labelsHidden()
+                Text("px").foregroundStyle(Theme.secondaryInk)
+            }
+            .help("How soft each new selection's edge is: 0 for a hard edge, up to 100 px")
             selectionOptions
         case .shape:
             hint(editor.shapeKind.hint)
@@ -490,4 +503,37 @@ private struct CompareBar: View {
 /// Rounds a slider's value to whole numbers. A stepped Slider would do this too, but draws a tick mark for every step.
 private func wholeNumber(_ value: Binding<Double>) -> Binding<Double> {
     Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0.rounded() })
+}
+
+/// Edit ▸ Feather… (FR-3.4): how soft the selection's edge is, previewed with a tint over what isn't selected.
+private struct FeatherSheet: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        let radius = editor.featherRadius ?? 10
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Feather Selection").font(.headline)
+            HStack(spacing: 10) {
+                Slider(value: Binding(get: { radius }, set: { editor.setFeatherRadius($0) }), in: 1...100)
+                    .frame(width: 220)
+                    .accessibilityLabel("Feather radius")
+                TextField("Radius", value: Binding(get: { Int(radius) }, set: { editor.setFeatherRadius(Double($0)) }), format: .number)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 50)
+                    .labelsHidden()
+                Text("px")
+            }
+            Text("The red tint shows what isn't selected; across the soft edge it fades.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { editor.cancelFeather() }
+                    .keyboardShortcut(.cancelAction)
+                Button("OK") { editor.applyFeather() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+    }
 }

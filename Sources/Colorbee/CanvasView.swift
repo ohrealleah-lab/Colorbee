@@ -269,6 +269,7 @@ final class CanvasView: NSView {
             lines: comparing ? [] : overlayLines + editor.canvasToolLines,
             highlights: redactionHighlights,
             dimmedOutside: editor.activeEffect == .crop ? editor.cropRect : nil,
+            tintsOutsideSelection: editor.featherRadius != nil,
             comparison: comparisonScene
         )
     }

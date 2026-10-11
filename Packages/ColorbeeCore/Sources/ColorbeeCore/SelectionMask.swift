@@ -1,3 +1,4 @@
+import Accelerate
 import Synchronization
 
 private let nextRevision = Atomic<UInt64>(1)
@@ -14,8 +15,9 @@ public enum SelectionShape: Sendable {
     case ellipse
 }
 
-/// Which pixels are selected. Values are 0 (not selected) or 255 (selected), stored only for `bounds`;
-/// everything outside `bounds` is unselected. Masks are immutable; `revision` identifies each one.
+/// Which pixels are selected, and how much: 0 not at all, 255 fully, and in between for a soft edge (a feathered
+/// selection or Select Subject; FR-3.4). Stored only for `bounds`; everything outside `bounds` is unselected.
+/// Masks are immutable; `revision` identifies each one.
 public struct SelectionMask: Sendable {
     public let bounds: IntRect
     public let values: [UInt8]
@@ -122,7 +124,7 @@ public struct SelectionMask: Sendable {
             let regionBounds = IntRect(x: bounds.minX + minX, y: bounds.minY + minY, width: maxX - minX + 1, height: maxY - minY + 1)
             var regionValues = [UInt8](repeating: 0, count: regionBounds.area)
             for index in members {
-                regionValues[(index / width - minY) * regionBounds.width + (index % width - minX)] = 255
+                regionValues[(index / width - minY) * regionBounds.width + (index % width - minX)] = values[index]
             }
             regions.append(SelectionMask(bounds: regionBounds, values: regionValues))
         }
@@ -133,12 +135,14 @@ public struct SelectionMask: Sendable {
         SelectionMask(bounds: bounds.offsetBy(dx: dx, dy: dy), values: values)
     }
 
-    /// Everything in `canvasBounds` that this mask doesn't select.
+    /// Everything in `canvasBounds` that this mask doesn't select; a half-selected pixel stays half selected.
     public func inverted(in canvasBounds: IntRect) -> SelectionMask? {
-        SelectionMask.build(in: canvasBounds) { x, y in self[x, y] == 0 }
+        SelectionMask.build(in: canvasBounds) { x, y in 255 - self[x, y] }
     }
 
-    /// Combines `new` with `existing`. Returns nil when nothing is left selected.
+    /// Combines `new` with `existing`. Returns nil when nothing is left selected. With soft edges (FR-3.4), Add keeps
+    /// the stronger of the two at each pixel, Subtract takes away as much as `new` selects, and Intersect keeps the
+    /// weaker.
     public static func combine(_ existing: SelectionMask?, with new: SelectionMask?, mode: SelectionCombineMode) -> SelectionMask? {
         switch mode {
         case .replace:
@@ -146,15 +150,59 @@ public struct SelectionMask: Sendable {
         case .add:
             guard let existing else { return new }
             guard let new else { return existing }
-            return build(in: existing.bounds.union(new.bounds)) { x, y in existing[x, y] > 0 || new[x, y] > 0 }
+            return build(in: existing.bounds.union(new.bounds)) { x, y in max(existing[x, y], new[x, y]) }
         case .subtract:
             guard let existing else { return nil }
             guard let new else { return existing }
-            return build(in: existing.bounds) { x, y in existing[x, y] > 0 && new[x, y] == 0 }
+            return build(in: existing.bounds) { x, y in
+                UInt8((Int(existing[x, y]) * (255 - Int(new[x, y])) + 127) / 255)
+            }
         case .intersect:
             guard let existing, let new else { return nil }
-            return build(in: existing.bounds.intersection(new.bounds)) { x, y in existing[x, y] > 0 && new[x, y] > 0 }
+            return build(in: existing.bounds.intersection(new.bounds)) { x, y in min(existing[x, y], new[x, y]) }
         }
+    }
+
+    /// Whether any pixel is only partly selected.
+    public var isSoft: Bool {
+        values.contains { $0 != 0 && $0 != 255 }
+    }
+
+    /// Every partly selected pixel fully selected. Redaction uses this, so no part of a secret is left half-visible
+    /// (FR-3.4).
+    public func hardened() -> SelectionMask {
+        isSoft ? SelectionMask(bounds: bounds, values: values.map { $0 > 0 ? 255 : 0 }) : self
+    }
+
+    /// The edge softened by `radius` pixels (Edit ▸ Feather…, and the selection tools' Feather): a Gaussian blur of
+    /// the mask, about `radius` wide each way. At the canvas's edge the selection carries on, so a selection reaching
+    /// the edge stays fully selected there.
+    public func feathered(radius: Double, clippedTo canvasBounds: IntRect) -> SelectionMask? {
+        guard radius >= 0.5 else { return self }
+        let sigma = radius / 2
+        // Three box blurs come close to a Gaussian; each box is this wide.
+        var box = Int((4 * sigma * sigma + 1).squareRoot())
+        if box % 2 == 0 { box += 1 }
+        let reach = 3 * (box / 2) + 1
+        let area = IntRect(x: bounds.minX - reach, y: bounds.minY - reach, width: bounds.width + 2 * reach, height: bounds.height + 2 * reach)
+            .intersection(canvasBounds)
+        guard !area.isEmpty else { return nil }
+        var first = [UInt8](repeating: 0, count: area.area)
+        for y in area.minY..<area.maxY {
+            for x in area.minX..<area.maxX { first[(y - area.minY) * area.width + x - area.minX] = self[x, y] }
+        }
+        var second = [UInt8](repeating: 0, count: area.area)
+        first.withUnsafeMutableBytes { a in
+            second.withUnsafeMutableBytes { b in
+                var one = vImage_Buffer(data: a.baseAddress, height: vImagePixelCount(area.height), width: vImagePixelCount(area.width), rowBytes: area.width)
+                var two = vImage_Buffer(data: b.baseAddress, height: vImagePixelCount(area.height), width: vImagePixelCount(area.width), rowBytes: area.width)
+                let size = UInt32(box)
+                vImageBoxConvolve_Planar8(&one, &two, nil, 0, 0, size, size, 0, vImage_Flags(kvImageEdgeExtend))
+                vImageBoxConvolve_Planar8(&two, &one, nil, 0, 0, size, size, 0, vImage_Flags(kvImageEdgeExtend))
+                vImageBoxConvolve_Planar8(&one, &two, nil, 0, 0, size, size, 0, vImage_Flags(kvImageEdgeExtend))
+            }
+        }
+        return SelectionMask(bounds: area, values: second).trimmed()
     }
 
     /// The same selection with its bounds shrunk to the selected pixels, or nil if none are selected.
@@ -172,17 +220,29 @@ public struct SelectionMask: Sendable {
         guard minX <= maxX else { return nil }
         if minX == 0, minY == 0, maxX == bounds.width - 1, maxY == bounds.height - 1 { return self }
         let trimmedBounds = IntRect(x: bounds.minX + minX, y: bounds.minY + minY, width: maxX - minX + 1, height: maxY - minY + 1)
-        return SelectionMask.build(in: trimmedBounds) { x, y in self[x, y] > 0 }
+        var trimmedValues = [UInt8](repeating: 0, count: trimmedBounds.area)
+        for row in 0..<trimmedBounds.height {
+            let from = (minY + row) * bounds.width + minX
+            trimmedValues.replaceSubrange((row * trimmedBounds.width)..<((row + 1) * trimmedBounds.width), with: values[from..<(from + trimmedBounds.width)])
+        }
+        return SelectionMask(bounds: trimmedBounds, values: trimmedValues)
     }
 
     private static func build(in area: IntRect, _ isSelected: (Int, Int) -> Bool) -> SelectionMask? {
+        build(in: area) { x, y in isSelected(x, y) ? 255 : 0 }
+    }
+
+    /// A mask from how much each pixel of `area` is selected.
+    private static func build(in area: IntRect, _ amount: (Int, Int) -> UInt8) -> SelectionMask? {
         guard !area.isEmpty else { return nil }
         var values = [UInt8](repeating: 0, count: area.area)
         var any = false
         for y in area.minY..<area.maxY {
             let rowStart = (y - area.minY) * area.width
-            for x in area.minX..<area.maxX where isSelected(x, y) {
-                values[rowStart + x - area.minX] = 255
+            for x in area.minX..<area.maxX {
+                let value = amount(x, y)
+                guard value > 0 else { continue }
+                values[rowStart + x - area.minX] = value
                 any = true
             }
         }

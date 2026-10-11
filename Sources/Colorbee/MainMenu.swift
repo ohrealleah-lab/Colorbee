@@ -90,6 +90,7 @@ enum MainMenu {
         "selectAll:": "Select the whole image.",
         "deselect:": "Remove the selection, placing any moved pixels.",
         "invertSelection:": "Select everything that isn't selected, and nothing that is.",
+        "showFeather:": "Soften the selection's edge, so changes fade out across it.",
         "zoomIn:": "Zoom in one step.",
         "zoomOut:": "Zoom out one step.",
         "actualSize:": "Show the image at 100%, one image pixel per screen point.",
@@ -219,6 +220,7 @@ enum MainMenu {
         menu.addItem(item("Select All", "selectAll:", "a"))
         menu.addItem(item("Deselect", "deselect:", "d"))
         menu.addItem(item("Invert Selection", "invertSelection:", "i", [.command, .shift]))
+        menu.addItem(item("Feather…", "showFeather:"))
         menu.addItem(item("Select Subject", "selectSubject:"))
         return menu
     }

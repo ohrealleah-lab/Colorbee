@@ -806,16 +806,16 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [ ] AC-41 Every menu command appears in the Menus reference with its default shortcut.
 - [ ] AC-42 Each contextual ? button opens the matching section.
 - [ ] AC-43 Scan Documents from an iPhone adds the scans as pages after the page shown, at the phone's own pixel size, as one undo step; with no window open, they open as a new document.
-- [ ] AC-44 Copy Text on a screenshot puts its text on the clipboard in reading order. On an image with no text it says "No text found" and leaves the clipboard unchanged.
-- [ ] AC-45 Step badges count 1, 2, 3 in order; undoing one steps the next number back; Letters gives A, B, C.
-- [ ] AC-46 The Redact Brush changes every layer with pixels under the stroke, as one undo step, and is blocked by a locked layer with pixels there.
-- [ ] AC-47 Remove on an object against sky, a wall or a flat screenshot area leaves no visible trace (judged by Leah on her test images), and the same stroke on the same image gives an identical result.
-- [ ] AC-49 Clone Stamp copies with a constant offset while Aligned is on; Spot Heal removes a dust spot with the tone matched.
-- [ ] AC-50 The local brushes don't build up within one stroke; a second stroke adds more.
-- [ ] AC-51 Remove Red-Eye darkens red pupils in a flash photo and changes nothing in a photo without red-eye.
-- [ ] AC-52 Delete on a feathered selection leaves a soft edge; a redaction treats every partly selected pixel as fully selected.
-- [ ] AC-53 The app contains no machine-learning model files; retouching uses only the image's own pixels.
-- [ ] AC-54 An adjustment layer set to "Only the layer below" changes only that layer, on screen, in exports and in Copy Merged; it's saved in .colorproj, undoes as one step, and Merge Adjustment bakes it into that layer alone.
+- [x] AC-44 Copy Text on a screenshot puts its text on the clipboard in reading order. On an image with no text it says "No text found" and leaves the clipboard unchanged.
+- [x] AC-45 Step badges count 1, 2, 3 in order; undoing one steps the next number back; Letters gives A, B, C.
+- [x] AC-46 The Redact Brush changes every layer with pixels under the stroke, as one undo step, and is blocked by a locked layer with pixels there.
+- [x] AC-47 Remove on an object against sky, a wall or a flat screenshot area leaves no visible trace (judged by Leah on her test images), and the same stroke on the same image gives an identical result.
+- [x] AC-49 Clone Stamp copies with a constant offset while Aligned is on; Spot Heal removes a dust spot with the tone matched.
+- [x] AC-50 The local brushes don't build up within one stroke; a second stroke adds more.
+- [x] AC-51 Remove Red-Eye darkens red pupils in a flash photo and changes nothing in a photo without red-eye.
+- [x] AC-52 Delete on a feathered selection leaves a soft edge; a redaction treats every partly selected pixel as fully selected.
+- [x] AC-53 The app contains no machine-learning model files; retouching uses only the image's own pixels.
+- [x] AC-54 An adjustment layer set to "Only the layer below" changes only that layer, on screen, in exports and in Copy Merged; it's saved in .colorproj, undoes as one step, and Merge Adjustment bakes it into that layer alone.
 
 ---
 

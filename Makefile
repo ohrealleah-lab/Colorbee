@@ -55,6 +55,10 @@ HELP := Help/Colorbee.help/Contents/Resources/en.lproj
 help-index:
 	hiutil -I corespotlight -Caf $(HELP)/Colorbee.cshelpindex -s en $(HELP)
 	hiutil -I corespotlight -Fvf $(HELP)/Colorbee.cshelpindex
+	@# A new version each time, so macOS's help cache (helpd) shows the changed pages, also for people who update.
+	@v=$$(date +%Y%m%d%H%M); \
+	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $$v" -c "Set :CFBundleShortVersionString $$v" Help/Colorbee.help/Contents/Info.plist; \
+	echo "Help book version $$v"
 
 # Guided screenshots for the help book: Colorbee sets up each scene, Leah takes the picture. Brings windows to the front.
 help-shots: gen

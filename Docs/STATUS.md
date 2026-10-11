@@ -14,7 +14,6 @@ _Last updated: 2026-10-11 · 493 core tests and 71 app tests passing, plus `make
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 1. [Help, phase 4: the reference](#test-help-phase-4-the-reference): 5 quick checks, about 10 minutes.
-2. [Saving keeps the last Step Badge](#test-saving-keeps-the-last-step-badge): 4 steps, about 3 minutes.
 
 ---
 
@@ -231,7 +230,7 @@ _2026-10-11: passed Leah's hand test on 2026-10-11._ GPU audit recommendation 1:
 4. Click Open. The photo opens looking like the last preview.
 
 ### Test: Saving keeps the last Step Badge
-_2026-10-11, fixed, not yet tested._ Found by the new Editor tests: the badge you clicked last is still being placed (you can drag it) until your next click, and Save, Export, Share, Print and Copy left it out of what they wrote, though it showed on screen. They now place it first, as they already did for shapes and text. Autosave still leaves it movable. Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`.
+_2026-10-11: passed Leah's hand test on 2026-10-11._ Found by the new Editor tests: the badge you clicked last is still being placed (you can drag it) until your next click, and Save, Export, Share, Print and Copy left it out of what they wrote, though it showed on screen. They now place it first, as they already did for shapes and text. Autosave still leaves it movable. Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`.
 1. Open the screenshot, pick Step Badge (N) and click three places: 1, 2, 3. Don't click anything else.
 2. File ▸ Export… (⌥⌘S) as a PNG on the Desktop, then open that PNG: all three badges are there, including 3.
 3. Back in Colorbee, badge 3 can no longer be dragged (it's placed), and ⌘Z removes only badge 3. The next click makes a new 3.

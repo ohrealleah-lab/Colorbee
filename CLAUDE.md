@@ -84,6 +84,7 @@ Docs/reference/              Original v1 spec, kept for reference only
 
 - Before each stage, tell Leah the recommended model and effort (Opus; high for design-heavy work, medium for routine UI).
 - Log behavior choices you make on your own in FRD §23 ("veto any"), then list them for Leah.
+- Any change to user-visible behavior updates the matching help page (`Help/Colorbee.help`) in the same commit. Run `make help` after adding, renaming or re-keying a menu command or tool key: it regenerates the Menus and Keyboard Shortcuts pages and the search index.
 - Work in the build order in FRD §20. Get each stage working end-to-end before starting the next.
 - After UI changes, build and run the app and check the change visually. Type-checking alone isn't verification.
 - Keep `make test` green. Don't commit a failing build.

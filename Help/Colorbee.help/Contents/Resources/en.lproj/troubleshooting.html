@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Troubleshooting</title>
+    <meta name="AppleTitle" content="Troubleshooting">
+    <meta name="description" content="Answers to common surprises in Colorbee, and how to report a problem.">
+    <meta name="keywords" content="troubleshooting, problem, greyed out, disabled, can't, locked layer, project, colorproj, undo selection, RAW, camera not supported, no text found, no subject found, remove smears, crash, report">
+    <link rel="stylesheet" href="../shared/help.css">
+</head>
+<body>
+    <nav class="back"><a href="index.html">Colorbee Help</a></nav>
+    <a name="troubleshooting"></a>
+    <h1>Troubleshooting</h1>
+    <p class="lead">Common surprises, and what's going on.</p>
+
+    <a name="project"></a>
+    <h2>My image saved as a project, not a PNG</h2>
+    <p>Once an image has more than one layer, an adjustment layer or more than one page, it saves as a Colorbee project, so nothing is flattened away. Use File ▸ Export… for a PNG or JPEG copy. See <a href="save-export-and-share.html#project">Save, export and share</a>.</p>
+
+    <a name="greyed-out"></a>
+    <h2>A menu command is greyed out</h2>
+    <ul>
+        <li><strong>The layer is locked.</strong> Click its padlock in the Layers panel to unlock it.</li>
+        <li><strong>An adjustment layer is active.</strong> Painting and Merge Down need a pixel layer. Click a pixel layer first.</li>
+        <li><strong>It needs a selection,</strong> such as Crop to Selection, Spotlight… or Batch Redact. Select an area first.</li>
+        <li><strong>A dialog or effect is still open.</strong> Finish or cancel it first.</li>
+    </ul>
+
+    <a name="locked"></a>
+    <h2>I can't draw: the pointer shows a "not allowed" sign</h2>
+    <p>The active layer is locked, or it's an adjustment layer. Unlock it, or click a pixel layer in the Layers panel.</p>
+
+    <a name="undo-selection"></a>
+    <h2>⌘Z didn't undo my selection</h2>
+    <p>Drawing a selection on its own isn't a step, so ⌘Z undoes the last change to the image instead. To take part of a selection away, hold Option and drag around it with a selection tool, or Option-click with the Magic Wand. ⌘D removes the whole selection.</p>
+
+    <a name="remove"></a>
+    <h2>Remove left a smear</h2>
+    <p>Remove fills from the area around it, which works best on simple backgrounds such as sky, walls and sand. In busy spots, where edges and textures meet, undo it and use the Clone Stamp (S) instead: Option-click a clean area, then paint.</p>
+
+    <a name="not-found"></a>
+    <h2>"No text found", "No subject found" or "No red-eye found"</h2>
+    <ul>
+        <li><strong>No text found:</strong> the text may be too small or blurry for your Mac to read. A sharper, larger image helps.</li>
+        <li><strong>No subject found:</strong> screenshots and documents have no subject. It works on photos of people, pets and things.</li>
+        <li><strong>No red-eye found:</strong> select the red pupils, then choose Remove Red-Eye again.</li>
+    </ul>
+
+    <a name="raw"></a>
+    <h2>A RAW photo won't open</h2>
+    <p>Colorbee reads the RAW files macOS can read. A camera newer than your version of macOS may not be supported yet; updating macOS usually adds it. In the meantime, open a JPEG or HEIC from the camera.</p>
+
+    <a name="iphone"></a>
+    <h2>Import from iPhone or iPad is greyed out</h2>
+    <p>For now, it works when no Colorbee document is open. Close your documents, then choose File ▸ Import from iPhone or iPad. Your iPhone or iPad needs the same Apple Account as your Mac, with Wi-Fi and Bluetooth on.</p>
+
+    <a name="report"></a>
+    <h2>Reporting a problem</h2>
+    <ul>
+        <li>Say what you were doing, what you expected and what happened. A screenshot or screen recording helps a lot.</li>
+        <li>If Colorbee quits unexpectedly, macOS shows a report. Click Report…, then copy the details and send them. They describe where the app stopped, not your pictures or files.</li>
+    </ul>
+</body>
+</html>

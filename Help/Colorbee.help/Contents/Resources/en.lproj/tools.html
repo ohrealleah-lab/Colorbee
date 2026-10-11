@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tools</title>
+    <meta name="AppleTitle" content="Tools">
+    <meta name="description" content="Every tool in Colorbee's toolbar: what it does, its settings in the palette bar, its key, and what Shift, Option and right-click do.">
+    <meta name="keywords" content="tools, toolbar, rectangle select, ellipse select, free-form, lasso, magic wand, transparent selection, pencil, brush, brushes, retouch, shapes, fill, bucket, text, eraser, color eraser, eyedropper, magnifier, gradient, measure, redact brush, step badge, feather, tolerance">
+    <link rel="stylesheet" href="../shared/help.css">
+</head>
+<body>
+    <nav class="back"><a href="index.html">Colorbee Help</a></nav>
+    <a name="tools"></a>
+    <h1>Tools</h1>
+    <p class="lead">Every tool in the toolbar, in order. A tool's settings appear at the right end of the palette bar
+        when you choose it. Keys shown are the defaults; see <a href="keyboard-shortcuts.html">Keyboard shortcuts</a>.</p>
+    <p>For most tools, a left-click uses Color 1 and a right-click uses Color 2. Every tool works on the active layer.</p>
+
+    <a name="selection"></a>
+    <h2>Selection tools</h2>
+    <h3>Rectangle Select (M), Ellipse Select and Free-Form Select (L)</h3>
+    <ul>
+        <li>Drag to select. Free-Form closes itself when you let go.</li>
+        <li>Hold a key as you start dragging: <strong>Shift</strong> adds to the selection, <strong>Option</strong> takes away from it, and <strong>Shift-Option</strong> keeps only the overlap.</li>
+        <li>Press Shift after you've started dragging to make a square or a circle.</li>
+        <li><strong>Feather</strong> in the palette bar softens the edge of each new selection, from 0 (hard) to 100 px.</li>
+    </ul>
+    <h3>Magic Wand (W)</h3>
+    <ul>
+        <li>Click to select an area of similar color. Shift, Option and Shift-Option combine selections as above.</li>
+        <li><strong>Tolerance</strong> sets how similar a color must be. <strong>Contiguous</strong> selects only the connected area; off, it selects every matching pixel. <strong>Sample All Layers</strong> looks at all visible layers together.</li>
+    </ul>
+    <h3>Working with a selection</h3>
+    <ul>
+        <li><strong>Drag inside</strong> it to move the pixels. <strong>Option-drag</strong> moves a copy. <strong>Shift-drag</strong> leaves a trail of copies, the classic Paint trick.</li>
+        <li><strong>Drag a handle</strong> to stretch it; hold Shift to keep its proportions. <strong>Resize</strong> in the palette bar chooses Smooth or Sharp pixels.</li>
+        <li><strong>Arrow keys</strong> nudge moved pixels 1 pixel, or 10 with Shift. <strong>⌘ and an arrow</strong> grows or shrinks the selection itself.</li>
+        <li>Click outside it, press Return or switch tools to put the pixels down.</li>
+    </ul>
+    <h3>Transparent Selection</h3>
+    <p>The button after the Magic Wand. When it's on, pixels matching Color 2 are left out when you move or paste, so a white background doesn't come along.</p>
+
+    <a name="pencil"></a>
+    <h2>Pencil (P)</h2>
+    <p>Hard one-pixel lines, for pixel art. Shift keeps the line straight across or up and down. It ignores pen pressure.</p>
+
+    <a name="brushes"></a>
+    <h2>Brushes (B)</h2>
+    <p>Choose from the gallery: Round, Calligraphy 1 and 2, Airbrush, Oil, Crayon, Marker, Natural Pencil and Watercolor.</p>
+    <ul>
+        <li>Size 1–50 px. Every brush follows the Alpha slider.</li>
+        <li>On a Force Touch trackpad or a pen tablet, pressing harder makes the stroke bigger.</li>
+        <li>Shift keeps the stroke straight across or up and down.</li>
+        <li>Going over the same spot in one stroke doesn't make it darker. The Marker is see-through, like a highlighter.</li>
+    </ul>
+
+    <a name="retouch"></a>
+    <h2>Retouch (J)</h2>
+    <p>Remove, Spot Heal, Clone Stamp (S), Lighten, Darken, Saturate, Desaturate, Blur, Sharpen and Smudge. Size 1–300 px. See <a href="fix-up-a-photo.html#retouch">Fix up a photo</a> for what each one is for.</p>
+    <ul>
+        <li><strong>Strength</strong> and <strong>Hardness</strong> for the brushes; <strong>Range</strong> (Shadows, Midtones, Highlights) for Lighten and Darken.</li>
+        <li><strong>Aligned</strong> and <strong>Match Tone</strong> for the Clone Stamp. Option-click sets where it copies from.</li>
+        <li><strong>Sample All Layers</strong> for Remove, Spot Heal and the Clone Stamp, so you can retouch onto an empty layer.</li>
+        <li>Right-click does the same as left-click. Each stroke is one step to undo.</li>
+    </ul>
+
+    <a name="shapes"></a>
+    <h2>Shapes (U)</h2>
+    <p>Choose from the gallery: Arrow, Line, Curve, Rectangle, Rounded Rectangle, Ellipse, triangles, Diamond, Pentagon, Hexagon, block arrows, stars, three callouts, Heart, Lightning and Polygon.</p>
+    <ul>
+        <li>Drag to draw. Shift keeps proportions: squares, circles, and lines at 45° steps.</li>
+        <li>Left-drag outlines with Color 1 and fills with Color 2; right-drag swaps them.</li>
+        <li><strong>Outline</strong> and <strong>Fill</strong> in the toolbar: None, Solid, or a textured style. The Size sets the outline's width.</li>
+        <li>The shape stays editable (move, resize, rotate, restyle) until you click outside it or press Return. Esc throws it away.</li>
+    </ul>
+
+    <a name="fill"></a>
+    <h2>Fill (G)</h2>
+    <p>Fills the connected area of similar color. <strong>Tolerance</strong> sets how similar; <strong>Sample All Layers</strong> finds the area in everything you see but fills on the active layer. It stays inside a selection.</p>
+
+    <a name="text"></a>
+    <h2>Text (T)</h2>
+    <p>Click to type, or drag to set the width. The palette bar has the font, size, Bold, Italic, Underline, Strikethrough, alignment, Background (Transparent or an Opaque Color 2 box) and saved Styles. Text becomes pixels when you click outside it or press Esc.</p>
+
+    <a name="eraser"></a>
+    <h2>Eraser (E)</h2>
+    <ul>
+        <li>A square eraser. A left-drag paints Color 2, or clear on a transparent layer. Shift keeps it straight.</li>
+        <li>A right-drag is the <strong>Color Eraser</strong>: it changes only Color 1 pixels to Color 2. Turn on Color Eraser in the palette bar to do that with a left-drag. Tolerance sets how close a match must be.</li>
+    </ul>
+
+    <a name="eyedropper"></a>
+    <h2>Eyedropper (I)</h2>
+    <p>Click to set Color 1, right-click for Color 2. Option-click picks from all visible layers together. <strong>Add Color 1 to Custom Colors</strong> keeps it in the palette bar.</p>
+
+    <a name="magnifier"></a>
+    <h2>Magnifier (Z)</h2>
+    <p>Click to zoom in, right-click or Option-click to zoom out.</p>
+
+    <a name="gradient"></a>
+    <h2>Gradient</h2>
+    <p>Drag to blend from Color 1 to Color 2; right-drag reverses it. Choose Linear, Radial, Reflected, Diamond or Conical. A see-through color fades to clear. It stays inside a selection.</p>
+
+    <a name="measure"></a>
+    <h2>Measure (R)</h2>
+    <p>Drag between two points. The status bar shows the distance in pixels, the width and height, and the angle. The line is never drawn into the image.</p>
+
+    <a name="redact-brush"></a>
+    <h2>Redact Brush (K)</h2>
+    <p>Paint over anything to hide it with Solid Fill, Blur or Pixelate, applied when you let go. Size 1–300 px. Shift keeps it straight along a line of text. It changes every layer with pixels under the stroke. See <a href="redact-a-screenshot.html#redact-brush">Redact a screenshot</a>.</p>
+
+    <a name="step-badge"></a>
+    <h2>Step Badge (N)</h2>
+    <p>Click to place numbered circles, 1, 2, 3 or A, B, C. Drag to add an arrow. Size 16–128 px. See <a href="annotate-an-image.html#badges">Annotate an image</a>.</p>
+
+    <a name="size"></a>
+    <h2>Size</h2>
+    <p>Five preset sizes for the current tool, and a box for any size. [ and ] make it smaller or larger.</p>
+</body>
+</html>

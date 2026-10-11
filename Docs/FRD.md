@@ -803,8 +803,8 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [x] AC-36 A filter at 50% intensity gives the same result as its slider values halved. A saved filter survives a relaunch and round-trips through a .colorbeefilter file.
 - [x] AC-37 Remove Background leaves soft edges in transparency; Select Subject picks only the clicked subject; an image with no subject says "No subject found" and changes nothing.
 - [x] AC-38 Crop with a pixel-size preset produces exactly that size; Perspective Correction turns a photographed rectangle into a rectangle.
-- [ ] AC-39 Cmd+? opens Colorbee Help (FR-14.6).
-- [ ] AC-40 Typing "redact" in the Help menu's search lists the Redact a screenshot guide.
+- [x] AC-39 Cmd+? opens Colorbee Help (FR-14.6).
+- [x] AC-40 Typing "redact" in the Help menu's search lists the Redact a screenshot guide.
 - [ ] AC-41 Every menu command appears in the Menus reference with its default shortcut.
 - [ ] AC-42 Each contextual ? button opens the matching section.
 - [ ] AC-43 Scan Documents from an iPhone adds the scans as pages after the page shown, at the phone's own pixel size, as one undo step; with no window open, they open as a new document.

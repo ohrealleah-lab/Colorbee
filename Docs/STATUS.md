@@ -13,7 +13,7 @@ _Last updated: 2026-10-11 · 493 core tests passing, plus `make perf`_
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+1. [Help, phase 4: the reference](#test-help-phase-4-the-reference): 5 quick checks, about 10 minutes.
 
 ---
 
@@ -55,7 +55,7 @@ Nothing waiting right now.
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Next: phase 4, the reference | Medium (phase 6 high) |
+| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 written (the reference), waiting for Leah's test. Next: phase 5, the ? buttons | Medium (phase 6 high) |
 
 ## What's built
 
@@ -217,6 +217,14 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Help, phase 4: the reference
+_2026-10-11, written, not yet tested._ Seven reference pages: Tools, Menus, Keyboard shortcuts, Panels, Settings, Privacy and Troubleshooting. Menus and Keyboard shortcuts are generated from the app by `make help` (`HelpDump.swift` writes the menus as JSON with `-ColorbeeDumpMenus`, no window; `Scripts/help-pages.py` writes the pages). Also: tooltips added for Batch Redact ▸ Blur… and Pixelate…, Export As and Import from iPhone or iPad; the brush hint no longer says "Shift has no effect". The Settings ▸ Shortcuts picture is still current. Rebuild with the script (option 2) first.
+1. Help ▸ Colorbee Help: the contents page has a Reference list with seven pages.
+2. Open any menu, pick three commands, and find each on the **Menus** page with the same name and shortcut.
+3. In Settings ▸ Shortcuts, compare five shortcuts with the **Keyboard shortcuts** page.
+4. In the Help menu's search box, type "magic wand", then "layer", then "export". Each finds a sensible page.
+5. Read **Troubleshooting** and **Privacy**: anything that sounds wrong or unclear, tell Claude.
 
 ### Test: Shift straightens the brushes and Eraser
 _2026-10-10: passed Leah's hand test on 2026-10-11._ Holding Shift while dragging keeps the stroke on one line, across or up and down from where it started, as the Pencil always did. Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`.

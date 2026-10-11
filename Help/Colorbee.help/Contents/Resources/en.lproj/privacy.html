@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Privacy</title>
+    <meta name="AppleTitle" content="Privacy">
+    <meta name="description" content="Colorbee has no internet access. What it reads on your Mac, the copies a redaction can leave behind, what it writes into exported files, and which files it keeps.">
+    <meta name="keywords" content="privacy, private, offline, internet, network, upload, Vision, text recognition, metadata, camera details, location, earlier versions, undo history, clipboard history, Application Support">
+    <link rel="stylesheet" href="../shared/help.css">
+</head>
+<body>
+    <nav class="back"><a href="index.html">Colorbee Help</a></nav>
+    <a name="privacy"></a>
+    <h1>Privacy</h1>
+    <p class="lead">Colorbee has no internet access at all. Nothing you open, draw, redact or read leaves your Mac.</p>
+
+    <a name="on-your-mac"></a>
+    <h2>What's done on your Mac</h2>
+    <p>These use Apple's built-in Vision, which runs on your Mac:</p>
+    <ul>
+        <li>Auto-Redact and Edit ▸ Copy Text read the text in your image.</li>
+        <li>Select Subject, Remove Background and Lift Subject find the subject of a photo.</li>
+        <li>Remove Red-Eye finds the eyes.</li>
+    </ul>
+    <p>Colorbee has no AI models of its own. Retouch tools such as Remove work only from the pixels already in your image.</p>
+
+    <a name="redaction"></a>
+    <h2>Copies a redaction can leave behind</h2>
+    <ul>
+        <li><strong>Earlier versions and undo:</strong> after you redact and save with ⌘S, Colorbee offers Remove Earlier Versions and Undo History, so the original can't be brought back.</li>
+        <li><strong>Clipboard History:</strong> if the unredacted image is there, Colorbee offers to remove it, and to clear the clipboard if it still holds it.</li>
+        <li><strong>Blur and Pixelate</strong> can sometimes be read back. Solid Fill can't.</li>
+    </ul>
+    <p>See <a href="redact-a-screenshot.html#copies">Redact a screenshot</a>.</p>
+
+    <a name="exports"></a>
+    <h2>What goes into the files you share</h2>
+    <ul>
+        <li><strong>Export as PDF</strong> writes pixels only: no hidden text under a redaction, and no title, author, app name or dates.</li>
+        <li><strong>Camera details</strong> (camera, lens, exposure and the date taken) go into an exported photo only if you turn on Include camera details in File ▸ Export…. Colorbee never keeps or writes the location, serial numbers or the owner's name.</li>
+    </ul>
+
+    <a name="files"></a>
+    <h2>Files Colorbee keeps</h2>
+    <p>In your Library ▸ Application Support ▸ Colorbee folder:</p>
+    <ul>
+        <li><strong>Clipboard History:</strong> the last 10 images you copied or pasted. Clear in the Clipboard History panel removes them.</li>
+        <li><strong>Desktop Pictures:</strong> the picture you set with File ▸ Set as Desktop Picture. Only the one in use is kept.</li>
+        <li><strong>Filters.json:</strong> the photo filters you've saved.</li>
+    </ul>
+    <p>Copies made for File ▸ Share… are temporary, and removed the next time you share or open Colorbee.</p>
+</body>
+</html>

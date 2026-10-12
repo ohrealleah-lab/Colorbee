@@ -13,7 +13,7 @@ _Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+1. [Review N fixes: redaction, clipping, Copy Text](#test-review-n-fixes-redaction-clipping-copy-text): 3 short checks, about 8 minutes.
 
 ---
 
@@ -177,7 +177,7 @@ Found with temporary logging: the window's first responder is SwiftUI's `KeyView
 Leah's test): `.importsItemProviders` on `DocumentView` (SwiftUI's own way), and `CanvasView` asking its window. Next:
 ask Leah what she saw this time (still greyed out, or something else after scanning), then log again. Ideas: make
 the canvas first responder when the File menu opens, or an `NSHostingView` subclass that passes `validRequestor` on.
-Also in the same change, untested: File ▸ Open Recent showed twice on macOS 26 (one AppKit adds, one Colorbee
+**When it's fixed, also fix review N, finding 4:** `importPages` must refuse (or cancel the session) while the Auto-Redact review is open, not only while it applies, and imported pages need their own `pageMemory` so "As Opened" isn't the redacted page. Also in the same change, untested: File ▸ Open Recent showed twice on macOS 26 (one AppKit adds, one Colorbee
 made); Colorbee's is removed. Leah's hand-test steps are in the conversation of 2026-10-10 (Three Page Test.pdf).
 
 **10 Pages and PDF documents (FR-11.6)** — done; tested by hand 2026-10-04. Decisions in §23.
@@ -236,6 +236,28 @@ _2026-10-11: passed Leah's hand test on 2026-10-11._ Found by the new Editor tes
 2. File ▸ Export… (⌥⌘S) as a PNG on the Desktop, then open that PNG: all three badges are there, including 3.
 3. Back in Colorbee, badge 3 can no longer be dragged (it's placed), and ⌘Z removes only badge 3. The next click makes a new 3.
 4. Click to make badge 4, then Edit ▸ Copy (⌘C) with nothing selected and Edit ▸ Paste into New Image (⇧⌘V): the new image has badge 4.
+
+### Test: Review N fixes: redaction, clipping, Copy Text
+_2026-10-11, fixed, not yet tested._ Code review round 5, session N (`Docs/Review/findings-N.md`, `RESULTS.md`). Rebuild with the script (option 2) first.
+
+**A. Blur and Pixelate redact a soft selection completely** (`TestImages/Help/Sample Screenshot.png`)
+1. Pick Rectangle Select and set **Feather** to 20 px in the palette bar.
+2. Draw a selection box snugly around the made-up email address.
+3. Effects ▸ Batch Redact ▸ Pixelate…, then Apply. Zoom to 400%: every letter is hidden, edges included.
+4. ⌘Z, then try Effects ▸ Batch Redact ▸ Blur…: the same, nothing readable.
+
+**B. "Only the layer below" survives saving and copying** (`TestImages/Stage 9 Practice Photo.png`)
+1. Layer ▸ New Layer, and paint a big blob with the Brush.
+2. Layer ▸ New Adjustment Layer ▸ Invert, then turn on **Only the layer below**: only the blob is inverted.
+3. ⌘C with nothing selected, then ⌘⇧V: the new image shows only the blob inverted.
+4. Back in the first window, ⌘S (it saves as a project), close it, and reopen it: still only the blob inverted, and the switch is on.
+5. With the Eyedropper, Option-click the inverted blob: Color 1 becomes the inverted color you see.
+
+**C. Copy Text and redaction** (`TestImages/Help/Sample Screenshot.png`)
+1. Edit ▸ Copy Text (⌥⌘C) and wait for "Copied … words".
+2. Effects ▸ Auto-Redact…, keep everything ticked, Solid Fill, Apply. Colorbee asks: "Remove the unredacted text from the clipboard?" Click Remove.
+3. Paste into TextEdit (⌘V): nothing pastes.
+4. Undo the redaction (⌘Z). Copy Text again, and while "Reading text…" shows at the top, quickly draw a line with the Pencil: "The image changed while reading, so nothing was copied" appears.
 
 ### Test: Straighten stays responsive
 _2026-10-11: passed Leah's hand test on 2026-10-11; she prefers the crisper rotation._ GPU audit recommendation 3, both parts (Leah's choice). A: the slider's preview is turned in the background (`StraightenPlan`: plan on the main thread, render off it, commit on it) and swapped in when ready; moves made meanwhile are merged; Apply finishes the newest angle right away; Cancel, Undo or any other command drops a turn in progress. B: rotation uses vImage (`Warp.rotated`): 450 → 205 ms at 45 MP; quarter and half turns land exactly (new test); with Crop to fit the edge pixels are repeated. Drop Shadow and Border are unchanged. 4 new app tests (`StraightenPreviewTests`). Rebuild with the script (option 2) first. Use Leah's CR3 (Downloads/7762545337.cr3), developed and opened, ideally with a second layer (Layer ▸ Duplicate Layer).

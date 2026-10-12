@@ -57,6 +57,7 @@ public final class Canvas {
             copy.blendMode = layer.blendMode
             copy.isLocked = layer.isLocked
             copy.adjustment = layer.adjustment
+            copy.clipsToLayerBelow = layer.clipsToLayerBelow
             return copy
         }
         let canvas = Canvas(colorSpace: colorSpace, layers: copies, hasTransparentBackground: hasTransparentBackground,
@@ -328,13 +329,16 @@ public final class Canvas {
     /// need the neighbors, see just this pixel.
     public func pixelAsShown(at point: IntPoint) -> Pixel? {
         guard bounds.contains(point) else { return nil }
-        let one = layers.filter { $0.isVisible && $0.opacity > 0 }.map { layer -> Layer in
+        // Every layer, hidden ones too, so an adjustment set to "Only the layer below" finds the same layer below.
+        let one = layers.map { layer -> Layer in
             let buffer = PixelBuffer(width: 1, height: 1)
             if layer.adjustment == nil { buffer.row(0)[0] = layer.buffer.row(point.y)[point.x] }
             let copy = Layer(name: layer.name, buffer: buffer, id: layer.id)
+            copy.isVisible = layer.isVisible
             copy.opacity = layer.opacity
             copy.blendMode = layer.blendMode
             copy.adjustment = layer.adjustment
+            copy.clipsToLayerBelow = layer.clipsToLayerBelow
             return copy
         }
         let shown = Canvas(colorSpace: colorSpace, layers: one.isEmpty ? [Layer(name: "Empty", buffer: PixelBuffer(width: 1, height: 1))] : one,

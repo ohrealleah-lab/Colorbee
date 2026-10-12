@@ -69,4 +69,32 @@ struct ClippedAdjustmentTests {
         #expect(reopened.layers[2].clipsToLayerBelow)
         #expect(reopened.flattened().contentHash() == canvas.flattened().contentHash())
     }
+
+    /// Saving, exporting, copying and Duplicate Page all work from a copy (review N, finding 2).
+    @Test func aCopyKeepsTheSettingAndLooksTheSame() throws {
+        let (canvas, _) = stack()
+        canvas.layers[2].clipsToLayerBelow = true
+        let copy = canvas.copy()
+        for (layer, copied) in zip(canvas.layers, copy.layers) {
+            #expect(layer.name == copied.name && layer.isVisible == copied.isVisible && layer.opacity == copied.opacity
+                    && layer.blendMode == copied.blendMode && layer.isLocked == copied.isLocked
+                    && layer.adjustment == copied.adjustment && layer.clipsToLayerBelow == copied.clipsToLayerBelow)
+        }
+        #expect(copy.flattened().contentHash() == canvas.flattened().contentHash())
+        let reopened = try ProjectFile.decode(ProjectFile.encode(copy))
+        #expect(reopened.layers[2].clipsToLayerBelow)
+    }
+
+    /// The Eyedropper's Option-click picks what's shown, also under a clipped adjustment and with its layer hidden.
+    @Test func theEyedropperSeesTheClippedLook() {
+        let (canvas, _) = stack()
+        canvas.layers[2].clipsToLayerBelow = true
+        for hidesSubject in [false, true] {
+            canvas.layers[1].isVisible = !hidesSubject
+            let flat = canvas.flattened()
+            for point in [IntPoint(x: 1, y: 1), IntPoint(x: 10, y: 10)] {
+                #expect(canvas.pixelAsShown(at: point) == flat[point.x, point.y])
+            }
+        }
+    }
 }

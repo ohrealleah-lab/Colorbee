@@ -109,18 +109,35 @@ struct DocumentView: View {
             Text(editor.redactionMessage ?? "")
         }
         // After a redaction, the image as it was pasted is still in Clipboard History (Leah; review H, finding 2).
-        .alert("Remove the unredacted image from Clipboard History and the clipboard?",
-               isPresented: Binding(get: { editor.clipboardCleanup != nil }, set: { if !$0 { editor.clipboardCleanup = nil } })) {
+        // Text read with Copy Text before the redaction is offered the same way (Leah, 2026-10-11; review N, finding 3).
+        .alert(cleanupTitle, isPresented: Binding(get: { editor.clipboardCleanup != nil }, set: { if !$0 { editor.clipboardCleanup = nil } })) {
             Button("Remove") { editor.removeClipboardSources() }
                 .keyboardShortcut(.defaultAction)
             Button("Keep", role: .cancel) { editor.clipboardCleanup = nil }
         } message: {
-            Text("Clipboard History still has the image this was pasted from, before the redaction. If it's still on the clipboard, that's cleared too; anything you've copied since is left alone.")
+            Text(cleanupMessage)
         }
     }
 }
 
 extension DocumentView {
+    fileprivate var cleanupTitle: String {
+        switch (editor.clipboardCleanup?.images.isEmpty == false, editor.clipboardCleanup?.text == true) {
+        case (true, true): "Remove the unredacted image and text from Clipboard History and the clipboard?"
+        case (false, true): "Remove the unredacted text from the clipboard?"
+        default: "Remove the unredacted image from Clipboard History and the clipboard?"
+        }
+    }
+
+    fileprivate var cleanupMessage: String {
+        let images = editor.clipboardCleanup?.images.isEmpty == false, text = editor.clipboardCleanup?.text == true
+        var parts: [String] = []
+        if images { parts.append("Clipboard History still has the image this was pasted from, before the redaction. If it's still on the clipboard, that's cleared too.") }
+        if text { parts.append("The clipboard still has the text Copy Text read from this image before the redaction.") }
+        parts.append("Anything you've copied since is left alone.")
+        return parts.joined(separator: " ")
+    }
+
     fileprivate var autoRedactBinding: Binding<Bool> {
         Binding(get: { editor.autoRedact != nil }, set: { if !$0, editor.autoRedact != nil { editor.cancelAutoRedact() } })
     }

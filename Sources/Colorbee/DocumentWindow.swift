@@ -192,6 +192,7 @@ final class DocumentWindow: NSWindow {
         editor?.copyText { text in
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
+            return NSPasteboard.general.changeCount
         }
     }
 

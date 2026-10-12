@@ -71,6 +71,16 @@ final class ClipboardHistory {
 
     /// Forgets one image, file and all (review H, finding 2). With `clearingClipboard`, the Mac clipboard is
     /// cleared too if it still holds that image; anything copied since is left alone (Leah, 2026-10-04).
+    /// Whether nothing has been put on the clipboard since its change count was `count`.
+    static func clipboardUnchanged(since count: Int) -> Bool {
+        NSPasteboard.general.changeCount == count
+    }
+
+    /// Empties the clipboard if nothing has been put on it since its change count was `count`.
+    static func clearClipboard(ifUnchangedSince count: Int) {
+        if clipboardUnchanged(since: count) { NSPasteboard.general.clearContents() }
+    }
+
     func remove(_ id: Item.ID, clearingClipboard: Bool = false) {
         if clearingClipboard, let count = clipboardChangeCounts[id], NSPasteboard.general.changeCount == count {
             NSPasteboard.general.clearContents()

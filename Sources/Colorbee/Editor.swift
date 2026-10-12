@@ -2437,6 +2437,9 @@ final class Editor {
         effectEdit = kind.previewsAsStep || kind.isCanvasTool ? nil : history.beginEdit(kind.title, on: canvas)
         if kind == .spotlight {
             effectRegions = canvas.selection.marquee?.inverted(in: canvas.bounds).map { [$0] } ?? []
+        } else if coveringAllLayers {
+            // Redaction is never softened: a partly selected pixel is hidden completely (FR-3.4; review N, finding 1).
+            effectRegions = canvas.selection.marquee?.hardened().connectedRegions()
         } else {
             effectRegions = canvas.selection.marquee?.connectedRegions()
         }
@@ -2628,18 +2631,25 @@ final class Editor {
 
     /// Copy Text: reads what you see in the selection (or the whole page) on this Mac and hands the text to `copy`.
     /// The image is never changed, and it isn't an undo step.
-    func copyText(_ copy: @escaping @MainActor (String) -> Void) {
+    /// `copy` puts the text on the clipboard and returns the clipboard's change count after, so a redaction can
+    /// offer to remove it again (Leah, 2026-10-11; review N, finding 3).
+    func copyText(_ copy: @escaping @MainActor (String) -> Int) {
         guard !isReadingText else { return }
         let pixels = selectedMergedPixels() ?? canvas.flattened()
         guard let image = try? ImageCodec.makeCGImage(pixels, colorSpace: canvas.colorSpace) else { return onRefused() }
         isReadingText = true
+        let history = self.history, revision = history.revision
         Task { @MainActor [weak self] in
             let text = (try? await TextReader.read(image)) ?? ""
             guard let self else { return }
             self.isReadingText = false
+            // A redaction (or any change) while reading would put the old text on the clipboard after it.
+            guard self.history === history, history.revision == revision else {
+                return self.showNotice("The image changed while reading, so nothing was copied")
+            }
             // With no text the clipboard is left as it was.
             guard !text.isEmpty else { return self.showNotice("No text found") }
-            copy(text)
+            self.copiedTextClipboardCount = copy(text)
             let words = TextReader.wordCount(text)
             self.showNotice(words == 1 ? "Copied 1 word" : "Copied \(words) words")
         }
@@ -3123,7 +3133,10 @@ final class Editor {
     /// Clipboard History items this document was pasted from, which still hold the image before redaction.
     @ObservationIgnored private var clipboardSources: Set<ClipboardHistory.Item.ID> = []
     /// After a redaction, the Clipboard History items to offer to remove (Remove is the default).
-    var clipboardCleanup: [ClipboardHistory.Item.ID]?
+    var clipboardCleanup: ClipboardCleanup?
+    /// The clipboard's change count right after Copy Text put this document's text there; while it's unchanged, the
+    /// clipboard still holds that text.
+    @ObservationIgnored private var copiedTextClipboardCount: Int?
     /// A redaction was applied since the last explicit save, so the save warns about earlier versions.
     @ObservationIgnored var redactedSinceSave = false
 
@@ -3157,12 +3170,17 @@ final class Editor {
     private func noteRedaction() {
         redactedSinceSave = true
         let remaining = clipboardSources.filter(ClipboardHistory.shared.contains)
-        if !remaining.isEmpty { clipboardCleanup = Array(remaining) }
+        let text = copiedTextClipboardCount.map(ClipboardHistory.clipboardUnchanged) ?? false
+        if !text { copiedTextClipboardCount = nil }
+        if !remaining.isEmpty || text { clipboardCleanup = ClipboardCleanup(images: Array(remaining), text: text) }
     }
 
     func removeClipboardSources() {
-        clipboardCleanup?.forEach { ClipboardHistory.shared.remove($0, clearingClipboard: true) }
-        clipboardSources.subtract(clipboardCleanup ?? [])
+        guard let cleanup = clipboardCleanup else { return }
+        cleanup.images.forEach { ClipboardHistory.shared.remove($0, clearingClipboard: true) }
+        clipboardSources.subtract(cleanup.images)
+        if cleanup.text, let count = copiedTextClipboardCount { ClipboardHistory.clearClipboard(ifUnchangedSince: count) }
+        copiedTextClipboardCount = nil
         clipboardCleanup = nil
     }
 
@@ -4012,6 +4030,13 @@ private struct RenderedShape: @unchecked Sendable {
 }
 
 /// Hands a pixel buffer to a background task that only reads it while nothing else writes to it.
+/// What the after-redaction offer removes: Clipboard History images this document came from or was copied to, and
+/// whether the clipboard still holds text Copy Text read from it before the redaction.
+struct ClipboardCleanup: Equatable {
+    var images: [ClipboardHistory.Item.ID]
+    var text: Bool
+}
+
 private struct UnsafeTransfer<Value>: @unchecked Sendable {
     let value: Value
     init(_ value: Value) { self.value = value }

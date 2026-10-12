@@ -225,3 +225,33 @@ struct RedactAndRetouchTests {
         #expect(rows.allSatisfy { abs(Double($0) + 0.5 - wobblyPath[0].y) <= 3 })
     }
 }
+
+/// Batch Redact never softens: on a feathered selection, Blur… and Pixelate… hide every partly selected pixel
+/// completely, exactly as on the same selection with a hard edge (FR-3.4; review N, finding 1).
+@MainActor
+struct SoftBatchRedactTests {
+    private func striped() -> Editor {
+        let editor = makeEditor()
+        for x in stride(from: 0, to: 64, by: 3) {
+            editor.canvas.activeLayer.buffer.fill(.black, in: IntRect(x: x, y: 0, width: 1, height: 64))
+        }
+        return editor
+    }
+
+    private func redact(_ kind: EffectKind, soft: Bool) -> Int {
+        let editor = striped()
+        let box = SelectionMask.rectangle(IntRect(x: 16, y: 20, width: 30, height: 12), clippedTo: editor.canvas.bounds)!
+        let feathered = box.feathered(radius: 8, clippedTo: editor.canvas.bounds)!
+        // The hard edge to compare with: every pixel the feathered selection touches at all.
+        editor.canvas.selection = .marquee(soft ? feathered : feathered.hardened())
+        editor.beginBatchRedact(kind)
+        editor.applyEffect()
+        return editor.imageHash
+    }
+
+    @Test(arguments: [EffectKind.gaussianBlur, .pixelate])
+    func aFeatheredSelectionIsRedactedCompletely(_ kind: EffectKind) {
+        #expect(redact(kind, soft: true) == redact(kind, soft: false))
+        #expect(redact(kind, soft: true) != striped().imageHash)
+    }
+}

@@ -94,7 +94,7 @@ public enum SubjectActions {
         apply(mask, to: lifted)
         let edit = history.beginEdit("Lift Subject", on: canvas)
         edit.willChangeLayers()
-        let index = canvas.activeLayerIndex + 1
+        let index = canvas.indexAboveActiveLayer
         canvas.insertLayer(Layer(name: "Subject", buffer: lifted), at: index)
         canvas.activeLayerIndex = index
         return history.commit(edit)

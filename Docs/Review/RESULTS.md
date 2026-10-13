@@ -276,3 +276,43 @@ Leah confirmed 1 and 2 by hand on 2026-10-11 and chose the behavior for 3. 1–3
 | 2 | Critical | Save, autosave, Export, Copy, Share and Duplicate Page dropped "Only the layer below" (`Canvas.copy()` leaves it out) | **Fixed.** `Canvas.copy()` keeps it. Also found and fixed: the Eyedropper's Option-click (`pixelAsShown`) left it out and dropped hidden layers, so a clipped adjustment could find the wrong layer below. Core tests fail without the fix. |
 | 3 | Low | Text from Copy Text stayed on the clipboard after a redaction; a read finishing after a redaction still copied the old text | **Fixed (Leah's choice, 2026-10-11).** The after-redaction offer also covers text Copy Text put on the clipboard, while it's still there; a read that finishes after the image (or page) changed copies nothing and says so. App test `CopyTextTests`. |
 | 4 | Low | Importing into an open document: scans arriving during the Auto-Redact review aren't read; unseen imported pages get the wrong "As Opened" | Waiting on the pinned stage 11 import problem; noted in STATUS's pinned entry to fix with it. |
+
+## Session O: correctness, threads and the speed fixes ([findings](findings-O.md))
+
+Batch A fixed 2026-10-13 (waiting for Leah's test); batches B and C to come. Findings 1 and 7 were the same as N2 (fixed there).
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | Copies dropped "Only the layer below" | **Fixed with N2.** |
+| 2 | Critical | Rotate or Flip right after cancelling Straighten could crash (the turn still read the layers) | **Fixed (batch A).** Ending Straighten stops a running turn and waits until it no longer reads the layers (at most one layer). App test. |
+| 3 | High | Soft edges darken next to see-through pixels (Clone Stamp on an empty layer, feathered Fill, Smudge, Blur and Sharpen brushes) | Batch B. |
+| 4 | High | Sample All Layers read adjustments above, applying them twice | **Fixed (batch A; Leah: the active layer and those below).** App test fails without the fix. |
+| 5 | Medium | New Layer, Duplicate, Lift Subject went between a layer and its clipped adjustments | **Fixed (batch A; Leah: above them).** Core tests. |
+| 6 | Medium | Merge Down left clipped adjustments behind; Delete moved them down | **Fixed (batch A; Leah: Merge Down bakes them in, Delete deletes them).** Core tests. |
+| 7 | Medium | The Eyedropper's Option-click ignored clipping | **Fixed with N2.** |
+| 8 | Medium | A large Remove used gigabytes and kept running after its window closed | **Fixed (batch A).** Areas needing over 16 MP of surroundings are refused with a message before any memory is made (every 12 MP phone photo fits); a fill stops when its window closes, the page changes, the image changes, or on Undo or Redo. Core test. |
+| 9 | Medium | Smudge from the canvas edge rubs in see-through black | Batch B. |
+| 10 | Medium | The Redact Brush's (and Remove's) red area didn't show on an adjustment or hidden layer | **Fixed (batch A).** Drawn above every layer. |
+| 11 | Low | Remove Red-Eye ignores a soft selection's fade | Batch B. |
+| 12 | Low | The Feather slider works on the main thread | Batch C (with P5). |
+| 13 | Low | Match Tone runs on the main thread | Batch C. |
+| 14 | Low | Remove silently did nothing with too little around the area | **Fixed (batch A).** "There isn't enough picture around that area to fill it from." Core test. |
+
+## Session P: the app layer, tests and build ([findings](findings-P.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Medium | Commands worked behind the Feather sheet; OK then put back a stale selection | **Fixed (batch A).** The Feather sheet blocks document commands like the other sheets. App test. |
+| 2 | Medium | The release job's signing key was usable by any program while a third-party action ran | Batch C (checked at Beta 3). |
+| 3 | Low | New Layer could open an empty sidebar | Batch C. |
+| 4 | Low | Switching off the last panel during Adjust Photo hid its sliders | Batch C. |
+| 5 | Low | The Feather preview works on the main thread | Batch C. |
+| 6 | Low | Batch Redact ▸ Solid Fill was greyed out on a locked or adjustment layer | **Fixed (batch A).** |
+| 7 | Low | Remove and Spot Heal ignore pressure | **Kept (Leah, 2026-10-13):** a steady width; FR-4.6 updated. |
+| 8 | Low | The Menus help page left out Open Recent | Batch C. |
+| 9 | Low | The help-shots script moved any new PNG from the Desktop | Batch C. |
+| 10 | Low | A file opened during `make test` went to the hidden test copy | Batch C. |
+| 11 | Low | Two Straighten tests relied on timing | Partly fixed (batch A: Cancel now waits for the turn, so the cancel test is exact); rest in batch C. |
+| 12 | Low | Missing Editor tests | Batch A added Feather, Sample All Layers, Remove limits; rest in batch C. |
+| 13 | Low | Typing a Feather radius then Return could apply the old one | **Fixed (batch A).** The box sets the radius as you type. |
+

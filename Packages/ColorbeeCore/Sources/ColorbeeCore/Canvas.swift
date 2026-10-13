@@ -127,6 +127,15 @@ public final class Canvas {
         layers.indices.contains(index) && layers[index].adjustment != nil && clipBaseIndex(forLayerAt: index) != nil
     }
 
+    /// Where a new layer goes "above the active one": above the active layer's clipped adjustments too, so they keep
+    /// changing the layer they're on (Leah, 2026-10-13). On a clipped adjustment, above its whole group.
+    public var indexAboveActiveLayer: Int {
+        let active = activeLayerIndex
+        let base = layers[active].adjustment == nil ? active : layers[active].clipsToLayerBelow ? clipBaseIndex(forLayerAt: active) : nil
+        guard let base else { return active + 1 }
+        return base + 1 + clippedAdjustments(onLayerAt: base).count
+    }
+
     /// The clipped adjustment layers on the pixel layer at `index`, bottom to top.
     public func clippedAdjustments(onLayerAt index: Int) -> [Layer] {
         guard layers.indices.contains(index), layers[index].adjustment == nil else { return [] }

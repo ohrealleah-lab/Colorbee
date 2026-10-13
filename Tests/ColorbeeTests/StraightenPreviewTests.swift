@@ -80,4 +80,20 @@ struct StraightenPreviewTests {
         editor.applyEffect()
         #expect(editor.stepNames == ["Straighten"])
     }
+
+    /// Cancel waits for a turn still reading the layers, so Rotate right after can't change them under it
+    /// (review O, finding 2), and nothing lands afterwards.
+    @Test func rotatingRightAfterCancelIsSafeAndExact() async throws {
+        let editor = photo()
+        let expected = makeEditor(width: 80, height: 50)
+        expected.canvas.activeLayer.buffer.fill(.black, in: IntRect(x: 0, y: 22, width: 80, height: 4))
+        expected.apply(.rotate90Clockwise)
+        slide(editor, to: 15)
+        editor.cancelEffect()
+        #expect(!editor.straightenRunning)
+        editor.apply(.rotate90Clockwise)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect((editor.imageHash, editor.canvas.size) == (expected.imageHash, expected.canvas.size))
+        #expect(editor.stepNames.count == 1)
+    }
 }

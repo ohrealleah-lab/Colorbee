@@ -6,8 +6,9 @@ public enum LayerActions {
     public static func add(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         change("New Layer", canvas: canvas, history: history, context: context) {
             let layer = Layer(name: nextName(in: canvas), buffer: PixelBuffer(width: canvas.size.width, height: canvas.size.height))
-            canvas.insertLayer(layer, at: canvas.activeLayerIndex + 1)
-            canvas.activeLayerIndex += 1
+            let index = canvas.indexAboveActiveLayer
+            canvas.insertLayer(layer, at: index)
+            canvas.activeLayerIndex = index
             return true
         }
     }
@@ -19,8 +20,9 @@ public enum LayerActions {
         return change("New Adjustment Layer", canvas: canvas, history: history, context: context) {
             let layer = Layer(name: name, buffer: PixelBuffer(width: canvas.size.width, height: canvas.size.height))
             layer.adjustment = adjustment
-            canvas.insertLayer(layer, at: canvas.activeLayerIndex + 1)
-            canvas.activeLayerIndex += 1
+            let index = canvas.indexAboveActiveLayer
+            canvas.insertLayer(layer, at: index)
+            canvas.activeLayerIndex = index
             return true
         }
     }
@@ -92,26 +94,30 @@ public enum LayerActions {
             copy.blendMode = source.blendMode
             copy.adjustment = source.adjustment
             copy.clipsToLayerBelow = source.clipsToLayerBelow
-            canvas.insertLayer(copy, at: canvas.activeLayerIndex + 1)
-            canvas.activeLayerIndex += 1
+            // A copy of a clipped adjustment stays in its group; anything else goes above the group.
+            let index = source.clipsToLayerBelow ? canvas.activeLayerIndex + 1 : canvas.indexAboveActiveLayer
+            canvas.insertLayer(copy, at: index)
+            canvas.activeLayerIndex = index
             return true
         }
     }
 
-    /// Deletes the active layer unless it's locked or the only one. The layer below becomes active.
+    /// Deletes the active layer unless it's locked or the only one, with its clipped adjustments, which belonged to it
+    /// (Leah, 2026-10-13). The layer below becomes active.
     @discardableResult
     public static func delete(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard canDelete(canvas) else { return false }
         return change("Delete Layer", canvas: canvas, history: history, context: context) {
             let index = canvas.activeLayerIndex
-            canvas.removeLayer(at: index)
+            for _ in 0...canvas.clippedAdjustments(onLayerAt: index).count { canvas.removeLayer(at: index) }
             canvas.activeLayerIndex = max(0, index - 1)
             return true
         }
     }
 
     public static func canDelete(_ canvas: Canvas) -> Bool {
-        canvas.layers.count > 1 && !canvas.activeLayer.isLocked
+        let going = [canvas.activeLayer] + canvas.clippedAdjustments(onLayerAt: canvas.activeLayerIndex)
+        return canvas.layers.count > going.count && !going.contains(where: \.isLocked)
     }
 
     /// Combines the active layer into the one below, using its blend mode and opacity. The result keeps
@@ -123,8 +129,10 @@ public enum LayerActions {
         return change("Merge Down", canvas: canvas, history: history, context: context) {
             let index = canvas.activeLayerIndex
             let upper = canvas.layers[index], lower = canvas.layers[index - 1]
-            lower.buffer = canvas.composite([upper], onto: lower.buffer)
-            canvas.removeLayer(at: index)
+            // Its clipped adjustments are baked in, so the picture keeps its look (Leah, 2026-10-13).
+            let clips = canvas.clippedAdjustments(onLayerAt: index)
+            lower.buffer = canvas.composite([upper] + clips.filter(\.isVisible), onto: lower.buffer)
+            for _ in 0...clips.count { canvas.removeLayer(at: index) }
             canvas.activeLayerIndex = index - 1
             return true
         }
@@ -135,6 +143,7 @@ public enum LayerActions {
         let index = canvas.activeLayerIndex
         // Pixels can't be merged into an adjustment layer, which has none.
         return index > 0 && !canvas.layers[index].isLocked && !canvas.layers[index - 1].isLocked && canvas.layers[index - 1].adjustment == nil
+            && !canvas.clippedAdjustments(onLayerAt: index).contains(where: \.isLocked)
     }
 
     /// Combines every visible layer into the lowest visible one, as they look together. Hidden layers stay.

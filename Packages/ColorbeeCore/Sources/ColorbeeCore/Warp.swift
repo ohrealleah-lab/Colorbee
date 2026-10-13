@@ -199,7 +199,7 @@ extension ImageActions {
     @discardableResult
     public static func straighten(angle: Double, cropToFit: Bool, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard let plan = StraightenPlan(angle: angle, cropToFit: cropToFit, canvas: canvas, context: context) else { return false }
-        return straighten(plan, buffers: plan.render(), canvas: canvas, history: history, context: context)
+        return straighten(plan, buffers: plan.render()!, canvas: canvas, history: history, context: context)
     }
 
     /// Commits a Straighten worked out from `plan` (possibly in the background) as one step. The canvas must
@@ -279,10 +279,12 @@ public struct StraightenPlan: @unchecked Sendable {
         }
     }
 
-    /// Each layer's new buffer. Safe to run off the main thread.
-    public func render() -> [LayerID: PixelBuffer] {
+    /// Each layer's new buffer. Safe to run off the main thread. Nil if `isCancelled` says so between layers: the
+    /// caller then waits for it to return before letting the original layers change (review O, finding 2).
+    public func render(isCancelled: () -> Bool = { false }) -> [LayerID: PixelBuffer]? {
         var buffers: [LayerID: PixelBuffer] = [:]
         for layer in layers {
+            if isCancelled() { return nil }
             buffers[layer.id] = layer.draws
                 ? Warp.rotated(layer.buffer, angle: angle, size: size, fill: layer.fill, extendingEdges: cropToFit)
                 : PixelBuffer(size: size)

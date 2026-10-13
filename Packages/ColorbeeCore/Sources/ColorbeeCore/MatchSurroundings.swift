@@ -15,6 +15,12 @@ public enum MatchSurroundings {
     static let bands = 32
 
     public struct Cancelled: Error {}
+    /// Too little picture around the area to fill it from (review O, finding 14).
+    public struct NothingToFillFrom: Error {}
+
+    /// The most surroundings one fill works on, in pixels: about 1.1 GB of working memory. Every 12 MP phone photo
+    /// fits; on bigger photos a very large area is refused with a message instead (review O, finding 8).
+    public static let maximumContext = 16_000_000
 
     /// What's needed to fill an area: the pixels around it, copied, so the fill can run in the background while
     /// the layer changes.
@@ -49,6 +55,11 @@ public enum MatchSurroundings {
             let margin = nearby ? max(16, max(area.width, area.height) / 2) : max(48, max(area.width, area.height))
             let context = IntRect(x: area.minX - margin, y: area.minY - margin,
                                   width: area.width + 2 * margin, height: area.height + 2 * margin).intersection(bounds)
+            // Refused before its working memory is made; `isTooLarge` says so and `run` mustn't be called.
+            guard context.area <= MatchSurroundings.maximumContext else {
+                (self.context, self.area, self.pixels, self.hole, matchesTone) = (context, area, [], [], matchingTone)
+                return
+            }
             var pixels = [SIMD4<Float>](repeating: .zero, count: context.area)
             var hole = [Bool](repeating: false, count: context.area)
             var holeCount = 0
@@ -72,6 +83,10 @@ public enum MatchSurroundings {
             matchesTone = matchingTone
         }
 
+        /// Whether this fill would need more working memory than `maximumContext` allows. Then it isn't set up, and
+        /// `run` mustn't be called.
+        public var isTooLarge: Bool { context.area > MatchSurroundings.maximumContext }
+
         /// Fills the area. `progress` gets 0...1; `isCancelled` is checked between passes.
         public func run(progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }) throws -> Fill {
             var levels = [Level(width: context.width, height: context.height, pixels: pixels, hole: hole)]
@@ -93,7 +108,7 @@ public enum MatchSurroundings {
             for index in levels.indices.reversed() {
                 let coarseIndex = levels.count - 1 - index
                 var level = levels[index]
-                guard let sources = level.sources() else { throw Cancelled() }
+                guard let sources = level.sources() else { throw NothingToFillFrom() }
                 var current = field.map { level.upsampled(from: $0, sources: sources) } ?? level.firstGuess(sources: sources)
                 for iteration in 0..<iterations(atCoarseIndex: coarseIndex) {
                     if isCancelled() { throw Cancelled() }

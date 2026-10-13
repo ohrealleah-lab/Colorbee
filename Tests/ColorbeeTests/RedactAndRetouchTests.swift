@@ -255,3 +255,26 @@ struct SoftBatchRedactTests {
         #expect(redact(kind, soft: true) != striped().imageHash)
     }
 }
+
+/// Sample All Layers reads the active layer and those below it, so an adjustment above applies once
+/// (Leah, 2026-10-13; review O, finding 4).
+@MainActor
+struct SampleAllLayersTests {
+    @Test func aCloneUnderAnInvertLooksLikeItsSource() {
+        let editor = makeEditor(background: Pixel(r: 30, g: 60, b: 220, a: 255))
+        editor.canvas.activeLayer.buffer.fill(Pixel(r: 220, g: 40, b: 30, a: 255), in: IntRect(x: 0, y: 0, width: 32, height: 64))
+        editor.addLayer()
+        editor.addAdjustmentLayer(.invert, named: "Invert")
+        editor.canvas.activeLayerIndex = 1
+        editor.selectTool(.retouch)
+        editor.retouchKind = .cloneStamp
+        editor.retouchSize = 8
+        editor.retouchHardness = 1
+        editor.retouchSamplesAllLayers = true
+        editor.setCloneSource(pt(10.5, 10.5))
+        editor.beginRetouchBrush(at: pt(50.5, 50.5), pressure: 1)
+        editor.endRetouchBrush()
+        let shown = editor.canvas.flattened()
+        #expect(shown[50, 50] == shown[10, 10])
+    }
+}

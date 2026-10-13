@@ -794,6 +794,7 @@ final class Editor {
     /// After the shown page changed (or the page list did): remembers the old page's view and saved state, and
     /// brings back the new one's.
     private func pageDidChange() {
+        stopFillForChange()
         if pages.current !== page {
             opened.pack()
             saved.pack()
@@ -1690,7 +1691,8 @@ final class Editor {
         if kind == .smudge {
             stroke = SmudgeStroke(diameter: retouchSize, hardness: retouchHardness, strength: retouchStrength, layer: layer, edit: edit)
         } else if let offset {
-            let source = retouchSamplesAllLayers ? canvas.flattened() : nil
+            // The active layer and those below, as shown: adjustments above apply to the result anyway (Leah, 2026-10-13).
+            let source = retouchSamplesAllLayers ? canvas.composited(through: canvas.activeLayerIndex) : nil
             stroke = RetouchStroke(diameter: retouchSize, hardness: retouchHardness, strength: 1, kind: .clone(offset: offset, source: source),
                                    layer: layer, edit: edit)
         } else if let adjustment = kind.adjustment(range: toneRange) {
@@ -1766,25 +1768,33 @@ final class Editor {
         retouchStroke = nil
         let layer = canvas.activeLayer
         let healing = stroke.kind == .spotHeal
-        let image = retouchSamplesAllLayers ? canvas.flattened() : layer.buffer
+        let image = retouchSamplesAllLayers ? canvas.composited(through: canvas.activeLayerIndex) : layer.buffer
         guard let mask = stroke.area.mask,
               let job = MatchSurroundings.Job(image: image, area: mask, nearby: healing, matchingTone: healing) else { return onRender() }
+        guard !job.isTooLarge else {
+            showNotice("That area is too big to fill at once. Remove a smaller part at a time, or use the Clone Stamp.")
+            return onRender()
+        }
         let flag = CancelFlag()
         fillCancel = flag
         fillingArea = stroke.area
         fillProgress = 0
         let revision = history.revision, layerID = layer.id, pageID = page.id
         Task { @MainActor [weak self] in
-            let fill = await Task.detached(priority: .userInitiated) { [weak self] in
-                try? job.run(progress: { value in
+            let outcome = await Task.detached(priority: .userInitiated) { [weak self] in
+                // Also stops once the document is gone: closing its window cancels (review O, finding 8).
+                Result { try job.run(progress: { value in
                     Task { @MainActor in if self?.fillCancel === flag { self?.fillProgress = value } }
-                }, isCancelled: { flag.isSet })
+                }, isCancelled: { flag.isSet || self == nil }) }
             }.value
             guard let self, self.fillCancel === flag else { return }
             self.fillCancel = nil
             self.fillProgress = nil
             self.fillingArea = nil
-            guard let fill else { return self.onRender() }
+            if case .failure(let error) = outcome, error is MatchSurroundings.NothingToFillFrom {
+                self.showNotice("There isn't enough picture around that area to fill it from.")
+            }
+            guard case .success(let fill) = outcome else { return self.onRender() }
             guard self.history.revision == revision, self.page.id == pageID, self.canvas.activeLayer.id == layerID,
                   self.activeLayerTakesEdits else {
                 self.showNotice("The image changed while filling. Try again.")
@@ -1795,6 +1805,14 @@ final class Editor {
             self.recordingChanges { self.history.commit(edit) }
             self.onRender()
         }
+    }
+
+    /// The image changed or another page is shown while a fill runs: its result wouldn't fit, so it stops now rather
+    /// than finishing for nothing (review O, finding 8).
+    private func stopFillForChange() {
+        guard fillCancel != nil else { return }
+        cancelFill()
+        showNotice("The image changed while filling. Try again.")
     }
 
     /// Esc while a fill runs: stops it, and nothing changes.
@@ -2253,6 +2271,7 @@ final class Editor {
         let revision = history.revision
         body()
         if history.revision != revision {
+            stopFillForChange()
             // A page edit: page changes made before it can't be undone any more, as edits work in an image.
             pages.noteEdit()
             undone = []
@@ -2458,6 +2477,8 @@ final class Editor {
     @ObservationIgnored private var straightenWanted = false
     @ObservationIgnored private(set) var straightenShown: (angle: Double, cropToFit: Bool)?
     @ObservationIgnored private var straightenToken = 0
+    /// The running turn's stop flag, and a signal it gives once it no longer reads the original layers.
+    @ObservationIgnored private var straightenWork: (stop: CancelFlag, done: DispatchSemaphore)?
 
     // MARK: Straighten, Perspective Correction and Crop (FR-9.5)
 
@@ -2821,15 +2842,21 @@ final class Editor {
         }
         straightenRunning = true
         let token = straightenToken, work = UnsafeTransfer(plan)
+        let stop = CancelFlag(), done = DispatchSemaphore(value: 0)
+        straightenWork = (stop, done)
         Task.detached(priority: .userInitiated) { [weak self] in
-            let buffers = UnsafeTransfer(work.value.render())
-            await MainActor.run { [weak self] in self?.showStraightenPreview(work.value, buffers: buffers.value, token: token) }
+            let buffers = UnsafeTransfer(work.value.render(isCancelled: { stop.isSet }))
+            done.signal()
+            guard let rendered = buffers.value else { return }
+            let result = UnsafeTransfer(rendered)
+            await MainActor.run { [weak self] in self?.showStraightenPreview(work.value, buffers: result.value, token: token) }
         }
     }
 
     private func showStraightenPreview(_ plan: StraightenPlan, buffers: [LayerID: PixelBuffer], token: Int) {
         guard token == straightenToken, activeEffect == .straighten else { return }
         straightenRunning = false
+        straightenWork = nil
         if decorationPreviewed {
             history.undo(on: canvas)
             history.forgetRedo()
@@ -2846,8 +2873,15 @@ final class Editor {
         }
     }
 
-    /// Drops a Straighten turn still being worked out; its result won't be shown.
+    /// Drops a Straighten turn still being worked out; its result won't be shown. It reads the original layers, which
+    /// any command after this may change in place (Rotate and Flip do), so this waits until it has stopped: at most
+    /// the one layer it's turning (review O, finding 2).
     private func stopStraightenPreview() {
+        if let work = straightenWork {
+            work.stop.set()
+            work.done.wait()
+            straightenWork = nil
+        }
         straightenToken += 1
         straightenRunning = false
         straightenWanted = false
@@ -3503,6 +3537,7 @@ final class Editor {
             return
         }
         finishInteractions()
+        stopFillForChange()
         // Adding, deleting or moving a page is undone while it's the newest thing done (FR-11.6).
         if pages.undoName != nil {
             guard changePages({ try pages.undo() }) else { return }
@@ -3517,6 +3552,7 @@ final class Editor {
 
     func redo() {
         finishInteractions()
+        stopFillForChange()
         if undone.last == .pageChange, pages.redoName != nil {
             guard changePages({ try pages.redo() }) else { return }
             undone.removeLast()
@@ -3964,7 +4000,8 @@ final class Editor {
     /// While a sheet or an effect's bar is open, the document's own commands (Save, Export, Share, Print, Revert) wait
     /// too, as the Edit commands do (review L, finding 2).
     var blocksDocumentCommands: Bool {
-        activeEffect != nil || autoRedact != nil || isResizeSkewOpen || isCanvasPropertiesOpen
+        // The Feather sheet too: OK puts back the selection as it was when the sheet opened (review P, finding 1).
+        activeEffect != nil || autoRedact != nil || isResizeSkewOpen || isCanvasPropertiesOpen || featherRadius != nil
     }
 
     /// Auto-Redact is redacting page after page; a save now would hold only part of it.

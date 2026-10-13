@@ -525,6 +525,9 @@ private func wholeNumber(_ value: Binding<Double>) -> Binding<Double> {
 /// Edit ▸ Feather… (FR-3.4): how soft the selection's edge is, previewed with a tint over what isn't selected.
 private struct FeatherSheet: View {
     @Bindable var editor: Editor
+    /// The number box's text. It sets the radius on every keystroke, since Return is OK's shortcut and would otherwise
+    /// apply before the box hands on its value (review P, finding 13).
+    @State private var typed = ""
 
     var body: some View {
         let radius = editor.featherRadius ?? 10
@@ -534,10 +537,17 @@ private struct FeatherSheet: View {
                 Slider(value: Binding(get: { radius }, set: { editor.setFeatherRadius($0) }), in: 1...100)
                     .frame(width: 220)
                     .accessibilityLabel("Feather radius")
-                TextField("Radius", value: Binding(get: { Int(radius) }, set: { editor.setFeatherRadius(Double($0)) }), format: .number)
+                TextField("Radius", text: $typed)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 50)
                     .labelsHidden()
+                    .onAppear { typed = "\(Int(radius))" }
+                    .onChange(of: typed) {
+                        if let value = Int(typed), value >= 1, value != Int(radius) { editor.setFeatherRadius(Double(min(value, 100))) }
+                    }
+                    .onChange(of: radius) {
+                        if Int(typed) != Int(radius) { typed = "\(Int(radius))" }
+                    }
                 Text("px")
             }
             Text("The red tint shows what isn't selected; across the soft edge it fades.")

@@ -102,3 +102,29 @@ struct MatchSurroundingsTests {
         #expect(filled.allSatisfy { $0.r == $0.g && $0.a == 255 })
     }
 }
+
+/// Remove's limits (review O, findings 8 and 14).
+struct MatchSurroundingsLimitTests {
+    @Test func aHugeAreaIsRefusedBeforeItsMemoryIsMade() throws {
+        let image = PixelBuffer(width: 6000, height: 4000)
+        let area = try #require(SelectionMask.rectangle(IntRect(x: 1000, y: 1000, width: 3000, height: 2000), clippedTo: image.bounds))
+        let job = try #require(MatchSurroundings.Job(image: image, area: area))
+        #expect(job.isTooLarge)
+        #expect(job.pixels.isEmpty)
+    }
+
+    @Test func aSmallAreaIsNotTooLarge() throws {
+        let image = PixelBuffer(width: 200, height: 200)
+        let area = try #require(SelectionMask.rectangle(IntRect(x: 90, y: 90, width: 20, height: 20), clippedTo: image.bounds))
+        #expect(try #require(MatchSurroundings.Job(image: image, area: area)).isTooLarge == false)
+    }
+
+    @Test func tooLittleAroundTheAreaSaysSo() throws {
+        // A busy 6 × 6 picture with all but its corner pixel to fill: no 7 × 7 patch fits outside the area.
+        let image = PixelBuffer(width: 6, height: 6)
+        for y in 0..<6 { for x in 0..<6 { image[x, y] = Pixel(r: UInt8(x * 40), g: UInt8(y * 40), b: UInt8((x * y * 30) & 255)) } }
+        let area = try #require(SelectionMask.rectangle(IntRect(x: 1, y: 1, width: 5, height: 5), clippedTo: image.bounds))
+        let job = try #require(MatchSurroundings.Job(image: image, area: area))
+        #expect(throws: MatchSurroundings.NothingToFillFrom.self) { try job.run() }
+    }
+}

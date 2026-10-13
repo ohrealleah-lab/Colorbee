@@ -97,4 +97,65 @@ struct ClippedAdjustmentTests {
             }
         }
     }
+
+    // MARK: Layer commands keep clipped adjustments with their layer (Leah, 2026-10-13; review O, findings 5 and 6)
+
+    /// The stack with the Invert clipped to the subject layer, and the subject active.
+    private func clippedStack() -> (Canvas, History) {
+        let (canvas, history) = stack()
+        canvas.layers[2].clipsToLayerBelow = true
+        canvas.activeLayerIndex = 1
+        return (canvas, history)
+    }
+
+    @Test func aNewLayerGoesAboveTheClippedAdjustments() {
+        for (command, keepsLook) in [(LayerActions.add, true), (LayerActions.duplicate, false)] {
+            let (canvas, history) = clippedStack()
+            let look = canvas.flattened().contentHash()
+            #expect(command(canvas, history, context))
+            #expect(canvas.activeLayerIndex == 3)
+            #expect(canvas.clippedAdjustments(onLayerAt: 1).count == 1)
+            // An empty new layer changes nothing; a copy of the subject covers it, as it should.
+            if keepsLook { #expect(canvas.flattened().contentHash() == look) }
+        }
+        let (canvas, history) = clippedStack()
+        #expect(LayerActions.addAdjustment(.desaturate, named: "Desaturate", canvas: canvas, history: history, context: context))
+        #expect(canvas.activeLayerIndex == 3 && canvas.clippedAdjustments(onLayerAt: 1).count == 1)
+    }
+
+    @Test func duplicatingAClippedAdjustmentKeepsTheCopyInItsGroup() {
+        let (canvas, history) = clippedStack()
+        canvas.activeLayerIndex = 2
+        #expect(LayerActions.duplicate(canvas: canvas, history: history, context: context))
+        #expect(canvas.clippedAdjustments(onLayerAt: 1).count == 2)
+    }
+
+    @Test func mergeDownBakesTheClippedAdjustmentsIn() {
+        let (canvas, history) = clippedStack()
+        let look = canvas.flattened().contentHash()
+        #expect(LayerActions.mergeDown(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 1)
+        #expect(canvas.flattened().contentHash() == look)
+        history.undo(on: canvas)
+        #expect(canvas.layers.count == 3 && canvas.layers[2].clipsToLayerBelow)
+    }
+
+    @Test func deleteLayerTakesItsClippedAdjustmentsAlong() {
+        let (canvas, history) = clippedStack()
+        let before = canvas.flattened().contentHash()
+        #expect(LayerActions.delete(canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 1)
+        #expect(canvas.flattened()[10, 10] == .white)
+        history.undo(on: canvas)
+        #expect(canvas.layers.count == 3 && canvas.flattened().contentHash() == before)
+    }
+
+    @Test func aLayerAndItsClipsCantBeTheLastToGo() {
+        let canvas = Canvas(size: IntSize(width: 4, height: 4), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max)
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        canvas.layers[1].clipsToLayerBelow = true
+        canvas.activeLayerIndex = 0
+        #expect(!LayerActions.canDelete(canvas))
+    }
 }

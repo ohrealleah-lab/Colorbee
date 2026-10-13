@@ -340,10 +340,10 @@ final class DocumentWindow: NSWindow {
 
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let editor else { return super.validateMenuItem(menuItem) }
-        // While an effect's bar, Auto-Redact, Resize and Skew or Canvas Properties is open, only viewing and window
+        // While an effect's bar, Auto-Redact, Resize and Skew, Canvas Properties or Feather is open, only viewing and window
         // commands work; Apply or Cancel comes first. Sheets don't stop menu commands reaching the window (review E,
         // finding 2; review J, findings 7 and 18).
-        if editor.activeEffect != nil || editor.autoRedact != nil || editor.isResizeSkewOpen || editor.isCanvasPropertiesOpen {
+        if editor.blocksDocumentCommands {
             return Self.viewingCommands.contains(menuItem.action)
                 || [#selector(performClose(_:)), #selector(performMiniaturize(_:)), #selector(performZoom(_:)),
                     #selector(toggleFullScreen(_:))].contains(menuItem.action)
@@ -484,7 +484,9 @@ final class DocumentWindow: NSWindow {
     ]
 
     private static let pixelCommands: Set<Selector> = [
-        #selector(cut(_:)), #selector(delete(_:)), #selector(paste(_:)), #selector(applySolidFill(_:)),
+        // Not Batch Redact ▸ Solid Fill: like Blur… and Pixelate…, it redacts every layer under the selection (review P,
+        // finding 6).
+        #selector(cut(_:)), #selector(delete(_:)), #selector(paste(_:)),
         #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showSharpen(_:)), #selector(showLevels(_:)),
         #selector(showAdjustPhoto(_:)), #selector(showCurves(_:)), #selector(showSepia(_:)), #selector(showPosterize(_:)),
         #selector(autoContrast(_:)), #selector(showAddNoise(_:)), #selector(showMotionBlur(_:)), #selector(showEmboss(_:)),

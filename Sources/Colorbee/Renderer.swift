@@ -34,6 +34,9 @@ struct RenderScene {
     let smoothFloating: Bool
     /// A shape being edited, drawn above the active layer.
     let overlay: (pixels: PixelBuffer, origin: IntPoint)?
+    /// The Redact Brush's or Remove's painted area, drawn above every layer: it belongs to no one layer, and must
+    /// show even when the active layer is an adjustment layer or hidden (review O, finding 10).
+    var topOverlay: (pixels: PixelBuffer, origin: IntPoint)? = nil
     /// Handle positions in image coordinates.
     let handlePoints: [Point2D]
     /// Round handles (rotation), in image coordinates.
@@ -387,6 +390,12 @@ final class Renderer {
         uniforms.blendMode = 0
         uniforms.opacity = 1
         uniforms.keyEnabled = 0
+        if let top = scene.topOverlay {
+            uniforms.rect = deviceRect(IntRect(x: top.origin.x, y: top.origin.y, width: top.pixels.width, height: top.pixels.height))
+            sampling(zoom < 1)
+            encoder.setFragmentTexture(texture(for: top.pixels, live: &liveBuffers), index: 0)
+            draw(blendLayerPipeline)
+        }
         encoder.endEncoding()
 
         let pass = MTLRenderPassDescriptor()

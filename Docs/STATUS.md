@@ -14,6 +14,7 @@ _Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 1. [Review N fixes: redaction, clipping, Copy Text](#test-review-n-fixes-redaction-clipping-copy-text): 3 short checks, about 8 minutes.
+2. [Review O and P, batch A](#test-review-o-and-p-batch-a): 6 short checks, about 10 minutes.
 
 ---
 
@@ -236,6 +237,34 @@ _2026-10-11: passed Leah's hand test on 2026-10-11._ Found by the new Editor tes
 2. File ▸ Export… (⌥⌘S) as a PNG on the Desktop, then open that PNG: all three badges are there, including 3.
 3. Back in Colorbee, badge 3 can no longer be dragged (it's placed), and ⌘Z removes only badge 3. The next click makes a new 3.
 4. Click to make badge 4, then Edit ▸ Copy (⌘C) with nothing selected and Edit ▸ Paste into New Image (⇧⌘V): the new image has badge 4.
+
+### Test: Review O and P, batch A
+_2026-10-13, fixed, not yet tested._ See `Docs/Review/RESULTS.md`, round 5. Rebuild with the script (option 2) first.
+
+**A. Layers keep their "Only the layer below" adjustments** (`TestImages/Stage 9 Practice Photo.png`)
+1. Layer ▸ New Layer, paint a big blob, then Layer ▸ New Adjustment Layer ▸ Invert and turn on **Only the layer below**.
+2. Click the blob layer, then Layer ▸ New Layer: the blob stays inverted, and the new layer is at the top.
+3. ⌘Z. Click the blob layer, Layer ▸ Merge Down: the picture looks exactly the same (blob inverted, photo normal).
+4. ⌘Z. Click the blob layer, Layer ▸ Delete Layer: the blob and its Invert are both gone; the photo is normal. ⌘Z brings both back.
+
+**B. Sample All Layers under an adjustment** (`TestImages/Stage 13/Remove Sky.png`)
+1. Layer ▸ New Layer, then Layer ▸ New Adjustment Layer ▸ Invert. Click the empty Layer 1.
+2. Retouch (J) ▸ Clone Stamp, **Sample All Layers** on. Option-click the sky and paint elsewhere: the copied sky looks inverted like the rest.
+
+**C. Remove's limits** (`TestImages/Stage 13/Remove Sand.png`)
+1. Retouch ▸ Remove, paint over something and let go, then press ⌘Z while "Filling…" shows: it stops, with "The image changed while filling. Try again."
+2. (Only if you like) On a very large photo, a huge Remove area says it's too big instead of filling.
+
+**D. The Redact Brush shows its red trail on an adjustment layer** (`TestImages/Help/Sample Screenshot.png`)
+1. Layer ▸ New Adjustment Layer ▸ Hue/Saturation (it becomes the active layer).
+2. Redact Brush (K): paint slowly over the email. The red see-through trail follows the pointer, and the email is redacted when you let go.
+
+**E. Batch Redact ▸ Solid Fill on an adjustment layer** (same file, Hue/Saturation still active)
+1. Draw a selection box over the phone number. Effects ▸ Batch Redact ▸ Solid Fill with Color 1 is available, and it hides the number.
+
+**F. The Feather sheet** (`TestImages/Stage 9 Practice Photo.png`)
+1. Draw a selection box, then Edit ▸ Feather…. While it's open, the Image, Layer and Edit commands are greyed out (try ⇧⌘X: nothing happens).
+2. Click in the number box, type 60 and press Return: Delete then fades the hole's edge over about 60 px.
 
 ### Test: Review N fixes: redaction, clipping, Copy Text
 _2026-10-11, fixed, not yet tested._ Code review round 5, session N (`Docs/Review/findings-N.md`, `RESULTS.md`). Rebuild with the script (option 2) first.

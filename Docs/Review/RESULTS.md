@@ -268,7 +268,7 @@ Reviewed at `eccf0c1` by three local sessions (N, O and P).
 
 ## Session N: privacy, redaction and saved data ([findings](findings-N.md))
 
-Leah confirmed 1 and 2 by hand on 2026-10-11 and chose the behavior for 3. 1–3 fixed 2026-10-11, waiting for Leah's test.
+Leah confirmed 1 and 2 by hand on 2026-10-11 and chose the behavior for 3. 1–3 fixed 2026-10-11; Leah's test passed 2026-10-13.
 
 | # | Severity | Finding | Outcome |
 |---|---|---|---|

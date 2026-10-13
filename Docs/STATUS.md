@@ -13,7 +13,7 @@ _Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-1. [Review N fixes: redaction, clipping, Copy Text](#test-review-n-fixes-redaction-clipping-copy-text): 3 short checks, about 8 minutes.
+Nothing waiting right now.
 
 ---
 
@@ -274,7 +274,7 @@ _2026-10-13: passed Leah's hand test on 2026-10-13._ See `Docs/Review/RESULTS.md
 2. Click in the number box, type 60 and press Return: Delete then fades the hole's edge over about 60 px.
 
 ### Test: Review N fixes: redaction, clipping, Copy Text
-_2026-10-11, fixed, not yet tested._ Code review round 5, session N (`Docs/Review/findings-N.md`, `RESULTS.md`). Rebuild with the script (option 2) first.
+_2026-10-11: passed Leah's hand test on 2026-10-13._ Code review round 5, session N (`Docs/Review/findings-N.md`, `RESULTS.md`). Rebuild with the script (option 2) first.
 
 **A. Blur and Pixelate redact a soft selection completely** (`TestImages/Help/Sample Screenshot.png`)
 1. Pick Rectangle Select and set **Feather** to 20 px in the palette bar.

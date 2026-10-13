@@ -115,25 +115,33 @@ public final class RetouchStroke: Stroke {
             let gray = SIMD4<Float>(repeating: luminance * 255)
             value = gray + (value - gray) * (adjustment == .saturate ? 1.8 : 0)
         case .blur:
-            value = blurred(neighbor)
+            // Alpha is blurred too, so an edge against transparency softens (review O, finding 3).
+            value = blurred(neighbor) ?? value
         case .sharpen:
-            value = value + (value - blurred(neighbor)) * 1.5
+            let soft = blurred(neighbor) ?? value
+            value = value + (value - soft) * 1.5
+            value.w = Float(pixel.a)
         }
-        let rgb = pointwiseMin(pointwiseMax(value, .zero), SIMD4(repeating: 255)).rounded(.toNearestOrEven)
-        return Pixel(r: UInt8(rgb.x), g: UInt8(rgb.y), b: UInt8(rgb.z), a: pixel.a)
+        let rgba = pointwiseMin(pointwiseMax(value, .zero), SIMD4(repeating: 255)).rounded(.toNearestOrEven)
+        return Pixel(r: UInt8(rgba.x), g: UInt8(rgba.y), b: UInt8(rgba.z), a: adjustment == .blur ? UInt8(rgba.w) : pixel.a)
     }
 
-    /// A 5 × 5 Gaussian of the pixels around one.
-    private static func blurred(_ neighbor: (Int, Int) -> Pixel) -> SIMD4<Float> {
+    /// A 5 × 5 Gaussian of the pixels around one, each color counted by how much of it shows, so transparent
+    /// neighbors' hidden colors don't darken it. Nil when every neighbor is fully transparent.
+    private static func blurred(_ neighbor: (Int, Int) -> Pixel) -> SIMD4<Float>? {
         let weights: [Float] = [1, 4, 6, 4, 1]
-        var sum = SIMD4<Float>.zero
+        var color = SIMD3<Float>.zero, alpha: Float = 0
         for dy in -2...2 {
             for dx in -2...2 {
                 let p = neighbor(dx, dy)
-                sum += SIMD4(Float(p.r), Float(p.g), Float(p.b), Float(p.a)) * (weights[dx + 2] * weights[dy + 2])
+                let w = weights[dx + 2] * weights[dy + 2] * Float(p.a)
+                color += SIMD3(Float(p.r), Float(p.g), Float(p.b)) * w
+                alpha += w
             }
         }
-        return sum / 256
+        guard alpha > 0 else { return nil }
+        let straight = color / alpha
+        return SIMD4(straight.x, straight.y, straight.z, alpha / 256)
     }
 }
 
@@ -146,7 +154,8 @@ public final class SmudgeStroke: Stroke {
     private let hardness: Double
     private let strength: Float
     private var walker = DabWalker()
-    /// The carried color for each pixel of the brush, square, row by row; set by the first dab.
+    /// The carried paint for each pixel of the brush, square, row by row, premultiplied so see-through paint mixes
+    /// without darkening (review O, finding 3); set by the first dab.
     private var carried: [SIMD4<Float>]?
     public private(set) var dirtyRect: IntRect = .zero
 
@@ -174,25 +183,40 @@ public final class SmudgeStroke: Stroke {
         guard !area.isEmpty else { return .zero }
         edit.willModify(area, in: layer)
         let radius = Double(side) / 2
-        let first = carried == nil
-        if first { carried = [SIMD4<Float>](repeating: .zero, count: side * side) }
+        let bounds = layer.buffer.bounds
+        func premultiplied(_ p: Pixel) -> SIMD4<Float> {
+            let a = Float(p.a)
+            return SIMD4(Float(p.r) * a / 255, Float(p.g) * a / 255, Float(p.b) * a / 255, a)
+        }
+        if carried == nil {
+            // The first dab only picks up paint. Where the brush hangs off the canvas it picks up the nearest edge
+            // pixel, not nothing, so no see-through black is rubbed in from the edge (review O, finding 9).
+            carried = (0..<side * side).map { index in
+                let x = min(max(originX + index % side, bounds.minX), bounds.maxX - 1)
+                let y = min(max(originY + index / side, bounds.minY), bounds.maxY - 1)
+                return premultiplied(layer.buffer[x, y])
+            }
+            dirtyRect = dirtyRect.union(area)
+            return area
+        }
         for y in area.minY..<area.maxY {
             let row = layer.buffer.row(y)
             for x in area.minX..<area.maxX {
                 let index = (y - originY) * side + x - originX
-                let p = row[x]
-                let current = SIMD4<Float>(Float(p.r), Float(p.g), Float(p.b), Float(p.a))
-                if first {
-                    carried![index] = current
-                    continue
-                }
+                let current = premultiplied(row[x])
                 let dx = Double(x - originX) + 0.5 - radius, dy = Double(y - originY) + 0.5 - radius
                 let cover = Float(RetouchStroke.profile(distance: (dx * dx + dy * dy).squareRoot(), radius: radius, hardness: hardness))
                 guard cover > 0 else { continue }
                 let laid = current + (carried![index] - current) * (cover * (0.35 + 0.6 * strength))
                 carried![index] += (current - carried![index]) * (cover * (1 - strength) * 0.5)
-                let clamped = pointwiseMin(pointwiseMax(laid, .zero), SIMD4(repeating: 255)).rounded(.toNearestOrEven)
-                row[x] = Pixel(r: UInt8(clamped.x), g: UInt8(clamped.y), b: UInt8(clamped.z), a: UInt8(clamped.w))
+                let alpha = min(255, max(0, laid.w))
+                guard alpha > 0 else {
+                    row[x] = Pixel(r: row[x].r, g: row[x].g, b: row[x].b, a: 0)
+                    continue
+                }
+                let color = pointwiseMin(pointwiseMax(SIMD3(laid.x, laid.y, laid.z) * 255 / alpha, .zero), SIMD3(repeating: 255))
+                    .rounded(.toNearestOrEven)
+                row[x] = Pixel(r: UInt8(color.x), g: UInt8(color.y), b: UInt8(color.z), a: UInt8(alpha.rounded(.toNearestOrEven)))
             }
         }
         dirtyRect = dirtyRect.union(area)

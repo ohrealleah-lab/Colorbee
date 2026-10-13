@@ -279,21 +279,21 @@ Leah confirmed 1 and 2 by hand on 2026-10-11 and chose the behavior for 3. 1–3
 
 ## Session O: correctness, threads and the speed fixes ([findings](findings-O.md))
 
-Batch A fixed 2026-10-13 (waiting for Leah's test); batches B and C to come. Findings 1 and 7 were the same as N2 (fixed there).
+Batches A and B fixed 2026-10-13 (waiting for Leah's tests); batch C to come. Findings 1 and 7 were the same as N2 (fixed there).
 
 | # | Severity | Finding | Outcome |
 |---|---|---|---|
 | 1 | Critical | Copies dropped "Only the layer below" | **Fixed with N2.** |
 | 2 | Critical | Rotate or Flip right after cancelling Straighten could crash (the turn still read the layers) | **Fixed (batch A).** Ending Straighten stops a running turn and waits until it no longer reads the layers (at most one layer). App test. |
-| 3 | High | Soft edges darken next to see-through pixels (Clone Stamp on an empty layer, feathered Fill, Smudge, Blur and Sharpen brushes) | Batch B. |
+| 3 | High | Soft edges darken next to see-through pixels (Clone Stamp on an empty layer, feathered Fill, Smudge, Blur and Sharpen brushes) | **Fixed (batch B).** `Compositing.lerp` weights each color by its alpha (equally opaque pixels give the same bytes as before); the Blur and Sharpen brushes average by alpha, and Blur blurs alpha too; Smudge carries premultiplied paint. Core tests fail without the fix. |
 | 4 | High | Sample All Layers read adjustments above, applying them twice | **Fixed (batch A; Leah: the active layer and those below).** App test fails without the fix. |
 | 5 | Medium | New Layer, Duplicate, Lift Subject went between a layer and its clipped adjustments | **Fixed (batch A; Leah: above them).** Core tests. |
 | 6 | Medium | Merge Down left clipped adjustments behind; Delete moved them down | **Fixed (batch A; Leah: Merge Down bakes them in, Delete deletes them).** Core tests. |
 | 7 | Medium | The Eyedropper's Option-click ignored clipping | **Fixed with N2.** |
 | 8 | Medium | A large Remove used gigabytes and kept running after its window closed | **Fixed (batch A).** Areas needing over 16 MP of surroundings are refused with a message before any memory is made (every 12 MP phone photo fits); a fill stops when its window closes, the page changes, the image changes, or on Undo or Redo. Core test. |
-| 9 | Medium | Smudge from the canvas edge rubs in see-through black | Batch B. |
+| 9 | Medium | Smudge from the canvas edge rubs in see-through black | **Fixed (batch B).** The first dab picks up the nearest edge pixel where the brush hangs off the canvas. Core test. |
 | 10 | Medium | The Redact Brush's (and Remove's) red area didn't show on an adjustment or hidden layer | **Fixed (batch A).** Drawn above every layer. |
-| 11 | Low | Remove Red-Eye ignores a soft selection's fade | Batch B. |
+| 11 | Low | Remove Red-Eye ignores a soft selection's fade | **Fixed (batch B).** Partly selected pixels are fixed partly. Core test. |
 | 12 | Low | The Feather slider works on the main thread | Batch C (with P5). |
 | 13 | Low | Match Tone runs on the main thread | Batch C. |
 | 14 | Low | Remove silently did nothing with too little around the area | **Fixed (batch A).** "There isn't enough picture around that area to fill it from." Core test. |

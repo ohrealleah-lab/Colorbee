@@ -178,9 +178,17 @@ extension Pixel {
 }
 
 extension Compositing {
-    /// Straight interpolation between two pixels, used where a value is replaced rather than layered.
+    /// Interpolation between two pixels, used where a value is replaced rather than layered. Pixels are stored with
+    /// straight alpha, so each color counts by how much of it shows: a see-through pixel's hidden color (black on a
+    /// new layer) mustn't darken the mix (review O, finding 3). Equally opaque pixels mix channel by channel, exactly
+    /// as before.
     static func lerp(_ a: Pixel, _ b: Pixel, _ t: Float) -> Pixel {
         func mix(_ x: UInt8, _ y: UInt8) -> UInt8 { UInt8((Float(x) + (Float(y) - Float(x)) * t).rounded()) }
-        return Pixel(r: mix(a.r, b.r), g: mix(a.g, b.g), b: mix(a.b, b.b), a: mix(a.a, b.a))
+        if a.a == b.a { return Pixel(r: mix(a.r, b.r), g: mix(a.g, b.g), b: mix(a.b, b.b), a: a.a) }
+        let wa = Float(a.a) * (1 - t), wb = Float(b.a) * t
+        let alpha = wa + wb
+        guard alpha > 0 else { return Pixel(r: mix(a.r, b.r), g: mix(a.g, b.g), b: mix(a.b, b.b), a: 0) }
+        func weighted(_ x: UInt8, _ y: UInt8) -> UInt8 { UInt8(min(255, ((Float(x) * wa + Float(y) * wb) / alpha).rounded())) }
+        return Pixel(r: weighted(a.r, b.r), g: weighted(a.g, b.g), b: weighted(a.b, b.b), a: UInt8(min(255, alpha.rounded())))
     }
 }

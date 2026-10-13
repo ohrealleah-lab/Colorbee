@@ -58,26 +58,32 @@ public enum RedEye {
             guard !area.isEmpty else { continue }
             changed = fix(layer, in: area, edit: edit) { x, y in
                 let dx = Double(x) + 0.5 - eye.center.x, dy = Double(y) + 0.5 - eye.center.y
-                return dx * dx + dy * dy <= eye.radius * eye.radius
+                return dx * dx + dy * dy <= eye.radius * eye.radius ? 255 : 0
             } || changed
         }
         return changed
     }
 
-    /// Darkens the red pixels in `mask`. Returns whether anything changed.
+    /// Darkens the red pixels in `mask`, partly where it's partly selected (FR-3.4; review O, finding 11). Returns
+    /// whether anything changed.
     @discardableResult
     public static func fix(in mask: SelectionMask, layer: Layer, edit: Edit) -> Bool {
-        fix(layer, in: mask.bounds.intersection(layer.buffer.bounds), edit: edit) { x, y in mask[x, y] > 0 }
+        fix(layer, in: mask.bounds.intersection(layer.buffer.bounds), edit: edit) { x, y in mask[x, y] }
     }
 
-    private static func fix(_ layer: Layer, in area: IntRect, edit: Edit, inside: (Int, Int) -> Bool) -> Bool {
+    /// `amount` says how much of each pixel to fix, 0...255.
+    private static func fix(_ layer: Layer, in area: IntRect, edit: Edit, amount: (Int, Int) -> UInt8) -> Bool {
         var changed = false
         var recorded = false
         for y in area.minY..<area.maxY {
             let row = layer.buffer.row(y)
-            for x in area.minX..<area.maxX where inside(x, y) {
+            for x in area.minX..<area.maxX {
+                let weight = amount(x, y)
+                guard weight > 0 else { continue }
                 let pixel = row[x]
-                guard let fixed = darkened(pixel) else { continue }
+                guard let darker = darkened(pixel) else { continue }
+                let fixed = Effects.mixed(pixel, darker, weight)
+                guard fixed != pixel else { continue }
                 if !recorded {
                     edit.willModify(area, in: layer)
                     recorded = true

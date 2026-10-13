@@ -15,6 +15,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 1. [Review N fixes: redaction, clipping, Copy Text](#test-review-n-fixes-redaction-clipping-copy-text): 3 short checks, about 8 minutes.
 2. [Review O and P, batch A](#test-review-o-and-p-batch-a): 6 short checks, about 10 minutes.
+3. [Review O, batch B: soft edges near transparency](#test-review-o-batch-b-soft-edges-near-transparency): 5 short checks, about 8 minutes.
 
 ---
 
@@ -237,6 +238,14 @@ _2026-10-11: passed Leah's hand test on 2026-10-11._ Found by the new Editor tes
 2. File ▸ Export… (⌥⌘S) as a PNG on the Desktop, then open that PNG: all three badges are there, including 3.
 3. Back in Colorbee, badge 3 can no longer be dragged (it's placed), and ⌘Z removes only badge 3. The next click makes a new 3.
 4. Click to make badge 4, then Edit ▸ Copy (⌘C) with nothing selected and Edit ▸ Paste into New Image (⇧⌘V): the new image has badge 4.
+
+### Test: Review O, batch B: soft edges near transparency
+_2026-10-13, fixed, not yet tested._ See `Docs/Review/RESULTS.md`, round 5, session O findings 3, 9 and 11. Rebuild with the script (option 2) first.
+1. **Clone Stamp on an empty layer** (`TestImages/Stage 13/Remove Sky.png`): Layer ▸ New Layer. Retouch (J) ▸ Clone Stamp, Sample All Layers on, size about 80, Hardness 0. Option-click the sky and paint elsewhere on the sky: it blends in with no dark ring.
+2. **Fill in a soft selection** (File ▸ New): Layer ▸ New Layer. Draw a selection box, Edit ▸ Feather… 30 px, OK. White Color 1, Fill tool, click inside: nothing visible changes (no gray frame).
+3. **Blur brush** (File ▸ New): Layer ▸ New Layer, paint a thick bright yellow line with the Brush. Retouch ▸ Blur, Strength 100%, size about 60, brush along its edge a few times: the edge gets softer and stays yellow, not brown.
+4. **Smudge from the edge** (`TestImages/Stage 13/Remove Sky.png`): Retouch ▸ Smudge, size about 150, Strength 100%. Press right on the left edge of the picture and drag into the sky: the sky's colors smear along; no dark, see-through smear.
+5. **Red-Eye with a soft selection** (`TestImages/Stage 13/Red Eye Practice.png`): draw a selection box over one eye, Edit ▸ Feather… 30 px, OK, then Adjustments ▸ Remove Red-Eye: the middle is fixed fully, and the fix fades out toward the soft edge.
 
 ### Test: Review O and P, batch A
 _2026-10-13, fixed, not yet tested._ See `Docs/Review/RESULTS.md`, round 5. Rebuild with the script (option 2) first.

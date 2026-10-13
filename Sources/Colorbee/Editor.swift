@@ -1723,11 +1723,44 @@ final class Editor {
         guard let brush = retouchBrush else { return }
         retouchBrush = nil
         brush.stroke.finish()
-        if brush.kind == .cloneStamp, cloneMatchesTone, let mask = (brush.stroke as? RetouchStroke)?.coverage {
+        var toneMask = brush.kind == .cloneStamp && cloneMatchesTone ? (brush.stroke as? RetouchStroke)?.coverage : nil
+        // A dab or a short stroke is matched at once, as part of its step, so quick dabs never miss it; only a big
+        // stroke goes to the background.
+        if let mask = toneMask, ToneMatch.readArea(for: mask, in: canvas.bounds).area < Self.backgroundToneArea {
             ToneMatch.apply(to: canvas.activeLayer, in: mask, edit: brush.edit)
+            toneMask = nil
         }
         recordingChanges { history.commit(brush.edit) }
         onRender()
+        if let toneMask { matchTone(in: toneMask) }
+    }
+
+    /// Strokes whose Match Tone reads more pixels than this have it worked out in the background. Tests lower it.
+    static var backgroundToneArea = 250_000
+
+    /// The Clone Stamp's Match Tone: worked out in the background from a copy of the pixels, so a long stroke doesn't
+    /// pause the app, then folded into the stroke's step (review O, finding 13). If the image changed meanwhile it no
+    /// longer fits, and the stroke stays as it was.
+    private func matchTone(in mask: SelectionMask) {
+        let layer = canvas.activeLayer
+        let area = ToneMatch.readArea(for: mask, in: layer.buffer.bounds)
+        guard !area.isEmpty else { return }
+        let pixels = layer.buffer.pixels(in: area), work = UnsafeTransfer(mask)
+        let revision = history.revision, layerID = layer.id, pageID = page.id
+        isMatchingTone = true
+        Task { @MainActor [weak self] in
+            let plan = await Task.detached(priority: .userInitiated) { UnsafeTransfer(ToneMatch.plan(pixels, area: area, mask: work.value)) }.value
+            guard let self else { return }
+            self.isMatchingTone = false
+            guard let plan = plan.value else { return }
+            guard self.history.revision == revision, self.page.id == pageID, self.canvas.activeLayer.id == layerID else {
+                return self.showNotice("The image changed before Match Tone finished, so the stroke kept its own tone.")
+            }
+            let edit = self.history.beginEdit(RetouchKind.cloneStamp.name, on: self.canvas)
+            ToneMatch.apply(plan, to: self.canvas.activeLayer, edit: edit)
+            self.recordingChanges { self.history.commit(edit, mergingIntoPrevious: true) }
+            self.onRender()
+        }
     }
 
     /// Where the crosshair goes while hovering with the Clone Stamp: the source, or where an aligned offset reads from.
@@ -2294,6 +2327,12 @@ final class Editor {
     /// The radius being tried while the Feather sheet is open; the canvas tints what isn't selected meanwhile.
     private(set) var featherRadius: Double?
     @ObservationIgnored private var featherOriginal: SelectionMask?
+    /// Whether the last Clone Stamp stroke's Match Tone is still being worked out.
+    private(set) var isMatchingTone = false
+    /// The radius the preview shows, whether one is being worked out, and a count that drops a stale one.
+    @ObservationIgnored private var featherShown: Double?
+    @ObservationIgnored private var featherRunning = false
+    @ObservationIgnored private var featherSession = 0
 
     func beginFeather() {
         finishInteractions()
@@ -2303,15 +2342,38 @@ final class Editor {
         setFeatherRadius(featherRadius ?? 10)
     }
 
+    /// The slider's radius shows at once; the feathered preview is worked out in the background, with moves made
+    /// meanwhile merged, so a big selection doesn't stall the slider (review O, finding 12; review P, finding 5).
     func setFeatherRadius(_ radius: Double) {
-        guard let original = featherOriginal else { return }
-        let clamped = min(100, max(1, radius.rounded()))
-        featherRadius = clamped
-        marqueePreview = original.feathered(radius: clamped, clippedTo: canvas.bounds)
+        guard featherOriginal != nil else { return }
+        featherRadius = min(100, max(1, radius.rounded()))
+        refreshFeatherPreview()
+    }
+
+    private func refreshFeatherPreview() {
+        guard !featherRunning, let original = featherOriginal, let radius = featherRadius, radius != featherShown else { return }
+        featherRunning = true
+        let session = featherSession, bounds = canvas.bounds
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let mask = UnsafeTransfer(original.feathered(radius: radius, clippedTo: bounds))
+            await MainActor.run { [weak self] in self?.showFeatherPreview(mask.value, radius: radius, session: session) }
+        }
+    }
+
+    private func showFeatherPreview(_ mask: SelectionMask?, radius: Double, session: Int) {
+        guard session == featherSession else { return }
+        featherRunning = false
+        marqueePreview = mask
+        featherShown = radius
         onRender()
+        refreshFeatherPreview()
     }
 
     func applyFeather() {
+        // OK keeps exactly the radius in the box: if its preview is still being worked out, do it now.
+        if let original = featherOriginal, let radius = featherRadius, radius != featherShown {
+            marqueePreview = original.feathered(radius: radius, clippedTo: canvas.bounds)
+        }
         let feathered = marqueePreview
         endFeather()
         recordingChanges { SelectionActions.select(feathered, mode: .replace, canvas: canvas, history: history, context: selectionContext) }
@@ -2327,6 +2389,9 @@ final class Editor {
         featherOriginal = nil
         featherRadius = nil
         marqueePreview = nil
+        featherShown = nil
+        featherRunning = false
+        featherSession += 1
     }
 
     func invertSelection() {
@@ -3294,7 +3359,8 @@ final class Editor {
     func togglePanel(_ panel: ReferenceWritableKeyPath<Editor, Bool>) {
         if isSidebarOpen && self[keyPath: panel] {
             self[keyPath: panel] = false
-            if !showsAnyPanel { isSidebarOpen = false }
+            // During Adjust Photo the sidebar holds its sliders, so it stays (review P, finding 4).
+            if !showsAnyPanel, activeEffect != .adjustPhoto { isSidebarOpen = false }
         } else {
             self[keyPath: panel] = true
             isSidebarOpen = true
@@ -3355,6 +3421,8 @@ final class Editor {
 
     func addLayer() {
         layerCommand { LayerActions.add(canvas: canvas, history: history, context: selectionContext) }
+        // New Layer shows the Layers panel (FR-8.1), never an empty sidebar (review P, finding 3).
+        showsLayersPanel = true
         isSidebarOpen = true
     }
 

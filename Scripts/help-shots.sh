@@ -61,10 +61,12 @@ for entry in "${scenes[@]}"; do
     while true; do
         read -r "?Press Return once you've taken it (or type s and Return to skip): " answer
         [[ "$answer" == s ]] && break
-        picture=$(find "$shots" -maxdepth 1 -name '*.png' -newer "$marker" -print 2>/dev/null | head -1)
+        # Only a macOS screenshot taken since this scene opened, copied (not moved), and named, so nothing else from
+        # the folder can end up in the help book (review P, finding 9).
+        picture=$(find "$shots" -maxdepth 1 -name 'Screenshot *.png' -newer "$marker" -print 2>/dev/null | head -1)
         if [[ -n "$picture" ]]; then
-            mv "$picture" "$images/$name.png"
-            echo "  Saved as $name.png"
+            cp "$picture" "$images/$name.png"
+            echo "  Copied \"${picture:t}\" as $name.png"
             break
         fi
         # Otherwise a picture copied to the clipboard.

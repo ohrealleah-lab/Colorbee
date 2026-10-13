@@ -14,4 +14,8 @@ final class TestHost: NSObject, NSApplicationDelegate {
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         true
     }
+
+    /// A file double-clicked while the tests run can come here (it's Colorbee too). It's left unopened rather than
+    /// opened out of sight, so it can be opened normally once the tests end (review P, finding 10).
+    func application(_ application: NSApplication, open urls: [URL]) {}
 }

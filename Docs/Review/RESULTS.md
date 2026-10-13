@@ -279,7 +279,7 @@ Leah confirmed 1 and 2 by hand on 2026-10-11 and chose the behavior for 3. 1–3
 
 ## Session O: correctness, threads and the speed fixes ([findings](findings-O.md))
 
-Batches A and B fixed 2026-10-13 (waiting for Leah's tests); batch C to come. Findings 1 and 7 were the same as N2 (fixed there).
+Batches A and B fixed and passed Leah's tests on 2026-10-13; batch C fixed 2026-10-13, waiting for Leah's test. Findings 1 and 7 were the same as N2 (fixed there).
 
 | # | Severity | Finding | Outcome |
 |---|---|---|---|
@@ -294,8 +294,8 @@ Batches A and B fixed 2026-10-13 (waiting for Leah's tests); batch C to come. Fi
 | 9 | Medium | Smudge from the canvas edge rubs in see-through black | **Fixed (batch B).** The first dab picks up the nearest edge pixel where the brush hangs off the canvas. Core test. |
 | 10 | Medium | The Redact Brush's (and Remove's) red area didn't show on an adjustment or hidden layer | **Fixed (batch A).** Drawn above every layer. |
 | 11 | Low | Remove Red-Eye ignores a soft selection's fade | **Fixed (batch B).** Partly selected pixels are fixed partly. Core test. |
-| 12 | Low | The Feather slider works on the main thread | Batch C (with P5). |
-| 13 | Low | Match Tone runs on the main thread | Batch C. |
+| 12 | Low | The Feather slider works on the main thread | **Fixed (batch C, with P5).** The preview is worked out in the background with slider moves merged, and the mask is copied a row at a time; OK uses exactly the radius in the box. App test. |
+| 13 | Low | Match Tone runs on the main thread | **Fixed (batch C).** `ToneMatch` is split into a plan (from a copy of the pixels) and a quick write. Strokes reading over 250,000 pixels are matched in the background and folded into the stroke's step; dabs and short strokes are still matched at once, so quick dabs never miss it. App tests. |
 | 14 | Low | Remove silently did nothing with too little around the area | **Fixed (batch A).** "There isn't enough picture around that area to fill it from." Core test. |
 
 ## Session P: the app layer, tests and build ([findings](findings-P.md))
@@ -303,16 +303,16 @@ Batches A and B fixed 2026-10-13 (waiting for Leah's tests); batch C to come. Fi
 | # | Severity | Finding | Outcome |
 |---|---|---|---|
 | 1 | Medium | Commands worked behind the Feather sheet; OK then put back a stale selection | **Fixed (batch A).** The Feather sheet blocks document commands like the other sheets. App test. |
-| 2 | Medium | The release job's signing key was usable by any program while a third-party action ran | Batch C (checked at Beta 3). |
-| 3 | Low | New Layer could open an empty sidebar | Batch C. |
-| 4 | Low | Switching off the last panel during Adjust Photo hid its sliders | Batch C. |
-| 5 | Low | The Feather preview works on the main thread | Batch C. |
+| 2 | Medium | The release job's signing key was usable by any program while a third-party action ran | **Fixed (batch C), to be checked at Beta 3.** The key is imported for `codesign` only, the keychain is deleted right after signing and notarizing, the release is published with `gh release create` instead of a third-party action, and `actions/checkout` is pinned to a commit. `contents: write` stays on the one job, which now runs no third-party code after checkout. |
+| 3 | Low | New Layer could open an empty sidebar | **Fixed (batch C).** New Layer shows the Layers panel (FR-8.1). App test. |
+| 4 | Low | Switching off the last panel during Adjust Photo hid its sliders | **Fixed (batch C).** The sidebar stays while Adjust Photo is open. App test. |
+| 5 | Low | The Feather preview works on the main thread | **Fixed with O12.** |
 | 6 | Low | Batch Redact ▸ Solid Fill was greyed out on a locked or adjustment layer | **Fixed (batch A).** |
 | 7 | Low | Remove and Spot Heal ignore pressure | **Kept (Leah, 2026-10-13):** a steady width; FR-4.6 updated. |
-| 8 | Low | The Menus help page left out Open Recent | Batch C. |
-| 9 | Low | The help-shots script moved any new PNG from the Desktop | Batch C. |
-| 10 | Low | A file opened during `make test` went to the hidden test copy | Batch C. |
-| 11 | Low | Two Straighten tests relied on timing | Partly fixed (batch A: Cancel now waits for the turn, so the cancel test is exact); rest in batch C. |
-| 12 | Low | Missing Editor tests | Batch A added Feather, Sample All Layers, Remove limits; rest in batch C. |
+| 8 | Low | The Menus help page left out Open Recent | **Fixed (batch C).** The generator adds the items macOS puts in after launch. |
+| 9 | Low | The help-shots script moved any new PNG from the Desktop | **Fixed (batch C).** Only files named like macOS screenshots, copied (not moved), and named in the output. |
+| 10 | Low | A file opened during `make test` went to the hidden test copy | **Fixed (batch C).** The test host leaves it unopened, so it opens normally after the tests. |
+| 11 | Low | Two Straighten tests relied on timing | **Fixed.** Cancel and Apply now wait for a running turn (batch A), so no late result is possible and both tests are exact. |
+| 12 | Low | Missing Editor tests | **Fixed.** Feather, the sidebar, Redact Brush rules (counts as a redaction; locked layers by name, and only with pixels under the stroke), Esc during Remove, Clone Stamp with Aligned off, Match Tone, Sample All Layers. 95 app tests in all. |
 | 13 | Low | Typing a Feather radius then Return could apply the old one | **Fixed (batch A).** The box sets the radius as you type. |
 

@@ -228,14 +228,33 @@ public final class SmudgeStroke: Stroke {
 /// the area's edge, smoothed along the edge, spread across the area and added in, weighted by `mask`. The texture
 /// stays; the brightness and color meet the surroundings without a seam.
 public enum ToneMatch {
+    /// The correction for one area, worked out from a copy of the pixels around it, so it can run off the main
+    /// thread (review O, finding 13).
+    public struct Plan: @unchecked Sendable {
+        let area: IntRect
+        let mask: SelectionMask
+        let cells: [(Int, Int)]
+        let offsets: [SIMD4<Float>]
+    }
+
     public static func apply(to layer: Layer, in mask: SelectionMask, edit: Edit) {
-        let bounds = layer.buffer.bounds
-        let area = IntRect(x: mask.bounds.minX - 1, y: mask.bounds.minY - 1, width: mask.bounds.width + 2, height: mask.bounds.height + 2).intersection(bounds)
-        guard !area.isEmpty else { return }
+        let area = readArea(for: mask, in: layer.buffer.bounds)
+        guard !area.isEmpty, let plan = plan(layer.buffer.pixels(in: area), area: area, mask: mask) else { return }
+        apply(plan, to: layer, edit: edit)
+    }
+
+    /// The pixels `plan` needs: the area's bounds and a pixel all round, on the canvas.
+    public static func readArea(for mask: SelectionMask, in bounds: IntRect) -> IntRect {
+        IntRect(x: mask.bounds.minX - 1, y: mask.bounds.minY - 1, width: mask.bounds.width + 2, height: mask.bounds.height + 2).intersection(bounds)
+    }
+
+    /// `pixels` are the layer's over `area` (from `readArea`), row by row. Nil when there's nothing to match.
+    public static func plan(_ pixels: [Pixel], area: IntRect, mask: SelectionMask) -> Plan? {
+        guard !area.isEmpty, pixels.count == area.area else { return nil }
         let width = area.width, height = area.height
         func inside(_ x: Int, _ y: Int) -> Bool { mask.bounds.contains(IntPoint(x: x, y: y)) && mask[x, y] > 0 }
         func value(_ x: Int, _ y: Int) -> SIMD4<Float> {
-            let p = layer.buffer[x, y]
+            let p = pixels[(y - area.minY) * width + x - area.minX]
             return SIMD4(Float(p.r), Float(p.g), Float(p.b), 0)
         }
         var offsets = [SIMD4<Float>](repeating: .zero, count: width * height)
@@ -258,7 +277,7 @@ public enum ToneMatch {
                 }
             }
         }
-        guard !edge.isEmpty else { return }
+        guard !edge.isEmpty else { return nil }
         let raw = offsets
         var onEdge = [Bool](repeating: false, count: width * height)
         for (x, y) in edge { onEdge[(y - area.minY) * width + x - area.minX] = true }
@@ -298,11 +317,17 @@ public enum ToneMatch {
             }
             remaining = next
         }
-        edit.willModify(mask.bounds.intersection(bounds), in: layer)
-        for (x, y) in cells {
+        return Plan(area: area, mask: mask, cells: cells, offsets: offsets)
+    }
+
+    /// Writes `plan`'s correction into `layer`.
+    public static func apply(_ plan: Plan, to layer: Layer, edit: Edit) {
+        let area = plan.area, width = area.width, mask = plan.mask
+        edit.willModify(mask.bounds.intersection(layer.buffer.bounds), in: layer)
+        for (x, y) in plan.cells {
             let weight = Float(mask[x, y]) / 255
             let p = layer.buffer[x, y]
-            let shifted = SIMD4<Float>(Float(p.r), Float(p.g), Float(p.b), 0) + offsets[(y - area.minY) * width + x - area.minX] * weight
+            let shifted = SIMD4<Float>(Float(p.r), Float(p.g), Float(p.b), 0) + plan.offsets[(y - area.minY) * width + x - area.minX] * weight
             let clamped = pointwiseMin(pointwiseMax(shifted, .zero), SIMD4(repeating: 255)).rounded(.toNearestOrEven)
             layer.buffer[x, y] = Pixel(r: UInt8(clamped.x), g: UInt8(clamped.y), b: UInt8(clamped.z), a: p.a)
         }

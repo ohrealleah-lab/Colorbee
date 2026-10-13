@@ -39,4 +39,20 @@ struct FeatherTests {
         editor.applyFeather()
         #expect(editor.canvas.selection.marquee?.isSoft == true)
     }
+
+    /// Slider moves are worked out in the background and merged; OK keeps exactly the radius in the box, even when its
+    /// preview isn't ready yet (review O, finding 12).
+    @Test func okUsesTheNewestRadiusAfterQuickMoves() async throws {
+        let editor = boxed()
+        let original = try #require(editor.canvas.selection.marquee)
+        let expected = try #require(original.feathered(radius: 14, clippedTo: editor.canvas.bounds))
+        editor.beginFeather()
+        for radius in [4.0, 9.0, 14.0] { editor.setFeatherRadius(radius) }
+        editor.applyFeather()
+        let applied = try #require(editor.canvas.selection.marquee)
+        #expect(applied.bounds == expected.bounds && applied.values == expected.values)
+        // A preview still running when OK came changes nothing afterwards.
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(editor.canvas.selection.marquee?.revision == applied.revision)
+    }
 }

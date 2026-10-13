@@ -188,8 +188,18 @@ public struct SelectionMask: Sendable {
             .intersection(canvasBounds)
         guard !area.isEmpty else { return nil }
         var first = [UInt8](repeating: 0, count: area.area)
-        for y in area.minY..<area.maxY {
-            for x in area.minX..<area.maxX { first[(y - area.minY) * area.width + x - area.minX] = self[x, y] }
+        // Whole rows at a time: on a big selection, pixel by pixel took longer than the blurs (review O, finding 12).
+        let inside = bounds.intersection(area)
+        if !inside.isEmpty {
+            first.withUnsafeMutableBufferPointer { target in
+                values.withUnsafeBufferPointer { source in
+                    for y in inside.minY..<inside.maxY {
+                        let from = (y - bounds.minY) * bounds.width + inside.minX - bounds.minX
+                        let to = (y - area.minY) * area.width + inside.minX - area.minX
+                        (target.baseAddress! + to).update(from: source.baseAddress! + from, count: inside.width)
+                    }
+                }
+            }
         }
         var second = [UInt8](repeating: 0, count: area.area)
         first.withUnsafeMutableBytes { a in

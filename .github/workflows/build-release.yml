@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, pinned to a commit so it can't change under us
 
       - name: Show Xcode
         run: xcodebuild -version
@@ -69,7 +69,8 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$RUNNER_TEMP/cert.p12" -P "$APPLE_CERT_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          # Only Apple's codesign may use the key, not every program on the runner (review P, finding 2).
+          security import "$RUNNER_TEMP/cert.p12" -P "$APPLE_CERT_P12_PASSWORD" -T /usr/bin/codesign -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed 's/"//g')
           rm -f "$RUNNER_TEMP/cert.p12"
@@ -91,17 +92,29 @@ jobs:
           Scripts/make-beta.sh
           rm -f "$NOTARY_KEY_PATH"
 
+      # The key is deleted as soon as the app is signed and notarized, before anything else runs.
+      - name: Remove the signing keychain now
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          security delete-keychain "$KEYCHAIN_PATH" || true
+          echo "KEYCHAIN_PATH=" >> "$GITHUB_ENV"
+
+      # Published with GitHub's own command line tool, not a third-party action (review P, finding 2).
       - name: Publish the release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/Beta/*.zip
-          prerelease: ${{ steps.version.outputs.prerelease }}
-          generate_release_notes: true
-          body: |
-            Colorbee ${{ steps.version.outputs.marketing }} (${{ steps.version.outputs.build }}): a Mac paint and editing app.
-            Download the zip, open it, and read "Start Here.txt". Needs a Mac with Apple silicon and macOS 26.
-            Signed with a Developer ID and notarized by Apple, so it opens without security warnings.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MARKETING_VERSION: ${{ steps.version.outputs.marketing }}
+          BUILD_NUMBER: ${{ steps.version.outputs.build }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          notes="Colorbee $MARKETING_VERSION ($BUILD_NUMBER): a Mac paint and editing app.
+          Download the zip, open it, and read \"Start Here.txt\". Needs a Mac with Apple silicon and macOS 26.
+          Signed with a Developer ID and notarized by Apple, so it opens without security warnings."
+          flags=()
+          if [[ "$PRERELEASE" == "true" ]]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" build/Beta/*.zip --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+            --notes "$notes" --generate-notes "${flags[@]}"
 
       - name: Remove the signing keychain
         if: always() && env.KEYCHAIN_PATH != ''

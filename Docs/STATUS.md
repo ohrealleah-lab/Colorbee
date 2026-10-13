@@ -13,7 +13,7 @@ _Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+1. [Review O and P, batch C](#test-review-o-and-p-batch-c): 6 short checks, about 8 minutes.
 
 ---
 
@@ -244,6 +244,15 @@ _2026-10-13: passed Leah's hand test on 2026-10-13 (check 5 rewritten first: the
 3. **Blur brush** (File ▸ New): Layer ▸ New Layer, paint a thick bright yellow line with the Brush. Retouch ▸ Blur, Strength 100%, size about 60, brush along its edge a few times: the edge gets softer and stays yellow, not brown.
 4. **Smudge from the edge** (`TestImages/Stage 13/Remove Sky.png`): Retouch ▸ Smudge, size about 150, Strength 100%. Press right on the left edge of the picture and drag into the sky: the sky's colors smear along; no dark, see-through smear.
 5. **Red-Eye with a soft selection** (`TestImages/Stage 13/Red Eye Practice.png`): draw a selection box over the red eye whose left edge cuts down through the middle of the red pupil. Edit ▸ Feather… 30 px, OK, then Adjustments ▸ Remove Red-Eye. Zoomed in, the pupil fades gradually from fixed (inside) to red (outside), with no sharp line. With Feather 0 instead, there's a hard line at the box's edge.
+
+### Test: Review O and P, batch C
+_2026-10-13, fixed, not yet tested._ See `Docs/Review/RESULTS.md`, round 5. The release workflow change is checked when Beta 3 is published. Rebuild with the script (option 2) first.
+1. **Sidebar and New Layer** (`TestImages/Help/Sample Screenshot.png`): open the sidebar, switch off every lit panel button at its top (it closes), then Layer ▸ New Layer (⇧⌘N): the sidebar opens showing the Layers panel.
+2. **Sidebar during Adjust Photo** (`TestImages/Stage 9 Practice Photo.png`): Adjustments ▸ Adjust Photo…, then switch off every lit panel button at the top of the sidebar: the sliders stay. Cancel.
+3. **Feather slider** (same photo, Image ▸ Resize and Skew… to 300% first): Select All, Edit ▸ Feather…, drag the slider quickly back and forth: the slider moves smoothly and the red tint catches up. OK keeps the radius shown.
+4. **Match Tone on a long stroke** (same photo): Retouch ▸ Clone Stamp, Match Tone on, size 300. Option-click a source, then paint one long stroke across the photo: there's no pause when you let go, and a moment later the stroke's tone blends in. ⌘Z undoes stroke and tone together.
+5. **Quick dabs with Match Tone**: size 30, click several times quickly: each dab blends in at once.
+6. **Open Recent in the help**: Help ▸ Colorbee Help ▸ Menus ▸ File: Open Recent is listed after Open….
 
 ### Test: Review O and P, batch A
 _2026-10-13: passed Leah's hand test on 2026-10-13._ See `Docs/Review/RESULTS.md`, round 5. Rebuild with the script (option 2) first.

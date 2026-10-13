@@ -68,6 +68,16 @@ def folded(entries):
     return rows
 
 
+# Menu items macOS adds after Colorbee has launched, so the dump (made before then) doesn't have them: each goes after
+# the item named (review P, finding 8).
+ADDED_BY_MACOS = [("File", "Open…", {"menu": "File", "title": "Open Recent",
+                                     "summary": "Open an image or project you opened recently. Clear Menu forgets the list."})]
+for menu, after, entry in ADDED_BY_MACOS:
+    items = dump["menus"]
+    index = next((i for i, e in enumerate(items) if e["menu"] == menu and e["title"] == after), None)
+    if index is not None and not any(e["menu"] == menu and e["title"] == entry["title"] for e in items):
+        items.insert(index + 1, entry)
+
 menus = {menu: folded(entries) for menu, entries in grouped(dump["menus"]).items()}
 
 body = ['    <a name="menus"></a>\n    <h1>Menus</h1>\n',

@@ -278,3 +278,134 @@ struct SampleAllLayersTests {
         #expect(shown[50, 50] == shown[10, 10])
     }
 }
+
+/// The Clone Stamp's Match Tone on a big stroke is worked out in the background and folded into the stroke's one
+/// step (review O, finding 13). The size limit is lowered so a small, quick canvas takes that path.
+@MainActor
+@Suite(.serialized)
+struct MatchToneTests {
+    private func cloned(matchingTone: Bool) async throws -> Editor {
+        // Dark on the left, light on the right; the stroke copies dark into the light half, straight across.
+        let editor = makeEditor(width: 200, height: 120, background: Pixel(r: 220, g: 220, b: 220, a: 255))
+        editor.canvas.activeLayer.buffer.fill(Pixel(r: 40, g: 40, b: 40, a: 255), in: IntRect(x: 0, y: 0, width: 80, height: 120))
+        editor.selectTool(.retouch)
+        editor.retouchKind = .cloneStamp
+        editor.retouchSize = 40
+        editor.retouchHardness = 1
+        editor.cloneMatchesTone = matchingTone
+        editor.setCloneSource(pt(40.5, 40.5))
+        editor.beginRetouchBrush(at: pt(150.5, 40.5), pressure: 1)
+        editor.continueRetouchBrush(to: pt(150.5, 80.5), constrain: false, pressure: 1)
+        editor.endRetouchBrush()
+        for _ in 0..<1000 where editor.isMatchingTone { try await Task.sleep(for: .milliseconds(5)) }
+        #expect(!editor.isMatchingTone)
+        return editor
+    }
+
+    @Test func aBigStrokesToneIsMatchedAsPartOfItsStep() async throws {
+        let limit = Editor.backgroundToneArea
+        Editor.backgroundToneArea = 100
+        defer { Editor.backgroundToneArea = limit }
+        let plain = try await cloned(matchingTone: false)
+        let matched = try await cloned(matchingTone: true)
+        #expect(matched.stepNames == ["Clone Stamp"])
+        // The copied dark is brought toward the light surroundings.
+        #expect(matched.canvas.activeLayer.buffer[150, 60].r > plain.canvas.activeLayer.buffer[150, 60].r + 20)
+        matched.undo()
+        #expect(matched.canvas.activeLayer.buffer[150, 60] == Pixel(r: 220, g: 220, b: 220, a: 255))
+    }
+
+    @Test func aDabIsMatchedAtOnce() async throws {
+        let matched = try await cloned(matchingTone: true)
+        #expect(matched.stepNames == ["Clone Stamp"])
+        #expect(matched.canvas.activeLayer.buffer[150, 60].r > 100)
+    }
+}
+
+/// What the earlier tests left untested (review P, finding 12).
+@MainActor
+struct RedactBrushRulesTests {
+    private func redactEditor() -> Editor {
+        let editor = makeEditor()
+        editor.selectTool(.redactBrush)
+        editor.redactBrushSize = 8
+        editor.redactTreatment = .solidFill
+        return editor
+    }
+
+    private func redactStroke(_ editor: Editor, at y: Double) {
+        editor.beginRedactStroke(at: pt(10.5, y), secondary: false)
+        editor.continueRedactStroke(to: pt(50.5, y), constrain: false)
+        editor.endRedactStroke()
+    }
+
+    /// A redaction, so the after-redaction offers apply, as for Batch Redact (FR-9.6).
+    @Test func aStrokeCountsAsARedaction() {
+        let editor = redactEditor()
+        redactStroke(editor, at: 20.5)
+        #expect(editor.redactedSinceSave)
+    }
+
+    @Test func aLockedLayerWithPixelsUnderTheStrokeBlocksItByName() {
+        let editor = redactEditor()
+        editor.setLayerLocked(true, at: 0)
+        let before = editor.imageHash
+        redactStroke(editor, at: 20.5)
+        #expect(editor.imageHash == before)
+        #expect(editor.redactionMessage?.contains(editor.canvas.layers[0].name) == true)
+    }
+
+    @Test func aLockedLayerWithNothingUnderTheStrokeDoesntBlockIt() {
+        let editor = redactEditor()
+        editor.addLayer()
+        editor.selectTool(.pencil)
+        editor.stroke([pt(10.5, 50.5), pt(50.5, 50.5)])
+        editor.setLayerLocked(true, at: 1)
+        editor.selectTool(.redactBrush)
+        let before = editor.imageHash
+        redactStroke(editor, at: 20.5)
+        #expect(editor.redactionMessage == nil)
+        #expect(editor.imageHash != before)
+    }
+}
+
+@MainActor
+struct RetouchRulesTests {
+    /// Esc while Remove fills: nothing changes and no step is added, even once the fill finishes.
+    @Test func escDuringAFillChangesNothing() async throws {
+        let editor = makeEditor()
+        editor.selectTool(.pencil)
+        editor.stroke([pt(30.5, 10.5), pt(30.5, 50.5)])
+        editor.selectTool(.retouch)
+        editor.retouchKind = .remove
+        editor.retouchSize = 8
+        let before = (editor.imageHash, editor.stepNames)
+        editor.beginRetouchStroke(at: pt(30.5, 30.5))
+        editor.endRetouchStroke()
+        editor.cancelFill()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(editor.imageHash == before.0)
+        #expect(editor.stepNames == before.1)
+    }
+
+    /// With Aligned off, every stroke starts again from the source.
+    @Test func cloneWithAlignedOffStartsEachStrokeFromTheSource() {
+        let editor = makeEditor(width: 80, height: 40)
+        let red = Pixel(r: 220, g: 30, b: 30, a: 255), blue = Pixel(r: 30, g: 30, b: 220, a: 255)
+        editor.canvas.activeLayer.buffer.fill(red, in: IntRect(x: 0, y: 0, width: 10, height: 40))
+        editor.canvas.activeLayer.buffer.fill(blue, in: IntRect(x: 10, y: 0, width: 10, height: 40))
+        editor.selectTool(.retouch)
+        editor.retouchKind = .cloneStamp
+        editor.retouchSize = 4
+        editor.retouchHardness = 1
+        editor.cloneAligned = false
+        editor.setCloneSource(pt(5.5, 20.5))
+        for x in [40.5, 60.5] {
+            editor.beginRetouchBrush(at: pt(x, 20.5), pressure: 1)
+            editor.endRetouchBrush()
+        }
+        // Both dabs copied the red at the source; aligned, the second would have copied from 20 px right of it.
+        #expect(editor.canvas.activeLayer.buffer[40, 20] == red)
+        #expect(editor.canvas.activeLayer.buffer[60, 20] == red)
+    }
+}

@@ -14,7 +14,6 @@ _Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 1. [Review N fixes: redaction, clipping, Copy Text](#test-review-n-fixes-redaction-clipping-copy-text): 3 short checks, about 8 minutes.
-2. [Review O, batch B: soft edges near transparency](#test-review-o-batch-b-soft-edges-near-transparency): only check 5 (Red-Eye) is left, with new steps.
 
 ---
 
@@ -239,7 +238,7 @@ _2026-10-11: passed Leah's hand test on 2026-10-11._ Found by the new Editor tes
 4. Click to make badge 4, then Edit ▸ Copy (⌘C) with nothing selected and Edit ▸ Paste into New Image (⇧⌘V): the new image has badge 4.
 
 ### Test: Review O, batch B: soft edges near transparency
-_2026-10-13: checks 1–4 passed Leah's hand test on 2026-10-13; check 5 rewritten (the first version kept the pupil far from the soft edge, so it was fully fixed, as it should be)._ See `Docs/Review/RESULTS.md`, round 5, session O findings 3, 9 and 11. Rebuild with the script (option 2) first.
+_2026-10-13: passed Leah's hand test on 2026-10-13 (check 5 rewritten first: the first version kept the pupil far from the soft edge, so it was fully fixed, as it should be)._ See `Docs/Review/RESULTS.md`, round 5, session O findings 3, 9 and 11. Rebuild with the script (option 2) first.
 1. **Clone Stamp on an empty layer** (`TestImages/Stage 13/Remove Sky.png`): Layer ▸ New Layer. Retouch (J) ▸ Clone Stamp, Sample All Layers on, size about 80, Hardness 0. Option-click the sky and paint elsewhere on the sky: it blends in with no dark ring.
 2. **Fill in a soft selection** (File ▸ New): Layer ▸ New Layer. Draw a selection box, Edit ▸ Feather… 30 px, OK. White Color 1, Fill tool, click inside: nothing visible changes (no gray frame).
 3. **Blur brush** (File ▸ New): Layer ▸ New Layer, paint a thick bright yellow line with the Brush. Retouch ▸ Blur, Strength 100%, size about 60, brush along its edge a few times: the edge gets softer and stays yellow, not brown.

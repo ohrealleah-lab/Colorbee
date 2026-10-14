@@ -1723,16 +1723,20 @@ final class Editor {
         guard let brush = retouchBrush else { return }
         retouchBrush = nil
         brush.stroke.finish()
-        var toneMask = brush.kind == .cloneStamp && cloneMatchesTone ? (brush.stroke as? RetouchStroke)?.coverage : nil
+        let stroke = brush.stroke as? RetouchStroke
+        var tone: (mask: SelectionMask, reference: ToneMatch.Reference?)?
+        if brush.kind == .cloneStamp, cloneMatchesTone, let stroke, let mask = stroke.coverage {
+            tone = (mask, stroke.toneReference(over: ToneMatch.readArea(for: mask, in: canvas.bounds)))
+        }
         // A dab or a short stroke is matched at once, as part of its step, so quick dabs never miss it; only a big
         // stroke goes to the background.
-        if let mask = toneMask, ToneMatch.readArea(for: mask, in: canvas.bounds).area < Self.backgroundToneArea {
-            ToneMatch.apply(to: canvas.activeLayer, in: mask, edit: brush.edit)
-            toneMask = nil
+        if let match = tone, ToneMatch.readArea(for: match.mask, in: canvas.bounds).area < Self.backgroundToneArea {
+            ToneMatch.apply(to: canvas.activeLayer, in: match.mask, reference: match.reference, edit: brush.edit)
+            tone = nil
         }
         recordingChanges { history.commit(brush.edit) }
         onRender()
-        if let toneMask { matchTone(in: toneMask) }
+        if let tone { matchTone(in: tone.mask, reference: tone.reference) }
     }
 
     /// Strokes whose Match Tone reads more pixels than this have it worked out in the background. Tests lower it.
@@ -1741,7 +1745,7 @@ final class Editor {
     /// The Clone Stamp's Match Tone: worked out in the background from a copy of the pixels, so a long stroke doesn't
     /// pause the app, then folded into the stroke's step (review O, finding 13). If the image changed meanwhile it no
     /// longer fits, and the stroke stays as it was.
-    private func matchTone(in mask: SelectionMask) {
+    private func matchTone(in mask: SelectionMask, reference: ToneMatch.Reference?) {
         let layer = canvas.activeLayer
         let area = ToneMatch.readArea(for: mask, in: layer.buffer.bounds)
         guard !area.isEmpty else { return }
@@ -1749,7 +1753,9 @@ final class Editor {
         let revision = history.revision, layerID = layer.id, pageID = page.id
         isMatchingTone = true
         Task { @MainActor [weak self] in
-            let plan = await Task.detached(priority: .userInitiated) { UnsafeTransfer(ToneMatch.plan(pixels, area: area, mask: work.value)) }.value
+            let plan = await Task.detached(priority: .userInitiated) {
+                UnsafeTransfer(ToneMatch.plan(pixels, area: area, mask: work.value, reference: reference))
+            }.value
             guard let self else { return }
             self.isMatchingTone = false
             guard let plan = plan.value else { return }

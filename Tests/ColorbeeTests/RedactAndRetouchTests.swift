@@ -284,14 +284,18 @@ struct SampleAllLayersTests {
 @MainActor
 @Suite(.serialized)
 struct MatchToneTests {
-    private func cloned(matchingTone: Bool) async throws -> Editor {
+    private func cloned(matchingTone: Bool, hardness: Double = 1) async throws -> Editor {
         // Dark on the left, light on the right; the stroke copies dark into the light half, straight across.
         let editor = makeEditor(width: 200, height: 120, background: Pixel(r: 220, g: 220, b: 220, a: 255))
         editor.canvas.activeLayer.buffer.fill(Pixel(r: 40, g: 40, b: 40, a: 255), in: IntRect(x: 0, y: 0, width: 80, height: 120))
+        // Faint stripes, so a matched copy still differs from what was there: texture stays, tone changes.
+        for x in stride(from: 0, to: 80, by: 4) {
+            editor.canvas.activeLayer.buffer.fill(Pixel(r: 50, g: 50, b: 50, a: 255), in: IntRect(x: x, y: 0, width: 2, height: 120))
+        }
         editor.selectTool(.retouch)
         editor.retouchKind = .cloneStamp
         editor.retouchSize = 40
-        editor.retouchHardness = 1
+        editor.retouchHardness = hardness
         editor.cloneMatchesTone = matchingTone
         editor.setCloneSource(pt(40.5, 40.5))
         editor.beginRetouchBrush(at: pt(150.5, 40.5), pressure: 1)
@@ -313,6 +317,23 @@ struct MatchToneTests {
         #expect(matched.canvas.activeLayer.buffer[150, 60].r > plain.canvas.activeLayer.buffer[150, 60].r + 20)
         matched.undo()
         #expect(matched.canvas.activeLayer.buffer[150, 60] == Pixel(r: 220, g: 220, b: 220, a: 255))
+    }
+
+    /// A soft brush blends in too: its rim is still mostly the original, so the difference is measured from what was
+    /// there before and what was copied (Leah's test, 2026-10-14).
+    @Test(arguments: [false, true])
+    func aSoftStrokeBlendsIn(inBackground: Bool) async throws {
+        let limit = Editor.backgroundToneArea
+        if inBackground { Editor.backgroundToneArea = 100 }
+        defer { Editor.backgroundToneArea = limit }
+        let matched = try await cloned(matchingTone: true, hardness: 0.5)
+        let buffer = matched.canvas.activeLayer.buffer
+        // The copied dark is brought all the way to the light surroundings, middle and edge alike.
+        for y in stride(from: 30, through: 90, by: 10) {
+            for x in stride(from: 132, through: 168, by: 6) {
+                #expect(abs(Int(buffer[x, y].r) - 220) <= 12, "\(x), \(y): \(buffer[x, y].r)")
+            }
+        }
     }
 
     @Test func aDabIsMatchedAtOnce() async throws {

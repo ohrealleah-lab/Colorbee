@@ -68,6 +68,24 @@ public final class RetouchStroke: Stroke {
     /// What the stroke covered, for the Clone Stamp's Match Tone.
     public var coverage: SelectionMask? { painter.coverageMask() }
 
+    /// For Match Tone: over `area`, what each pixel was before the stroke and what the stroke copied there. Measuring
+    /// the difference from these, not from the painted pixels, makes a soft brush blend in too: at its soft rim the
+    /// painted pixels are still mostly the original, which read as no difference at all (Leah's test, 2026-10-14).
+    public func toneReference(over area: IntRect) -> ToneMatch.Reference? {
+        guard let transform = painter.transform, !area.isEmpty else { return nil }
+        var before: [Pixel] = [], copied: [Pixel] = []
+        before.reserveCapacity(area.area)
+        copied.reserveCapacity(area.area)
+        for y in area.minY..<area.maxY {
+            for x in area.minX..<area.maxX {
+                let original = painter.original(atX: x, y: y)
+                before.append(original)
+                copied.append(transform(x, y, original))
+            }
+        }
+        return ToneMatch.Reference(before: before, copied: copied)
+    }
+
     @discardableResult
     public func move(to point: Point2D, pressure: Double) -> IntRect {
         var changed = IntRect.zero
@@ -237,9 +255,15 @@ public enum ToneMatch {
         let offsets: [SIMD4<Float>]
     }
 
-    public static func apply(to layer: Layer, in mask: SelectionMask, edit: Edit) {
+    /// Over the read area, row by row: each pixel before the stroke, and what the stroke copied there.
+    public struct Reference: Sendable {
+        let before: [Pixel]
+        let copied: [Pixel]
+    }
+
+    public static func apply(to layer: Layer, in mask: SelectionMask, reference: Reference? = nil, edit: Edit) {
         let area = readArea(for: mask, in: layer.buffer.bounds)
-        guard !area.isEmpty, let plan = plan(layer.buffer.pixels(in: area), area: area, mask: mask) else { return }
+        guard !area.isEmpty, let plan = plan(layer.buffer.pixels(in: area), area: area, mask: mask, reference: reference) else { return }
         apply(plan, to: layer, edit: edit)
     }
 
@@ -248,9 +272,13 @@ public enum ToneMatch {
         IntRect(x: mask.bounds.minX - 1, y: mask.bounds.minY - 1, width: mask.bounds.width + 2, height: mask.bounds.height + 2).intersection(bounds)
     }
 
-    /// `pixels` are the layer's over `area` (from `readArea`), row by row. Nil when there's nothing to match.
-    public static func plan(_ pixels: [Pixel], area: IntRect, mask: SelectionMask) -> Plan? {
+    /// `pixels` are the layer's over `area` (from `readArea`), row by row. With a `reference`, the difference at the
+    /// edge is what was there before minus what was copied; without one, the surroundings minus the painted pixel.
+    /// Nil when there's nothing to match.
+    public static func plan(_ pixels: [Pixel], area: IntRect, mask: SelectionMask, reference: Reference? = nil) -> Plan? {
         guard !area.isEmpty, pixels.count == area.area else { return nil }
+        if let reference, reference.before.count != area.area || reference.copied.count != area.area { return nil }
+        func rgb(_ p: Pixel) -> SIMD4<Float> { SIMD4(Float(p.r), Float(p.g), Float(p.b), 0) }
         let width = area.width, height = area.height
         func inside(_ x: Int, _ y: Int) -> Bool { mask.bounds.contains(IntPoint(x: x, y: y)) && mask[x, y] > 0 }
         func value(_ x: Int, _ y: Int) -> SIMD4<Float> {
@@ -272,7 +300,8 @@ public enum ToneMatch {
                     count += 1
                 }
                 if count > 0 {
-                    offsets[(y - area.minY) * width + x - area.minX] = sum / count - value(x, y)
+                    let index = (y - area.minY) * width + x - area.minX
+                    offsets[index] = reference.map { rgb($0.before[index]) - rgb($0.copied[index]) } ?? sum / count - value(x, y)
                     edge.append((x, y))
                 }
             }

@@ -316,3 +316,5 @@ Batches A and B fixed and passed Leah's tests on 2026-10-13; batch C fixed 2026-
 | 12 | Low | Missing Editor tests | **Fixed.** Feather, the sidebar, Redact Brush rules (counts as a redaction; locked layers by name, and only with pixels under the stroke), Esc during Remove, Clone Stamp with Aligned off, Match Tone, Sample All Layers. 95 app tests in all. |
 | 13 | Low | Typing a Feather radius then Return could apply the old one | **Fixed (batch A).** The box sets the radius as you type. |
 
+**Found in Leah's batch C test (2026-10-14):** Match Tone did nothing with a soft brush (Hardness under 100%, the default 50%). It measured the difference at the stroke's rim, where a soft brush has barely painted, so it read as no difference. **Fixed:** the difference at the edge is now what was there before minus what was copied (`RetouchStroke.toneReference`), so a soft rim comes out as exactly the original and the middle blends in. App tests with a soft brush on both paths (they fail with the old measuring).
+

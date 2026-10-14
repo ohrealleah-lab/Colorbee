@@ -13,7 +13,7 @@ _Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-1. [Review O and P, batch C](#test-review-o-and-p-batch-c): checks 4 and 5 (Match Tone) are left.
+Nothing waiting right now.
 
 ---
 
@@ -246,7 +246,7 @@ _2026-10-13: passed Leah's hand test on 2026-10-13 (check 5 rewritten first: the
 5. **Red-Eye with a soft selection** (`TestImages/Stage 13/Red Eye Practice.png`): draw a selection box over the red eye whose left edge cuts down through the middle of the red pupil. Edit ▸ Feather… 30 px, OK, then Adjustments ▸ Remove Red-Eye. Zoomed in, the pupil fades gradually from fixed (inside) to red (outside), with no sharp line. With Feather 0 instead, there's a hard line at the box's edge.
 
 ### Test: Review O and P, batch C
-_2026-10-13: checks 1–3 passed Leah's hand test on 2026-10-14. Check 4 found Match Tone doing nothing with a soft brush (since stage 13): fixed 2026-10-14; checks 4 and 5 to try again._ See `Docs/Review/RESULTS.md`, round 5. The release workflow change is checked when Beta 3 is published. Rebuild with the script (option 2) first.
+_2026-10-13: passed Leah's hand test on 2026-10-14. Check 4 first found Match Tone doing nothing with a soft brush (since stage 13); fixed 2026-10-14, then checks 4 and 5 passed (Leah's screen recording)._ See `Docs/Review/RESULTS.md`, round 5. The release workflow change is checked when Beta 3 is published. Rebuild with the script (option 2) first.
 1. **Sidebar and New Layer** (`TestImages/Help/Sample Screenshot.png`): open the sidebar, switch off every lit panel button at its top (it closes), then Layer ▸ New Layer (⇧⌘N): the sidebar opens showing the Layers panel.
 2. **Sidebar during Adjust Photo** (`TestImages/Stage 9 Practice Photo.png`): Adjustments ▸ Adjust Photo…, then switch off every lit panel button at the top of the sidebar: the sliders stay. Cancel.
 3. **Feather slider** (same photo, Image ▸ Resize and Skew… to 300% first): Select All, Edit ▸ Feather…, drag the slider quickly back and forth: the slider moves smoothly and the red tint catches up. OK keeps the radius shown.

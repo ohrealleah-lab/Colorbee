@@ -279,7 +279,7 @@ Leah confirmed 1 and 2 by hand on 2026-10-11 and chose the behavior for 3. 1–3
 
 ## Session O: correctness, threads and the speed fixes ([findings](findings-O.md))
 
-Batches A and B fixed and passed Leah's tests on 2026-10-13; batch C fixed 2026-10-13, waiting for Leah's test. Findings 1 and 7 were the same as N2 (fixed there).
+Batches A and B fixed and passed Leah's tests on 2026-10-13; batch C fixed 2026-10-13 and passed Leah's test on 2026-10-14. Findings 1 and 7 were the same as N2 (fixed there).
 
 | # | Severity | Finding | Outcome |
 |---|---|---|---|

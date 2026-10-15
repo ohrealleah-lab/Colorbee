@@ -42,7 +42,8 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│ Menu bar: Colorbee File Edit View Image Layer Adjustments Effects Window Help │
+│ Menu bar: Colorbee File Edit View Image Layer Page Adjustments Effects Redact │
+│           Window Help                                                         │
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ Toolbar: Clipboard │ Selection │ Tools │ Brushes │ Shapes │ Size │ Outline/Fill │
 │          Color 1/2 wells │ [Layers ▣]                                          │
@@ -650,13 +651,15 @@ Open camera RAW files, develop them, then edit and export like any image.
 
 | Menu | Items |
 |---|---|
-| **File** | New (Cmd+N), Open (Cmd+O), Open Recent, Close (Cmd+W), Save (Cmd+S), Save As (Cmd+Shift+S), Duplicate, Revert To, Export… (Cmd+Opt+S), Export As ▸ presets, Share, Set as Desktop Picture, Page Setup, Print (Cmd+P) |
-| **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z), Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Copy Text (Cmd+Opt+C), Paste (Cmd+V), Paste into New Image (Cmd+Shift+V), Delete, Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I), Feather… |
-| **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9), Pixel Grid (Cmd+'), Rulers (Cmd+R), Status Bar, Layers (Cmd+L), History (Cmd+Y), Clipboard History (Cmd+Opt+V), Adjustments panel, Before/After (Cmd+Opt+B) |
-| **Image** | Crop to Selection (Cmd+Shift+X), Resize/Skew (Cmd+E), Canvas Properties (Cmd+Opt+E), Rotate ▸, Flip ▸, Symmetry ▸ |
-| **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete (Cmd+Delete), Merge Down (Cmd+Shift+E), Merge Visible (Cmd+Opt+Shift+E), Flatten, Hide/Show Layer (no default shortcut), Lock/Unlock Layer, New Adjustment Layer ▸, Revert Layer, Layer Properties |
-| **Adjustments** | Invert Colors (Cmd+I), Hue/Saturation, Desaturate (Cmd+Shift+U), Adjust Photo…, Levels…, Auto Contrast, Curves…, Sepia…, Posterize…, Remove Red-Eye |
-| **Effects** | Gaussian Blur…, Pixelate…, Sharpen…, Auto-Redact…, Batch Redact ▸ (Blur…, Pixelate…, Solid Fill) |
+| **File** | New (Cmd+N), Paste into New Image (Cmd+Shift+V), Open (Cmd+O), Open Recent · Import from iPhone or iPad ▸ · Close (Cmd+W), Save (Cmd+S), Save As (Cmd+Shift+S), Duplicate, Revert To · Export… (Cmd+Opt+S), Export as PDF…, Export As ▸ presets · Share, Set as Desktop Picture · Page Setup, Print (Cmd+P) |
+| **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z) · Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Copy Text (Cmd+Opt+C), Paste (Cmd+V), Delete · Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I), Feather…, Select Subject |
+| **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9) · Pixel Grid (Cmd+'), Rulers (Cmd+R), Before/After (Cmd+Opt+B) · Layers (Cmd+L), Adjustments, History (Cmd+Y), Clipboard History (Cmd+Opt+V), Page Sidebar (Cmd+Opt+2), Status Bar · Enter Full Screen. Panels and display aids show a checkmark when on. |
+| **Image** | Crop to Selection (Cmd+Shift+X), Crop…, Resize and Skew (Cmd+E), Canvas Properties (Cmd+Opt+E) · Rotate ▸, Flip ▸, Straighten…, Perspective Correction… · Remove Background · Symmetry ▸ |
+| **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete (Cmd+Delete), Lift Subject to New Layer · Merge Down (Cmd+Shift+E), Merge Visible (Cmd+Opt+Shift+E), Flatten · New Adjustment Layer ▸, Merge Adjustment, Revert Layer · Hide/Show Layer (no default shortcut), Lock/Unlock Layer, Layer Properties |
+| **Page** | New Page, Duplicate Page, Delete Page · Move Page Up, Move Page Down · Previous Page (Cmd+Opt+Up), Next Page (Cmd+Opt+Down) |
+| **Adjustments** | Adjust Photo…, Auto Contrast · Levels…, Curves… · Hue/Saturation…, Desaturate (Cmd+Shift+U), Sepia… · Invert Colors (Cmd+I), Posterize… · Remove Red-Eye · New Adjustment Layer ▸ |
+| **Effects** | Gaussian Blur…, Motion Blur…, Sharpen… · Pixelate…, Add Noise…, Emboss… · Vignette…, Spotlight… · Drop Shadow…, Border… |
+| **Redact** | Auto-Redact… · Batch Redact: Blur…, Pixelate…, Solid Fill with Color 1 |
 | **Window** | Standard |
 | **Help** | Colorbee Help (Cmd+?), and macOS's search field (FR-14.6) |
 
@@ -831,6 +834,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-15 | Menu order, from a review against Apple's standard menus and Photoshop, Preview, Pixelmator Pro and Acorn (Leah): **Redact** is its own menu, after Effects, with Auto-Redact… and the Batch Redact commands (Blur…, Pixelate…, Solid Fill with Color 1). Flip sits next to Rotate. Import from iPhone or iPad moves below Open. View groups the display aids (Pixel Grid, Rulers, Before/After) apart from the panels, and every on/off item there shows a checkmark instead of switching between Show and Hide; Adjustments Panel is now just Adjustments. Lift Subject to New Layer moves to the Layer menu. Effects and Adjustments are regrouped by kind (see FR-14.5). My choices (veto any): Batch Redact is a heading inside the Redact menu rather than a submenu, so its commands are one click away; shortcuts are kept, including changed ones. |
 | 2026-10-13 | From code review round 5, sessions O and P (Leah): **Sample All Layers** (Clone Stamp, Remove, Spot Heal) reads the active layer and the layers below it, as shown, not layers or adjustments above it, so adjustments above apply once. **New Layer, Duplicate Layer and Lift Subject** with a layer selected that has "Only the layer below" adjustments put the new layer above those adjustments. **Merge Down** of such a layer bakes its "Only the layer below" adjustments in first, so the picture looks the same. **Delete Layer** of such a layer deletes its "Only the layer below" adjustments with it (one undo step brings all back). **Remove and Spot Heal keep a fixed width** and don't follow pressure: they mark an area to fill (FR-4.6 updated). |
 | 2026-10-11 | Step Badge still being placed (Leah): Save, Export, Share, Print and Copy place it first, as they do a shape or text, so what's written is what's shown; autosave leaves it movable. Found by the new Editor tests. |
 | 2026-10-11 | Straighten speed (Leah, 2026-10-10, confirmed 2026-10-11): when it's built, Straighten's preview is computed in the background so the app stays responsive, and rotation uses Apple's vImage, about 2.5× faster. vImage's pixels differ very slightly from today's (mean 0.4 of 255, not visible); the preview and the applied result still match each other. See `Docs/GPU-AUDIT.md`. Built 2026-10-11. Claude's choices (veto any): with Crop to fit, the photo's own edge pixels are repeated just past its edges, so the borders don't pick up a faint line; on fine, sharp texture (a brick wall) vImage keeps detail slightly crisper than before (mean difference about 3.5 of 255), on ordinary photos 0.3. Leah, 2026-10-11: crisper is better. |

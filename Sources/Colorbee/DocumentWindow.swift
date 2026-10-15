@@ -422,10 +422,10 @@ final class DocumentWindow: NSWindow {
             menuItem.state = editor.isSidebarOpen && editor.showsClipboardPanel ? .on : .off
             return true
         case #selector(toggleRulers(_:)):
-            menuItem.title = editor.showsRulers ? "Hide Rulers" : "Show Rulers"
+            menuItem.state = editor.showsRulers ? .on : .off
             return true
         case #selector(toggleStatusBar(_:)):
-            menuItem.title = editor.showsStatusBar ? "Hide Status Bar" : "Show Status Bar"
+            menuItem.state = editor.showsStatusBar ? .on : .off
             return true
         case #selector(toggleAdjustmentsPanel(_:)):
             menuItem.state = editor.isSidebarOpen && editor.showsAdjustmentsPanel ? .on : .off

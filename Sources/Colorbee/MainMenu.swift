@@ -14,6 +14,7 @@ enum MainMenu {
         main.addItem(submenu(pageMenu()))
         main.addItem(submenu(adjustmentsMenu()))
         main.addItem(submenu(effectsMenu()))
+        main.addItem(submenu(redactMenu()))
 
         let window = windowMenu()
         main.addItem(submenu(window))
@@ -177,13 +178,14 @@ enum MainMenu {
         let menu = NSMenu(title: "File")
         menu.addItem(item("New", "newDocument:", "n"))
         menu.addItem(item("Paste into New Image", "pasteIntoNewImage:", "v", [.command, .shift]))
+        menu.addItem(item("Open…", "openDocument:", "o"))
+        // No Open Recent here: macOS adds its own after Open…, and one made here showed as a second (Leah, 2026-10-10).
+        menu.addItem(.separator())
         // macOS fills this in with nearby iPhones and iPads (Continuity Camera, FR-11.7).
         let importItem = NSMenuItem(title: "Import from iPhone or iPad", action: nil, keyEquivalent: "")
         importItem.identifier = NSMenuItem.importFromDeviceIdentifier
         importItem.toolTip = "Take a photo or scan a document with a nearby iPhone or iPad, straight into Colorbee."
         menu.addItem(importItem)
-        menu.addItem(item("Open…", "openDocument:", "o"))
-        // No Open Recent here: macOS adds its own after Open…, and one made here showed as a second (Leah, 2026-10-10).
         menu.addItem(.separator())
         menu.addItem(item("Close", "performClose:", "w"))
         menu.addItem(item("Save", "saveDocument:", "s"))
@@ -238,15 +240,15 @@ enum MainMenu {
         menu.addItem(item("Zoom to Fit", "zoomToFit:", "9"))
         menu.addItem(.separator())
         menu.addItem(item("Pixel Grid", "togglePixelGrid:", "'"))
+        menu.addItem(item("Rulers", "toggleRulers:", "r"))
         menu.addItem(item("Before/After", "toggleBeforeAfter:", "b", [.command, .option]))
+        menu.addItem(.separator())
         menu.addItem(item("Layers", "toggleLayers:", "l"))
-        menu.addItem(item("Adjustments Panel", "toggleAdjustmentsPanel:"))
+        menu.addItem(item("Adjustments", "toggleAdjustmentsPanel:"))
         menu.addItem(item("History", "toggleHistoryPanel:", "y"))
         menu.addItem(item("Clipboard History", "toggleClipboardPanel:", "v", [.command, .option]))
         menu.addItem(item("Page Sidebar", "togglePageSidebar:", "2", [.command, .option]))
-        menu.addItem(.separator())
-        menu.addItem(item("Show Rulers", "toggleRulers:", "r"))
-        menu.addItem(item("Hide Status Bar", "toggleStatusBar:"))
+        menu.addItem(item("Status Bar", "toggleStatusBar:"))
         menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", "toggleFullScreen:", "f", [.command, .control]))
         return menu
@@ -267,13 +269,11 @@ enum MainMenu {
             (orientation == .flipHorizontal || orientation == .flipVertical ? flip : rotate).addItem(orientationItem)
         }
         menu.addItem(submenu(rotate))
+        menu.addItem(submenu(flip))
         menu.addItem(item("Straighten…", "showStraighten:"))
         menu.addItem(item("Perspective Correction…", "showPerspective:"))
         menu.addItem(.separator())
         menu.addItem(item("Remove Background", "removeBackground:"))
-        menu.addItem(item("Lift Subject to New Layer", "liftSubject:"))
-        menu.addItem(.separator())
-        menu.addItem(submenu(flip))
         menu.addItem(.separator())
         let symmetry = NSMenu(title: "Symmetry")
         for (index, mode) in ["Off", "Vertical", "Horizontal", "Both"].enumerated() {
@@ -306,6 +306,7 @@ enum MainMenu {
         menu.addItem(item("New Layer", "newLayer:", "n", [.command, .shift]))
         menu.addItem(item("Duplicate Layer", "duplicateLayer:", "j"))
         menu.addItem(item("Delete Layer", "deleteLayer:", "\u{8}"))
+        menu.addItem(item("Lift Subject to New Layer", "liftSubject:"))
         menu.addItem(.separator())
         menu.addItem(item("Merge Down", "mergeDown:", "e", [.command, .shift]))
         menu.addItem(item("Merge Visible", "mergeVisible:", "e", [.command, .option, .shift]))
@@ -334,16 +335,19 @@ enum MainMenu {
 
     private static func adjustmentsMenu() -> NSMenu {
         let menu = NSMenu(title: "Adjustments")
-        menu.addItem(item("Invert Colors", "invertColors:", "i"))
+        menu.addItem(item("Adjust Photo…", "showAdjustPhoto:"))
+        menu.addItem(item("Auto Contrast", "autoContrast:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Levels…", "showLevels:"))
+        menu.addItem(item("Curves…", "showCurves:"))
+        menu.addItem(.separator())
         menu.addItem(item("Hue/Saturation…", "showHueSaturation:"))
         menu.addItem(item("Desaturate", "desaturate:", "u", [.command, .shift]))
-        menu.addItem(.separator())
-        menu.addItem(item("Adjust Photo…", "showAdjustPhoto:"))
-        menu.addItem(item("Levels…", "showLevels:"))
-        menu.addItem(item("Auto Contrast", "autoContrast:"))
-        menu.addItem(item("Curves…", "showCurves:"))
         menu.addItem(item("Sepia…", "showSepia:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Invert Colors", "invertColors:", "i"))
         menu.addItem(item("Posterize…", "showPosterize:"))
+        menu.addItem(.separator())
         menu.addItem(item("Remove Red-Eye", "removeRedEye:"))
         menu.addItem(.separator())
         // Each adjustment also comes as a layer that stays editable (FR-9.1).
@@ -354,24 +358,30 @@ enum MainMenu {
     private static func effectsMenu() -> NSMenu {
         let menu = NSMenu(title: "Effects")
         menu.addItem(item("Gaussian Blur…", "showGaussianBlur:"))
-        menu.addItem(item("Pixelate…", "showPixelate:"))
-        menu.addItem(item("Sharpen…", "showSharpen:"))
         menu.addItem(item("Motion Blur…", "showMotionBlur:"))
+        menu.addItem(item("Sharpen…", "showSharpen:"))
         menu.addItem(.separator())
+        menu.addItem(item("Pixelate…", "showPixelate:"))
         menu.addItem(item("Add Noise…", "showAddNoise:"))
         menu.addItem(item("Emboss…", "showEmboss:"))
+        menu.addItem(.separator())
         menu.addItem(item("Vignette…", "showVignette:"))
+        menu.addItem(item("Spotlight…", "showSpotlight:"))
         menu.addItem(.separator())
         menu.addItem(item("Drop Shadow…", "showDropShadow:"))
         menu.addItem(item("Border…", "showBorder:"))
-        menu.addItem(item("Spotlight…", "showSpotlight:"))
-        menu.addItem(.separator())
-        let batch = NSMenu(title: "Batch Redact")
-        batch.addItem(item("Blur…", "batchRedactBlur:"))
-        batch.addItem(item("Pixelate…", "batchRedactPixelate:"))
-        batch.addItem(item("Solid Fill with Color 1", "applySolidFill:"))
-        menu.addItem(submenu(batch))
+        return menu
+    }
+
+    /// Redaction has its own menu, since it's what Colorbee is most often for (Leah, 2026-10-15).
+    private static func redactMenu() -> NSMenu {
+        let menu = NSMenu(title: "Redact")
         menu.addItem(item("Auto-Redact…", "showAutoRedact:"))
+        menu.addItem(.separator())
+        menu.addItem(.sectionHeader(title: "Batch Redact"))
+        menu.addItem(item("Blur…", "batchRedactBlur:"))
+        menu.addItem(item("Pixelate…", "batchRedactPixelate:"))
+        menu.addItem(item("Solid Fill with Color 1", "applySolidFill:"))
         return menu
     }
 

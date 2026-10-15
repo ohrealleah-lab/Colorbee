@@ -26,7 +26,7 @@ enum HelpDump {
     static func write(_ mainMenu: NSMenu, to path: String) throws {
         var entries: [Entry] = []
         func walk(_ menu: NSMenu, top: String, path: String) {
-            for item in menu.items where !item.isSeparatorItem && !item.isHidden {
+            for item in menu.items where !item.isSeparatorItem && !item.isSectionHeader && !item.isHidden {
                 let title = path.isEmpty ? item.title : "\(path) ▸ \(item.title)"
                 if let submenu = item.submenu, !filledByMacOS.contains(item.title), !submenu.items.isEmpty {
                     walk(submenu, top: top, path: title)

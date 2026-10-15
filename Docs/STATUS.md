@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-11 · 522 core tests and 71 app tests passing, plus `make perf`_
+_Last updated: 2026-10-15 · 522 core tests and 71 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Menu order and the new Redact menu](#test-menu-order-and-the-new-redact-menu)
 
 ---
 
@@ -82,7 +82,7 @@ Nothing waiting right now.
 **Integration** (stage 7a)
 - Canvas Properties ⌥⌘E (size, transparent background) and edge handles on the canvas; Paste into New Image ⇧⌘V; big pastes offer to enlarge the canvas.
 - Sidebar panels: History ⌘Y (steps with thumbnails, click to jump) and Clipboard History ⌥⌘V (last 10, persistent, click to paste).
-- Drag and drop images onto the canvas or the window; File ▸ Share…, Set as Desktop Picture, Page Setup, Print ⌘P; View ▸ Show Rulers ⌘R, Hide Status Bar.
+- Drag and drop images onto the canvas or the window; File ▸ Share…, Set as Desktop Picture, Page Setup, Print ⌘P; View ▸ Rulers ⌘R, Status Bar.
 
 **Integration** (stage 7b)
 - Palettes (palette bar menu: switch, save, rename, delete, import/export `.colorpalette`, reset); text styles (text tool's Styles menu).
@@ -223,6 +223,18 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Menu order and the new Redact menu
+
+Use any image, such as `~/Downloads/colorbee tests/E1 Screenshot.png`.
+
+1. The menu bar reads Colorbee, File, Edit, View, Image, Layer, Page, Adjustments, Effects, Redact, Window, Help.
+2. **Redact:** Auto-Redact… at the top; below a "Batch Redact" heading, Blur…, Pixelate… and Solid Fill with Color 1. With nothing selected, Solid Fill is greyed out (Blur… and Pixelate… still work, on the whole image). Draw a selection over the email and Solid Fill hides it.
+3. **Effects** no longer has any redaction items.
+4. **Image:** Flip is right under Rotate. Lift Subject to New Layer is gone from here and is in **Layer**, under Delete Layer.
+5. **File:** New, Paste into New Image, Open…, Open Recent, then Import from iPhone or iPad on its own.
+6. **View:** Pixel Grid, Rulers, Before/After together; then Layers, Adjustments, History, Clipboard History, Page Sidebar, Status Bar. ⌘R puts a checkmark by Rulers; choose Status Bar and its checkmark goes away with the bar.
+7. Settings ▸ Shortcuts lists Auto-Redact and the three Batch Redact commands under Redact, with any shortcuts you'd set still there.
 
 ### Test: RAW Develop sliders are fast
 _2026-10-11: passed Leah's hand test on 2026-10-11._ GPU audit recommendation 1: the Develop window's previews reuse one `CIRAWFilter` instead of re-reading the file on every change. On Leah's 45 MP CR3 a preview went from about 390 ms to 33–47 ms, byte-identical to a fresh decode (checked with a scratch tool). The final develop still makes its own filter. Rebuild with the script (option 2) first. Use Leah's own 45 MP CR3 (or any large RAW photo).

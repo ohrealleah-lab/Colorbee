@@ -94,7 +94,7 @@ for menu, entries in menus.items():
     body.append("    </table>\n")
 page("menus.html", "Menus",
      "Every command in Colorbee's menus, with its default keyboard shortcut and a line on what it does.",
-     "menu, menus, command, commands, File, Edit, View, Image, Page, Layer, Adjustments, Effects, Window",
+     "menu, menus, command, commands, File, Edit, View, Image, Layer, Page, Adjustments, Effects, Redact, Window",
      "".join(body))
 
 body = ['    <a name="shortcuts"></a>\n    <h1>Keyboard shortcuts</h1>\n',

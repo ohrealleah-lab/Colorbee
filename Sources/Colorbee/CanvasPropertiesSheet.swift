@@ -64,7 +64,7 @@ struct CanvasPropertiesSheet: View {
     }
 }
 
-/// Pixel rulers along the top and left of the canvas area (View ▸ Show Rulers, ⌘R).
+/// Pixel rulers along the top and left of the canvas area (View ▸ Rulers, ⌘R).
 struct Rulers: View {
     let editor: Editor
     static let thickness: CGFloat = 18

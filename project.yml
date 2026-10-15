@@ -128,7 +128,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.leah.Colorbee
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: 0.9.0
-        CURRENT_PROJECT_VERSION: 3
+        CURRENT_PROJECT_VERSION: 4
 
   # The app tests (Swift Testing). They run inside Colorbee, which starts hidden for them (`TestHost`).
   ColorbeeTests:

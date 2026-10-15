@@ -13,7 +13,7 @@ _Last updated: 2026-10-15 · 542 core tests and 74 app tests passing, plus `make
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Darker toolbar capsules](#test-darker-toolbar-capsules)
 
 ---
 
@@ -224,6 +224,14 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Darker toolbar capsules
+
+1. Quit Colorbee and open it again (the Release copy), with any image.
+2. Each toolbar group (selection tools, drawing tools, Size, Outline/Fill, Layers and Sidebar) sits in a capsule a shade darker than the window, and the icons stand out more.
+3. Press **E**, **U** and **M**: Size and Outline/Fill appear and disappear with their capsules, and no empty capsule is left behind.
+4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
+5. Make the window narrow: groups that don't fit go into the » menu at the right.
 
 ### Test: Toolbar and palette bar polish (passed 2026-10-15)
 

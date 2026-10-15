@@ -10,6 +10,8 @@ enum Theme {
     })
     /// Sunken fields: the size box, slider tracks, the percentage.
     static let field = Color(nsColor: dynamic(light: (0, 0, 0, 0.055), dark: (255, 255, 255, 0.08)))
+    /// Behind each toolbar group, a shade darker than the window so the icons stand out (Leah, 2026-10-15).
+    static let toolbarCapsule = Color(nsColor: dynamic(light: (0, 0, 0, 0.07), dark: (255, 255, 255, 0.1)))
     static let separator = Color(nsColor: dynamic(light: (0, 0, 0, 0.1), dark: (255, 255, 255, 0.1)))
     static let secondaryInk = Color(nsColor: dynamic(light: (0, 0, 0, 0.56), dark: (255, 255, 255, 0.6)))
     static let tertiaryInk = Color(nsColor: dynamic(light: (0, 0, 0, 0.28), dark: (255, 255, 255, 0.3)))

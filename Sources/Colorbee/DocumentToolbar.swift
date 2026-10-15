@@ -2,7 +2,8 @@ import AppKit
 import ColorbeeCore
 import SwiftUI
 
-/// The window toolbar (FR-1.1). Each group sits in its own Liquid Glass capsule, as in the mockups.
+/// The window toolbar (FR-1.1). Each group sits in its own capsule, a shade darker than the window so the icons stand
+/// out, drawn by Colorbee in place of the Liquid Glass one (Leah, 2026-10-15).
 struct DocumentToolbar: ToolbarContent {
     let editor: Editor
 
@@ -19,28 +20,36 @@ private struct SelectingGroups: ToolbarContent {
 
     var body: some ToolbarContent {
         // Tools wait while an effect's bar is open: Apply or Cancel first (§23, 2026-10-02; review J, finding 17).
-        ToolbarItemGroup {
-            ToolButton(tool: .rectangleSelect, editor: editor)
-            ToolButton(tool: .ellipseSelect, editor: editor)
-            ToolButton(tool: .lassoSelect, editor: editor)
-            ToolButton(tool: .magicWand, editor: editor)
-            TransparentSelectionButton(editor: editor)
-                .disabled(editor.activeEffect != nil)
+        ToolbarItem {
+            HStack(spacing: 0) {
+                ToolButton(tool: .rectangleSelect, editor: editor)
+                ToolButton(tool: .ellipseSelect, editor: editor)
+                ToolButton(tool: .lassoSelect, editor: editor)
+                ToolButton(tool: .magicWand, editor: editor)
+                TransparentSelectionButton(editor: editor)
+                    .disabled(editor.activeEffect != nil)
+            }
+            .inToolbarCapsule()
         }
+        .sharedBackgroundVisibility(.hidden)
         ToolbarSpacer(.fixed)
         // The drawing tools in one group, Brushes and Shapes beside the Pencil (Leah, 2026-10-05).
-        ToolbarItemGroup {
-            ToolButton(tool: .pencil, editor: editor)
-            BrushGalleryButton(editor: editor)
-                .disabled(editor.activeEffect != nil)
-            RetouchGalleryButton(editor: editor)
-                .disabled(editor.activeEffect != nil)
-            ShapeGalleryButton(editor: editor)
-                .disabled(editor.activeEffect != nil)
-            ForEach([Tool.fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure, .redactBrush, .stepBadge], id: \.self) {
-                ToolButton(tool: $0, editor: editor)
+        ToolbarItem {
+            HStack(spacing: 0) {
+                ToolButton(tool: .pencil, editor: editor)
+                BrushGalleryButton(editor: editor)
+                    .disabled(editor.activeEffect != nil)
+                RetouchGalleryButton(editor: editor)
+                    .disabled(editor.activeEffect != nil)
+                ShapeGalleryButton(editor: editor)
+                    .disabled(editor.activeEffect != nil)
+                ForEach([Tool.fill, .text, .eraser, .eyedropper, .magnifier, .gradient, .measure, .redactBrush, .stepBadge], id: \.self) {
+                    ToolButton(tool: $0, editor: editor)
+                }
             }
+            .inToolbarCapsule()
         }
+        .sharedBackgroundVisibility(.hidden)
         ToolbarSpacer(.fixed)
     }
 }
@@ -54,25 +63,38 @@ private struct PaintingGroups: ToolbarContent {
         ToolbarItem {
             SizeControl(editor: editor)
                 .disabled(editor.activeEffect != nil)
+                .inToolbarCapsule()
                 .hiddenKeepingSpace(editor.toolSize == nil)
         }
-        .sharedBackgroundVisibility(editor.toolSize == nil ? .hidden : .automatic)
+        .sharedBackgroundVisibility(.hidden)
         ToolbarSpacer(.fixed)
         ToolbarItem {
             OutlineFillControl(editor: editor)
+                .inToolbarCapsule()
                 .hiddenKeepingSpace(editor.tool != .shape)
         }
-        .sharedBackgroundVisibility(editor.tool != .shape ? .hidden : .automatic)
+        .sharedBackgroundVisibility(.hidden)
         // Pushes the groups up against the title; the Layers button sits at the far right.
         ToolbarSpacer(.flexible)
-        ToolbarItemGroup {
-            LayersButton(editor: editor)
-            SidebarButton(editor: editor)
+        ToolbarItem {
+            HStack(spacing: 0) {
+                LayersButton(editor: editor)
+                SidebarButton(editor: editor)
+            }
+            .inToolbarCapsule()
         }
+        .sharedBackgroundVisibility(.hidden)
     }
 }
 
 private extension View {
+    /// A toolbar group's capsule: a shade darker than the window.
+    func inToolbarCapsule() -> some View {
+        padding(.horizontal, 5)
+            .frame(height: 36)
+            .background(Theme.toolbarCapsule, in: Capsule())
+    }
+
     /// Invisible and out of reach, but still taking up its room in the toolbar.
     func hiddenKeepingSpace(_ hidden: Bool) -> some View {
         opacity(hidden ? 0 : 1)

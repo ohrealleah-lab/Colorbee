@@ -13,7 +13,7 @@ _Last updated: 2026-10-15 · 522 core tests and 71 app tests passing, plus `make
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Menu order and the new Redact menu](#test-menu-order-and-the-new-redact-menu)
+Nothing waiting right now.
 
 ---
 
@@ -224,7 +224,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Menu order and the new Redact menu
+### Test: Menu order and the new Redact menu (passed 2026-10-15)
 
 Use any image, such as `~/Downloads/colorbee tests/E1 Screenshot.png`.
 

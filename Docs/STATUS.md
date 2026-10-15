@@ -229,10 +229,10 @@ Logs in `build/soak-results*.txt` (not committed).
 Use a new image (File ▸ New), and any image with your own colors.
 
 1. **Toolbar with Rectangle Select:** no Size controls and no Outline/Fill at the right, and nothing greyed out.
-2. Press **E** (Eraser): the Size controls appear. Press **U** (Shapes): Size and Outline/Fill both appear. Press **M**: both go away. The tool icons slide sideways when this happens (see the question in chat).
+2. Press **E** (Eraser): the Size controls appear. Press **U** (Shapes): Size and Outline/Fill both appear. Press **M**: both go away, leaving blank space. The tool icons never move while this happens.
 3. **Custom colors:** 4 boxes in 2 rows of 2 after the swatches, with fainter dashed outlines when empty. If you had custom colors before, the last 4 are there.
 4. Double-click Color 1, pick 5 different colors one after another: the 5th replaces the oldest.
-5. **Swap arrow:** a small grey curved arrow with two heads, top right of the color wells. Click it: Color 1 and Color 2 swap. It never shows a blue box.
+5. **Swap arrow:** a small grey curved arrow, top right of the color wells: it points left at one end, curves over the top, and points down at the other, like your drawing. Click it: Color 1 and Color 2 swap. It never shows a blue box.
 6. **Canvas shadow:** a soft shadow around the white canvas, a little stronger along the bottom. Try View ▸ Zoom In and Zoom Out, and dark mode: it stays soft and follows the canvas.
 
 ### Test: Menu order and the new Redact menu (passed 2026-10-15)

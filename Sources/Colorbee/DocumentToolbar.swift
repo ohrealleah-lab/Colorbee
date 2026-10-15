@@ -45,29 +45,40 @@ private struct SelectingGroups: ToolbarContent {
     }
 }
 
-/// Size, and outline and fill, shown only for the tools that use them (Leah, 2026-10-15).
+/// Size, and outline and fill, shown only for the tools that use them. Hidden ones keep their space, so the tools
+/// never move (Leah, 2026-10-15).
 private struct PaintingGroups: ToolbarContent {
     let editor: Editor
 
     var body: some ToolbarContent {
-        if editor.toolSize != nil {
-            ToolbarItem {
-                SizeControl(editor: editor)
-                    .disabled(editor.activeEffect != nil)
-            }
-            ToolbarSpacer(.fixed)
+        ToolbarItem {
+            SizeControl(editor: editor)
+                .disabled(editor.activeEffect != nil)
+                .hiddenKeepingSpace(editor.toolSize == nil)
         }
-        if editor.tool == .shape {
-            ToolbarItem {
-                OutlineFillControl(editor: editor)
-            }
+        .sharedBackgroundVisibility(editor.toolSize == nil ? .hidden : .automatic)
+        ToolbarSpacer(.fixed)
+        ToolbarItem {
+            OutlineFillControl(editor: editor)
+                .hiddenKeepingSpace(editor.tool != .shape)
         }
+        .sharedBackgroundVisibility(editor.tool != .shape ? .hidden : .automatic)
         // Pushes the groups up against the title; the Layers button sits at the far right.
         ToolbarSpacer(.flexible)
         ToolbarItemGroup {
             LayersButton(editor: editor)
             SidebarButton(editor: editor)
         }
+    }
+}
+
+private extension View {
+    /// Invisible and out of reach, but still taking up its room in the toolbar.
+    func hiddenKeepingSpace(_ hidden: Bool) -> some View {
+        opacity(hidden ? 0 : 1)
+            .disabled(hidden)
+            .allowsHitTesting(!hidden)
+            .accessibilityHidden(hidden)
     }
 }
 
@@ -286,8 +297,8 @@ struct ColorWells: View {
             Button { editor.swapColors() } label: {
                 SwapArrow()
                     .stroke(Theme.secondaryInk, style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round))
-                    .frame(width: 10, height: 10)
                     .frame(width: 12, height: 12)
+                    .frame(width: 14, height: 14)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -300,20 +311,23 @@ struct ColorWells: View {
         .padding(.horizontal, 6)
     }
 
-    /// A curved arrow with a head at each end, as in other paint programs: SF Symbols has none (Leah, 2026-10-15).
+    /// A curved arrow with a head at each end, from the left over the top and down on the right, as Leah drew it:
+    /// SF Symbols has none (Leah, 2026-10-15).
     private struct SwapArrow: Shape {
         func path(in rect: CGRect) -> Path {
-            let head = rect.width * 0.3
+            let head = rect.width * 0.24
+            let start = CGPoint(x: rect.minX + 1, y: rect.minY + head + 1)
+            let end = CGPoint(x: rect.maxX - head - 1, y: rect.maxY - 1)
             var path = Path()
-            path.move(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 1))
-            path.addQuadCurve(to: CGPoint(x: rect.maxX - 1, y: rect.minY + 1), control: CGPoint(x: rect.minX + 1, y: rect.minY + 1))
-            // Down at the start, right at the end.
-            path.move(to: CGPoint(x: rect.minX + 1 - head / 1.4, y: rect.maxY - 1 - head / 1.4))
-            path.addLine(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 1))
-            path.addLine(to: CGPoint(x: rect.minX + 1 + head / 1.4, y: rect.maxY - 1 - head / 1.4))
-            path.move(to: CGPoint(x: rect.maxX - 1 - head / 1.4, y: rect.minY + 1 - head / 1.4))
-            path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.minY + 1))
-            path.addLine(to: CGPoint(x: rect.maxX - 1 - head / 1.4, y: rect.minY + 1 + head / 1.4))
+            path.move(to: start)
+            path.addQuadCurve(to: end, control: CGPoint(x: end.x, y: start.y))
+            // Pointing left at the start, down at the end.
+            path.move(to: CGPoint(x: start.x + head, y: start.y - head))
+            path.addLine(to: start)
+            path.addLine(to: CGPoint(x: start.x + head, y: start.y + head))
+            path.move(to: CGPoint(x: end.x - head, y: end.y - head))
+            path.addLine(to: end)
+            path.addLine(to: CGPoint(x: end.x + head, y: end.y - head))
             return path
         }
     }

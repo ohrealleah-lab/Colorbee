@@ -86,7 +86,7 @@ private struct SwatchGrid: NSViewRepresentable {
 final class SwatchGridView: NSView, NSViewToolTipOwner {
     private static let cell: CGFloat = 17, gap: CGFloat = 2, groupGap: CGFloat = 10
     private static let classicWidth = 14 * cell + 13 * gap
-    static let size = NSSize(width: classicWidth + groupGap + 6 * cell + 5 * gap, height: 2 * cell + gap)
+    static let size = NSSize(width: classicWidth + groupGap + 2 * cell + gap, height: 2 * cell + gap)
 
     private let editor: Editor
     var swatches: [UInt32] = Palette.classic.swatches {
@@ -119,7 +119,7 @@ final class SwatchGridView: NSView, NSViewToolTipOwner {
     private func rect(_ slot: Slot) -> NSRect {
         let (column, row, originX): (Int, Int, CGFloat) = switch slot {
         case .classic(let index): (index % 14, index / 14, 0)
-        case .custom(let index): (index % 6, index / 6, Self.classicWidth + Self.groupGap)
+        case .custom(let index): (index % 2, index / 2, Self.classicWidth + Self.groupGap)
         }
         return NSRect(x: originX + CGFloat(column) * (Self.cell + Self.gap), y: CGFloat(row) * (Self.cell + Self.gap), width: Self.cell, height: Self.cell)
     }
@@ -162,7 +162,7 @@ final class SwatchGridView: NSView, NSViewToolTipOwner {
             } else {
                 let path = NSBezierPath(roundedRect: box.insetBy(dx: 0.5, dy: 0.5), xRadius: 4, yRadius: 4)
                 path.setLineDash([2, 2], count: 2, phase: 0)
-                NSColor.tertiaryLabelColor.setStroke()
+                NSColor.quaternaryLabelColor.setStroke()
                 path.stroke()
             }
         }

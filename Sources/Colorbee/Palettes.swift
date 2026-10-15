@@ -7,7 +7,7 @@ extension UTType {
     static let colorbeePalette = UTType(exportedAs: "com.leah.colorbee.colorpalette")
 }
 
-/// A named set of colors (FR-15.1): the 28 swatches (sRGB, 0xRRGGBB) and the 12 custom slots.
+/// A named set of colors (FR-15.1): the 28 swatches (sRGB, 0xRRGGBB) and the 4 custom slots.
 struct Palette: Codable, Equatable {
     var name: String
     var swatches: [UInt32]

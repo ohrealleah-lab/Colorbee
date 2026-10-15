@@ -92,6 +92,16 @@ fragment float4 disc_fragment(QuadOut in [[stage_in]], constant QuadUniforms &u 
     return float4(u.keyColor.rgb * u.keyColor.a, u.keyColor.a);
 }
 
+// A soft shadow around the canvas, so its edge shows on the gray around it (Leah, 2026-10-15). adjustParams holds
+// the canvas rect (x, y, width, height) in drawable pixels, photoParams.x the shadow's reach, keyColor.a its strength.
+fragment float4 shadow_fragment(QuadOut in [[stage_in]], constant QuadUniforms &u [[buffer(0)]]) {
+    float2 halfSize = u.adjustParams.zw / 2;
+    float2 outside = max(abs(in.position.xy - (u.adjustParams.xy + halfSize)) - halfSize, 0.0);
+    float fade = 1 - saturate(length(outside) / u.photoParams.x);
+    float alpha = u.keyColor.a * fade * fade;
+    return float4(0, 0, 0, alpha);
+}
+
 fragment float4 checker_fragment(QuadOut in [[stage_in]], constant QuadUniforms &u [[buffer(0)]]) {
     float2 cell = floor(in.position.xy / u.checkerSize);
     float shade = fmod(cell.x + cell.y, 2.0) < 1.0 ? 1.0 : 0.85;

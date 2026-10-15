@@ -2,12 +2,12 @@ import ColorbeeCore
 import Foundation
 import Observation
 
-/// The 12 custom-color slots in the palette bar (FR-1.2), shared by every window and kept between launches.
+/// The 4 custom-color slots in the palette bar (FR-1.2), shared by every window and kept between launches.
 @MainActor
 @Observable
 final class CustomColors {
     static let shared = CustomColors()
-    static let slotCount = 12
+    static let slotCount = 4
     private static let key = "CustomColors"
 
     private(set) var slots: [Pixel?]
@@ -15,14 +15,27 @@ final class CustomColors {
     @ObservationIgnored private var order: [Int]
 
     private init() {
-        let stored = UserDefaults.standard.array(forKey: Self.key) as? [Int] ?? []
-        let loaded: [Pixel?] = (0..<Self.slotCount).map { index in
-            guard stored.indices.contains(index), stored[index] >= 0 else { return nil }
-            let v = UInt32(stored[index])
-            return Pixel(r: UInt8(v >> 24 & 0xFF), g: UInt8(v >> 16 & 0xFF), b: UInt8(v >> 8 & 0xFF), a: UInt8(v & 0xFF))
-        }
+        let loaded = Self.unpacked(UserDefaults.standard.array(forKey: Self.key) as? [Int] ?? [])
         slots = loaded
         order = loaded.indices.filter { loaded[$0] != nil }
+    }
+
+    /// The slots from packed numbers. There used to be 12 slots: from an older list, the last 4 colors are kept, since
+    /// colors fill the slots from the left (Leah, 2026-10-15).
+    static func unpacked(_ packed: [Int]) -> [Pixel?] {
+        if packed.count <= slotCount {
+            return (0..<slotCount).map { packed.indices.contains($0) ? pixel(packed[$0]) : nil }
+        }
+        let colors = Array(packed.compactMap(pixel).suffix(slotCount))
+        return (0..<slotCount).map { colors.indices.contains($0) ? colors[$0] : nil }
+    }
+
+    /// A packed RGBA number as a color. A palette file can hold any number; out of range means an empty slot
+    /// (review J, finding 21).
+    private static func pixel(_ value: Int) -> Pixel? {
+        guard (0...Int(UInt32.max)).contains(value) else { return nil }
+        let v = UInt32(value)
+        return Pixel(r: UInt8(v >> 24 & 0xFF), g: UInt8(v >> 16 & 0xFF), b: UInt8(v >> 8 & 0xFF), a: UInt8(v & 0xFF))
     }
 
     /// Puts a color in the next empty slot, or over the oldest one. A color already there isn't added twice.
@@ -51,12 +64,7 @@ final class CustomColors {
 
     /// Replaces every slot, as when a palette is loaded.
     func replace(with packed: [Int]) {
-        slots = (0..<Self.slotCount).map { index in
-            // A palette file can hold any number; out of range means an empty slot (review J, finding 21).
-            guard packed.indices.contains(index), packed[index] >= 0, packed[index] <= Int(UInt32.max) else { return nil }
-            let v = UInt32(packed[index])
-            return Pixel(r: UInt8(v >> 24 & 0xFF), g: UInt8(v >> 16 & 0xFF), b: UInt8(v >> 8 & 0xFF), a: UInt8(v & 0xFF))
-        }
+        slots = Self.unpacked(packed)
         order = slots.indices.filter { slots[$0] != nil }
         save()
     }

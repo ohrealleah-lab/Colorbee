@@ -69,14 +69,14 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
   - **Retouch:** a gallery of retouching tools (FR-4.6).
   - **Brushes:** a gallery of 9 brush types (FR-4.2).
   - **Shapes:** a gallery of 23 shapes (FR-5.1).
-- **Size:** presets of 1, 2, 3, 4 and 5px plus a custom value (1–50px for brushes).
-- **Outline / Fill:** style pickers (FR-5.1).
+- **Size:** presets of 1, 2, 3, 4 and 5px plus a custom value (1–50px for brushes). Shown only for tools that have a size.
+- **Outline / Fill:** style pickers (FR-5.1). Shown only for the Shapes tool.
 - **Layers toggle:** shows or hides the Layers panel. It shows the layer count when there's more than one layer.
 
 ### FR-1.2 Palette bar (docked under the toolbar)
-- **Color wells** at the left end: Color 1 and Color 2, with a ring showing which one a swatch click will set. Double-click a well to choose its color.
+- **Color wells** at the left end: Color 1 and Color 2, with a ring showing which one a swatch click will set. Double-click a well to choose its color. A small grey curved arrow beside them swaps them (X).
 - 28 swatches in 2 rows of 14.
-- **12 custom-color slots** (2 rows of 6) next to the swatches, for your own colors:
+- **4 custom-color slots** (2 rows of 2) next to the swatches, for your own colors. Empty slots have a faint dashed outline:
   - A color picked in the color picker (double-click a well) or with the eyedropper's "Add to Custom Colors" goes into the next empty slot. When all are full, the oldest is replaced.
   - Left-click sets Color 1, right-click sets Color 2, exactly like the swatches. Ctrl-click → Remove clears a slot.
   - Double-click an empty slot to pick a color for it with the color picker; the color goes into that slot.
@@ -686,7 +686,7 @@ Every shortcut above is a default. All of them can be changed in the shortcut ed
 ## 18. FR-15 — Presets and customization
 
 ### FR-15.1 Palettes (hidden for now, 2026-10-05)
-- Save the current 28 swatches and 12 custom colors as a named palette. Load, rename, delete, import or export palettes (`.colorpalette`). Reset to the classic palette.
+- Save the current 28 swatches and 4 custom colors as a named palette. Load, rename, delete, import or export palettes (`.colorpalette`). Reset to the classic palette.
 - The chosen palette is kept between launches.
 
 ### FR-15.2 Text styles
@@ -834,6 +834,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-15 | Interface polish (Leah): **Size** shows only for tools that have a size, and **Outline/Fill** only for Shapes, instead of being dimmed; the space closes up. **4 custom colors** instead of 12, with fainter empty boxes; from the 12 saved before, the last 4 are kept (colors fill from the left, so those are usually the newest; the exact order wasn't saved), and a palette with more keeps its last 4. The **swap arrow** is a small grey curved arrow with a head at each end. A **soft shadow** around the canvas shows its edge on the gray. My choices (veto any): the shadow reaches 10 points and falls 2 points down, at 22% black, in light and dark mode alike; it isn't drawn around the "before" side of Before/After. |
 | 2026-10-15 | Menu order, from a review against Apple's standard menus and Photoshop, Preview, Pixelmator Pro and Acorn (Leah): **Redact** is its own menu, after Effects, with Auto-Redact… and the Batch Redact commands (Blur…, Pixelate…, Solid Fill with Color 1). Flip sits next to Rotate. Import from iPhone or iPad moves below Open. View groups the display aids (Pixel Grid, Rulers, Before/After) apart from the panels, and every on/off item there shows a checkmark instead of switching between Show and Hide; Adjustments Panel is now just Adjustments. Lift Subject to New Layer moves to the Layer menu. Effects and Adjustments are regrouped by kind (see FR-14.5). My choices (veto any): Batch Redact is a heading inside the Redact menu rather than a submenu, so its commands are one click away; shortcuts are kept, including changed ones. |
 | 2026-10-13 | From code review round 5, sessions O and P (Leah): **Sample All Layers** (Clone Stamp, Remove, Spot Heal) reads the active layer and the layers below it, as shown, not layers or adjustments above it, so adjustments above apply once. **New Layer, Duplicate Layer and Lift Subject** with a layer selected that has "Only the layer below" adjustments put the new layer above those adjustments. **Merge Down** of such a layer bakes its "Only the layer below" adjustments in first, so the picture looks the same. **Delete Layer** of such a layer deletes its "Only the layer below" adjustments with it (one undo step brings all back). **Remove and Spot Heal keep a fixed width** and don't follow pressure: they mark an area to fill (FR-4.6 updated). |
 | 2026-10-11 | Step Badge still being placed (Leah): Save, Export, Share, Print and Copy place it first, as they do a shape or text, so what's written is what's shown; autosave leaves it movable. Found by the new Editor tests. |

@@ -45,18 +45,22 @@ private struct SelectingGroups: ToolbarContent {
     }
 }
 
-/// Size, and outline and fill.
+/// Size, and outline and fill, shown only for the tools that use them (Leah, 2026-10-15).
 private struct PaintingGroups: ToolbarContent {
     let editor: Editor
 
     var body: some ToolbarContent {
-        ToolbarItem {
-            SizeControl(editor: editor)
-                .disabled(editor.activeEffect != nil)
+        if editor.toolSize != nil {
+            ToolbarItem {
+                SizeControl(editor: editor)
+                    .disabled(editor.activeEffect != nil)
+            }
+            ToolbarSpacer(.fixed)
         }
-        ToolbarSpacer(.fixed)
-        ToolbarItem {
-            OutlineFillControl(editor: editor)
+        if editor.tool == .shape {
+            ToolbarItem {
+                OutlineFillControl(editor: editor)
+            }
         }
         // Pushes the groups up against the title; the Layers button sits at the far right.
         ToolbarSpacer(.flexible)
@@ -116,7 +120,7 @@ private struct TransparentSelectionButton: View {
 
 // MARK: Size
 
-/// Five preset sizes and a field for any size, for the tool in use (FR-1.1). Tools without a size dim it.
+/// Five preset sizes and a field for any size, for the tool in use (FR-1.1). Tools without a size don't show it.
 private struct SizeControl: View {
     @Bindable var editor: Editor
     @FocusState private var typing: Bool
@@ -158,9 +162,7 @@ private struct SizeControl: View {
             .padding(.leading, 4)
         }
         .padding(.trailing, 2)
-        .disabled(size == nil)
-        .opacity(size == nil ? 0.4 : 1)
-        .help(size == nil ? "This tool has no size" : "Size of the \(editor.tool.name). [ and ] change it.")
+        .help("Size of the \(editor.tool.name). [ and ] change it.")
     }
 }
 
@@ -202,8 +204,6 @@ private struct OutlineFillControl: View {
         .menuStyle(.button)
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
-        .disabled(editor.tool != .shape)
-        .opacity(editor.tool == .shape ? 1 : 0.4)
     }
 
     private func swatch(_ pixel: Pixel) -> Color {
@@ -284,18 +284,38 @@ struct ColorWells: View {
                 .modifier(WellAccessibility(name: "Color 1", color: editor.color1, colorSpace: editor.canvas.colorSpace, active: editor.activeWell == .color1,
                                             select: { editor.activeWell = .color1 }, choose: { open(.color1) }))
             Button { editor.swapColors() } label: {
-                Image(systemName: "arrow.trianglehead.swap")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(Theme.secondaryInk)
+                SwapArrow()
+                    .stroke(Theme.secondaryInk, style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round))
+                    .frame(width: 10, height: 10)
                     .frame(width: 12, height: 12)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .focusEffectDisabled()
             .offset(x: 34, y: -2)
             .help(ShortcutStore.shared.hint("Swap Color 1 and Color 2", command: "canvas.swapColors"))
             .accessibilityLabel("Swap Colors")
         }
         .frame(width: 48, height: 30, alignment: .topLeading)
         .padding(.horizontal, 6)
+    }
+
+    /// A curved arrow with a head at each end, as in other paint programs: SF Symbols has none (Leah, 2026-10-15).
+    private struct SwapArrow: Shape {
+        func path(in rect: CGRect) -> Path {
+            let head = rect.width * 0.3
+            var path = Path()
+            path.move(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 1))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX - 1, y: rect.minY + 1), control: CGPoint(x: rect.minX + 1, y: rect.minY + 1))
+            // Down at the start, right at the end.
+            path.move(to: CGPoint(x: rect.minX + 1 - head / 1.4, y: rect.maxY - 1 - head / 1.4))
+            path.addLine(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 1))
+            path.addLine(to: CGPoint(x: rect.minX + 1 + head / 1.4, y: rect.maxY - 1 - head / 1.4))
+            path.move(to: CGPoint(x: rect.maxX - 1 - head / 1.4, y: rect.minY + 1 - head / 1.4))
+            path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.minY + 1))
+            path.addLine(to: CGPoint(x: rect.maxX - 1 - head / 1.4, y: rect.minY + 1 + head / 1.4))
+            return path
+        }
     }
 
     private func open(_ well: ColorWell) {

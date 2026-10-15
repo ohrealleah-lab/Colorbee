@@ -65,6 +65,7 @@ final class Renderer {
     private let queue: MTLCommandQueue
     private let layerPipeline: MTLRenderPipelineState
     private let checkerPipeline: MTLRenderPipelineState
+    private let shadowPipeline: MTLRenderPipelineState
     private let tintPipeline: MTLRenderPipelineState
     private let antsPipeline: MTLRenderPipelineState
     private let gridPipeline: MTLRenderPipelineState
@@ -140,6 +141,7 @@ final class Renderer {
         }
         layerPipeline = pipeline(fragment: "layer_fragment")
         checkerPipeline = pipeline(fragment: "checker_fragment")
+        shadowPipeline = pipeline(fragment: "shadow_fragment")
         antsPipeline = pipeline(fragment: "ants_fragment")
         tintPipeline = pipeline(fragment: "tint_fragment")
         gridPipeline = pipeline(fragment: "grid_fragment", blended: false)
@@ -223,6 +225,17 @@ final class Renderer {
             encoder.setVertexBytes(&uniforms, length: MemoryLayout<QuadUniforms>.stride, index: 0)
             encoder.setFragmentBytes(&uniforms, length: MemoryLayout<QuadUniforms>.stride, index: 0)
             encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
+        }
+        /// A soft shadow under `uniforms.rect`, falling slightly downward. Leaves the uniforms as they were.
+        func drawShadow() {
+            let saved = uniforms
+            let reach = Float(10 * scale), drop = Float(2 * scale)
+            uniforms.adjustParams = uniforms.rect + SIMD4(0, drop, 0, 0)
+            uniforms.photoParams.x = reach
+            uniforms.keyColor = SIMD4(0, 0, 0, 0.22)
+            uniforms.rect += SIMD4(-reach, drop - reach, 2 * reach, 2 * reach)
+            draw(shadowPipeline)
+            uniforms = saved
         }
         func sampling(_ smooth: Bool) {
             encoder.setFragmentSamplerState(smooth ? linearSampler : nearestSampler, index: 0)
@@ -406,6 +419,7 @@ final class Renderer {
         guard let mainEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
         encoder = mainEncoder
         uniforms.rect = deviceRect(canvas.bounds)
+        drawShadow()
         draw(checkerPipeline)
         if let comparison = scene.comparison, comparison.layout == .sideBySide {
             let before = comparison.before

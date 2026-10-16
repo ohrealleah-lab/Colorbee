@@ -49,6 +49,7 @@ struct CanvasPropertiesSheet: View {
                     .foregroundStyle(.orange)
             }
             HStack {
+                HelpButton(anchor: .canvasProperties)
                 Spacer()
                 Button("Cancel", role: .cancel) { editor.isCanvasPropertiesOpen = false }
                     .keyboardShortcut(.cancelAction)

@@ -189,6 +189,7 @@ private struct ExportPresetSettings: View {
                 Button("Add Preset") { store.items.append(.init(name: "New Preset", pixels: 1080, square: false)) }
                 Spacer()
                 Button("Reset to Defaults") { store.resetToDefaults() }
+                HelpButton(anchor: .exportPresets)
             }
         }
     }

@@ -132,6 +132,7 @@ struct ResizeSkewSheet: View {
             .monospacedDigit()
 
             HStack {
+                HelpButton(anchor: .resizeSkew)
                 Spacer()
                 Button("Cancel", role: .cancel) { editor.isResizeSkewOpen = false }
                     .keyboardShortcut(.cancelAction)

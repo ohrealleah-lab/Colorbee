@@ -67,6 +67,7 @@ struct ShortcutSettings: View {
                 Spacer()
                 Button("Import…") { importShortcuts() }
                 Button("Export…") { exportShortcuts() }
+                HelpButton(anchor: .shortcutSettings)
             }
         }
         .onDisappear(perform: stopRecording)

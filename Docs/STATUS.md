@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-15 · 542 core tests and 74 app tests passing, plus `make perf`_
+_Last updated: 2026-10-16 · 542 core tests and 100 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Help ? buttons](#test-help--buttons)
 
 ---
 
@@ -55,7 +55,7 @@ Nothing waiting right now.
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Next: phase 5, the ? buttons | Medium (phase 6 high) |
+| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 built (the ? buttons, 2026-10-16), waiting for Leah's test. Next: retake 4 screenshots (window, toolbar, palette bar, shortcuts) after the 10-15 interface polish; phase 6 | Medium (phase 6 high) |
 
 ## What's built
 
@@ -142,7 +142,7 @@ Nothing waiting right now.
 ## Not built yet (by stage)
 
 **Next up (Leah, 2026-10-11)**
-- Help: phases 5 (? buttons) and 6 (accuracy review). (Done 2026-10-11: `make help-index` stamps the help book's version with the date and time, so macOS's help cache shows changed pages.)
+- Help: retake window.png, toolbar.png, palette-bar.png and shortcuts.png (out of date since the 2026-10-15 toolbar polish and Redact menu; needs Leah's OK for screen access); phase 6 (accuracy review). Phase 5 (? buttons) built 2026-10-16. (Done 2026-10-11: `make help-index` stamps the help book's version with the date and time, so macOS's help cache shows changed pages.)
 
 **8 Hardening**
 - (Done again 2026-10-10, see AC-27.) The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
@@ -232,6 +232,17 @@ Logs in `build/soak-results*.txt` (not committed).
 3. Press **E**, **U** and **M**: Size and Outline/Fill appear and disappear with their capsules, and no empty capsule is left behind.
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
+
+### Test: Help ? buttons
+
+Small round ? buttons that open the right part of Colorbee Help (help phase 5). Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`, and `TestImages/Stage 12/Test Camera.dng` for step 6. Each ? should open Help at the named heading (scrolled to it), not a list of search results.
+
+1. **Auto-Redact:** open the screenshot, Redact ▸ Auto-Redact…. Click the ? at the bottom left: "What Auto-Redact checks".
+2. **Resize and Skew:** Image ▸ Resize and Skew… (⌘E), click ?: "Resize and Skew", under Crop and size it in Annotate an image. Read it: does it match the sheet?
+3. **Canvas Properties:** Image ▸ Canvas Properties… (⌥⌘E), click ?: "Canvas Properties", just below.
+4. **Settings:** Colorbee ▸ Settings… ▸ Shortcuts, click the ? at the bottom right: "Shortcuts" on the Settings page. Then the Export Presets tab's ?: "Export Presets".
+5. **Retouch:** press J, choose Remove, click the ? at the end of the palette bar: "Retouch: remove things and touch up spots". Now choose Clone Stamp and click ? again: the new "Using the Clone Stamp" section. Read it: does it make the Clone Stamp clearer?
+6. **Develop:** File ▸ Open `Test Camera.dng`. Click the ? at the bottom left of the Develop window: "RAW photos".
 
 ### Test: Toolbar and palette bar polish (passed 2026-10-15)
 

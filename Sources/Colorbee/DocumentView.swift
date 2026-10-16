@@ -268,6 +268,8 @@ private struct ToolOptions: View {
                     .help("Read what all visible layers show and write into this one, so you can retouch on an empty layer above")
             }
             hint(kind.hint)
+            HelpButton(anchor: kind == .cloneStamp ? .cloneStamp : .retouchTools)
+                .controlSize(.small)
         case .redactBrush:
             Picker("Treatment", selection: $editor.redactTreatment) {
                 Text("Solid Fill").tag(RedactionTreatment.solidFill)

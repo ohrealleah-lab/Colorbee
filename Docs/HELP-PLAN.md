@@ -112,6 +112,7 @@ Rules for the screenshots:
   - Resize and Skew
   - Canvas Properties
   - the Develop window
+  - the Retouch tool's options in the palette bar (added 2026-10-16; the Clone Stamp opens its own section)
 - **Screenshot script:** `make help-shots`. **Changed 2026-10-09 (Leah, option 1):** capturing a window from a script needs
   macOS's Screen Recording permission, which Colorbee doesn't ask for. So the script is guided instead: it opens
   Colorbee set up for each scene, Leah takes the picture with ⇧⌘4, Space and Option-click (or drags a box), presses

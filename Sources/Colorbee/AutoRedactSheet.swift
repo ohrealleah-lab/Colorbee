@@ -141,6 +141,7 @@ struct AutoRedactSheet: View {
 
     private var footer: some View {
         HStack {
+            HelpButton(anchor: .autoRedact)
             Label("Detection runs on-device. Nothing leaves this Mac.", systemImage: "lock")
                 .font(.caption)
                 .foregroundStyle(.secondary)

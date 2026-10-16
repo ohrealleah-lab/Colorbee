@@ -214,6 +214,7 @@ private struct DevelopView: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
+            HelpButton(anchor: .rawDevelop)
             Text(cameraSummary)
                 .font(.callout)
                 .foregroundStyle(.secondary)

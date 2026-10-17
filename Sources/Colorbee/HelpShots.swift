@@ -41,7 +41,8 @@ enum HelpShots {
         editor.applyAutoRedact()
         while editor.autoRedact != nil { try? await Task.sleep(for: .milliseconds(100)) }
         editor.toggleComparison()
-        // The divider left of the redactions, so the right (edited) side shows every black box.
-        editor.comparison?.divider = 0.2
+        // The divider through the middle of the email, phone and key, so each shows on the left and is covered on the
+        // right (review M, finding 9).
+        editor.comparison?.divider = 0.5
     }
 }

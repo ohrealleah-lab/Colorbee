@@ -40,6 +40,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         continuityImport.requestor(sendType: sendType, returnType: returnType)
     }
 
+    /// Paste into New Image with no window open, the usual way to start on a screenshot (review M, finding 1).
+    @objc func pasteIntoNewImage(_ sender: Any?) {
+        do { try DocumentWindow.openClipboardImage() } catch { NSApp.presentError(error) }
+    }
+
     @objc func showSettings(_ sender: Any?) {
         SettingsWindowController.shared.showWindow(nil)
         SettingsWindowController.shared.window?.makeKeyAndOrderFront(nil)
@@ -61,5 +66,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         true
+    }
+}
+
+extension AppDelegate: NSMenuItemValidation {
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        menuItem.action == #selector(pasteIntoNewImage(_:)) ? PasteboardImages.hasImage() : true
     }
 }

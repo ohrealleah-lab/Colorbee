@@ -318,3 +318,42 @@ Batches A and B fixed and passed Leah's tests on 2026-10-13; batch C fixed 2026-
 
 **Found in Leah's batch C test (2026-10-14):** Match Tone did nothing with a soft brush (Hardness under 100%, the default 50%). It measured the difference at the stroke's rim, where a soft brush has barely painted, so it read as no difference. **Fixed:** the difference at the edge is now what was there before minus what was copied (`RetouchStroke.toneReference`), so a soft rim comes out as exactly the original and the middle blends in. App tests with a soft brush on both paths (they fail with the old measuring).
 
+
+---
+
+# Help accuracy review (help phase 6, [PLAN-6.md](PLAN-6.md)), 2026-10-17
+
+Every finding was checked against the code and was real. All redaction safety claims in the help were correct.
+
+## Session M: the task guides ([findings](findings-M.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | Paste into New Image was greyed out with no window open | **Fixed in the app.** `AppDelegate` handles it too, so ⇧⌘V opens the clipboard image with no window open. |
+| 2 | High | Option-drag from inside a selection moves a copy, not subtracts | **Help fixed:** start the drag outside the selection. |
+| 3 | Medium | The Alpha percentage can't be typed in | **Help fixed.** |
+| 4 | Medium | "Every tool works on the active layer only" | **Help fixed:** redaction and whole-image commands change every layer. |
+| 5 | Low | Batch Redact Blur and Pixelate need Apply | **Help fixed:** step added. |
+| 6 | Low | Panel buttons are at the top of the sidebar | **Help fixed.** |
+| 7 | Low | Whole-image commands still change a locked layer | **Help fixed.** |
+| 8 | Low | Export As never enlarges pixel art | **Help fixed:** Resize and Skew with Sharp first. |
+| 9 | Low | `before-after.png` and `layers.png` out of date; the divider hid the "before" side | **Fixed:** the Before/After scene's divider is now in the middle; both pictures retaken. |
+| 10 | Low | Which Retouch tools have Strength and Hardness | **Help fixed.** |
+
+## Session Q: the reference pages ([findings](findings-Q.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | Option-drag to subtract (Troubleshooting, Tools) | **Help fixed,** with M2. |
+| 2 | Medium | Batch Redact Blur and Pixelate don't need a selection | **Help fixed (Leah, 2026-10-17):** kept as is; with nothing selected they redact the whole page, and only Solid Fill needs a selection. |
+| 3 | Medium | A shortcut macOS uses is refused, not warned about | **Help fixed.** |
+| 4 | Low | The earlier-versions offer only appears when there are earlier versions | **Help fixed.** |
+| 5 | Low | Untitled images' autosaves not listed | **Help fixed.** |
+| 6 | Low | A project keeps the camera details | **Help fixed.** |
+| 7 | Low | The Copy Text clipboard offer not mentioned | **Help fixed.** |
+| 8 | Low | "No eyes found" and "No sensitive text found" not quoted | **Help fixed.** |
+| 9 | Low | Tools intro: the Redact Brush changes every layer | **Help fixed.** |
+| 10 | Low | Size and Outline/Fill are in the toolbar | **Help fixed.** |
+| 11 | Low | The pressure switch isn't mentioned | **Help fixed.** |
+| 12 | Low | `export-presets.png` missing the ? button | **Fixed:** retaken. |
+| 13 | Low | The Settings… menu description left out General | **Fixed:** the menu's tooltip, and the generated Menus page. |

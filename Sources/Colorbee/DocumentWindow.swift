@@ -309,15 +309,16 @@ final class DocumentWindow: NSWindow {
 
     /// Paste into New Image (⇧⌘V): the clipboard image becomes a document of its own, at its own size.
     @objc func pasteIntoNewImage(_ sender: Any?) {
-        guard let data = Self.imageDataOnPasteboard() else { return }
-        do {
-            let decoded = try ImageCodec.decode(data)
-            let source = ClipboardHistory.shared.add(data)
-            ImageDocument.open(Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)],
-                                      hasTransparentBackground: decoded.buffer.hasTransparency), clipboardSource: source)
-        } catch {
-            presentError(error)
-        }
+        do { try Self.openClipboardImage() } catch { presentError(error) }
+    }
+
+    /// Also `AppDelegate`'s, so it works with no window open (review M, finding 1).
+    static func openClipboardImage() throws {
+        guard let data = imageDataOnPasteboard() else { return }
+        let decoded = try ImageCodec.decode(data)
+        let source = ClipboardHistory.shared.add(data)
+        ImageDocument.open(Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)],
+                                  hasTransparentBackground: decoded.buffer.hasTransparency), clipboardSource: source)
     }
 
     @objc func showCanvasProperties(_ sender: Any?) { editor?.isCanvasPropertiesOpen = true }

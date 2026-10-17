@@ -28,8 +28,8 @@
     <a name="redaction"></a>
     <h2>Copies a redaction can leave behind</h2>
     <ul>
-        <li><strong>Earlier versions and undo:</strong> after you redact and save with ⌘S, Colorbee offers Remove Earlier Versions and Undo History, so the original can't be brought back.</li>
-        <li><strong>Clipboard History:</strong> if the unredacted image is there, Colorbee offers to remove it, and to clear the clipboard if it still holds it.</li>
+        <li><strong>Earlier versions and undo:</strong> after you redact and save with ⌘S, if the file has earlier versions, Colorbee offers Remove Earlier Versions and Undo History, so the original can't be brought back.</li>
+        <li><strong>Clipboard History and Copy Text:</strong> if the unredacted image is in Clipboard History, or text you copied with Copy Text is still on the clipboard, Colorbee offers to remove it, and to clear the clipboard if it still holds the image.</li>
         <li><strong>Blur and Pixelate</strong> can sometimes be read back. Solid Fill can't.</li>
     </ul>
     <p>See <a href="redact-a-screenshot.html#copies">Redact a screenshot</a>.</p>
@@ -38,7 +38,7 @@
     <h2>What goes into the files you share</h2>
     <ul>
         <li><strong>Export as PDF</strong> writes pixels only: no hidden text under a redaction, and no title, author, app name or dates.</li>
-        <li><strong>Camera details</strong> (camera, lens, exposure and the date taken) go into an exported photo only if you turn on Include camera details in File ▸ Export…. Colorbee never keeps or writes the location, serial numbers or the owner's name.</li>
+        <li><strong>Camera details</strong> (camera, lens, exposure and the date taken) go into an exported photo only if you turn on Include camera details in File ▸ Export…. A Colorbee project keeps them, so share an export rather than the project. Colorbee never keeps or writes the location, serial numbers or the owner's name.</li>
     </ul>
 
     <a name="files"></a>
@@ -50,5 +50,6 @@
         <li><strong>Filters.json:</strong> the photo filters you've saved.</li>
     </ul>
     <p>Copies made for File ▸ Share… are temporary, and removed the next time you share or open Colorbee.</p>
+    <p>An untitled image is autosaved by macOS until you save or close it, so it comes back after a crash.</p>
 </body>
 </html>

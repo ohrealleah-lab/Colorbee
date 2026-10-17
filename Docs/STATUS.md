@@ -13,7 +13,7 @@ _Last updated: 2026-10-16 · 542 core tests and 100 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Help review fixes](#test-help-review-fixes)
 
 ---
 
@@ -232,6 +232,14 @@ Logs in `build/soak-results*.txt` (not committed).
 3. Press **E**, **U** and **M**: Size and Outline/Fill appear and disappear with their capsules, and no empty capsule is left behind.
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
+
+### Test: Help review fixes
+
+The help accuracy review (help phase 6, `Docs/Review/RESULTS.md`): one app fix and many help corrections. Rebuild with the script (option 2) first.
+
+1. **Paste into New Image with no window open:** close every Colorbee window (Colorbee keeps running). Copy `TestImages/Help/Sample Screenshot.png` (open it in Preview, ⌘A, ⌘C), then click Colorbee in the Dock and press ⇧⌘V. A new window opens with the screenshot. With something other than an image on the clipboard, File ▸ Paste into New Image is greyed out.
+2. **Read the whole help book once** (Help ▸ Colorbee Help), as a tester would. Note anything unclear or wrong.
+3. Look at the pictures on Work with layers (Layers panel), Redact a screenshot (Before/After: the email, phone and key show on the left of the divider and are covered on the right) and Settings (Export Presets, with its ?).
 
 ### Test: Help ? buttons (passed 2026-10-17)
 

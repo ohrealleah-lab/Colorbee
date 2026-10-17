@@ -31,7 +31,7 @@ enum MainMenu {
     private static let tooltips: [String: String] = [
         "orderFrontStandardAboutPanel:": "Version and credits.",
         "showHelp:": "How to use Colorbee: guides for the main jobs, and every tool, menu and setting.",
-        "showSettings:": "Keyboard shortcuts and export presets.",
+        "showSettings:": "Appearance, PDF resolution, keyboard shortcuts and export presets.",
         "hide:": "Hide Colorbee's windows until you switch back.",
         "hideOtherApplications:": "Hide every other app's windows.",
         "unhideAllApplications:": "Show every app's windows again.",

@@ -9,6 +9,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppearanceSetting.apply()
         // Strokes must see every input sample (NFR-2).
         NSEvent.isMouseCoalescingEnabled = false
+        // Help ▸ Colorbee Help and the ? buttons use this copy's help book. Left to find it alone, macOS can keep
+        // an older copy's cached book (from another build or version), whose new sections then can't be found.
+        NSHelpManager.shared.registerBooks(in: .main)
         let menu = MainMenu.make()
         // `make help`: the menus as built, before this Mac's changed shortcuts are applied; then quit.
         if let path = HelpDump.path {

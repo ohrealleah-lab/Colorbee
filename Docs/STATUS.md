@@ -235,7 +235,7 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ### Test: Help ? buttons
 
-Small round ? buttons that open the right part of Colorbee Help (help phase 5). Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`, and `TestImages/Stage 12/Test Camera.dng` for step 6. Each ? should open Help at the named heading (scrolled to it), not a list of search results.
+Small round ? buttons that open the right part of Colorbee Help (help phase 5). _2026-10-17: Leah's first try opened only Auto-Redact and Export Presets (sections that existed before); the rest said "selected content is unavailable", from macOS's cached older copy of the book. Colorbee now registers its own help book at launch (`NSHelpManager.registerBooks`)._ Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`, and `TestImages/Stage 12/Test Camera.dng` for step 6. Each ? should open Help at the named heading (scrolled to it), not a list of search results.
 
 1. **Auto-Redact:** open the screenshot, Redact ▸ Auto-Redact…. Click the ? at the bottom left: "What Auto-Redact checks".
 2. **Resize and Skew:** Image ▸ Resize and Skew… (⌘E), click ?: "Resize and Skew", under Crop and size it in Annotate an image. Read it: does it match the sheet?

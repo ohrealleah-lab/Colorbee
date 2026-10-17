@@ -810,7 +810,7 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [x] AC-39 Cmd+? opens Colorbee Help (FR-14.6).
 - [x] AC-40 Typing "redact" in the Help menu's search lists the Redact a screenshot guide.
 - [x] AC-41 Every menu command appears in the Menus reference with its default shortcut.
-- [ ] AC-42 Each contextual ? button opens the matching section.
+- [x] AC-42 Each contextual ? button opens the matching section.
 - [ ] AC-43 Scan Documents from an iPhone adds the scans as pages after the page shown, at the phone's own pixel size, as one undo step; with no window open, they open as a new document.
 - [x] AC-44 Copy Text on a screenshot puts its text on the clipboard in reading order. On an image with no text it says "No text found" and leaves the clipboard unchanged.
 - [x] AC-45 Step badges count 1, 2, 3 in order; undoing one steps the next number back; Letters gives A, B, C.

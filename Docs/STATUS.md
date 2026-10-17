@@ -13,7 +13,7 @@ _Last updated: 2026-10-16 · 542 core tests and 100 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Help ? buttons](#test-help--buttons)
+Nothing waiting right now.
 
 ---
 
@@ -55,7 +55,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 built (the ? buttons, 2026-10-16), waiting for Leah's test. Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 and 10-17. Next: phase 6 | Medium (phase 6 high) |
+| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 and 10-17. Next: phase 6 | Medium (phase 6 high) |
 
 ## What's built
 
@@ -233,7 +233,7 @@ Logs in `build/soak-results*.txt` (not committed).
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
 
-### Test: Help ? buttons
+### Test: Help ? buttons (passed 2026-10-17)
 
 Small round ? buttons that open the right part of Colorbee Help (help phase 5). _2026-10-17: Leah's first try opened only Auto-Redact and Export Presets (sections that existed before); the rest said "selected content is unavailable", from macOS's cached older copy of the book. Colorbee now registers its own help book at launch (`NSHelpManager.registerBooks`)._ Rebuild with the script (option 2) first. Use `TestImages/Help/Sample Screenshot.png`, and `TestImages/Stage 12/Test Camera.dng` for step 6. Each ? should open Help at the named heading (scrolled to it), not a list of search results.
 

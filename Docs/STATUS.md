@@ -55,7 +55,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 built (the ? buttons, 2026-10-16), waiting for Leah's test. Next: retake 4 screenshots (window, toolbar, palette bar, shortcuts) after the 10-15 interface polish; phase 6 | Medium (phase 6 high) |
+| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 built (the ? buttons, 2026-10-16), waiting for Leah's test. Toolbar, palette bar and shortcuts pictures retaken 2026-10-16. Next: retake window.png; phase 6 | Medium (phase 6 high) |
 
 ## What's built
 
@@ -142,7 +142,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 ## Not built yet (by stage)
 
 **Next up (Leah, 2026-10-11)**
-- Help: retake window.png, toolbar.png, palette-bar.png and shortcuts.png (out of date since the 2026-10-15 toolbar polish and Redact menu; needs Leah's OK for screen access); phase 6 (accuracy review). Phase 5 (? buttons) built 2026-10-16. (Done 2026-10-11: `make help-index` stamps the help book's version with the date and time, so macOS's help cache shows changed pages.)
+- Help: retake window.png (out of date since the 2026-10-15 toolbar polish; needs the canvas drawn, so it needs Leah's OK for full-screen control; toolbar, palette bar and shortcuts were retaken off-screen on 2026-10-16); phase 6 (accuracy review). Phase 5 (? buttons) built 2026-10-16. (Done 2026-10-11: `make help-index` stamps the help book's version with the date and time, so macOS's help cache shows changed pages.)
 
 **8 Hardening**
 - (Done again 2026-10-10, see AC-27.) The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.

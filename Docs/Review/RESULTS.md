@@ -337,7 +337,7 @@ Every finding was checked against the code and was real. All redaction safety cl
 | 6 | Low | Panel buttons are at the top of the sidebar | **Help fixed.** |
 | 7 | Low | Whole-image commands still change a locked layer | **Help fixed.** |
 | 8 | Low | Export As never enlarges pixel art | **Help fixed:** Resize and Skew with Sharp first. |
-| 9 | Low | `before-after.png` and `layers.png` out of date; the divider hid the "before" side | **Fixed:** the Before/After scene's divider is now in the middle; both pictures retaken. |
+| 9 | Low | `before-after.png` and `layers.png` out of date; the divider hid the "before" side | **Fixed:** the Before/After scene's divider now runs through the email, phone and key; both pictures retaken (and window.png, whose bottom edge was trimmed short). |
 | 10 | Low | Which Retouch tools have Strength and Hardness | **Help fixed.** |
 
 ## Session Q: the reference pages ([findings](findings-Q.md))

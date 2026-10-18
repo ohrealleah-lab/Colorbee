@@ -43,6 +43,6 @@ enum HelpShots {
         editor.toggleComparison()
         // The divider through the middle of the email, phone and key, so each shows on the left and is covered on the
         // right (review M, finding 9).
-        editor.comparison?.divider = 0.5
+        editor.comparison?.divider = 0.34
     }
 }

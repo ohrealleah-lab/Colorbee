@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-16 · 542 core tests and 100 app tests passing, plus `make perf`_
+_Last updated: 2026-10-19 · 542 core tests and 100 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 

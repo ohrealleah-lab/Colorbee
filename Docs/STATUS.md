@@ -13,7 +13,7 @@ _Last updated: 2026-10-16 · 542 core tests and 100 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Help review fixes](#test-help-review-fixes)
+Nothing waiting right now.
 
 ---
 
@@ -55,7 +55,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| Help (FR-14.6) | Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 and 10-17. Next: phase 6 | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
+| Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
 
@@ -142,7 +142,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 ## Not built yet (by stage)
 
 **Next up (Leah, 2026-10-11)**
-- Help: phase 6 (accuracy review). Phase 5 (? buttons) built 2026-10-16. (Done 2026-10-11: `make help-index` stamps the help book's version with the date and time, so macOS's help cache shows changed pages.)
+- Help: done 2026-10-19 (phases 1–6). Keep it current: see "Keeping it current" in `Docs/HELP-PLAN.md`.
 
 **8 Hardening**
 - (Done again 2026-10-10, see AC-27.) The 30-minute soak (NFR-7) and a fresh `make perf`, **only when Leah says the Mac is free**: on 2026-10-03 the 30-minute soak drove the Mac into heavy swap and its test process set off a macOS kernel panic. Freeing history's layer memory now uses `madvise` (as the system allocator does) instead of remapping it; the heavy runs re-check that.
@@ -233,7 +233,7 @@ Logs in `build/soak-results*.txt` (not committed).
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
 
-### Test: Help review fixes
+### Test: Help review fixes (passed 2026-10-19)
 
 The help accuracy review (help phase 6, `Docs/Review/RESULTS.md`): one app fix and many help corrections. Rebuild with the script (option 2) first.
 

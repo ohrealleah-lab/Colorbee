@@ -222,7 +222,7 @@ These let you build several separate regions for batch redaction (FR-9.4).
 - Option-click samples the combined image of all visible layers instead of only the active layer.
 
 ### FR-4.6 Retouching (stage 13)
-Retouching works only from the real pixels in the image. **No AI model ships in Colorbee for now**, to keep it small; AI may come later (§23, 2026-10-10).
+Retouching works only from the real pixels in the image. **No AI model ships in Colorbee**, to keep it small (§23, 2026-10-10, 2026-10-19).
 
 - The **Retouch** gallery in the toolbar (key J) holds Remove, Spot Heal, Clone Stamp, Lighten, Darken, Saturate, Desaturate, Blur, Sharpen and Smudge. J picks the one used last.
 - **Size:** 1–300 px, from the Size control; [ and ] change it. A Force Touch trackpad or pen changes the size with pressure, as for the brushes, except for Remove and Spot Heal, which mark an area to fill at a steady width (Leah, 2026-10-13).
@@ -425,7 +425,7 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - **Select Subject:** makes a selection from the subject. Its edges are hard until soft selections arrive in stage 13 (FR-3.4); then it keeps Vision's soft edges.
 - With several subjects, clicking one picks just that subject.
 - Shows "No subject found" when Vision finds nothing (screenshots, text).
-- **Clean Up** with an AI model isn't planned for now: no AI models ship in Colorbee, to keep it small; AI may come later (§23, 2026-10-10). Objects are removed with the Remove tool (FR-4.6), which fills from the image's own pixels.
+- **Clean Up** with an AI model isn't planned: no AI models ship in Colorbee, to keep it small (§23, 2026-10-10, 2026-10-19). Objects are removed with the Remove tool (FR-4.6), which fills from the image's own pixels.
 
 **Effects menu**
 - **Add Noise:** amount, and monochrome or color noise.
@@ -568,9 +568,7 @@ Any Colorbee document can have pages, so Colorbee can also make its own PDFs fro
 ### FR-11.7 Import from iPhone or iPad: removed
 **Removed (Leah, 2026-10-19).** It worked only with no document open, and adding to an open document never worked
 (SwiftUI's views don't pass macOS's Continuity Camera request on). The app code is gone; the core's
-`PDFPages.scannedPage` and `PageStack.insert(_:at:named:)` stay, tested, should it come back. Ideas that were listed
-here for later and still apply to PDFs: searchable text in exported PDFs (an opt-in that's off and refused on any
-redacted page) and "Split Page in Half" for two-page spreads.
+`PDFPages.scannedPage` and `PageStack.insert(_:at:named:)` stay, tested, should it come back.
 
 ### FR-11.8 RAW photos (stage 12)
 Open camera RAW files, develop them, then edit and export like any image.
@@ -823,6 +821,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-19 | **No more new features** (Leah): Colorbee's feature set is complete. The ideas kept for later are dropped: an AI fill model for Remove, searchable text in exported PDFs, and Split Page in Half. From here on, work is fixes, polish and betas. |
 | 2026-10-19 | **Import from iPhone or iPad removed** (Leah): struck from the FRD (FR-11.7, AC-43, stage 11) and the help; the File menu item and the app code that received from the phone are deleted. Review N, finding 4 (an import during the Auto-Redact review) no longer applies. The core helpers it used stay, tested. |
 | 2026-10-16 | Help phase 5 (Leah): the Retouch tool's options get a ? button too, since the Clone Stamp is the trickiest tool; Feather and Batch Redact don't (one slider each). My choices (veto any): the ? is at the bottom left of sheets and the Develop window, and at the bottom right of the Shortcuts and Export Presets tabs, after their other buttons; in the palette bar it's last, after the tip, and opens a new "Using the Clone Stamp" section when the Clone Stamp is chosen, or the Retouch section otherwise. Resize and Skew and Canvas Properties had no section of their own, so each gets a short one in Annotate an image, under Crop and size it. Each ? opens an anchor used only once in the book, since Help Viewer lists pages instead of jumping when one is repeated. |
 | 2026-10-15 | Toolbar capsules (Leah): each toolbar group sits in a capsule a shade darker than the window (7% black; 10% white in dark mode), drawn by Colorbee instead of the Liquid Glass one, so the icons stand out. My choices (veto any): each group is now one toolbar item, so on a window too narrow for everything a whole group goes into the » menu rather than single buttons. |

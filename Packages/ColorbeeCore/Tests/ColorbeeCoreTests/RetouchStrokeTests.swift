@@ -120,4 +120,42 @@ struct RetouchStrokeTests {
         history.commit(edit)
         #expect(abs(Int(canvas.activeLayer.buffer[75, 40].r) - 180) < 8)
     }
+
+    /// A Clone Stamp stroke with Match Tone, the way the Editor does it: the reference is read before the step ends.
+    private func toneMatchedStroke(_ kind: RetouchStroke.Kind, on canvas: Canvas, history: History, from a: Point2D, to b: Point2D) throws {
+        let edit = history.beginEdit("Clone Stamp", on: canvas)
+        let stroke = RetouchStroke(diameter: 20, hardness: 1, strength: 1, kind: kind, layer: canvas.activeLayer, edit: edit)
+        stroke.move(to: a)
+        stroke.move(to: b)
+        stroke.finish()
+        let mask = try #require(stroke.coverage)
+        let reference = stroke.toneReference(over: ToneMatch.readArea(for: mask, in: canvas.bounds), mask: mask)
+        ToneMatch.apply(to: canvas.activeLayer, in: mask, reference: reference, edit: edit)
+        history.commit(edit)
+    }
+
+    /// Review R, finding 2: on an empty layer with Sample All Layers, the edge is measured against what's shown below,
+    /// so the copy is evened toward the gray around it, not pulled toward the empty layer's see-through black.
+    @Test func matchToneOnAnEmptyLayerMeasuresWhatsShown() throws {
+        let (canvas, history) = canvas()
+        canvas.activeLayer.buffer.fill(Pixel(r: 60, g: 60, b: 60), in: IntRect(x: 0, y: 0, width: 40, height: 80))
+        canvas.insertLayer(Layer(name: "Fixes", buffer: PixelBuffer(width: 120, height: 80)), at: 1)
+        canvas.activeLayerIndex = 1
+        let shown = canvas.composited(through: 1)
+        try toneMatchedStroke(.clone(offset: IntPoint(x: -60, y: 0), source: shown), on: canvas, history: history,
+                              from: Point2D(x: 75, y: 30), to: Point2D(x: 75, y: 50))
+        let pixel = canvas.activeLayer.buffer[75, 40]
+        #expect(pixel.a == 255)
+        #expect(abs(Int(pixel.r) - 128) < 12, "\(pixel)")
+    }
+
+    /// Review R, finding 2: over a see-through hole, the hole's color says nothing, so the copy isn't darkened.
+    @Test func matchToneIgnoresSeeThroughPixels() throws {
+        let (canvas, history) = canvas()
+        canvas.activeLayer.buffer.fill(Pixel(r: 60, g: 60, b: 60), in: IntRect(x: 0, y: 0, width: 40, height: 80))
+        canvas.activeLayer.buffer.fill(.clear, in: IntRect(x: 50, y: 10, width: 60, height: 60))
+        try toneMatchedStroke(.clone(offset: IntPoint(x: -60, y: 0), source: nil), on: canvas, history: history,
+                              from: Point2D(x: 75, y: 30), to: Point2D(x: 75, y: 50))
+        #expect(abs(Int(canvas.activeLayer.buffer[75, 40].r) - 60) < 6)
+    }
 }

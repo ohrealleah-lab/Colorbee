@@ -341,6 +341,50 @@ struct MatchToneTests {
         #expect(matched.stepNames == ["Clone Stamp"])
         #expect(matched.canvas.activeLayer.buffer[150, 60].r > 100)
     }
+
+    /// Review R, finding 1: an edit started while the tone is still being worked out lands it first, so undoing that
+    /// edit, or cancelling an effect, keeps the tone.
+    @Test func aNewEditLandsThePendingToneFirst() async throws {
+        let limit = Editor.backgroundToneArea
+        Editor.backgroundToneArea = 100
+        defer { Editor.backgroundToneArea = limit }
+        let landed = try await cloned(matchingTone: true).canvas.activeLayer.buffer.contentHash()
+
+        func pending() -> Editor {
+            let editor = makeEditor(width: 200, height: 120, background: Pixel(r: 220, g: 220, b: 220, a: 255))
+            editor.canvas.activeLayer.buffer.fill(Pixel(r: 40, g: 40, b: 40, a: 255), in: IntRect(x: 0, y: 0, width: 80, height: 120))
+            for x in stride(from: 0, to: 80, by: 4) {
+                editor.canvas.activeLayer.buffer.fill(Pixel(r: 50, g: 50, b: 50, a: 255), in: IntRect(x: x, y: 0, width: 2, height: 120))
+            }
+            editor.selectTool(.retouch)
+            editor.retouchKind = .cloneStamp
+            editor.retouchSize = 40
+            editor.retouchHardness = 1
+            editor.cloneMatchesTone = true
+            editor.setCloneSource(pt(40.5, 40.5))
+            editor.beginRetouchBrush(at: pt(150.5, 40.5), pressure: 1)
+            editor.continueRetouchBrush(to: pt(150.5, 80.5), constrain: false, pressure: 1)
+            editor.endRetouchBrush()
+            #expect(editor.isMatchingTone)
+            return editor
+        }
+
+        // Another stroke across it, then undone.
+        let stroked = pending()
+        stroked.selectTool(.pencil)
+        stroked.stroke([pt(120.5, 60.5), pt(180.5, 60.5)])
+        #expect(!stroked.isMatchingTone)
+        stroked.undo()
+        #expect(stroked.canvas.activeLayer.buffer.contentHash() == landed)
+        #expect(stroked.stepNames == ["Clone Stamp"])
+
+        // An effect's bar opened and cancelled.
+        let cancelled = pending()
+        cancelled.beginEffect(.gaussianBlur)
+        cancelled.cancelEffect()
+        #expect(cancelled.canvas.activeLayer.buffer.contentHash() == landed)
+        #expect(cancelled.stepNames == ["Clone Stamp"])
+    }
 }
 
 /// What the earlier tests left untested (review P, finding 12).

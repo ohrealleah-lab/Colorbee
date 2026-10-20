@@ -1027,6 +1027,7 @@ final class Editor {
     /// Ends any drag in progress so menu commands and undo see a settled document.
     /// A pending shape is placed.
     private func finishInteractions() {
+        finishPendingTone()
         endGradient()
         shapeDrag = nil
         commitPendingShape()
@@ -1715,7 +1716,7 @@ final class Editor {
         let stroke = brush.stroke as? RetouchStroke
         var tone: (mask: SelectionMask, reference: ToneMatch.Reference?)?
         if brush.kind == .cloneStamp, cloneMatchesTone, let stroke, let mask = stroke.coverage {
-            tone = (mask, stroke.toneReference(over: ToneMatch.readArea(for: mask, in: canvas.bounds)))
+            tone = (mask, stroke.toneReference(over: ToneMatch.readArea(for: mask, in: canvas.bounds), mask: mask))
         }
         // A dab or a short stroke is matched at once, as part of its step, so quick dabs never miss it; only a big
         // stroke goes to the background.
@@ -1732,30 +1733,55 @@ final class Editor {
     static var backgroundToneArea = 250_000
 
     /// The Clone Stamp's Match Tone: worked out in the background from a copy of the pixels, so a long stroke doesn't
-    /// pause the app, then folded into the stroke's step (review O, finding 13). If the image changed meanwhile it no
-    /// longer fits, and the stroke stays as it was.
+    /// pause the app, then folded into the stroke's step (review O, finding 13). Anything that starts a new edit
+    /// first waits for it and lands it (`finishPendingTone`), so it never lands in the middle of another edit, where
+    /// that edit's undo or Cancel would lose it (review R, finding 1).
     private func matchTone(in mask: SelectionMask, reference: ToneMatch.Reference?) {
         let layer = canvas.activeLayer
         let area = ToneMatch.readArea(for: mask, in: layer.buffer.bounds)
         guard !area.isEmpty else { return }
-        let pixels = layer.buffer.pixels(in: area), work = UnsafeTransfer(mask)
-        let revision = history.revision, layerID = layer.id, pageID = page.id
+        // With a reference the plan needs only the edge's before and copied pixels, not a copy of the area.
+        let pixels = reference == nil ? layer.buffer.pixels(in: area) : nil
+        let pending = PendingTone(revision: history.revision, layer: layer.id, page: page.id)
+        let work = UnsafeTransfer(mask)
+        pendingTone = pending
         isMatchingTone = true
-        Task { @MainActor [weak self] in
-            let plan = await Task.detached(priority: .userInitiated) {
-                UnsafeTransfer(ToneMatch.plan(pixels, area: area, mask: work.value, reference: reference))
-            }.value
-            guard let self else { return }
-            self.isMatchingTone = false
-            guard let plan = plan.value else { return }
-            guard self.history.revision == revision, self.page.id == pageID, self.canvas.activeLayer.id == layerID else {
-                return self.showNotice("The image changed before Match Tone finished, so the stroke kept its own tone.")
-            }
-            let edit = self.history.beginEdit(RetouchKind.cloneStamp.name, on: self.canvas)
-            ToneMatch.apply(plan, to: self.canvas.activeLayer, edit: edit)
-            self.recordingChanges { self.history.commit(edit, mergingIntoPrevious: true) }
-            self.onRender()
+        DispatchQueue.global(qos: .userInitiated).async {
+            pending.plan = UnsafeTransfer(ToneMatch.plan(pixels, area: area, mask: work.value, reference: reference))
+            pending.done.signal()
+            DispatchQueue.main.async { [weak self] in self?.land(pending) }
         }
+    }
+
+    /// Waits for a Match Tone still being worked out, and lands it, before anything else changes the image.
+    private func finishPendingTone() {
+        guard let pending = pendingTone else { return }
+        pending.done.wait()
+        land(pending)
+    }
+
+    private func land(_ pending: PendingTone) {
+        guard pendingTone === pending else { return }
+        pendingTone = nil
+        isMatchingTone = false
+        guard let plan = pending.plan?.value else { return }
+        // Every new edit lands the tone first, so these hold unless something changed the image without that; then
+        // the stroke keeps its own tone rather than the tone landing in another edit.
+        guard history.revision == pending.revision, page.id == pending.page, canvas.activeLayer.id == pending.layer,
+              !isEditInProgress else {
+            return showNotice("The image changed before Match Tone finished, so the stroke kept its own tone.")
+        }
+        let edit = history.beginEdit(RetouchKind.cloneStamp.name, on: canvas)
+        ToneMatch.apply(plan, to: canvas.activeLayer, edit: edit)
+        recordingChanges { history.commit(edit, mergingIntoPrevious: true) }
+        onRender()
+    }
+
+    /// A stroke, drag, effect, fill or object being placed.
+    private var isEditInProgress: Bool {
+        activeStroke != nil || retouchBrush != nil || retouchStroke != nil || redactStroke != nil || selectionDrag != nil
+            || gradientDrag != nil || activeEffect != nil || fillProgress != nil || pendingShape != nil || pendingText != nil
+            || pendingBadge != nil
     }
 
     /// Where the crosshair goes while hovering with the Clone Stamp: the source, or where an aligned offset reads from.
@@ -2324,6 +2350,22 @@ final class Editor {
     @ObservationIgnored private var featherOriginal: SelectionMask?
     /// Whether the last Clone Stamp stroke's Match Tone is still being worked out.
     private(set) var isMatchingTone = false
+    @ObservationIgnored private var pendingTone: PendingTone?
+
+    /// A Match Tone being worked out: `plan` is set before `done` is signalled.
+    private final class PendingTone: @unchecked Sendable {
+        let revision: Int
+        let layer: LayerID
+        let page: UUID
+        let done = DispatchSemaphore(value: 0)
+        var plan: UnsafeTransfer<ToneMatch.Plan?>?
+
+        init(revision: Int, layer: LayerID, page: UUID) {
+            self.revision = revision
+            self.layer = layer
+            self.page = page
+        }
+    }
     /// The radius the preview shows, whether one is being worked out, and a count that drops a stale one.
     @ObservationIgnored private var featherShown: Double?
     @ObservationIgnored private var featherRunning = false
@@ -4071,6 +4113,7 @@ final class Editor {
     var isRedacting: Bool { autoRedact?.applying != nil }
 
     func placePendingObjects() {
+        finishPendingTone()
         commitPendingShape()
         commitPendingText()
         commitPendingBadge()

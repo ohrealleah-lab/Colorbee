@@ -35,6 +35,8 @@ public final class RetouchStroke: Stroke {
 
     public let diameter: Double
     let painter: CoveragePainter
+    /// What the Clone Stamp copies from with Sample All Layers: also what was shown before the stroke, for Match Tone.
+    private var shown: PixelBuffer?
     private let hardness: Double
     private let strength: Double
     private var walker = DabWalker()
@@ -55,6 +57,7 @@ public final class RetouchStroke: Stroke {
                 }
             }
         case .clone(let offset, let source):
+            shown = source
             painter.transform = { [unowned painter] x, y, original in
                 let sx = x + offset.x, sy = y + offset.y
                 guard sx >= 0, sy >= 0, sx < bounds.maxX, sy < bounds.maxY else { return original }
@@ -68,22 +71,20 @@ public final class RetouchStroke: Stroke {
     /// What the stroke covered, for the Clone Stamp's Match Tone.
     public var coverage: SelectionMask? { painter.coverageMask() }
 
-    /// For Match Tone: over `area`, what each pixel was before the stroke and what the stroke copied there. Measuring
-    /// the difference from these, not from the painted pixels, makes a soft brush blend in too: at its soft rim the
-    /// painted pixels are still mostly the original, which read as no difference at all (Leah's test, 2026-10-14).
-    public func toneReference(over area: IntRect) -> ToneMatch.Reference? {
+    /// For Match Tone: at the edge of `mask` within `area`, what was shown before the stroke and what the stroke
+    /// copied there. Measuring the difference from these, not from the painted pixels, makes a soft brush blend in too:
+    /// at its soft rim the painted pixels are still mostly the original (Leah's test, 2026-10-14). With Sample All
+    /// Layers, what was shown is the layers below, not the empty layer painted on (review R, finding 2). Only the edge
+    /// is read, a pixel at a time, so a long stroke doesn't pause the app as it ends (review R, finding 4).
+    public func toneReference(over area: IntRect, mask: SelectionMask) -> ToneMatch.Reference? {
         guard let transform = painter.transform, !area.isEmpty else { return nil }
-        var before: [Pixel] = [], copied: [Pixel] = []
-        before.reserveCapacity(area.area)
-        copied.reserveCapacity(area.area)
-        for y in area.minY..<area.maxY {
-            for x in area.minX..<area.maxX {
-                let original = painter.original(atX: x, y: y)
-                before.append(original)
-                copied.append(transform(x, y, original))
-            }
+        var values: [Int: ToneMatch.EdgePair] = [:]
+        for index in ToneMatch.edge(of: mask, in: area) {
+            let x = area.minX + index % area.width, y = area.minY + index / area.width
+            let original = painter.original(atX: x, y: y)
+            values[index] = ToneMatch.EdgePair(before: shown?[x, y] ?? original, copied: transform(x, y, original))
         }
-        return ToneMatch.Reference(before: before, copied: copied)
+        return ToneMatch.Reference(values: values)
     }
 
     @discardableResult
@@ -255,16 +256,42 @@ public enum ToneMatch {
         let offsets: [SIMD4<Float>]
     }
 
-    /// Over the read area, row by row: each pixel before the stroke, and what the stroke copied there.
+    public struct EdgePair: Sendable {
+        let before: Pixel
+        let copied: Pixel
+    }
+
+    /// At the area's edge, keyed by index in the read area (row by row): what was shown before the stroke, and what
+    /// the stroke copied there.
     public struct Reference: Sendable {
-        let before: [Pixel]
-        let copied: [Pixel]
+        let values: [Int: EdgePair]
     }
 
     public static func apply(to layer: Layer, in mask: SelectionMask, reference: Reference? = nil, edit: Edit) {
         let area = readArea(for: mask, in: layer.buffer.bounds)
-        guard !area.isEmpty, let plan = plan(layer.buffer.pixels(in: area), area: area, mask: mask, reference: reference) else { return }
+        guard !area.isEmpty,
+              let plan = plan(reference == nil ? layer.buffer.pixels(in: area) : nil, area: area, mask: mask, reference: reference)
+        else { return }
         apply(plan, to: layer, edit: edit)
+    }
+
+    /// The indices in `area` (row by row) of the pixels inside `mask` with a pixel outside it beside them, found on all
+    /// cores.
+    static func edge(of mask: SelectionMask, in area: IntRect) -> [Int] {
+        func inside(_ x: Int, _ y: Int) -> Bool { mask.bounds.contains(IntPoint(x: x, y: y)) && mask[x, y] > 0 }
+        let bands = (area.height + 63) / 64
+        return ParallelRows.map(bands) { band -> [Int] in
+            var found: [Int] = []
+            for y in (area.minY + band * 64)..<min(area.maxY, area.minY + (band + 1) * 64) {
+                for x in area.minX..<area.maxX where inside(x, y) {
+                    func outside(_ nx: Int, _ ny: Int) -> Bool { area.contains(IntPoint(x: nx, y: ny)) && !inside(nx, ny) }
+                    if outside(x + 1, y) || outside(x - 1, y) || outside(x, y + 1) || outside(x, y - 1) {
+                        found.append((y - area.minY) * area.width + x - area.minX)
+                    }
+                }
+            }
+            return found
+        }.flatMap { $0 }
     }
 
     /// The pixels `plan` needs: the area's bounds and a pixel all round, on the canvas.
@@ -272,12 +299,13 @@ public enum ToneMatch {
         IntRect(x: mask.bounds.minX - 1, y: mask.bounds.minY - 1, width: mask.bounds.width + 2, height: mask.bounds.height + 2).intersection(bounds)
     }
 
-    /// `pixels` are the layer's over `area` (from `readArea`), row by row. With a `reference`, the difference at the
-    /// edge is what was there before minus what was copied; without one, the surroundings minus the painted pixel.
+    /// With a `reference`, the difference at the edge is what was shown before minus what was copied, counted by how
+    /// opaque both are: a see-through pixel's color says nothing (review R, finding 2). Without one, it's the
+    /// surroundings minus the painted pixel, from `pixels`: the layer's over `area` (from `readArea`), row by row.
     /// Nil when there's nothing to match.
-    public static func plan(_ pixels: [Pixel], area: IntRect, mask: SelectionMask, reference: Reference? = nil) -> Plan? {
-        guard !area.isEmpty, pixels.count == area.area else { return nil }
-        if let reference, reference.before.count != area.area || reference.copied.count != area.area { return nil }
+    public static func plan(_ pixels: [Pixel]?, area: IntRect, mask: SelectionMask, reference: Reference? = nil) -> Plan? {
+        guard !area.isEmpty, reference != nil || pixels?.count == area.area else { return nil }
+        let pixels = pixels ?? []
         func rgb(_ p: Pixel) -> SIMD4<Float> { SIMD4(Float(p.r), Float(p.g), Float(p.b), 0) }
         let width = area.width, height = area.height
         func inside(_ x: Int, _ y: Int) -> Bool { mask.bounds.contains(IntPoint(x: x, y: y)) && mask[x, y] > 0 }
@@ -286,6 +314,7 @@ public enum ToneMatch {
             return SIMD4(Float(p.r), Float(p.g), Float(p.b), 0)
         }
         var offsets = [SIMD4<Float>](repeating: .zero, count: width * height)
+        var weights = [Float](repeating: 1, count: width * height)
         var known = [Bool](repeating: false, count: width * height)
         var edge: [(Int, Int)] = []
         var cells: [(Int, Int)] = []
@@ -296,12 +325,18 @@ public enum ToneMatch {
                 for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                     let nx = x + dx, ny = y + dy
                     guard area.contains(IntPoint(x: nx, y: ny)), !inside(nx, ny) else { continue }
-                    sum += value(nx, ny)
+                    if reference == nil { sum += value(nx, ny) }
                     count += 1
                 }
                 if count > 0 {
                     let index = (y - area.minY) * width + x - area.minX
-                    offsets[index] = reference.map { rgb($0.before[index]) - rgb($0.copied[index]) } ?? sum / count - value(x, y)
+                    if let reference {
+                        let pair = reference.values[index]
+                        offsets[index] = pair.map { rgb($0.before) - rgb($0.copied) } ?? .zero
+                        weights[index] = pair.map { Float(min($0.before.a, $0.copied.a)) / 255 } ?? 0
+                    } else {
+                        offsets[index] = sum / count - value(x, y)
+                    }
                     edge.append((x, y))
                 }
             }
@@ -311,16 +346,17 @@ public enum ToneMatch {
         var onEdge = [Bool](repeating: false, count: width * height)
         for (x, y) in edge { onEdge[(y - area.minY) * width + x - area.minX] = true }
         for (x, y) in edge {
-            var sum = SIMD4<Float>.zero, count: Float = 0
+            var sum = SIMD4<Float>.zero, total: Float = 0
             for dy in -3...3 {
                 for dx in -3...3 {
                     let nx = x + dx - area.minX, ny = y + dy - area.minY
                     guard nx >= 0, ny >= 0, nx < width, ny < height, onEdge[ny * width + nx] else { continue }
-                    sum += raw[ny * width + nx]
-                    count += 1
+                    let weight = weights[ny * width + nx]
+                    sum += raw[ny * width + nx] * weight
+                    total += weight
                 }
             }
-            offsets[(y - area.minY) * width + x - area.minX] = sum / count
+            offsets[(y - area.minY) * width + x - area.minX] = total > 0 ? sum / total : .zero
             known[(y - area.minY) * width + x - area.minX] = true
         }
         var remaining = cells.filter { !known[($0.1 - area.minY) * width + $0.0 - area.minX] }

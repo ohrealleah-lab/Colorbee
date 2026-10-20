@@ -357,3 +357,24 @@ Every finding was checked against the code and was real. All redaction safety cl
 | 11 | Low | The pressure switch isn't mentioned | **Help fixed.** |
 | 12 | Low | `export-presets.png` missing the ? button | **Fixed:** retaken. |
 | 13 | Low | The Settings… menu description left out General | **Fixed:** the menu's tooltip, and the generated Menus page. |
+
+---
+
+# Code review round 6 ([PLAN-7.md](PLAN-7.md)), 2026-10-20
+
+## Session R: everything since round 5 ([findings](findings-R.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | A big stroke's background Match Tone could land in the middle of the next edit: undo left blocks, Cancel lost it, a Remove fill was cancelled | **Fixed.** Anything that starts a new edit (`finishInteractions`, and placing objects before a save) first waits for a pending tone and lands it, as Straighten waits; a tone that arrives with an edit open is dropped with a notice. App test. |
+| 2 | High | Match Tone turned a copy dark on an empty layer (Sample All Layers) or over see-through pixels | **Fixed.** With Sample All Layers the edge is measured against what was shown below; each edge pixel counts by how opaque it is, so see-through pixels count for nothing. Core tests. |
+| 3 | Low | View menu checkmarks went stale while an effect's bar, a sheet or a text box was open | **Fixed.** Checkmarks are set before the early returns (`DocumentWindow.isOn`). App test. |
+| 4 | Low | A big Clone Stamp stroke paused the app as it ended | **Fixed.** Match Tone reads only the stroke's edge (found on all cores), not every pixel in its box, and no longer copies the area when it has that. |
+
+# Damaged files (hardening, Leah, 2026-10-19)
+
+`FileFuzzTests` (core) and `DamagedFileAppTests` (app) feed every reader damaged files: cut short, bytes scrambled,
+junk, and impossible numbers in every field of a project's and a pages project's manifest, in adjustments, filters and
+shortcut files, and PDFs of any page size. **One crash found and fixed:** a filter file with a negative or NaN Levels
+midtone crashed when scaled for its intensity; Levels now reads like Curves and Adjust Photo, kept in range. Everything
+else was refused cleanly or opened as a valid image. Test file: `TestImages/Hardening/Broken Levels.colorbeefilter`.

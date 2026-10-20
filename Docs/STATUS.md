@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-19 · 542 core tests and 100 app tests passing, plus `make perf`_
+_Last updated: 2026-10-20 · 554 core tests and 104 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Hardening and review R fixes](#test-hardening-and-review-r-fixes)
 
 ---
 
@@ -224,6 +224,16 @@ Logs in `build/soak-results*.txt` (not committed).
 3. Press **E**, **U** and **M**: Size and Outline/Fill appear and disappear with their capsules, and no empty capsule is left behind.
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
+
+### Test: Hardening and review R fixes
+
+Damaged-file hardening and code review round 6 (`Docs/Review/RESULTS.md`). Rebuild with the script (option 2) first.
+
+1. **Broken filter file:** Adjustments ▸ Adjust Photo…, then the ⋯ menu in its Filters ▸ Import Filter… and choose `TestImages/Hardening/Broken Levels.colorbeefilter`. Pick the "Broken Levels" filter and drag Intensity down to 50%. Colorbee keeps working (before, it crashed). Cancel, then delete the filter from the same ⋯ menu.
+2. **Match Tone and the next edit** (`TestImages/Stage 9 Practice Photo.png`): Retouch ▸ Clone Stamp, size 300, Match Tone on. Option-click the sky, paint one long zigzag over a darker part, and as soon as you let go choose Effects ▸ Gaussian Blur…; wait 3 seconds and Cancel. The stroke keeps its blended tone. Then paint another zigzag, and as soon as you let go scribble across it with the Pencil and press ⌘Z: no square blocks.
+3. **Match Tone on an empty layer** (same photo): Layer ▸ New Layer. Clone Stamp, size 60, Sample All Layers and Match Tone on. Option-click a plain area, then click once elsewhere: the copy blends in, not a dark disc.
+4. **Checkmarks:** with View ▸ Rulers checked, choose Effects ▸ Gaussian Blur…, press ⌘R, open the View menu: Rulers isn't checked. Cancel.
+5. **No pause:** Clone Stamp, size 300, Match Tone on, one diagonal stroke corner to corner; as you let go the app doesn't hitch.
 
 ### Test: Help review fixes (passed 2026-10-19)
 

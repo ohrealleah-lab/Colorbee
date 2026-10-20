@@ -334,6 +334,9 @@ final class DocumentWindow: NSWindow {
 
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let editor else { return super.validateMenuItem(menuItem) }
+        // Before the early returns below: these still work while an effect's bar or the text box is open, so their
+        // checkmarks must still follow (review R, finding 3).
+        if let isOn = Self.isOn(menuItem, in: editor) { menuItem.state = isOn ? .on : .off }
         // While an effect's bar, Auto-Redact, Resize and Skew, Canvas Properties or Feather is open, only viewing and window
         // commands work; Apply or Cancel comes first. Sheets don't stop menu commands reaching the window (review E,
         // finding 2; review J, findings 7 and 18).
@@ -394,35 +397,26 @@ final class DocumentWindow: NSWindow {
              #selector(invertColors(_:)), #selector(desaturate(_:)), #selector(applyOrientation(_:)), #selector(showResizeSkew(_:)):
             return true
         case #selector(setSymmetry(_:)):
-            menuItem.state = SymmetryMode.allCases.indices.contains(menuItem.tag) && SymmetryMode.allCases[menuItem.tag] == editor.symmetry ? .on : .off
             return true
         case #selector(toggleBeforeAfter(_:)):
-            menuItem.state = editor.comparison != nil ? .on : .off
             return true
         case #selector(togglePixelGrid(_:)):
-            menuItem.state = editor.showsPixelGrid ? .on : .off
             return true
         case #selector(toggleLayers(_:)):
-            menuItem.state = editor.isSidebarOpen && editor.showsLayersPanel ? .on : .off
             return true
         case #selector(pasteIntoNewImage(_:)):
             return PasteboardImages.hasImage()
         case #selector(showCanvasProperties(_:)):
             return true
         case #selector(toggleHistoryPanel(_:)):
-            menuItem.state = editor.isSidebarOpen && editor.showsHistoryPanel ? .on : .off
             return true
         case #selector(toggleClipboardPanel(_:)):
-            menuItem.state = editor.isSidebarOpen && editor.showsClipboardPanel ? .on : .off
             return true
         case #selector(toggleRulers(_:)):
-            menuItem.state = editor.showsRulers ? .on : .off
             return true
         case #selector(toggleStatusBar(_:)):
-            menuItem.state = editor.showsStatusBar ? .on : .off
             return true
         case #selector(toggleAdjustmentsPanel(_:)):
-            menuItem.state = editor.isSidebarOpen && editor.showsAdjustmentsPanel ? .on : .off
             return true
         case #selector(applyAdjustment(_:)):
             return LayerActions.canApplyAdjustment(editor.canvas)
@@ -451,7 +445,6 @@ final class DocumentWindow: NSWindow {
         case #selector(newPage(_:)), #selector(duplicatePage(_:)):
             return true
         case #selector(togglePageSidebar(_:)):
-            menuItem.state = editor.showsPageSidebar && editor.pageCount > 1 ? .on : .off
             return editor.pageCount > 1
         case #selector(toggleLayerVisibility(_:)):
             menuItem.title = editor.canvas.activeLayer.isVisible ? "Hide Layer" : "Show Layer"
@@ -470,6 +463,24 @@ final class DocumentWindow: NSWindow {
     }
 
     /// Commands that only change the view.
+    /// Whether a toggle in the menus is on, or nil for a command that isn't one.
+    static func isOn(_ menuItem: NSMenuItem, in editor: Editor) -> Bool? {
+        switch menuItem.action {
+        case #selector(setSymmetry(_:)):
+            SymmetryMode.allCases.indices.contains(menuItem.tag) && SymmetryMode.allCases[menuItem.tag] == editor.symmetry
+        case #selector(toggleBeforeAfter(_:)): editor.comparison != nil
+        case #selector(togglePixelGrid(_:)): editor.showsPixelGrid
+        case #selector(toggleRulers(_:)): editor.showsRulers
+        case #selector(toggleStatusBar(_:)): editor.showsStatusBar
+        case #selector(toggleLayers(_:)): editor.isSidebarOpen && editor.showsLayersPanel
+        case #selector(toggleAdjustmentsPanel(_:)): editor.isSidebarOpen && editor.showsAdjustmentsPanel
+        case #selector(toggleHistoryPanel(_:)): editor.isSidebarOpen && editor.showsHistoryPanel
+        case #selector(toggleClipboardPanel(_:)): editor.isSidebarOpen && editor.showsClipboardPanel
+        case #selector(togglePageSidebar(_:)): editor.showsPageSidebar && editor.pageCount > 1
+        default: nil
+        }
+    }
+
     private static let viewingCommands: Set<Selector?> = [
         #selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)), #selector(zoomToFit(_:)),
         #selector(togglePixelGrid(_:)), #selector(toggleRulers(_:)), #selector(toggleStatusBar(_:)), #selector(toggleLayers(_:)),

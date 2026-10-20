@@ -48,7 +48,7 @@ Nothing waiting right now.
 | 9. Photo editing | ✅ Done | High |
 | 10a. Pages | ✅ Done | High |
 | 10b. PDF output, Auto-Redact on every page | ✅ Done | High |
-| 11. Import from iPhone or iPad | ⏸ Pinned 2026-10-10: works with no window open; not yet into an open document | High |
+| 11. Import from iPhone or iPad | ❌ Removed 2026-10-19 (Leah): struck from the FRD, app code deleted | — |
 | 12. RAW photos | ✅ Done | High |
 | 13a. Copy Text, Step Badges, Redact Brush | ✅ Done; all passed Leah's tests 2026-10-10 | Medium |
 | 13b. Match Surroundings: trial build, then Remove and Spot Heal | ✅ Done; passed Leah's tests 2026-10-10 (Remove for simple backgrounds; Clone Stamp for busy spots; AI fill left for later) | **High** |
@@ -165,22 +165,11 @@ window (`DevelopWindow`), `DocumentController` (sends RAW files to it), `CameraD
 and Include camera details in Export…. Test file: `TestImages/Stage 12/Test Camera.dng`, a synthetic DNG with
 made-up camera details, serial number, owner and GPS location (made by a small script, not a real photo).
 
-**11 Import from iPhone or iPad (FR-11.7)** — built 2026-10-10. Trial build first (Leah scanned on her iPhone): scans
-arrive as a Letter-size PDF with one JPEG per page, photos as a JPEG (plus a TIFF copy). Built: `ContinuityImport`
-(the File menu item and receiving, through `validRequestor` in `DocumentWindow` and `AppDelegate`),
-`PDFPages.scannedPage` (each scan's own JPEG, its profile, the resolution that fits Letter; other pages drawn like a
-PDF's), `PageStack.insert(_:at:named:)` (several pages as one step) and `Editor.importPages`.
-
-**Pinned (Leah, 2026-10-10): importing into an open document doesn't work yet.** With a document window open, the
-iPhone's Take Photo / Scan Documents items were greyed out; with no window open they work (a new document opens).
-Found with temporary logging: the window's first responder is SwiftUI's `KeyViewProxy`, and it and
-`NSHostingView<DocumentView>` answer `validRequestor` with nil without passing it on, so `DocumentWindow`'s
-`validRequestor` is never asked. Tried since (uncommitted at first, committed with this note, not yet working by
-Leah's test): `.importsItemProviders` on `DocumentView` (SwiftUI's own way), and `CanvasView` asking its window. Next:
-ask Leah what she saw this time (still greyed out, or something else after scanning), then log again. Ideas: make
-the canvas first responder when the File menu opens, or an `NSHostingView` subclass that passes `validRequestor` on.
-**When it's fixed, also fix review N, finding 4:** `importPages` must refuse (or cancel the session) while the Auto-Redact review is open, not only while it applies, and imported pages need their own `pageMemory` so "As Opened" isn't the redacted page. Also in the same change, untested: File ▸ Open Recent showed twice on macOS 26 (one AppKit adds, one Colorbee
-made); Colorbee's is removed. Leah's hand-test steps are in the conversation of 2026-10-10 (Three Page Test.pdf).
+**11 Import from iPhone or iPad (FR-11.7): removed 2026-10-19 (Leah).** It worked only with no window open; with a
+document open, SwiftUI's views never passed macOS's Continuity Camera request on. The File menu item and the app
+code (`ContinuityImport`, `Editor.importPages` and the `validRequestor` hooks) are deleted; the core's
+`PDFPages.scannedPage` and `PageStack.insert(_:at:named:)` stay, with their tests. The trial notes are in git history
+and `Docs/Proposals/Import from iPhone.md`.
 
 **10 Pages and PDF documents (FR-11.6)** — done; tested by hand 2026-10-04. Decisions in §23.
 - 10a built 2026-10-04: pages in core (`Page`, `PageStack`, project format 2, `PDFPages`), the page sidebar (`PageSidebar`), the Page menu, and PDFs, multi-page TIFFs and animated GIFs opening with every page. The frame bar is gone.

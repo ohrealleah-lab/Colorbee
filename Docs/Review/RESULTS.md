@@ -275,7 +275,7 @@ Leah confirmed 1 and 2 by hand on 2026-10-11 and chose the behavior for 3. 1–3
 | 1 | Critical | Batch Redact ▸ Blur… and Pixelate… only half-hid a feathered (soft) selection | **Fixed.** Batch Redact's regions come from the hardened selection. App test `SoftBatchRedactTests` (fails without the fix). |
 | 2 | Critical | Save, autosave, Export, Copy, Share and Duplicate Page dropped "Only the layer below" (`Canvas.copy()` leaves it out) | **Fixed.** `Canvas.copy()` keeps it. Also found and fixed: the Eyedropper's Option-click (`pixelAsShown`) left it out and dropped hidden layers, so a clipped adjustment could find the wrong layer below. Core tests fail without the fix. |
 | 3 | Low | Text from Copy Text stayed on the clipboard after a redaction; a read finishing after a redaction still copied the old text | **Fixed (Leah's choice, 2026-10-11).** The after-redaction offer also covers text Copy Text put on the clipboard, while it's still there; a read that finishes after the image (or page) changed copies nothing and says so. App test `CopyTextTests`. |
-| 4 | Low | Importing into an open document: scans arriving during the Auto-Redact review aren't read; unseen imported pages get the wrong "As Opened" | Waiting on the pinned stage 11 import problem; noted in STATUS's pinned entry to fix with it. |
+| 4 | Low | Importing into an open document: scans arriving during the Auto-Redact review aren't read; unseen imported pages get the wrong "As Opened" | **No longer applies:** iPhone import was removed (Leah, 2026-10-19). |
 
 ## Session O: correctness, threads and the speed fixes ([findings](findings-O.md))
 

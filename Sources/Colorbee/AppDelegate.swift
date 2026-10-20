@@ -33,13 +33,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ImageDocument.removeShareFolders()
     }
 
-    private let continuityImport = ContinuityImport { nil }
-
-    /// Import from iPhone or iPad with no window open (FR-11.7).
-    @objc func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?, returnType: NSPasteboard.PasteboardType?) -> Any? {
-        continuityImport.requestor(sendType: sendType, returnType: returnType)
-    }
-
     /// Paste into New Image with no window open, the usual way to start on a screenshot (review M, finding 1).
     @objc func pasteIntoNewImage(_ sender: Any?) {
         do { try DocumentWindow.openClipboardImage() } catch { NSApp.presentError(error) }

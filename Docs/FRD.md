@@ -565,24 +565,12 @@ Any Colorbee document can have pages, so Colorbee can also make its own PDFs fro
   PDFs, TIFFs and GIFs, saving projects, memory); 10b output (Export as PDF, Auto-Redact on every page, the
   resolution setting).
 
-### FR-11.7 Import from iPhone or iPad (stage 11)
-Scan with the phone, finish on the Mac: book pages (open-source ones), forms to redact, quick photos. Uses macOS
-Continuity Camera; details and reasoning in `Docs/Proposals/Import from iPhone.md`.
-
-- **File ▸ Import from iPhone or iPad**, the system's submenu (devices, each with Take Photo, Scan Documents and
-  Add Sketch), as in Preview. (Not on the page sidebar's right-click menu: macOS offers it only in AppKit menus.)
-- With a document open, what arrives is added as **new pages just after the page being viewed**, in the order
-  scanned, showing the first; one undo step ("Import"), which shows the page you were on again. With no document
-  open, it becomes a new untitled document.
-- **Scans** arrive as a PDF with each scan as one JPEG on a Letter page. Each page is that JPEG: the phone's own
-  pixels, no white strips, its color profile kept (Leah, 2026-10-10). Its resolution makes it as large as fits on the
-  Letter page, as the phone placed it (a scan of about 1,600 × 2,600 pixels prints about 6.8 × 11 in). A page
-  that isn't one JPEG is drawn like an opened PDF's, at the PDF resolution in Settings.
-- **Photos and sketches** arrive as a JPEG, about 1440 × 1920 from an iPhone (Continuity Camera sends a reduced
-  size); one page at 144 DPI. The phone decides the scan's and photo's resolution.
-- Add Sketch stays in the menu.
-- **Not in the first version:** searchable text in exported PDFs (later, as an opt-in that's off and refused on
-  any redacted page) and splitting a two-page spread (later, "Split Page in Half").
+### FR-11.7 Import from iPhone or iPad: removed
+**Removed (Leah, 2026-10-19).** It worked only with no document open, and adding to an open document never worked
+(SwiftUI's views don't pass macOS's Continuity Camera request on). The app code is gone; the core's
+`PDFPages.scannedPage` and `PageStack.insert(_:at:named:)` stay, tested, should it come back. Ideas that were listed
+here for later and still apply to PDFs: searchable text in exported PDFs (an opt-in that's off and refused on any
+redacted page) and "Split Page in Half" for two-page spreads.
 
 ### FR-11.8 RAW photos (stage 12)
 Open camera RAW files, develop them, then edit and export like any image.
@@ -651,7 +639,7 @@ Open camera RAW files, develop them, then edit and export like any image.
 
 | Menu | Items |
 |---|---|
-| **File** | New (Cmd+N), Paste into New Image (Cmd+Shift+V), Open (Cmd+O), Open Recent · Import from iPhone or iPad ▸ · Close (Cmd+W), Save (Cmd+S), Save As (Cmd+Shift+S), Duplicate, Revert To · Export… (Cmd+Opt+S), Export as PDF…, Export As ▸ presets · Share, Set as Desktop Picture · Page Setup, Print (Cmd+P) |
+| **File** | New (Cmd+N), Paste into New Image (Cmd+Shift+V), Open (Cmd+O), Open Recent · Close (Cmd+W), Save (Cmd+S), Save As (Cmd+Shift+S), Duplicate, Revert To · Export… (Cmd+Opt+S), Export as PDF…, Export As ▸ presets · Share, Set as Desktop Picture · Page Setup, Print (Cmd+P) |
 | **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z) · Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Copy Text (Cmd+Opt+C), Paste (Cmd+V), Delete · Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I), Feather…, Select Subject |
 | **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9) · Pixel Grid (Cmd+'), Rulers (Cmd+R), Before/After (Cmd+Opt+B) · Layers (Cmd+L), Adjustments, History (Cmd+Y), Clipboard History (Cmd+Opt+V), Page Sidebar (Cmd+Opt+2), Status Bar · Enter Full Screen. Panels and display aids show a checkmark when on. |
 | **Image** | Crop to Selection (Cmd+Shift+X), Crop…, Resize and Skew (Cmd+E), Canvas Properties (Cmd+Opt+E) · Rotate ▸, Flip ▸, Straighten…, Perspective Correction… · Remove Background · Symmetry ▸ |
@@ -751,7 +739,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
 8. **Hardening:** performance, 8000×8000 soak tests, polish.
 9. **Photo editing and presentation (later phase):** the FR-9.5 adjustments and effects, with their own performance and soak checks.
 10. **Pages and PDF documents:** FR-11.6. 10a pages: the document of pages, the page sidebar, page commands and undo, opening PDFs, TIFFs and GIFs, projects, memory. 10b output: Export as PDF, Auto-Redact on every page, the resolution setting.
-11. **Import from iPhone or iPad (planned):** FR-11.7. A short trial build first, with Leah scanning on her iPhone, to see what arrives; then the rest.
+11. ~~**Import from iPhone or iPad:** FR-11.7.~~ Removed (Leah, 2026-10-19).
 12. **RAW photos:** FR-11.8. Develop window, RAW as another way in, camera details on export.
 13. **Retouching and annotation extras:** FR-3.4, FR-4.6, FR-5.3, FR-9.5 (Remove Red-Eye), FR-9.6, FR-10.4. In four parts:
     - **13a quick wins:** Copy Text, Step Badges, and the Redact Brush with Blur, Pixelate and Solid Fill.
@@ -811,7 +799,7 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [x] AC-40 Typing "redact" in the Help menu's search lists the Redact a screenshot guide.
 - [x] AC-41 Every menu command appears in the Menus reference with its default shortcut.
 - [x] AC-42 Each contextual ? button opens the matching section.
-- [ ] AC-43 Scan Documents from an iPhone adds the scans as pages after the page shown, at the phone's own pixel size, as one undo step; with no window open, they open as a new document.
+- ~~AC-43 Scan Documents from an iPhone adds the scans as pages after the page shown, at the phone's own pixel size, as one undo step; with no window open, they open as a new document.~~ Removed with FR-11.7 (2026-10-19).
 - [x] AC-44 Copy Text on a screenshot puts its text on the clipboard in reading order. On an image with no text it says "No text found" and leaves the clipboard unchanged.
 - [x] AC-45 Step badges count 1, 2, 3 in order; undoing one steps the next number back; Letters gives A, B, C.
 - [x] AC-46 The Redact Brush changes every layer with pixels under the stroke, as one undo step, and is blocked by a locked layer with pixels there.
@@ -835,6 +823,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-19 | **Import from iPhone or iPad removed** (Leah): struck from the FRD (FR-11.7, AC-43, stage 11) and the help; the File menu item and the app code that received from the phone are deleted. Review N, finding 4 (an import during the Auto-Redact review) no longer applies. The core helpers it used stay, tested. |
 | 2026-10-16 | Help phase 5 (Leah): the Retouch tool's options get a ? button too, since the Clone Stamp is the trickiest tool; Feather and Batch Redact don't (one slider each). My choices (veto any): the ? is at the bottom left of sheets and the Develop window, and at the bottom right of the Shortcuts and Export Presets tabs, after their other buttons; in the palette bar it's last, after the tip, and opens a new "Using the Clone Stamp" section when the Clone Stamp is chosen, or the Retouch section otherwise. Resize and Skew and Canvas Properties had no section of their own, so each gets a short one in Annotate an image, under Crop and size it. Each ? opens an anchor used only once in the book, since Help Viewer lists pages instead of jumping when one is repeated. |
 | 2026-10-15 | Toolbar capsules (Leah): each toolbar group sits in a capsule a shade darker than the window (7% black; 10% white in dark mode), drawn by Colorbee instead of the Liquid Glass one, so the icons stand out. My choices (veto any): each group is now one toolbar item, so on a window too narrow for everything a whole group goes into the » menu rather than single buttons. |
 | 2026-10-15 | Interface polish (Leah): **Size** shows only for tools that have a size, and **Outline/Fill** only for Shapes, instead of being dimmed. Hidden, they keep their space, so the tool icons never move. **4 custom colors** instead of 12, with fainter empty boxes; from the 12 saved before, the last 4 are kept (colors fill from the left, so those are usually the newest; the exact order wasn't saved), and a palette with more keeps its last 4. The **swap arrow** is a small grey curved arrow with a head at each end, running from the left over the top and down on the right, as Leah drew it. A **soft shadow** around the canvas shows its edge on the gray. My choices (veto any): the shadow reaches 10 points and falls 2 points down, at 22% black, in light and dark mode alike; it isn't drawn around the "before" side of Before/After. |

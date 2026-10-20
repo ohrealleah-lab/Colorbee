@@ -21,7 +21,7 @@ enum HelpDump {
     }
 
     /// Menus macOS fills in itself, listed as one line each.
-    private static let filledByMacOS: Set<String> = ["Services", "Export As", "Import from iPhone or iPad"]
+    private static let filledByMacOS: Set<String> = ["Services", "Export As"]
 
     static func write(_ mainMenu: NSMenu, to path: String) throws {
         var entries: [Entry] = []

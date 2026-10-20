@@ -332,13 +332,6 @@ final class DocumentWindow: NSWindow {
     @objc func actualSize(_ sender: Any?) { editor?.zoomToActualSize() }
     @objc func zoomToFit(_ sender: Any?) { editor?.zoomToFit() }
 
-    private lazy var continuityImport = ContinuityImport { [weak self] in self?.editor }
-
-    override func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?, returnType: NSPasteboard.PasteboardType?) -> Any? {
-        continuityImport.requestor(sendType: sendType, returnType: returnType)
-            ?? super.validRequestor(forSendType: sendType, returnType: returnType)
-    }
-
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let editor else { return super.validateMenuItem(menuItem) }
         // While an effect's bar, Auto-Redact, Resize and Skew, Canvas Properties or Feather is open, only viewing and window

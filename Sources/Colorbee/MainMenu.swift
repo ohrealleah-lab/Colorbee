@@ -181,12 +181,6 @@ enum MainMenu {
         menu.addItem(item("Open…", "openDocument:", "o"))
         // No Open Recent here: macOS adds its own after Open…, and one made here showed as a second (Leah, 2026-10-10).
         menu.addItem(.separator())
-        // macOS fills this in with nearby iPhones and iPads (Continuity Camera, FR-11.7).
-        let importItem = NSMenuItem(title: "Import from iPhone or iPad", action: nil, keyEquivalent: "")
-        importItem.identifier = NSMenuItem.importFromDeviceIdentifier
-        importItem.toolTip = "Take a photo or scan a document with a nearby iPhone or iPad, straight into Colorbee."
-        menu.addItem(importItem)
-        menu.addItem(.separator())
         menu.addItem(item("Close", "performClose:", "w"))
         menu.addItem(item("Save", "saveDocument:", "s"))
         menu.addItem(item("Save As…", "saveDocumentAs:", "s", [.command, .shift]))

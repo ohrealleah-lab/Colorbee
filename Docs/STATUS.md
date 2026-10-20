@@ -51,7 +51,7 @@ Nothing waiting right now.
 | 11. Import from iPhone or iPad | ❌ Removed 2026-10-19 (Leah): struck from the FRD, app code deleted | — |
 | 12. RAW photos | ✅ Done | High |
 | 13a. Copy Text, Step Badges, Redact Brush | ✅ Done; all passed Leah's tests 2026-10-10 | Medium |
-| 13b. Match Surroundings: trial build, then Remove and Spot Heal | ✅ Done; passed Leah's tests 2026-10-10 (Remove for simple backgrounds; Clone Stamp for busy spots; AI fill left for later) | **High** |
+| 13b. Match Surroundings: trial build, then Remove and Spot Heal | ✅ Done; passed Leah's tests 2026-10-10 (Remove for simple backgrounds; Clone Stamp for busy spots) | **High** |
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
@@ -141,6 +141,8 @@ Nothing waiting right now.
 
 ## Not built yet (by stage)
 
+**Feature-complete (Leah, 2026-10-19).** No more new features; the ideas once kept for later (AI fill, searchable PDF text, Split Page in Half) are dropped. From here on: fixes, polish and betas.
+
 **Next up (Leah, 2026-10-11)**
 - Help: done 2026-10-19 (phases 1–6). Keep it current: see "Keeping it current" in `Docs/HELP-PLAN.md`.
 
@@ -150,6 +152,7 @@ Nothing waiting right now.
 - Beta 0.9.0 (2) built, notarized and stapled on 2026-10-05 (`build/Beta/Colorbee-0.9.0-2.zip`, 2.7 MB): pages and PDFs, RAW photos, review round 4, Appearance, scrubbing. "Start Here.txt" updated.
 - Beta 0.9.0 (3) tagged `v0.9.0-beta.3` on 2026-10-14 (Leah): stage 13, the help book (phases 1–4), the GPU audit speed-ups, code review round 5, Match Tone for soft brushes. The first release with the hardened workflow (key for `codesign` only, deleted before publishing, `gh release create`).
 - Beta 0.9.0 (4) tagged `v0.9.0-beta.4` on 2026-10-15 (Leah): the menu reorder with its own Redact menu, the toolbar and palette bar polish, 4 custom colors, the canvas shadow.
+- Beta 0.9.0 (5) tagged `v0.9.0-beta.5` on 2026-10-19 (Leah): the finished help book (? buttons, accuracy review fixes, new pictures), the help book registered at launch, Paste into New Image with no window open, iPhone import removed.
 - GitHub Actions (`.github/workflows/build-release.yml`): every push builds and runs the tests on a macOS 26 runner. A tag `vX.Y.Z-beta.N` also signs, notarizes and publishes the zip as a pre-release (version X.Y.Z, build N). Needs five repo secrets: `APPLE_CERT_P12`, `APPLE_CERT_P12_PASSWORD`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_KEY_P8` (all set 2026-10-05). On GitHub's runner the tests run one at a time; side by side they stalled. First release: v0.9.0-beta.2, published 2026-10-05, checked as "Notarized Developer ID". Next beta: push the tag `v0.9.0-beta.3`.
 - Polish done 2026-10-03: effect previews in the background (`EffectPreview`), Copy in the background (`ClipboardImage`). Tested by hand 2026-10-03.
 

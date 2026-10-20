@@ -17,6 +17,21 @@ public struct Levels: Sendable, Hashable, Codable {
 
     public static let identity = Levels()
 
+    private enum CodingKeys: String, CodingKey { case black, white, gamma }
+
+    /// Kept in range, like Curves and Adjust Photo, so a damaged or hand-edited project or filter can't hold a
+    /// negative or NaN midtone: scaling one for a filter's intensity crashed (hardening, 2026-10-19).
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        func number(_ key: CodingKeys, _ fallback: Double) throws -> Double {
+            let value = try container.decodeIfPresent(Double.self, forKey: key) ?? fallback
+            return value.isFinite ? value : fallback
+        }
+        black = min(max(try number(.black, 0), 0), 254)
+        white = min(max(try number(.white, 255), black + 1), 255)
+        gamma = min(max(try number(.gamma, 1), 0.1), 9.99)
+    }
+
     /// Black and white points at the darkest and lightest channel values of the visible pixels, so the
     /// darkest pixel becomes black and the lightest white (Auto Contrast, AC-31). Gamma stays at 1.
     public static func auto(from histogram: Histogram) -> Levels {

@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-20 · 554 core tests and 104 app tests passing, plus `make perf`_
+_Last updated: 2026-10-20 · 554 core tests and 136 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
@@ -136,6 +136,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - `-ColorbeeSaveCheck YES [-BenchmarkCanvas N]`: background launch that saves a PNG and reports time, the longest main-thread pause and memory.
 - VoiceOver labels for the canvas, color wells, swatch grid and icon buttons.
 - App tests (2026-10-11): `Tests/ColorbeeTests`, 71 Swift Testing tests of the `Editor` (strokes and Shift, undo steps, locked and adjustment layers, Step Badges, placing pending shapes, text and badges, FR-3.2 selection drags, Redact Brush, Retouch, repeatability, random actions undone). They run inside Colorbee, which starts hidden for them (`TestHost`: no Dock icon, windows or focus). `make test` runs them after the core tests (about 35 s in all); GitHub runs them on every push. `make coverage` reports line coverage: app 7.3%, `Editor.swift` 33.8%, core 96.5% (2026-10-11; the app was 0% before).
+- Coverage pass 2 (2026-10-20): 32 more app tests for the least-covered Editor code: Auto-Redact through the Editor (every layer and page, one undo, refusing on a change or a locked layer, items kept visible), Crop/Straighten/Perspective drags, pages, tool sizes, Canvas Properties, Resize and Skew, Revert Layer, Undo on Active Layer, Auto Contrast and Adjust Photo's Auto, paste, Before/After, every effect's bar applied and undone, shape handles, rotation, polygons, curves and text box editing. `make coverage`: core 96.6%, app 16.9% (was 10.9% today, 7.3% on 2026-10-11), `Editor.swift` 74.9% (was 47.5%). The rest of the app is mostly SwiftUI views and AppKit glue, checked by hand; Remove Red-Eye's eye finding and the subject commands stay hand-tested (Leah's choice).
 - Core coverage pass (2026-10-11): 29 more tests for the least-covered files. BlendMode, PaintStyle and SelectionHandle are at 100%, ImageCodec 97.9% (left: two errors macOS never returns). RedEye's eye-circle math moved into `RedEye.eye(outline:pupil:imageHeight:)` and Subjects' mask conversion (`SubjectScan.bytes`) became internal, so both are tested on made-up input. What's left in RedEye (64%) and Subjects (75%) is the Vision calls themselves, which run only in the app by Leah's choice (slow, and Apple's models can change); Remove Red-Eye's automatic eye finding and Select Subject are checked by hand.
 - `make beta` (`Scripts/make-beta.sh`): Developer ID signing, hardened runtime, notarization, stapling, zip with `Docs/Beta/Start Here.txt`. Version 0.9.0.
 

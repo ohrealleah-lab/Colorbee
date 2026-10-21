@@ -196,6 +196,7 @@ Five 30-minute 8000×8000 soaks. The fifth ran 108 rounds with no crash and exac
 (§23). Fixed along the way: redo after spilled crops, flips and rotations giving layers new buffers, slow undo
 (parallel fingerprints), Flatten compositing, and replaced layers written out in the background on one core.
 **Re-run 2026-10-10** (after stage 13; Mac free): the 30-minute soak ran 105 rounds with no crash and exact undo and redo; 13 steps went a little over a second (Sharpen, Flatten; worst 1.34 s), the same as accepted. The 10 performance tests all passed.
+**Re-run 2026-10-20** (feature-complete, after the GPU-audit speed fixes and layer pieces; Mac free): 127 rounds in 30 minutes with no crash and exact undo and redo; no step over a second (worst 0.87 s, a whole-image Flatten), down from 13 steps over a second (worst 1.34 s) on 2026-10-10. All 10 performance tests passed.
 Logs in `build/soak-results*.txt` (not committed).
 
 **Done 2026-10-04 (agreed with Leah): all 7 steps passed Leah's hand test on 2026-10-04.**

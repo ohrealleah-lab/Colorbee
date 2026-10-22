@@ -56,7 +56,7 @@ Colorbee is a personal tool, built as a product exercise. I'm the product manage
 
 ## Status
 
-Built in stages, each working end to end before the next starts, and tested by hand at every stage. Built so far: the core editor and tools, layers, redaction, integration, hardening, photo editing, pages and PDFs, RAW photos, Copy Text, Step Badges, Match Surroundings, Clone Stamp, soft selections and the Help Book. Between stages, five rounds of independent code review have looked for bugs, and a sixth checked every help page against the code, with every finding verified and its fix tested. The current beta is 0.9.0 (build 5). See [Docs/STATUS.md](Docs/STATUS.md).
+Built in stages, each working end to end before the next starts, and tested by hand at every stage. Built so far: the core editor and tools, layers, redaction, integration, hardening, photo editing, pages and PDFs, RAW photos, Copy Text, Step Badges, Match Surroundings, Clone Stamp, soft selections and the Help Book. Between stages, five rounds of independent code review have looked for bugs, and a sixth checked every help page against the code, with every finding verified and its fix tested. The current beta is 0.9.0 (build 6). See [Docs/STATUS.md](Docs/STATUS.md).
 
 ## The product docs
 

@@ -189,4 +189,34 @@ struct RetouchStrokeTests {
                               from: Point2D(x: 30, y: 40), to: Point2D(x: 110, y: 40))
         #expect(canvas.activeLayer.buffer.pixels(in: IntRect(x: 70, y: 20, width: 50, height: 40)) == before)
     }
+
+    /// Leah's screenshot, 2026-10-22: a soft Clone Stamp stroke with Match Tone on an empty layer (Sample All Layers)
+    /// left a light haze at its rim. Shown over the layer below, the rim must match what's around it.
+    @Test func softMatchToneOnAnEmptyLayerLeavesNoHaze() throws {
+        let canvas = Canvas(size: IntSize(width: 160, height: 120), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max)
+        // Sky getting lighter toward the bottom; the copy comes from 60 px lower, so it's lighter than where it goes.
+        for y in 0..<120 { canvas.activeLayer.buffer.fill(Pixel(r: UInt8(60 + y), g: UInt8(70 + y), b: UInt8(110 + y)), in: IntRect(x: 0, y: y, width: 160, height: 1)) }
+        canvas.insertLayer(Layer(name: "Fixes", buffer: PixelBuffer(width: 160, height: 120)), at: 1)
+        canvas.activeLayerIndex = 1
+        let edit = history.beginEdit("Clone Stamp", on: canvas)
+        let stroke = RetouchStroke(diameter: 30, hardness: 0.5, strength: 1, kind: .clone(offset: IntPoint(x: 0, y: 60), source: canvas.composited(through: 1)),
+                                   layer: canvas.activeLayer, edit: edit)
+        stroke.move(to: Point2D(x: 40, y: 30))
+        stroke.move(to: Point2D(x: 120, y: 30))
+        stroke.finish()
+        let mask = try #require(stroke.coverage)
+        let reference = stroke.toneReference(over: ToneMatch.readArea(for: mask, in: canvas.bounds), mask: mask)
+        ToneMatch.apply(to: canvas.activeLayer, in: mask, reference: reference, edit: edit)
+        history.commit(edit)
+        let shown = canvas.flattened()
+        var worst = 0
+        for y in 10..<50 {
+            for x in 50..<110 {
+                let sky = 60 + y
+                worst = max(worst, abs(Int(shown[x, y].r) - sky))
+            }
+        }
+        #expect(worst <= 6, "worst difference from the sky: \(worst)")
+    }
 }

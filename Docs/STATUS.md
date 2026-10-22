@@ -236,6 +236,7 @@ From Leah's video (2026-10-22): after a long Clone Stamp stroke with Match Tone,
 2. Wait a second after letting go: no lavender shape with hard edges. Where the copy is different from its surroundings you may see a soft glow; that's Match Tone blending, and it fades smoothly.
 3. Option-click plain sky, and paint over a part of the hills' top edge: the patch blends in smoothly.
 4. Hover over Match Tone in the palette bar: the tip says it's for patching like with like. Turn it off and copy the moon: a plain copy.
+5. **No haze on an empty layer** (Leah's screenshot, 2026-10-22): Layer ▸ New Layer. Clone Stamp, size 30, Hardness 50%, Sample All Layers and Match Tone on. Option-click the moon and scribble a copy of it into the sky elsewhere: no light outline around where you painted, just as on the photo layer itself.
 
 ### Test: Hardening and review R fixes
 

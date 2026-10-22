@@ -473,8 +473,11 @@ public enum ToneMatch {
         let area = plan.area, width = area.width, mask = plan.mask
         edit.willModify(mask.bounds.intersection(layer.buffer.bounds), in: layer)
         for (x, y) in plan.cells {
-            let weight = Float(mask[x, y]) / 255
             let p = layer.buffer[x, y]
+            // How much of the pixel's color is the copy: the stroke's coverage over how opaque the pixel ended up.
+            // Mixed into an opaque pixel that's the coverage; painted onto empty space it's all of it, since the
+            // coverage is already in the pixel's alpha, and weighting by it again left a haze (Leah, 2026-10-22).
+            let weight = p.a == 0 ? 0 : min(1, Float(mask[x, y]) / Float(p.a))
             let shifted = SIMD4<Float>(Float(p.r), Float(p.g), Float(p.b), 0) + plan.offsets[(y - area.minY) * width + x - area.minX] * weight
             let clamped = pointwiseMin(pointwiseMax(shifted, .zero), SIMD4(repeating: 255)).rounded(.toNearestOrEven)
             layer.buffer[x, y] = Pixel(r: UInt8(clamped.x), g: UInt8(clamped.y), b: UInt8(clamped.z), a: p.a)

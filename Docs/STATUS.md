@@ -14,6 +14,7 @@ _Last updated: 2026-10-20 · 554 core tests and 136 app tests passing, plus `mak
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Hardening and review R fixes](#test-hardening-and-review-r-fixes)
+- [Match Tone blends smoothly](#test-match-tone-blends-smoothly)
 
 ---
 
@@ -226,6 +227,15 @@ Logs in `build/soak-results*.txt` (not committed).
 3. Press **E**, **U** and **M**: Size and Outline/Fill appear and disappear with their capsules, and no empty capsule is left behind.
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
+
+### Test: Match Tone blends smoothly
+
+From Leah's video (2026-10-22): after a long Clone Stamp stroke with Match Tone, a lavender shape with hard edges appeared. Two causes, both fixed: Match Tone reshaded pixels the Clone Stamp hadn't copied (where its source was off the image), and it spread its correction inward in rings that met in hard lines; it now blends like a stretched membrane, as healing brushes do. The tip and help now say Match Tone is for patching like with like. Rebuild with the script (option 2) first. Use `TestImages/Stage 9 Practice Photo.png` (restored to the original).
+
+1. Retouch ▸ Clone Stamp, size 300, Match Tone on. Option-click the moon, then paint the same long stroke as in your video, from the top left down and to the right, past where the copy runs out.
+2. Wait a second after letting go: no lavender shape with hard edges. Where the copy is different from its surroundings you may see a soft glow; that's Match Tone blending, and it fades smoothly.
+3. Option-click plain sky, and paint over a part of the hills' top edge: the patch blends in smoothly.
+4. Hover over Match Tone in the palette bar: the tip says it's for patching like with like. Turn it off and copy the moon: a plain copy.
 
 ### Test: Hardening and review R fixes
 

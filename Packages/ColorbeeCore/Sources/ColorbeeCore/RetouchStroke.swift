@@ -37,6 +37,9 @@ public final class RetouchStroke: Stroke {
     let painter: CoveragePainter
     /// What the Clone Stamp copies from with Sample All Layers: also what was shown before the stroke, for Match Tone.
     private var shown: PixelBuffer?
+    /// Where the Clone Stamp has something to copy: where its source is on the image. Elsewhere it leaves the pixels
+    /// as they were.
+    private var copyable: IntRect?
     private let hardness: Double
     private let strength: Double
     private var walker = DabWalker()
@@ -58,6 +61,7 @@ public final class RetouchStroke: Stroke {
             }
         case .clone(let offset, let source):
             shown = source
+            copyable = bounds.intersection(IntRect(x: bounds.minX - offset.x, y: bounds.minY - offset.y, width: bounds.width, height: bounds.height))
             painter.transform = { [unowned painter] x, y, original in
                 let sx = x + offset.x, sy = y + offset.y
                 guard sx >= 0, sy >= 0, sx < bounds.maxX, sy < bounds.maxY else { return original }
@@ -68,8 +72,14 @@ public final class RetouchStroke: Stroke {
 
     public var dirtyRect: IntRect { painter.dirtyRect }
 
-    /// What the stroke covered, for the Clone Stamp's Match Tone.
-    public var coverage: SelectionMask? { painter.coverageMask() }
+    /// What the stroke covered, for the Clone Stamp's Match Tone: only where it copied something, so Match Tone
+    /// doesn't reshade pixels it left alone because its source was off the image (Leah's video, 2026-10-22).
+    public var coverage: SelectionMask? {
+        guard let mask = painter.coverageMask() else { return nil }
+        guard let copyable else { return mask }
+        guard !copyable.isEmpty, let area = SelectionMask.rectangle(copyable, clippedTo: mask.bounds) else { return nil }
+        return SelectionMask.combine(mask, with: area, mode: .intersect)
+    }
 
     /// For Match Tone: at the edge of `mask` within `area`, what was shown before the stroke and what the stroke
     /// copied there. Measuring the difference from these, not from the painted pixels, makes a soft brush blend in too:
@@ -356,33 +366,106 @@ public enum ToneMatch {
                     total += weight
                 }
             }
+            // An edge with only see-through pixels around it says nothing; the blend fills it in like the inside.
             offsets[(y - area.minY) * width + x - area.minX] = total > 0 ? sum / total : .zero
-            known[(y - area.minY) * width + x - area.minX] = true
+            known[(y - area.minY) * width + x - area.minX] = total > 0
         }
-        var remaining = cells.filter { !known[($0.1 - area.minY) * width + $0.0 - area.minX] }
-        while !remaining.isEmpty {
-            var next: [(Int, Int)] = []
-            var updates: [(Int, SIMD4<Float>)] = []
-            for (x, y) in remaining {
-                var sum = SIMD4<Float>.zero, count: Float = 0
-                for dy in -1...1 {
-                    for dx in -1...1 where dx != 0 || dy != 0 {
-                        let nx = x + dx - area.minX, ny = y + dy - area.minY
-                        guard nx >= 0, ny >= 0, nx < width, ny < height, known[ny * width + nx] else { continue }
-                        sum += offsets[ny * width + nx]
-                        count += 1
-                    }
-                }
-                if count > 0 { updates.append(((y - area.minY) * width + x - area.minX, sum / count)) } else { next.append((x, y)) }
-            }
-            guard !updates.isEmpty else { break }
-            for (index, offset) in updates {
-                offsets[index] = offset
-                known[index] = true
-            }
-            remaining = next
-        }
+        offsets = smoothFill(offsets, known: known, cells: cells, area: area)
         return Plan(area: area, mask: mask, cells: cells, offsets: offsets)
+    }
+
+    /// Fills in the correction inside the area from the edge's, as smoothly as a stretched membrane (a solution of
+    /// Laplace's equation, as healing brushes use), so it fades evenly with no seams. Spreading it inward ring by ring
+    /// left hard lines where rings from different sides met (Leah's video, 2026-10-22). The membrane is worked out
+    /// on a grid of about 40,000 blocks, then laid over the pixels and relaxed there, so a big stroke stays quick.
+    static func smoothFill(_ offsets: [SIMD4<Float>], known: [Bool], cells: [(Int, Int)], area: IntRect) -> [SIMD4<Float>] {
+        let width = area.width
+        let scale = max(1, Int((Double(cells.count) / 40_000).squareRoot().rounded(.up)))
+        let cw = (width + scale - 1) / scale, ch = (area.height + scale - 1) / scale
+        var inside = [Bool](repeating: false, count: cw * ch)
+        var fixed = [Bool](repeating: false, count: cw * ch)
+        var sums = [SIMD4<Float>](repeating: .zero, count: cw * ch)
+        var counts = [Float](repeating: 0, count: cw * ch)
+        for (x, y) in cells {
+            let fx = x - area.minX, fy = y - area.minY, block = (fy / scale) * cw + fx / scale
+            inside[block] = true
+            if known[fy * width + fx] {
+                sums[block] += offsets[fy * width + fx]
+                counts[block] += 1
+                fixed[block] = true
+            }
+        }
+        var grid = (0..<(cw * ch)).map { counts[$0] > 0 ? sums[$0] / counts[$0] : SIMD4<Float>.zero }
+        func neighbors(_ block: Int) -> [Int] {
+            let bx = block % cw, by = block / cw
+            return [(bx + 1, by), (bx - 1, by), (bx, by + 1), (bx, by - 1)].compactMap { nx, ny in
+                nx >= 0 && ny >= 0 && nx < cw && ny < ch && inside[ny * cw + nx] ? ny * cw + nx : nil
+            }
+        }
+        let open = (0..<(cw * ch)).filter { inside[$0] && !fixed[$0] }
+        let around = open.map(neighbors)
+        // A first guess spread inward from the edge, so the relaxing below has little left to do.
+        var reached = fixed
+        var front = open.indices.filter { around[$0].contains { reached[$0] } }
+        var pending = Set(open.indices).subtracting(front)
+        while !front.isEmpty {
+            for slot in front {
+                let from = around[slot].filter { reached[$0] }
+                grid[open[slot]] = from.reduce(.zero) { $0 + grid[$1] } / Float(from.count)
+            }
+            for slot in front { reached[open[slot]] = true }
+            front = pending.filter { around[$0].contains { reached[$0] } }.sorted()
+            pending.subtract(front)
+        }
+        // Over-relaxed Gauss–Seidel: each open block moves toward the average of its neighbors.
+        for _ in 0..<max(60, 3 * max(cw, ch)) {
+            var largest: Float = 0
+            for slot in open.indices where !around[slot].isEmpty {
+                let block = open[slot]
+                let average = around[slot].reduce(.zero) { $0 + grid[$1] } / Float(around[slot].count)
+                let change = (average - grid[block]) * 1.85
+                grid[block] += change
+                largest = max(largest, abs(change.x), abs(change.y), abs(change.z))
+            }
+            if largest < 0.02 { break }
+        }
+        var result = offsets
+        if scale == 1 {
+            for (x, y) in cells where !known[(y - area.minY) * width + x - area.minX] {
+                result[(y - area.minY) * width + x - area.minX] = grid[(y - area.minY) * cw + x - area.minX]
+            }
+            return result
+        }
+        // Each pixel takes the membrane between the four nearest blocks inside the area.
+        for (x, y) in cells where !known[(y - area.minY) * width + x - area.minX] {
+            let gx = (Float(x - area.minX) + 0.5) / Float(scale) - 0.5, gy = (Float(y - area.minY) + 0.5) / Float(scale) - 0.5
+            let x0 = Int(gx.rounded(.down)), y0 = Int(gy.rounded(.down)), tx = gx - Float(x0), ty = gy - Float(y0)
+            var sum = SIMD4<Float>.zero, total: Float = 0
+            for (bx, by, w) in [(x0, y0, (1 - tx) * (1 - ty)), (x0 + 1, y0, tx * (1 - ty)), (x0, y0 + 1, (1 - tx) * ty), (x0 + 1, y0 + 1, tx * ty)]
+            where bx >= 0 && by >= 0 && bx < cw && by < ch && inside[by * cw + bx] && w > 0 {
+                sum += grid[by * cw + bx] * w
+                total += w
+            }
+            if total > 0 { result[(y - area.minY) * width + x - area.minX] = sum / total }
+        }
+        // Then relaxed at full size near the edge, where the pixels' own edge values meet the coarser membrane.
+        var isCell = [Bool](repeating: false, count: width * area.height)
+        for (x, y) in cells { isCell[(y - area.minY) * width + x - area.minX] = true }
+        let loose = cells.map { ($0.0 - area.minX, $0.1 - area.minY) }.filter { !known[$0.1 * width + $0.0] }
+        for _ in 0..<(2 * scale) {
+            for (fx, fy) in loose {
+                var sum = SIMD4<Float>.zero, count: Float = 0
+                for (nx, ny) in [(fx + 1, fy), (fx - 1, fy), (fx, fy + 1), (fx, fy - 1)]
+                where nx >= 0 && ny >= 0 && nx < width && ny < area.height {
+                    let index = ny * width + nx
+                    guard isCell[index] else { continue }
+                    sum += result[index]
+                    count += 1
+                }
+                if count > 0 { result[fy * width + fx] = sum / count }
+            }
+        }
+        return result
     }
 
     /// Writes `plan`'s correction into `layer`.

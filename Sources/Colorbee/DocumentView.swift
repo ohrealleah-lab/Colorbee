@@ -259,7 +259,7 @@ private struct ToolOptions: View {
                 Toggle("Aligned", isOn: $editor.cloneAligned)
                     .help("On: the offset stays from stroke to stroke. Off: every stroke starts again from the source")
                 Toggle("Match Tone", isOn: $editor.cloneMatchesTone)
-                    .help("Blend the copied pixels' brightness and color into what's around them")
+                    .help("Blend the copy's brightness and color into what's around it, for patching like with like (sky over sky, skin over skin). Turn it off to copy an object")
             }
             if kind.canSampleAllLayers {
                 Toggle("Sample All Layers", isOn: $editor.retouchSamplesAllLayers)

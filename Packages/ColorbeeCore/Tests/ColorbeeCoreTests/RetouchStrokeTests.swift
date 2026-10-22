@@ -158,4 +158,35 @@ struct RetouchStrokeTests {
                               from: Point2D(x: 75, y: 30), to: Point2D(x: 75, y: 50))
         #expect(abs(Int(canvas.activeLayer.buffer[75, 40].r) - 60) < 6)
     }
+
+    /// Leah's video, 2026-10-22: copying gray into a stroke whose surroundings are light on the left and dark on the
+    /// right blends smoothly across, with no hard line where corrections from the two sides meet.
+    @Test func matchToneBlendsSmoothlyAcrossTheStroke() throws {
+        let canvas = Canvas(size: IntSize(width: 200, height: 100), colorSpace: Canvas.defaultColorSpace, background: Pixel(r: 128, g: 128, b: 128))
+        let history = History(byteBudget: .max)
+        canvas.activeLayer.buffer.fill(Pixel(r: 200, g: 200, b: 200), in: IntRect(x: 0, y: 40, width: 100, height: 60))
+        canvas.activeLayer.buffer.fill(Pixel(r: 60, g: 60, b: 60), in: IntRect(x: 100, y: 40, width: 100, height: 60))
+        try toneMatchedStroke(.clone(offset: IntPoint(x: 0, y: -45), source: nil), on: canvas, history: history,
+                              from: Point2D(x: 30, y: 70), to: Point2D(x: 170, y: 70))
+        let row = (30...170).map { Int(canvas.activeLayer.buffer[$0, 70].r) }
+        let steepest = zip(row, row.dropFirst()).map { abs($0 - $1) }.max() ?? 0
+        // A thin stroke follows its surroundings, so it turns from light to dark near the middle: smoothly, never in
+        // one jump, and always the same way.
+        #expect(steepest <= 12, "\(row)")
+        #expect(zip(row, row.dropFirst()).allSatisfy { $0 >= $1 }, "\(row)")
+        #expect(abs(row.first! - 200) < 20 && abs(row.last! - 60) < 20, "\(row)")
+    }
+
+    /// Leah's video, 2026-10-22: where the Clone Stamp's source is off the image it copies nothing, and Match Tone
+    /// leaves those pixels alone too.
+    @Test func matchToneLeavesAloneWhatWasntCopied() throws {
+        let (canvas, history) = canvas()
+        canvas.activeLayer.buffer.fill(Pixel(r: 60, g: 60, b: 60), in: IntRect(x: 0, y: 0, width: 40, height: 80))
+        let before = canvas.activeLayer.buffer.pixels(in: IntRect(x: 70, y: 20, width: 50, height: 40))
+        // The source is 60 px to the left: from x = 60 on, it's on the image; past the right of the stroke there's
+        // nothing to copy for x < 60 + 60.
+        try toneMatchedStroke(.clone(offset: IntPoint(x: 60, y: 0), source: nil), on: canvas, history: history,
+                              from: Point2D(x: 30, y: 40), to: Point2D(x: 110, y: 40))
+        #expect(canvas.activeLayer.buffer.pixels(in: IntRect(x: 70, y: 20, width: 50, height: 40)) == before)
+    }
 }

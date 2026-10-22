@@ -360,7 +360,7 @@ Every finding was checked against the code and was real. All redaction safety cl
 
 ---
 
-# Code review round 6 ([PLAN-7.md](PLAN-7.md)), 2026-10-20
+# Code review round 6 ([PLAN-7.md](PLAN-7.md)), 2026-10-20 (passed Leah's test 2026-10-22)
 
 ## Session R: everything since round 5 ([findings](findings-R.md))
 

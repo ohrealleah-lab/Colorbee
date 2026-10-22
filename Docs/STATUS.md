@@ -7,14 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-20 · 554 core tests and 136 app tests passing, plus `make perf`_
+_Last updated: 2026-10-22 · 554 core tests and 136 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Hardening and review R fixes](#test-hardening-and-review-r-fixes)
-- [Match Tone blends smoothly](#test-match-tone-blends-smoothly)
+Nothing waiting right now.
 
 ---
 
@@ -228,7 +227,7 @@ Logs in `build/soak-results*.txt` (not committed).
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
 
-### Test: Match Tone blends smoothly
+### Test: Match Tone blends smoothly (passed 2026-10-22)
 
 From Leah's video (2026-10-22): after a long Clone Stamp stroke with Match Tone, a lavender shape with hard edges appeared. Two causes, both fixed: Match Tone reshaded pixels the Clone Stamp hadn't copied (where its source was off the image), and it spread its correction inward in rings that met in hard lines; it now blends like a stretched membrane, as healing brushes do. The tip and help now say Match Tone is for patching like with like. Rebuild with the script (option 2) first. Use `TestImages/Stage 9 Practice Photo.png` (restored to the original).
 
@@ -238,7 +237,7 @@ From Leah's video (2026-10-22): after a long Clone Stamp stroke with Match Tone,
 4. Hover over Match Tone in the palette bar: the tip says it's for patching like with like. Turn it off and copy the moon: a plain copy.
 5. **No haze on an empty layer** (Leah's screenshot, 2026-10-22): Layer ▸ New Layer. Clone Stamp, size 30, Hardness 50%, Sample All Layers and Match Tone on. Option-click the moon and scribble a copy of it into the sky elsewhere: no light outline around where you painted, just as on the photo layer itself.
 
-### Test: Hardening and review R fixes
+### Test: Hardening and review R fixes (passed 2026-10-22)
 
 Damaged-file hardening and code review round 6 (`Docs/Review/RESULTS.md`). Rebuild with the script (option 2) first.
 

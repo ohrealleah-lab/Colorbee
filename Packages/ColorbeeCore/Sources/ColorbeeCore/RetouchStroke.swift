@@ -262,7 +262,8 @@ public enum ToneMatch {
     public struct Plan: @unchecked Sendable {
         let area: IntRect
         let mask: SelectionMask
-        let cells: [(Int, Int)]
+        /// The pixels in the stroke, as indices in `area` (row by row), and the correction for each.
+        let cells: [Int32]
         let offsets: [SIMD4<Float>]
     }
 
@@ -312,175 +313,187 @@ public enum ToneMatch {
     /// With a `reference`, the difference at the edge is what was shown before minus what was copied, counted by how
     /// opaque both are: a see-through pixel's color says nothing (review R, finding 2). Without one, it's the
     /// surroundings minus the painted pixel, from `pixels`: the layer's over `area` (from `readArea`), row by row.
-    /// Nil when there's nothing to match.
+    /// Nil when there's nothing to match. Everything is kept per stroke pixel, not per pixel of the area, so a long
+    /// stroke across a big image needs memory for the stroke only (review S, finding 1).
     public static func plan(_ pixels: [Pixel]?, area: IntRect, mask: SelectionMask, reference: Reference? = nil) -> Plan? {
         guard !area.isEmpty, reference != nil || pixels?.count == area.area else { return nil }
         let pixels = pixels ?? []
         func rgb(_ p: Pixel) -> SIMD4<Float> { SIMD4(Float(p.r), Float(p.g), Float(p.b), 0) }
         let width = area.width, height = area.height
         func inside(_ x: Int, _ y: Int) -> Bool { mask.bounds.contains(IntPoint(x: x, y: y)) && mask[x, y] > 0 }
-        func value(_ x: Int, _ y: Int) -> SIMD4<Float> {
-            let p = pixels[(y - area.minY) * width + x - area.minX]
-            return SIMD4(Float(p.r), Float(p.g), Float(p.b), 0)
-        }
-        var offsets = [SIMD4<Float>](repeating: .zero, count: width * height)
-        var weights = [Float](repeating: 1, count: width * height)
-        var known = [Bool](repeating: false, count: width * height)
-        var edge: [(Int, Int)] = []
-        var cells: [(Int, Int)] = []
-        for y in area.minY..<area.maxY {
-            for x in area.minX..<area.maxX where inside(x, y) {
-                cells.append((x, y))
-                var sum = SIMD4<Float>.zero, count: Float = 0
-                for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-                    let nx = x + dx, ny = y + dy
-                    guard area.contains(IntPoint(x: nx, y: ny)), !inside(nx, ny) else { continue }
-                    if reference == nil { sum += value(nx, ny) }
-                    count += 1
-                }
-                if count > 0 {
-                    let index = (y - area.minY) * width + x - area.minX
-                    if let reference {
-                        let pair = reference.values[index]
-                        offsets[index] = pair.map { rgb($0.before) - rgb($0.copied) } ?? .zero
-                        weights[index] = pair.map { Float(min($0.before.a, $0.copied.a)) / 255 } ?? 0
-                    } else {
-                        offsets[index] = sum / count - value(x, y)
-                    }
-                    edge.append((x, y))
-                }
+        // The stroke's pixels, found on all cores, in order.
+        let bands = (height + 63) / 64
+        let cells: [Int32] = ParallelRows.map(bands) { band -> [Int32] in
+            var found: [Int32] = []
+            for y in (band * 64)..<min(height, (band + 1) * 64) {
+                for x in 0..<width where inside(area.minX + x, area.minY + y) { found.append(Int32(y * width + x)) }
+            }
+            return found
+        }.flatMap { $0 }
+        guard !cells.isEmpty else { return nil }
+        var cellAt = [Int32](repeating: -1, count: width * height)
+        for (cell, index) in cells.enumerated() { cellAt[Int(index)] = Int32(cell) }
+
+        // The edge: stroke pixels beside a pixel of the area outside it. Each gets the difference there.
+        var edgeCells: [Int32] = []
+        var edgeSlot = [Int32](repeating: -1, count: cells.count)
+        var raw: [SIMD4<Float>] = [], weights: [Float] = []
+        for (cell, index) in cells.enumerated() {
+            let x = Int(index) % width, y = Int(index) / width
+            var sum = SIMD4<Float>.zero, count: Float = 0
+            for (nx, ny) in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+            where nx >= 0 && ny >= 0 && nx < width && ny < height && cellAt[ny * width + nx] < 0 {
+                if reference == nil { sum += rgb(pixels[ny * width + nx]) }
+                count += 1
+            }
+            guard count > 0 else { continue }
+            edgeSlot[cell] = Int32(edgeCells.count)
+            edgeCells.append(Int32(cell))
+            if let reference {
+                let pair = reference.values[Int(index)]
+                raw.append(pair.map { rgb($0.before) - rgb($0.copied) } ?? .zero)
+                weights.append(pair.map { Float(min($0.before.a, $0.copied.a)) / 255 } ?? 0)
+            } else {
+                raw.append(sum / count - rgb(pixels[Int(index)]))
+                weights.append(1)
             }
         }
-        guard !edge.isEmpty else { return nil }
-        let raw = offsets
-        var onEdge = [Bool](repeating: false, count: width * height)
-        for (x, y) in edge { onEdge[(y - area.minY) * width + x - area.minX] = true }
-        for (x, y) in edge {
+        guard !edgeCells.isEmpty else { return nil }
+        // Smoothed along the edge, so one odd pixel there doesn't streak inward. An edge with only see-through pixels
+        // around it says nothing; the blend fills it in like the inside.
+        var offsets = [SIMD4<Float>](repeating: .zero, count: cells.count)
+        var known = [Bool](repeating: false, count: cells.count)
+        for cell in edgeCells {
+            let index = Int(cells[Int(cell)]), x = index % width, y = index / width
             var sum = SIMD4<Float>.zero, total: Float = 0
-            for dy in -3...3 {
-                for dx in -3...3 {
-                    let nx = x + dx - area.minX, ny = y + dy - area.minY
-                    guard nx >= 0, ny >= 0, nx < width, ny < height, onEdge[ny * width + nx] else { continue }
-                    let weight = weights[ny * width + nx]
-                    sum += raw[ny * width + nx] * weight
-                    total += weight
+            for ny in max(0, y - 3)...min(height - 1, y + 3) {
+                for nx in max(0, x - 3)...min(width - 1, x + 3) {
+                    let other = cellAt[ny * width + nx]
+                    guard other >= 0, case let slot = Int(edgeSlot[Int(other)]), slot >= 0 else { continue }
+                    sum += raw[slot] * weights[slot]
+                    total += weights[slot]
                 }
             }
-            // An edge with only see-through pixels around it says nothing; the blend fills it in like the inside.
-            offsets[(y - area.minY) * width + x - area.minX] = total > 0 ? sum / total : .zero
-            known[(y - area.minY) * width + x - area.minX] = total > 0
+            offsets[Int(cell)] = total > 0 ? sum / total : .zero
+            known[Int(cell)] = total > 0
         }
-        offsets = smoothFill(offsets, known: known, cells: cells, area: area)
+        smoothFill(&offsets, known: known, cells: cells, cellAt: cellAt, width: width, height: height)
         return Plan(area: area, mask: mask, cells: cells, offsets: offsets)
     }
 
-    /// Fills in the correction inside the area from the edge's, as smoothly as a stretched membrane (a solution of
-    /// Laplace's equation, as healing brushes use), so it fades evenly with no seams. Spreading it inward ring by ring
-    /// left hard lines where rings from different sides met (Leah's video, 2026-10-22). The membrane is worked out
-    /// on a grid of about 40,000 blocks, then laid over the pixels and relaxed there, so a big stroke stays quick.
-    static func smoothFill(_ offsets: [SIMD4<Float>], known: [Bool], cells: [(Int, Int)], area: IntRect) -> [SIMD4<Float>] {
-        let width = area.width
-        let scale = max(1, Int((Double(cells.count) / 40_000).squareRoot().rounded(.up)))
-        let cw = (width + scale - 1) / scale, ch = (area.height + scale - 1) / scale
-        var inside = [Bool](repeating: false, count: cw * ch)
-        var fixed = [Bool](repeating: false, count: cw * ch)
-        var sums = [SIMD4<Float>](repeating: .zero, count: cw * ch)
-        var counts = [Float](repeating: 0, count: cw * ch)
-        for (x, y) in cells {
-            let fx = x - area.minX, fy = y - area.minY, block = (fy / scale) * cw + fx / scale
-            inside[block] = true
-            if known[fy * width + fx] {
-                sums[block] += offsets[fy * width + fx]
-                counts[block] += 1
-                fixed[block] = true
-            }
-        }
-        var grid = (0..<(cw * ch)).map { counts[$0] > 0 ? sums[$0] / counts[$0] : SIMD4<Float>.zero }
-        func neighbors(_ block: Int) -> [Int] {
-            let bx = block % cw, by = block / cw
-            return [(bx + 1, by), (bx - 1, by), (bx, by + 1), (bx, by - 1)].compactMap { nx, ny in
-                nx >= 0 && ny >= 0 && nx < cw && ny < ch && inside[ny * cw + nx] ? ny * cw + nx : nil
-            }
-        }
-        let open = (0..<(cw * ch)).filter { inside[$0] && !fixed[$0] }
-        let around = open.map(neighbors)
-        // A first guess spread inward from the edge, so the relaxing below has little left to do.
-        var reached = fixed
-        var front = open.indices.filter { around[$0].contains { reached[$0] } }
-        var pending = Set(open.indices).subtracting(front)
-        while !front.isEmpty {
-            for slot in front {
-                let from = around[slot].filter { reached[$0] }
-                grid[open[slot]] = from.reduce(.zero) { $0 + grid[$1] } / Float(from.count)
-            }
-            for slot in front { reached[open[slot]] = true }
-            front = pending.filter { around[$0].contains { reached[$0] } }.sorted()
-            pending.subtract(front)
-        }
-        // Over-relaxed Gauss–Seidel: each open block moves toward the average of its neighbors.
-        for _ in 0..<max(60, 3 * max(cw, ch)) {
-            var largest: Float = 0
-            for slot in open.indices where !around[slot].isEmpty {
-                let block = open[slot]
-                let average = around[slot].reduce(.zero) { $0 + grid[$1] } / Float(around[slot].count)
-                let change = (average - grid[block]) * 1.85
-                grid[block] += change
-                largest = max(largest, abs(change.x), abs(change.y), abs(change.z))
-            }
-            if largest < 0.02 { break }
-        }
-        var result = offsets
-        if scale == 1 {
-            for (x, y) in cells where !known[(y - area.minY) * width + x - area.minX] {
-                result[(y - area.minY) * width + x - area.minX] = grid[(y - area.minY) * cw + x - area.minX]
-            }
-            return result
-        }
-        // Each pixel takes the membrane between the four nearest blocks inside the area.
-        for (x, y) in cells where !known[(y - area.minY) * width + x - area.minX] {
-            let gx = (Float(x - area.minX) + 0.5) / Float(scale) - 0.5, gy = (Float(y - area.minY) + 0.5) / Float(scale) - 0.5
-            let x0 = Int(gx.rounded(.down)), y0 = Int(gy.rounded(.down)), tx = gx - Float(x0), ty = gy - Float(y0)
-            var sum = SIMD4<Float>.zero, total: Float = 0
-            for (bx, by, w) in [(x0, y0, (1 - tx) * (1 - ty)), (x0 + 1, y0, tx * (1 - ty)), (x0, y0 + 1, (1 - tx) * ty), (x0 + 1, y0 + 1, tx * ty)]
-            where bx >= 0 && by >= 0 && bx < cw && by < ch && inside[by * cw + bx] && w > 0 {
-                sum += grid[by * cw + bx] * w
-                total += w
-            }
-            if total > 0 { result[(y - area.minY) * width + x - area.minX] = sum / total }
-        }
-        // Then relaxed at full size near the edge, where the pixels' own edge values meet the coarser membrane.
-        var isCell = [Bool](repeating: false, count: width * area.height)
-        for (x, y) in cells { isCell[(y - area.minY) * width + x - area.minX] = true }
-        let loose = cells.map { ($0.0 - area.minX, $0.1 - area.minY) }.filter { !known[$0.1 * width + $0.0] }
-        for _ in 0..<(2 * scale) {
-            for (fx, fy) in loose {
-                var sum = SIMD4<Float>.zero, count: Float = 0
-                for (nx, ny) in [(fx + 1, fy), (fx - 1, fy), (fx, fy + 1), (fx, fy - 1)]
-                where nx >= 0 && ny >= 0 && nx < width && ny < area.height {
-                    let index = ny * width + nx
-                    guard isCell[index] else { continue }
-                    sum += result[index]
-                    count += 1
+    /// One level of `smoothFill`'s pyramid: its pixels (or blocks), which hold a value fixed by the edge, and the values.
+    private struct Level {
+        let width: Int, height: Int
+        let cells: [Int32]
+        let cellAt: [Int32]
+        let known: [Bool]
+        var values: [SIMD4<Float>]
+    }
+
+    /// Fills in the correction inside the stroke from the edge's, as smoothly as a stretched membrane (a solution of
+    /// Laplace's equation, as healing brushes use), so it fades evenly with no seams; spreading it inward ring by ring
+    /// left hard lines (Leah's video, 2026-10-22). Worked out on a pyramid of ever coarser copies: solved on the
+    /// smallest, then carried down a level at a time and relaxed there, on all cores, so the time grows only with the
+    /// stroke's size (review S, finding 1).
+    static func smoothFill(_ values: inout [SIMD4<Float>], known: [Bool], cells: [Int32], cellAt: [Int32], width: Int, height: Int) {
+        var levels = [Level(width: width, height: height, cells: cells, cellAt: cellAt, known: known, values: values)]
+        while let finest = levels.last, finest.cells.count > 4096, finest.width > 1 || finest.height > 1 {
+            let w = (finest.width + 1) / 2, h = (finest.height + 1) / 2
+            var cellAt = [Int32](repeating: -1, count: w * h)
+            var cells: [Int32] = [], sums: [SIMD4<Float>] = [], counts: [Float] = []
+            for (cell, index) in finest.cells.enumerated() {
+                let block = (Int(index) / finest.width / 2) * w + Int(index) % finest.width / 2
+                if cellAt[block] < 0 {
+                    cellAt[block] = Int32(cells.count)
+                    cells.append(Int32(block))
+                    sums.append(.zero)
+                    counts.append(0)
                 }
-                if count > 0 { result[fy * width + fx] = sum / count }
+                if finest.known[cell] {
+                    sums[Int(cellAt[block])] += finest.values[cell]
+                    counts[Int(cellAt[block])] += 1
+                }
+            }
+            levels.append(Level(width: w, height: h, cells: cells, cellAt: cellAt, known: counts.map { $0 > 0 },
+                                values: zip(sums, counts).map { $1 > 0 ? $0 / $1 : .zero }))
+        }
+        // The smallest level is solved fully, starting from the edge's average and over-relaxed so it settles in a few
+        // hundred passes; each finer one starts from the level above and needs only a few passes.
+        let top = levels.count - 1
+        let fixed = levels[top].values.indices.filter { levels[top].known[$0] }
+        let average = fixed.isEmpty ? .zero : fixed.reduce(SIMD4<Float>.zero) { $0 + levels[top].values[$1] } / Float(fixed.count)
+        for cell in levels[top].values.indices where !levels[top].known[cell] { levels[top].values[cell] = average }
+        relax(&levels[top], passes: max(200, 6 * max(levels[top].width, levels[top].height)), overRelaxation: 1.85)
+        for depth in stride(from: levels.count - 2, through: 0, by: -1) {
+            let coarse = levels[depth + 1]
+            var level = levels[depth]
+            for (cell, index) in level.cells.enumerated() where !level.known[cell] {
+                let x = Int(index) % level.width, y = Int(index) / level.width
+                // Between the four nearest blocks above that hold part of the stroke.
+                let gx = (Float(x) + 0.5) / 2 - 0.5, gy = (Float(y) + 0.5) / 2 - 0.5
+                let x0 = Int(gx.rounded(.down)), y0 = Int(gy.rounded(.down)), tx = gx - Float(x0), ty = gy - Float(y0)
+                var sum = SIMD4<Float>.zero, total: Float = 0
+                for (bx, by, weight) in [(x0, y0, (1 - tx) * (1 - ty)), (x0 + 1, y0, tx * (1 - ty)), (x0, y0 + 1, (1 - tx) * ty), (x0 + 1, y0 + 1, tx * ty)]
+                where weight > 0 && bx >= 0 && by >= 0 && bx < coarse.width && by < coarse.height {
+                    let block = coarse.cellAt[by * coarse.width + bx]
+                    guard block >= 0 else { continue }
+                    sum += coarse.values[Int(block)] * weight
+                    total += weight
+                }
+                level.values[cell] = total > 0 ? sum / total : coarse.values[Int(coarse.cellAt[(y / 2) * coarse.width + x / 2])]
+            }
+            relax(&level, passes: depth == 0 ? 8 : 6)
+            levels[depth] = level
+        }
+        values = levels[0].values
+    }
+
+    /// Red–black Gauss–Seidel: each value that isn't fixed moves to the average of its neighbors in the stroke, half the
+    /// pixels at a time (like the squares of a chessboard), so each half can be done on all cores at once.
+    private static func relax(_ level: inout Level, passes: Int, overRelaxation: Float = 1) {
+        let width = level.width, height = level.height, cells = level.cells, cellAt = level.cellAt, known = level.known
+        level.values.withUnsafeMutableBufferPointer { buffer in
+            let values = UnsafeSendableValues(buffer)
+            for _ in 0..<passes {
+                for color in 0..<2 {
+                    ParallelRows.forEach(0..<cells.count, minimumRows: 4096) { range in
+                        for cell in range where !known[cell] {
+                            let index = Int(cells[cell]), x = index % width, y = index / width
+                            guard (x + y) & 1 == color else { continue }
+                            var sum = SIMD4<Float>.zero, count: Float = 0
+                            if x + 1 < width, case let n = cellAt[index + 1], n >= 0 { sum += values.base[Int(n)]; count += 1 }
+                            if x > 0, case let n = cellAt[index - 1], n >= 0 { sum += values.base[Int(n)]; count += 1 }
+                            if y + 1 < height, case let n = cellAt[index + width], n >= 0 { sum += values.base[Int(n)]; count += 1 }
+                            if y > 0, case let n = cellAt[index - width], n >= 0 { sum += values.base[Int(n)]; count += 1 }
+                            if count > 0 { values.base[cell] += (sum / count - values.base[cell]) * overRelaxation }
+                        }
+                    }
+                }
             }
         }
-        return result
     }
 
     /// Writes `plan`'s correction into `layer`.
     public static func apply(_ plan: Plan, to layer: Layer, edit: Edit) {
         let area = plan.area, width = area.width, mask = plan.mask
         edit.willModify(mask.bounds.intersection(layer.buffer.bounds), in: layer)
-        for (x, y) in plan.cells {
+        for (cell, index) in plan.cells.enumerated() {
+            let x = area.minX + Int(index) % width, y = area.minY + Int(index) / width
             let p = layer.buffer[x, y]
             // How much of the pixel's color is the copy: the stroke's coverage over how opaque the pixel ended up.
             // Mixed into an opaque pixel that's the coverage; painted onto empty space it's all of it, since the
             // coverage is already in the pixel's alpha, and weighting by it again left a haze (Leah, 2026-10-22).
             let weight = p.a == 0 ? 0 : min(1, Float(mask[x, y]) / Float(p.a))
-            let shifted = SIMD4<Float>(Float(p.r), Float(p.g), Float(p.b), 0) + plan.offsets[(y - area.minY) * width + x - area.minX] * weight
+            let shifted = SIMD4<Float>(Float(p.r), Float(p.g), Float(p.b), 0) + plan.offsets[cell] * weight
             let clamped = pointwiseMin(pointwiseMax(shifted, .zero), SIMD4(repeating: 255)).rounded(.toNearestOrEven)
             layer.buffer[x, y] = Pixel(r: UInt8(clamped.x), g: UInt8(clamped.y), b: UInt8(clamped.z), a: p.a)
         }
     }
+}
+
+/// Lets `ToneMatch.relax` share the values across cores; each pass writes only the pixels of one color, reading the
+/// other's.
+private struct UnsafeSendableValues: @unchecked Sendable {
+    let base: UnsafeMutablePointer<SIMD4<Float>>
+    init(_ buffer: UnsafeMutableBufferPointer<SIMD4<Float>>) { base = buffer.baseAddress! }
 }

@@ -13,7 +13,7 @@ _Last updated: 2026-10-22 · 554 core tests and 136 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Review S fixes: big Match Tone strokes](#test-review-s-fixes-big-match-tone-strokes)
 
 ---
 
@@ -227,6 +227,14 @@ Logs in `build/soak-results*.txt` (not committed).
 3. Press **E**, **U** and **M**: Size and Outline/Fill appear and disappear with their capsules, and no empty capsule is left behind.
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
+
+### Test: Review S fixes: big Match Tone strokes
+
+Code review round 7 (`Docs/Review/RESULTS.md`). Rebuild with the script (option 2), then quit and reopen Colorbee. Use a copy of `TestImages/Stage 9 Practice Photo.png` (Option-drag it to the Desktop, so the original isn't changed).
+
+1. **No freeze:** open the copy. Image ▸ Resize and Skew…, 500%, OK (8000 × 5000). View ▸ Zoom to Fit. Retouch ▸ Clone Stamp, Size 300, Match Tone on. Option-click the photo, then paint one long back-and-forth stroke covering most of it. As soon as you let go, click to paint a dab: Colorbee answers within a second or so (before, up to about 25 seconds of spinning wheel).
+2. **The tone is saved on close:** press ⌘S. Paint another big stroke from a bright spot over a darker part, and as soon as you let go press ⌘W. Reopen the copy: the stroke is blended in, not bright.
+3. Delete the copy from the Desktop.
 
 ### Test: Help menu quick links (passed 2026-10-22)
 

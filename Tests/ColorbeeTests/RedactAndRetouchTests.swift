@@ -378,6 +378,11 @@ struct MatchToneTests {
         #expect(stroked.canvas.activeLayer.buffer.contentHash() == landed)
         #expect(stroked.stepNames == ["Clone Stamp"])
 
+        // An autosave (as closing or quitting makes) waits and saves the tone (review S, finding 2).
+        let autosaved = pending()
+        let snapshot = autosaved.saveSnapshot(placingPending: false)
+        #expect(snapshot.canvas.activeLayer.buffer.contentHash() == landed)
+
         // An effect's bar opened and cancelled.
         let cancelled = pending()
         cancelled.beginEffect(.gaussianBlur)

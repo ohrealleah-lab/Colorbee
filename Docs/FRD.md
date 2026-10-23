@@ -821,6 +821,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-22 | From code review round 7, session S (Leah): Match Tone may leave a faint tinted rim where the Clone Stamp copies see-through pixels onto solid ones (in effect erasing with it); kept as a known edge case, since fixing it would bring back the pause at the end of a stroke. Every save, autosave too, waits for a Match Tone still being worked out. |
 | 2026-10-22 | **Help menu quick links** (Leah): every guide and reference page is listed in the Help menu under Colorbee Help, flat, under "Guides" and "Reference" headings, in the contents page's order. My choices (veto any): titles in menu title case (Getting Started); each item's hover text is its line from the contents page; each opens its page in Help Viewer at a `page-` anchor at its top; they have no shortcuts and aren't listed in Settings ▸ Shortcuts, since the Help menu is left out there (macOS manages it). |
 | 2026-10-19 | **No more new features** (Leah): Colorbee's feature set is complete. The ideas kept for later are dropped: an AI fill model for Remove, searchable text in exported PDFs, and Split Page in Half. From here on, work is fixes, polish and betas. |
 | 2026-10-19 | **Import from iPhone or iPad removed** (Leah): struck from the FRD (FR-11.7, AC-43, stage 11) and the help; the File menu item and the app code that received from the phone are deleted. Review N, finding 4 (an import during the Auto-Redact review) no longer applies. The core helpers it used stay, tested. |

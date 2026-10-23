@@ -25,6 +25,39 @@ struct PerformanceTests {
         return canvas
     }
 
+    /// Match Tone's plan for a reference where every edge pixel needs the same lift (review S, finding 1).
+    private func tonePlan(_ mask: SelectionMask, in bounds: IntRect) -> ToneMatch.Plan? {
+        let area = ToneMatch.readArea(for: mask, in: bounds)
+        let before = Pixel(r: 180, g: 180, b: 180), copied = Pixel(r: 90, g: 90, b: 90)
+        let pair = ToneMatch.EdgePair(before: before, copied: copied)
+        let reference = ToneMatch.Reference(values: Dictionary(uniqueKeysWithValues: ToneMatch.edge(of: mask, in: area).map { ($0, pair) }))
+        return ToneMatch.plan(nil, area: area, mask: mask, reference: reference)
+    }
+
+    /// Review S, finding 1: a Clone Stamp stroke filling 4000 × 4000 had its Match Tone take about 9 s and several GB, all
+    /// while the next edit waited. Now it's a pyramid on all cores, kept to the stroke's own pixels.
+    @Test func matchToneOverAHugeStroke() throws {
+        let bounds = IntRect(x: 0, y: 0, width: 4200, height: 4200)
+        let mask = try #require(SelectionMask.ellipse(in: IntRect(x: 100, y: 100, width: 4000, height: 4000), clippedTo: bounds))
+        var plan: ToneMatch.Plan?
+        let time = fastest { plan = tonePlan(mask, in: bounds) }
+        #expect(time < .milliseconds(2500), "took \(time)")
+        // Every pixel inside gets about the lift its edge asks for.
+        let offsets = try #require(plan).offsets
+        #expect(offsets.allSatisfy { abs($0.x - 90) < 2 })
+    }
+
+    /// A thin stroke corner to corner of 8000 × 8000: its box is the whole image, but its work is only its own pixels.
+    @Test func matchToneOverAThinStrokeAcrossTheImage() throws {
+        let bounds = IntRect(x: 0, y: 0, width: Self.side, height: Self.side)
+        let corners = [Point2D(x: 10, y: 10), Point2D(x: 14, y: 10), Point2D(x: Double(Self.side - 10), y: Double(Self.side - 14)),
+                       Point2D(x: Double(Self.side - 10), y: Double(Self.side - 10)), Point2D(x: Double(Self.side - 14), y: Double(Self.side - 10)),
+                       Point2D(x: 10, y: 14)]
+        let mask = try #require(SelectionMask.polygon(corners, clippedTo: bounds))
+        let time = fastest { _ = tonePlan(mask, in: bounds) }
+        #expect(time < .milliseconds(1500), "took \(time)")
+    }
+
     @Test func flattenTwoLayersAndAnAdjustment() {
         let canvas = layered()
         let time = fastest { _ = canvas.flattened() }

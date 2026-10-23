@@ -378,3 +378,17 @@ junk, and impossible numbers in every field of a project's and a pages project's
 shortcut files, and PDFs of any page size. **One crash found and fixed:** a filter file with a negative or NaN Levels
 midtone crashed when scaled for its intensity; Levels now reads like Curves and Adjust Photo, kept in range. Everything
 else was refused cleanly or opened as a valid image. Test file: `TestImages/Hardening/Broken Levels.colorbeefilter`.
+
+---
+
+# Code review round 7 ([PLAN-8.md](PLAN-8.md)), 2026-10-22
+
+## Session S: the fixes since round 6 ([findings](findings-S.md))
+
+No deadlock in the Match Tone wait; the other fixes and the six small files unnamed by earlier plans were clean.
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | A huge Clone Stamp stroke's Match Tone took up to a minute and several GB while the next edit waited | **Fixed.** The plan keeps everything per stroke pixel (not per pixel of its box), and the blend is a pyramid: solved on the smallest level (from the edge's average, over-relaxed), then carried down and relaxed a few passes per level, half the pixels at a time on all cores. A stroke filling 4000 × 4000: about 0.6 s (was about 9 s); a thin stroke across 8000 × 8000: about 0.15 s. Release tests in `make perf`. |
+| 2 | Medium | Closing or quitting right after a big stroke autosaved it without its tone | **Fixed.** Every save, autosave too, waits for a pending tone. App test. |
+| 3 | Low | A faint tinted rim where the Clone Stamp copies see-through pixels onto solid ones with Match Tone on | **Kept (Leah, 2026-10-22)** as a known edge case: fixing it needs the copy's opacity for every stroke pixel, which would bring back the end-of-stroke pause, for a case that's really erasing with the Clone Stamp. |

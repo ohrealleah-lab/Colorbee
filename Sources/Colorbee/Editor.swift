@@ -4098,6 +4098,9 @@ final class Editor {
     /// being edited is placed first, so what's written is what's shown (review K, finding 1); autosave passes false, so it
     /// doesn't fix in place what's still being edited.
     func saveSnapshot(placingPending: Bool = true) -> SaveSnapshot {
+        // Every save, autosave too, waits for a Match Tone being worked out: closing or quitting autosaves, and the
+        // tone would otherwise never be saved (review S, finding 2). A shape or text box is placed only when asked.
+        finishPendingTone()
         if placingPending { placePendingObjects() }
         return withoutEffectPreview { snapshot(of: canvas.copy()) }
     }

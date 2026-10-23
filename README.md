@@ -10,6 +10,7 @@
 ![Swift 6](https://img.shields.io/badge/Swift-6-orange)
 
 **A native macOS paint program with the immediacy of classic MS Paint, plus redaction, annotation, layers, effects and RAW development.** Swift 6, AppKit and Metal, with no networking at all.
+<img width="3248" height="2218" alt="image" src="https://github.com/user-attachments/assets/87007747-2a0e-47df-b58e-3629d027536f" />
 
 ### [⬇ Download the latest beta](https://github.com/ohrealleah-lab/Colorbee/releases/latest)
 

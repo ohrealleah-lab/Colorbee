@@ -3,6 +3,10 @@ SCHEME  := Colorbee
 DERIVED := build
 APP     := $(DERIVED)/Build/Products/Debug/Colorbee.app
 BENCH   := $(DERIVED)/Build/Products/Release/Colorbee.app/Contents/MacOS/Colorbee -ColorbeeBenchmark YES -ApplePersistenceIgnoreState YES
+# The Debug build has the same name and version as Leah's everyday Release build, so macOS may open images in it (Open
+# With lists only one "Colorbee (0.9.0)"). Forget it after each Debug build, keeping the exit status (Leah, 2026-10-23).
+LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+FORGET_DEBUG := status=$$?; $(LSREGISTER) -u "$(CURDIR)/$(APP)" 2>/dev/null; exit $$status
 
 .PHONY: gen build test core app-test coverage perf run bench beta help help-index help-shots open clean
 
@@ -11,7 +15,8 @@ gen:
 
 build: gen
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug \
-		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -quiet build
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -quiet build; \
+	$(FORGET_DEBUG)
 
 core:
 	cd Packages/ColorbeeCore && swift test
@@ -22,7 +27,8 @@ test: core app-test
 # windows or focus. One process: parallel testing would start several copies of the app.
 app-test: gen
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug \
-		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -parallel-testing-enabled NO -quiet test
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -parallel-testing-enabled NO -quiet test; \
+	$(FORGET_DEBUG)
 
 # Line coverage of the core and the app (the app tests run with coverage on). Separate from `make test`: slower.
 COVERAGE := $(DERIVED)/Coverage.xcresult
@@ -34,7 +40,8 @@ coverage: gen
 	rm -rf $(COVERAGE)
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug \
 		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -parallel-testing-enabled NO -quiet \
-		-enableCodeCoverage YES -resultBundlePath $(COVERAGE) test
+		-enableCodeCoverage YES -resultBundlePath $(COVERAGE) test; \
+	$(FORGET_DEBUG)
 	@echo "== App =="
 	@xcrun xccov view --report --only-targets $(COVERAGE) | grep -E 'Colorbee.app'
 	@xcrun xccov view --report --files-for-target Colorbee.app $(COVERAGE) | grep -E 'Editor\.swift'

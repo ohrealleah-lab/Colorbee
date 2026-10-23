@@ -13,7 +13,7 @@ _Last updated: 2026-10-22 · 554 core tests and 136 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Help menu quick links](#test-help-menu-quick-links)
+Nothing waiting right now.
 
 ---
 
@@ -228,7 +228,7 @@ Logs in `build/soak-results*.txt` (not committed).
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
 
-### Test: Help menu quick links
+### Test: Help menu quick links (passed 2026-10-22)
 
 Every help page in the Help menu (Leah, 2026-10-22). Rebuild with the script (option 2), then **quit and reopen Colorbee**. _First try: the links gave "content unavailable". Help Viewer was reading an old screenshot copy's help book (deleted), and Colorbee's registration at launch didn't always stick; it now registers its help book again right before opening any page._
 

@@ -13,10 +13,7 @@ enum HelpAnchor: String, CaseIterable {
     case retouchTools = "retouch-tools"
     case cloneStamp = "clone-stamp"
 
-    @MainActor func open() {
-        let book = Bundle.main.object(forInfoDictionaryKey: "CFBundleHelpBookName") as? String
-        NSHelpManager.shared.openHelpAnchor(rawValue, inBook: book)
-    }
+    @MainActor func open() { openHelp(at: rawValue) }
 }
 
 /// The help's pages, listed in the Help menu under Colorbee Help as quick links (Leah, 2026-10-22). Each opens at
@@ -83,10 +80,16 @@ enum HelpPage: String, CaseIterable {
         }
     }
 
-    @MainActor func open() {
-        let book = Bundle.main.object(forInfoDictionaryKey: "CFBundleHelpBookName") as? String
-        NSHelpManager.shared.openHelpAnchor(anchor, inBook: book)
-    }
+    @MainActor func open() { openHelp(at: anchor) }
+}
+
+/// Opens Colorbee Help at `anchor`. The book is registered again first: registering it once at launch doesn't always
+/// stick (after macOS's help cache is cleared, say), and then Help Viewer can't find new anchors (Leah, 2026-10-22).
+@MainActor
+func openHelp(at anchor: String) {
+    NSHelpManager.shared.registerBooks(in: .main)
+    let book = Bundle.main.object(forInfoDictionaryKey: "CFBundleHelpBookName") as? String
+    NSHelpManager.shared.openHelpAnchor(anchor, inBook: book)
 }
 
 /// The standard round ? button, opening one section of the help.

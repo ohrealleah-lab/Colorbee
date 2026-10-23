@@ -230,7 +230,7 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ### Test: Help menu quick links
 
-Every help page in the Help menu (Leah, 2026-10-22). Rebuild with the script (option 2), then **quit and reopen Colorbee**.
+Every help page in the Help menu (Leah, 2026-10-22). Rebuild with the script (option 2), then **quit and reopen Colorbee**. _First try: the links gave "content unavailable". Help Viewer was reading an old screenshot copy's help book (deleted), and Colorbee's registration at launch didn't always stick; it now registers its help book again right before opening any page._
 
 1. Open the Help menu: Search, Colorbee Help (⌘?), then a "Guides" heading with 8 guides and a "Reference" heading with 7 pages.
 2. Hover over a few: each shows its one-line description.

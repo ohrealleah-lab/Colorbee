@@ -31,6 +31,7 @@ def page(name, title, description, keywords, body):
 </head>
 <body>
     <nav class="back"><a href="index.html">Colorbee Help</a></nav>
+    <a name="page-{name.removesuffix('.html')}"></a>
 {body}</body>
 </html>
 """)

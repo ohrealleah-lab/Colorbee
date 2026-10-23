@@ -22,6 +22,16 @@ enum MainMenu {
 
         let help = NSMenu(title: "Help")
         help.addItem(item("Colorbee Help", "showHelp:", "?"))
+        // Every page as a quick link, in the contents page's order (Leah, 2026-10-22).
+        for guides in [true, false] {
+            help.addItem(.sectionHeader(title: guides ? "Guides" : "Reference"))
+            for page in HelpPage.allCases where page.isGuide == guides {
+                let link = item(page.title, "openHelpPage:")
+                link.tag = HelpPage.allCases.firstIndex(of: page)!
+                link.toolTip = page.summary
+                help.addItem(link)
+            }
+        }
         main.addItem(submenu(help))
         NSApp.helpMenu = help
         return main

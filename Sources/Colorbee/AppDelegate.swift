@@ -38,6 +38,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do { try DocumentWindow.openClipboardImage() } catch { NSApp.presentError(error) }
     }
 
+    /// A page from the Help menu's quick links.
+    @objc func openHelpPage(_ sender: NSMenuItem) {
+        guard HelpPage.allCases.indices.contains(sender.tag) else { return }
+        HelpPage.allCases[sender.tag].open()
+    }
+
     @objc func showSettings(_ sender: Any?) {
         SettingsWindowController.shared.showWindow(nil)
         SettingsWindowController.shared.window?.makeKeyAndOrderFront(nil)

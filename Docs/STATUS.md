@@ -13,7 +13,7 @@ _Last updated: 2026-10-22 · 554 core tests and 136 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Help menu quick links](#test-help-menu-quick-links)
 
 ---
 
@@ -227,6 +227,15 @@ Logs in `build/soak-results*.txt` (not committed).
 3. Press **E**, **U** and **M**: Size and Outline/Fill appear and disappear with their capsules, and no empty capsule is left behind.
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
+
+### Test: Help menu quick links
+
+Every help page in the Help menu (Leah, 2026-10-22). Rebuild with the script (option 2), then **quit and reopen Colorbee**.
+
+1. Open the Help menu: Search, Colorbee Help (⌘?), then a "Guides" heading with 8 guides and a "Reference" heading with 7 pages.
+2. Hover over a few: each shows its one-line description.
+3. Choose **Fix Up a Photo**, then **Keyboard Shortcuts**, then **Troubleshooting**: each opens Help at the top of that page.
+4. The Help menu's Search field still finds help topics (try "redact").
 
 ### Test: Match Tone blends smoothly (passed 2026-10-22)
 

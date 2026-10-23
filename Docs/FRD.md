@@ -654,7 +654,7 @@ Open camera RAW files, develop them, then edit and export like any image.
 Every shortcut above is a default. All of them can be changed in the shortcut editor (FR-15.3).
 
 ### FR-14.6 Help
-- **Help ▸ Colorbee Help (Cmd+?)** opens a standard Mac Help Book in Apple's help viewer. It ships inside the app
+- **Help ▸ Colorbee Help (Cmd+?)** opens a standard Mac Help Book in Apple's help viewer. Below it, the Help menu lists every guide and reference page as a quick link, under "Guides" and "Reference" headings. It ships inside the app
   and works offline. Cmd+? is reserved (FR-15.3), so it can't be reassigned.
 - The Help menu's search field finds help topics as well as menu items.
 - **Contents:** task guides first (Getting started, Redact a screenshot, Annotate an image, Work with layers, Fix up
@@ -821,6 +821,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-22 | **Help menu quick links** (Leah): every guide and reference page is listed in the Help menu under Colorbee Help, flat, under "Guides" and "Reference" headings, in the contents page's order. My choices (veto any): titles in menu title case (Getting Started); each item's hover text is its line from the contents page; each opens its page in Help Viewer at a `page-` anchor at its top; they have no shortcuts and aren't listed in Settings ▸ Shortcuts, since the Help menu is left out there (macOS manages it). |
 | 2026-10-19 | **No more new features** (Leah): Colorbee's feature set is complete. The ideas kept for later are dropped: an AI fill model for Remove, searchable text in exported PDFs, and Split Page in Half. From here on, work is fixes, polish and betas. |
 | 2026-10-19 | **Import from iPhone or iPad removed** (Leah): struck from the FRD (FR-11.7, AC-43, stage 11) and the help; the File menu item and the app code that received from the phone are deleted. Review N, finding 4 (an import during the Auto-Redact review) no longer applies. The core helpers it used stay, tested. |
 | 2026-10-16 | Help phase 5 (Leah): the Retouch tool's options get a ? button too, since the Clone Stamp is the trickiest tool; Feather and Batch Redact don't (one slider each). My choices (veto any): the ? is at the bottom left of sheets and the Develop window, and at the bottom right of the Shortcuts and Export Presets tabs, after their other buttons; in the palette bar it's last, after the tip, and opens a new "Using the Clone Stamp" section when the Clone Stamp is chosen, or the Retouch section otherwise. Resize and Skew and Canvas Properties had no section of their own, so each gets a short one in Annotate an image, under Crop and size it. Each ? opens an anchor used only once in the book, since Help Viewer lists pages instead of jumping when one is repeated. |

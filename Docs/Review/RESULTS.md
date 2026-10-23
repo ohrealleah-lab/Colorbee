@@ -381,7 +381,7 @@ else was refused cleanly or opened as a valid image. Test file: `TestImages/Hard
 
 ---
 
-# Code review round 7 ([PLAN-8.md](PLAN-8.md)), 2026-10-22
+# Code review round 7 ([PLAN-8.md](PLAN-8.md)), 2026-10-22 (passed Leah's test 2026-10-23)
 
 ## Session S: the fixes since round 6 ([findings](findings-S.md))
 

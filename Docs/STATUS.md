@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-22 · 554 core tests and 136 app tests passing, plus `make perf`_
+_Last updated: 2026-10-23 · 554 core tests and 136 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Review S fixes: big Match Tone strokes](#test-review-s-fixes-big-match-tone-strokes)
+Nothing waiting right now.
 
 ---
 
@@ -228,7 +228,7 @@ Logs in `build/soak-results*.txt` (not committed).
 4. Switch to dark mode (Settings ▸ Appearance or the Mac's): the capsules are a shade lighter than the dark window.
 5. Make the window narrow: groups that don't fit go into the » menu at the right.
 
-### Test: Review S fixes: big Match Tone strokes
+### Test: Review S fixes: big Match Tone strokes (passed 2026-10-23)
 
 Code review round 7 (`Docs/Review/RESULTS.md`). Rebuild with the script (option 2), then quit and reopen Colorbee. Use a copy of `TestImages/Stage 9 Practice Photo.png` (Option-drag it to the Desktop, so the original isn't changed).
 

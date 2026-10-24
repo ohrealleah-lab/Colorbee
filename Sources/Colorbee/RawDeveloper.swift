@@ -52,6 +52,7 @@ final class RawDeveloper: Sendable {
     /// Upright size, in pixels.
     let size: IntSize
     let cameraDetails: CameraDetails?
+    let locationRemoved: Bool
     /// The previews' filter, made on the first preview.
     private let previewFilter = Mutex<CIRAWFilter?>(nil)
 
@@ -82,6 +83,7 @@ final class RawDeveloper: Sendable {
         let source = CGImageSourceCreateWithURL(url as CFURL, nil)
         let properties = source.flatMap { CGImageSourceCopyPropertiesAtIndex($0, 0, nil) as? [CFString: Any] } ?? [:]
         cameraDetails = CameraDetails(properties: properties)
+        locationRemoved = CameraDetails.hasLocation(properties: properties)
     }
 
     /// The developed photo, scaled by `scale` (1 for full size), still at RAW precision, from `filter`.
@@ -138,6 +140,7 @@ final class RawDeveloper: Sendable {
                             format: .BGRA8, colorSpace: Self.colorSpace)
         let canvas = Canvas(colorSpace: Self.colorSpace, layers: [Layer(name: "Background", buffer: buffer)], hasTransparentBackground: false)
         canvas.cameraDetails = cameraDetails
+        canvas.locationRemoved = locationRemoved
         return canvas
     }
 }

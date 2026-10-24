@@ -32,6 +32,8 @@ public enum ProjectFile {
         var layers: [LayerEntry]
         /// Missing from projects saved before stage 12.
         var cameraDetails: CameraDetails?
+        /// Missing from projects saved before the Info panel, and when false.
+        var locationRemoved: Bool?
         /// A one-page project's resolution (a PDF page's), in pixels per inch. Several pages keep theirs in the page
         /// list; missing means the default (review K, finding 6).
         var resolution: Double?
@@ -96,6 +98,7 @@ public enum ProjectFile {
             hasTransparentBackground: canvas.hasTransparentBackground,
             backgroundLayerID: canvas.backgroundLayerID?.rawValue,
             activeLayerIndex: canvas.activeLayerIndex, layers: entries, cameraDetails: canvas.cameraDetails,
+            locationRemoved: canvas.locationRemoved ? true : nil,
             resolution: resolution == Page.defaultResolution ? nil : resolution
         )
         let json = try JSONEncoder().encode(manifest)
@@ -285,6 +288,7 @@ public enum ProjectFile {
         let canvas = Canvas(colorSpace: colorSpace, layers: layers, hasTransparentBackground: manifest.hasTransparentBackground,
                             backgroundLayerID: manifest.backgroundLayerID.map { LayerID(rawValue: $0) }, activeLayerIndex: manifest.activeLayerIndex)
         canvas.cameraDetails = manifest.cameraDetails
+        canvas.locationRemoved = manifest.locationRemoved == true
         let pixelLayers = Set(zip(manifest.layers, layers).filter { $0.0.pixels != nil && $0.1.adjustment == nil }.map(\.1.id))
         return (canvas, pixelLayers)
     }
@@ -326,6 +330,7 @@ public enum ProjectFile {
             activeLayerIndex: manifest.activeLayerIndex
         )
         canvas.cameraDetails = manifest.cameraDetails
+        canvas.locationRemoved = manifest.locationRemoved == true
         return canvas
     }
 }

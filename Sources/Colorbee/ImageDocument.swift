@@ -13,7 +13,10 @@ final class ImageDocument: NSDocument {
     /// An image that gained layers becomes an unsaved project so the original file is never flattened;
     /// this keeps its name in the title until the project is saved somewhere.
     private var projectName: String? {
-        didSet { invalidateRestorableState() }
+        didSet {
+            invalidateRestorableState()
+            noteFileSoon()
+        }
     }
     /// The file can't be saved back without losing frames or precision, so it opens as an untitled copy
     /// (Leah; review J, finding 2).
@@ -40,6 +43,27 @@ final class ImageDocument: NSDocument {
         document.showWindows()
     }
 
+    override var fileURL: URL? {
+        didSet { noteFileSoon() }
+    }
+
+    override var fileType: String? {
+        didSet { noteFileSoon() }
+    }
+
+    /// AppKit may set the file or type off the main thread while saving.
+    private func noteFileSoon() {
+        Task { @MainActor [weak self] in self?.noteFile() }
+    }
+
+    /// Tells the editor about the file, for the Info panel (FR-1.3).
+    @MainActor private func noteFile() {
+        guard let editor else { return }
+        editor.fileName = displayName
+        editor.fileKind = fileURL == nil ? nil : fileType.flatMap { UTType($0)?.localizedDescription }
+        editor.fileBytes = (try? fileURL?.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { $0.map(Int64.init) }
+    }
+
     override class var autosavesInPlace: Bool {
         true
     }
@@ -63,6 +87,7 @@ final class ImageDocument: NSDocument {
         }
         if editor.canvas.layers.count > 1 { editor.isSidebarOpen = true }
         addWindowController(DocumentWindowController(editor: editor))
+        noteFileSoon()
         if opensAsCopy, let fileURL {
             opensAsCopy = false
             projectName = fileURL.deletingPathExtension().lastPathComponent
@@ -129,6 +154,7 @@ final class ImageDocument: NSDocument {
                 hasTransparentBackground: decoded.buffer.hasTransparency
             )
             canvas.cameraDetails = decoded.cameraDetails
+            canvas.locationRemoved = decoded.locationRemoved
             editor = Editor(canvas: canvas)
         }
     }
@@ -173,6 +199,7 @@ final class ImageDocument: NSDocument {
                 defer { self?.encodedSnapshot = nil }
                 return self?.encodedSnapshot ?? snapshot
             } ?? nil
+            self?.noteFileSoon()
             if error == nil, explicit, let written {
                 Task { @MainActor in
                     self?.editor?.markSaved(written)

@@ -845,6 +845,23 @@ final class Editor {
     var showsClipboardPanel = false {
         didSet { onViewStateChange() }
     }
+    var showsInfoPanel = false {
+        didSet { onViewStateChange() }
+    }
+
+    /// The document's file, for the Info panel (FR-1.3). `ImageDocument` keeps these current.
+    var fileName = "Untitled"
+    /// The format's name, or nil while it has never been saved.
+    var fileKind: String?
+    var fileBytes: Int64?
+
+    /// The Info panel's facts, except the color profile's name, which takes AppKit to read.
+    var documentInfo: DocumentInfo {
+        DocumentInfo(fileName: fileName, kind: fileKind, bytesOnDisk: fileBytes, size: canvasSize, profileName: nil,
+                     hasTransparentBackground: hasTransparentBackground, layerCount: layers.count,
+                     pageIndex: currentPageIndex, pageCount: pageCount, resolution: page.resolution,
+                     camera: canvas.cameraDetails, locationRemoved: canvas.locationRemoved)
+    }
 
     var hasTransparentBackground: Bool {
         _ = layersRevision
@@ -3408,7 +3425,7 @@ final class Editor {
         togglePanel(\.showsAdjustmentsPanel)
     }
 
-    private var showsAnyPanel: Bool { showsLayersPanel || showsAdjustmentsPanel || showsHistoryPanel || showsClipboardPanel }
+    private var showsAnyPanel: Bool { showsLayersPanel || showsAdjustmentsPanel || showsHistoryPanel || showsClipboardPanel || showsInfoPanel }
 
     /// The toolbar's Sidebar button. Opened with no panel chosen, it shows the Layers panel, so it's never an empty
     /// shell (Leah, 2026-10-10).

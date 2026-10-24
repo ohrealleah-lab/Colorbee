@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-23 · 559 core tests and 137 app tests passing, plus `make perf`_
+_Last updated: 2026-10-24 · 568 core tests and 139 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Info panel](#test-info-panel)
 
 ---
 
@@ -71,6 +71,7 @@ Nothing waiting right now.
 - Rendering pauses while the window is hidden.
 
 **Layers** (stage 6a)
+- Info panel (View ▸ Info ⌥⌘I, 2026-10-24): read-only file, image and photo details; says Location: Removed when the original had one.
 - Right sidebar with the Layers panel (⌘L or the toolbar's Layers button, which shows the count): blend mode, opacity, eye, padlock, thumbnails, drag to reorder, double-click to rename, add/duplicate/delete/merge down.
 - Layer menu: New ⇧⌘N, Duplicate ⌘J, Delete ⌘⌫, Merge Down ⇧⌘E, Merge Visible ⌥⇧⌘E, Flatten, Hide/Show, Lock/Unlock, Layer Properties…. Edit ▸ Copy Merged ⇧⌘C.
 - 17 blend modes (W3C math in `BlendMode.swift`, mirrored in `Shaders.metal`); layers composite off screen in half floats. Exports use the same math.
@@ -221,6 +222,17 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Info panel
+
+Test image: `TestImages/Info Panel/Photo With Location.jpg` (made-up iPhone details and a made-up location). Run `make run` first for a fresh Release copy.
+1. Open the test photo. Choose **View ▸ Info** (⌥⌘I). The sidebar shows **Info** with File, Image and Photo sections: JPEG image, 86 KB, 1600 × 1000 px, Display P3, Apple iPhone 17 Pro, 1/120 s, ƒ/1.8, Oct 5, 2026, and **Location: Removed**.
+2. Try to type in a value: nothing changes. Drag across a value and press ⌘C: it copies.
+3. Click the ⓘ button at the top of the sidebar: Info hides. If it was the only panel showing, the sidebar closes.
+4. Show Info again and add a layer (⇧⌘N): Layers says 2, and Kind says "Not saved yet" (a layered image becomes a new project).
+5. ⌘N for a new image: no Photo section. Save it as a PNG: Kind becomes PNG image and a Size appears.
+6. Open `TestImages/Stage 10/Three Page Test.pdf`: Page says "1 of 3" and Resolution 200 DPI. Click page 2 in the page sidebar: "2 of 3".
+7. Quit and reopen Colorbee: a window that had Info showing still shows it.
 
 ### Test: Darker toolbar capsules (passed 2026-10-15)
 

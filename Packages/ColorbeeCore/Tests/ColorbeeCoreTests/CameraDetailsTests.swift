@@ -43,6 +43,30 @@ struct CameraDetailsTests {
         #expect(CameraDetails(properties: try properties(of: without)) == nil)
     }
 
+    /// The Info panel says a location was removed (FR-1.3); the location itself is never kept.
+    @Test func aLocationInTheFileIsNotedAsRemoved() throws {
+        let raw = try properties(of: Data(contentsOf: testRAW))
+        #expect(CameraDetails.hasLocation(properties: raw))
+        let png = try ImageCodec.encodePNG(PixelBuffer(width: 4, height: 4, fill: .white), colorSpace: Canvas.defaultColorSpace)
+        #expect(try !ImageCodec.decode(png).locationRemoved)
+
+        let tagged = NSMutableData()
+        let destination = try #require(CGImageDestinationCreateWithData(tagged, "public.jpeg" as CFString, 1, nil))
+        let image = try ImageCodec.makeCGImage(PixelBuffer(width: 4, height: 4, fill: .white), colorSpace: Canvas.defaultColorSpace)
+        CGImageDestinationAddImage(destination, image, [kCGImagePropertyGPSDictionary: [kCGImagePropertyGPSLatitude: 51.5,
+                                                                                         kCGImagePropertyGPSLatitudeRef: "N"]] as CFDictionary)
+        #expect(CGImageDestinationFinalize(destination))
+        #expect(try ImageCodec.decode(tagged as Data).locationRemoved)
+    }
+
+    @Test func projectsRememberTheLocationWasRemoved() throws {
+        let canvas = Canvas(size: IntSize(width: 16, height: 16), colorSpace: Canvas.defaultColorSpace, background: .white)
+        #expect(try !ProjectFile.decode(ProjectFile.encode(canvas)).locationRemoved)
+        canvas.locationRemoved = true
+        #expect(try ProjectFile.decode(ProjectFile.encode(canvas)).locationRemoved)
+        #expect(canvas.copy().locationRemoved)
+    }
+
     @Test func formatsWithoutEXIFDontClaimToHoldThem() {
         #expect(!ImageFileFormat.bmp.holdsCameraDetails && !ImageFileFormat.gif.holdsCameraDetails)
     }

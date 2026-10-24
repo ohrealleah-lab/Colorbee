@@ -23,9 +23,9 @@ final class DocumentWindow: NSWindow {
     // MARK: Restoring (FR-12; review J, finding 28)
 
     private static let panelKeys = ["isSidebarOpen", "showsLayersPanel", "showsAdjustmentsPanel", "showsHistoryPanel",
-                                    "showsClipboardPanel", "showsRulers", "showsStatusBar", "showsPageSidebar"]
+                                    "showsClipboardPanel", "showsInfoPanel", "showsRulers", "showsStatusBar", "showsPageSidebar"]
     private static let panelPaths: [ReferenceWritableKeyPath<Editor, Bool>] = [\.isSidebarOpen, \.showsLayersPanel, \.showsAdjustmentsPanel,
-                                                                             \.showsHistoryPanel, \.showsClipboardPanel, \.showsRulers, \.showsStatusBar,
+                                                                             \.showsHistoryPanel, \.showsClipboardPanel, \.showsInfoPanel, \.showsRulers, \.showsStatusBar,
                                                                              \.showsPageSidebar]
 
     override func encodeRestorableState(with coder: NSCoder) {
@@ -324,6 +324,7 @@ final class DocumentWindow: NSWindow {
     @objc func showCanvasProperties(_ sender: Any?) { editor?.isCanvasPropertiesOpen = true }
     @objc func toggleHistoryPanel(_ sender: Any?) { editor?.togglePanel(\.showsHistoryPanel) }
     @objc func toggleClipboardPanel(_ sender: Any?) { editor?.togglePanel(\.showsClipboardPanel) }
+    @objc func toggleInfoPanel(_ sender: Any?) { editor?.togglePanel(\.showsInfoPanel) }
     @objc func toggleRulers(_ sender: Any?) { editor?.showsRulers.toggle() }
     @objc func toggleStatusBar(_ sender: Any?) { editor?.showsStatusBar.toggle() }
 
@@ -410,7 +411,7 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(toggleHistoryPanel(_:)):
             return true
-        case #selector(toggleClipboardPanel(_:)):
+        case #selector(toggleClipboardPanel(_:)), #selector(toggleInfoPanel(_:)):
             return true
         case #selector(toggleRulers(_:)):
             return true
@@ -476,6 +477,7 @@ final class DocumentWindow: NSWindow {
         case #selector(toggleAdjustmentsPanel(_:)): editor.isSidebarOpen && editor.showsAdjustmentsPanel
         case #selector(toggleHistoryPanel(_:)): editor.isSidebarOpen && editor.showsHistoryPanel
         case #selector(toggleClipboardPanel(_:)): editor.isSidebarOpen && editor.showsClipboardPanel
+        case #selector(toggleInfoPanel(_:)): editor.isSidebarOpen && editor.showsInfoPanel
         case #selector(togglePageSidebar(_:)): editor.showsPageSidebar && editor.pageCount > 1
         default: nil
         }
@@ -484,7 +486,7 @@ final class DocumentWindow: NSWindow {
     private static let viewingCommands: Set<Selector?> = [
         #selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)), #selector(zoomToFit(_:)),
         #selector(togglePixelGrid(_:)), #selector(toggleRulers(_:)), #selector(toggleStatusBar(_:)), #selector(toggleLayers(_:)),
-        #selector(toggleAdjustmentsPanel(_:)), #selector(toggleHistoryPanel(_:)), #selector(toggleClipboardPanel(_:)),
+        #selector(toggleAdjustmentsPanel(_:)), #selector(toggleHistoryPanel(_:)), #selector(toggleClipboardPanel(_:)), #selector(toggleInfoPanel(_:)),
         #selector(togglePageSidebar(_:)),
     ]
 

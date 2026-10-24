@@ -50,6 +50,12 @@ public struct CameraDetails: Codable, Equatable, Sendable {
         if self == CameraDetails() { return nil }
     }
 
+    /// Whether an image file's properties hold a GPS location. Colorbee never keeps it; the Info panel says it was
+    /// removed (FR-1.3).
+    public static func hasLocation(properties: [CFString: Any]) -> Bool {
+        (properties[kCGImagePropertyGPSDictionary] as? [CFString: Any])?.isEmpty == false
+    }
+
     /// Properties for `CGImageDestinationAddImage`: these fields and nothing else.
     public var properties: [CFString: Any] {
         var tiff: [CFString: Any] = [:], exif: [CFString: Any] = [:]

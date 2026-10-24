@@ -14,6 +14,8 @@ public final class Canvas {
     public private(set) var backgroundLayerID: LayerID?
     /// How the photo was taken, if it came from a camera or phone (FR-11.8). Written into an export only when asked.
     public var cameraDetails: CameraDetails?
+    /// The file it came from had a GPS location, which Colorbee doesn't keep (FR-1.3, Info panel).
+    public var locationRemoved = false
 
     public static var defaultColorSpace: CGColorSpace {
         CGColorSpace(name: CGColorSpace.displayP3)!
@@ -64,6 +66,7 @@ public final class Canvas {
                             backgroundLayerID: backgroundLayerID, activeLayerIndex: activeLayerIndex)
         canvas.selection = selection
         canvas.cameraDetails = cameraDetails
+        canvas.locationRemoved = locationRemoved
         return canvas
     }
 

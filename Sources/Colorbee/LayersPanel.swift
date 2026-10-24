@@ -3,7 +3,7 @@ import ColorbeeCore
 import SwiftUI
 
 /// The right sidebar (FR-1.3): an inset glass pane over the canvas surround. The switcher at the top
-/// shows or hides each panel; History and Clipboard History join in stage 7.
+/// shows or hides each panel.
 struct Sidebar: View {
     @Bindable var editor: Editor
 
@@ -14,6 +14,7 @@ struct Sidebar: View {
                 switcherButton("slider.horizontal.3", "Adjustments", "Adjustments panel", panel: \.showsAdjustmentsPanel)
                 switcherButton("clock.arrow.circlepath", "History", ShortcutStore.shared.hint("History panel", command: "toggleHistoryPanel:"), panel: \.showsHistoryPanel)
                 switcherButton("list.clipboard", "Clipboard History", ShortcutStore.shared.hint("Clipboard History panel", command: "toggleClipboardPanel:"), panel: \.showsClipboardPanel)
+                switcherButton("info.circle", "Info", ShortcutStore.shared.hint("Info panel", command: "toggleInfoPanel:"), panel: \.showsInfoPanel)
             }
             .padding(2)
             .background(Theme.field, in: Capsule())
@@ -52,7 +53,12 @@ struct Sidebar: View {
             SectionHeader(title: "Clipboard History", detail: "\(ClipboardHistory.shared.items.count)")
             ClipboardPanel(editor: editor)
         }
-        if !editor.showsLayersPanel && !editor.showsHistoryPanel && !editor.showsClipboardPanel {
+        if editor.showsInfoPanel {
+            Divider()
+            SectionHeader(title: "Info")
+            InfoPanel(editor: editor)
+        }
+        if !editor.showsLayersPanel && !editor.showsHistoryPanel && !editor.showsClipboardPanel && !editor.showsInfoPanel {
             Spacer(minLength: 0)
         }
     }

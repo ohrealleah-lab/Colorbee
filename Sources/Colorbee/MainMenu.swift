@@ -69,6 +69,7 @@ enum MainMenu {
         "showCanvasProperties:": "Change the canvas size or make its background transparent.",
         "toggleHistoryPanel:": "Show or hide every step you've taken, to jump back to any of them.",
         "toggleClipboardPanel:": "Show or hide the last 10 images you copied or pasted.",
+        "toggleInfoPanel:": "Show or hide the image's details: file, size, color profile and how the photo was taken.",
         "toggleRulers:": "Show or hide pixel rulers along the canvas.",
         "toggleStatusBar:": "Show or hide the bar along the bottom of the window.",
         "shareDocument:": "Send the image with AirDrop, Messages, Mail and more.",
@@ -251,6 +252,7 @@ enum MainMenu {
         menu.addItem(item("Adjustments", "toggleAdjustmentsPanel:"))
         menu.addItem(item("History", "toggleHistoryPanel:", "y"))
         menu.addItem(item("Clipboard History", "toggleClipboardPanel:", "v", [.command, .option]))
+        menu.addItem(item("Info", "toggleInfoPanel:", "i", [.command, .option]))
         menu.addItem(item("Page Sidebar", "togglePageSidebar:", "2", [.command, .option]))
         menu.addItem(item("Status Bar", "toggleStatusBar:"))
         menu.addItem(.separator())

@@ -36,6 +36,8 @@ public struct DecodedImage {
     public var isDeep = false
     /// How the photo was taken, if the file says (FR-11.8).
     public var cameraDetails: CameraDetails?
+    /// The file had a GPS location, which isn't kept.
+    public var locationRemoved = false
 
     /// Saving back over the file would lose frames or precision, so it opens as an untitled copy
     /// (Leah; review J, finding 2).
@@ -70,6 +72,7 @@ public enum ImageCodec {
         decoded.frameCount = frameCount
         decoded.isDeep = image.bitsPerComponent > 8
         decoded.cameraDetails = CameraDetails(properties: properties)
+        decoded.locationRemoved = CameraDetails.hasLocation(properties: properties)
         return decoded
     }
 

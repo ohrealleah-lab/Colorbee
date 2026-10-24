@@ -3,7 +3,7 @@ import ColorbeeCore
 
 /// Saves a picture of the first document window and quits, for checking the interface without
 /// taking over the screen: `-ColorbeeSnapshot /path/to.png`, optionally with `-ColorbeeSnapshotDark YES`
-/// `-ColorbeeSnapshotTool brush` (any tool's name), `-ColorbeeSnapshotLayers 3` (adds layers, opens the panel),
+/// `-ColorbeeSnapshotTool brush` (any tool's name), `-ColorbeeSnapshotLayers 3` (adds layers, opens the panel), `-ColorbeeSnapshotInfo YES`,
 /// `-ColorbeeSnapshotEffect levels`, `-ColorbeeSnapshotAdjustment curves`, `-ColorbeeSnapshotShapeFill YES`,
 /// `-ColorbeeSnapshotPDF /path/to.pdf`, `-ColorbeeSnapshotAutoRedact YES` and `-ColorbeeSnapshotAutoRedactApply YES`. The Metal canvas and Liquid Glass aren't drawn,
 /// so it checks layout, not the glass.
@@ -29,6 +29,12 @@ enum Snapshot {
             editor.showsHistoryPanel = true
             editor.showsClipboardPanel = true
             editor.showsRulers = true
+        }
+        // `-ColorbeeSnapshotInfo YES` shows the Info panel on its own.
+        if defaults.bool(forKey: "ColorbeeSnapshotInfo") {
+            editor.showsLayersPanel = false
+            editor.showsAdjustmentsPanel = false
+            editor.togglePanel(\.showsInfoPanel)
         }
         if let name = defaults.string(forKey: "ColorbeeSnapshotTool"), let tool = Tool.allCases.first(where: { "\($0)" == name }) {
             editor.selectTool(tool)

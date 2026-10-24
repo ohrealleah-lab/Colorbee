@@ -13,7 +13,7 @@ _Last updated: 2026-10-24 · 568 core tests and 139 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Info panel](#test-info-panel)
+Nothing waiting right now.
 
 ---
 
@@ -71,7 +71,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - Rendering pauses while the window is hidden.
 
 **Layers** (stage 6a)
-- Info panel (View ▸ Info ⌥⌘I, 2026-10-24): read-only file, image and photo details; says Location: Removed when the original had one.
+- Info panel (View ▸ Info ⌥⌘I, 2026-10-24): read-only file, image and photo details; says Location: Removed when the original had one. Passed Leah's test 2026-10-24.
 - Right sidebar with the Layers panel (⌘L or the toolbar's Layers button, which shows the count): blend mode, opacity, eye, padlock, thumbnails, drag to reorder, double-click to rename, add/duplicate/delete/merge down.
 - Layer menu: New ⇧⌘N, Duplicate ⌘J, Delete ⌘⌫, Merge Down ⇧⌘E, Merge Visible ⌥⇧⌘E, Flatten, Hide/Show, Lock/Unlock, Layer Properties…. Edit ▸ Copy Merged ⇧⌘C.
 - 17 blend modes (W3C math in `BlendMode.swift`, mirrored in `Shaders.metal`); layers composite off screen in half floats. Exports use the same math.
@@ -223,7 +223,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Info panel
+### Test: Info panel (passed 2026-10-24)
 
 Test image: `TestImages/Info Panel/Photo With Location.jpg` (made-up iPhone details and a made-up location). Run `make run` first for a fresh Release copy.
 1. Open the test photo. Choose **View ▸ Info** (⌥⌘I). The sidebar shows **Info** with File, Image and Photo sections: JPEG image, 86 KB, 1600 × 1000 px, Display P3, Apple iPhone 17 Pro, 1/120 s, ƒ/1.8, Oct 5, 2026, and **Location: Removed**.

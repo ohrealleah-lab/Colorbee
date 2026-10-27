@@ -395,7 +395,7 @@ No deadlock in the Match Tone wait; the other fixes and the six small files unna
 
 ---
 
-# Code review round 8 ([PLAN-9.md](PLAN-9.md)), 2026-10-27
+# Code review round 8 ([PLAN-9.md](PLAN-9.md)), 2026-10-27 (passed Leah's test 2026-10-27)
 
 ## Session T: everything since round 7 ([findings](findings-T.md))
 
@@ -410,5 +410,5 @@ Several layers, the keyboard and pointer fixes, the save folder, small subjects,
 | 5 | Low | Esc during "Looking closer…" left "Finding the subject…" showing | **Fixed.** Cancel ends the look at once; a look that finishes later is ignored. App test. |
 | 6 | Low | The "Set by Auto" tooltip was hidden under the name line's grab area | **Fixed.** The whole line shows "Set by Auto" when Auto moved that slider. |
 | 7 | Low | A drag passing under the sidebar left the arrow pointer | **Fixed.** During a drag the tool's pointer stays. |
-| 8 | Low | A quick Shift- or ⌘-click might be read as a plain click | **Waiting for Leah's hand test**; fixed only if it happens. |
+| 8 | Low | A quick Shift- or ⌘-click might be read as a plain click | **Not seen** in Leah's hand test (2026-10-27), so nothing changed. |
 

@@ -13,8 +13,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Review T fixes](#test-review-t-fixes)
-- [Adding from the layer menu](#test-adding-from-the-layer-menu)
+Nothing waiting right now.
 
 ---
 
@@ -246,7 +245,7 @@ No test image needed; a new image with three added layers.
 2. Choose Layers 1 and 3 (⌘-click), right-click Layer 3: both stay chosen and the menu says Merge Layers, Duplicate Layers and so on.
 3. Right-click a layer that isn't chosen: only it is chosen, and the menu says "Layer". Control-click works the same. Plain clicks, dragging, the eye and the padlock work as before.
 
-### Test: Adding from the layer menu
+### Test: Adding from the layer menu (passed 2026-10-27)
 
 Test image: `TestImages/Several Layers/Opacity Test.colorproj`. Run `make run` first for a fresh Release copy.
 1. Right-click **Green**. The menu starts with **New Layer** and **New Adjustment Layer ▸**, then a line, then Merge Down and the rest.
@@ -254,7 +253,7 @@ Test image: `TestImages/Several Layers/Opacity Test.colorproj`. Run `make run` f
 3. Right-click **Red** and point at **New Adjustment Layer ▸**: the same kinds as Layer ▸ New Adjustment Layer, with icons. Choose **Invert**: it appears just above Red, the Adjustments panel shows it, and the red block and everything under it turn inverted.
 4. ⌘Z twice: both are gone. Close without saving.
 
-### Test: Review T fixes
+### Test: Review T fixes (passed 2026-10-27)
 
 Run `make run` first for a fresh Release copy. Save other work before step 1, in case the fix didn't take.
 1. **The crash.** Open `TestImages/Help/Sample Screenshot.png`. Double-click the layer's name in the Layers panel, type `Test` and press Return. Choose **Effects ▸ Gaussian Blur…** and press **B**. Nothing happens (or a beep) and the blur bar stays open; Colorbee doesn't quit.

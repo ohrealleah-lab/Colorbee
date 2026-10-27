@@ -2,7 +2,9 @@
 
 _Written 2026-10-27 by Claude for Leah. Planning only: no code or FRD changes. Functional decisions are Leah's; the questions are at the end._
 _Updated 2026-10-27 after an independent review checked the plan against the code: stage 1 and stage 28 are now in two
-parts each, filters gain a way to hold more than colors, and test builds get their own settings folder._
+parts each, filters gain a way to hold more than colors, and test builds get their own settings folder. Then
+updated again with Leah's answers on snapshots (a cap) and the color readout (status bar only), thumbnails in the
+layer stages, and a stage 12 hand-test fix._
 
 **Scope:** FR-9.7 (all ten items), multi-select layers (FR-8.6), the approved layer follow-ups, layer masks,
 re-editable text, stroke smoothing, Paste in Place and Trim.
@@ -474,13 +476,18 @@ since both use the same eight color ranges.
 ### Stage 12. History Snapshots
 
 1. **What gets built:** name the current state (for example "Before dramatic"). It shows in the History panel, and
-   a click goes back to it. Covers FR-9.7 item 4.
+   a click goes back to it. A snapshot keeps its own copy and can be renamed or deleted. There's a cap of about 10
+   snapshots, and at the cap a clear message says to delete one first (Q12.1). Covers FR-9.7 item 4.
 2. **Depends on:** nothing. **Touches:** the core (`History.swift`, `Canvas.swift` layer-stack state, the disk
    spill), `HistoryPanels.swift`, `Editor.swift`, `MainMenu.swift`.
 3. **Risks**
    - **The main one:** Colorbee's history is one straight line, so going back and making a change throws away
      what came after. A snapshot that only marks a step would vanish then. A snapshot that keeps its own copy
      survives anything, but costs memory, which counts against history's budget and spills to disk (Q12.1).
+   - **How much space:** a snapshot is a copy of every layer. A one-layer 4000 × 3000 photo is about 48 MB; an
+     8000 × 8000 picture with five layers is about 1.3 GB. It won't fill your RAM, since older copies are
+     compressed to disk like older history, but it uses disk space, which is why the cap exists. The soak test runs
+     at 8000 × 8000 with snapshots.
    - **Redaction safety:** a snapshot from before a redaction would bring the secret back, so clearing history
      after a redaction must clear snapshots too (Q12.3).
    - **Pages:** each page has its own.
@@ -496,10 +503,12 @@ since both use the same eight color ranges.
       photo is back as it began.
    3. ⌘Z: you're back at the cropped Noir version.
    4. Click "Start", paint a stroke, then click "Start" again: it still works.
-   5. On a copy of `Auto-Redact Practice.png`: take a snapshot, Auto-Redact, ⌘S, then choose Remove Earlier
-      Versions and Undo History. The snapshot is gone.
-6. **Done when:** history tests cover going back, undoing a jump, the memory budget and spilling, and clearing on
-   redaction. The soak test includes snapshots. Help is updated.
+   5. Make a snapshot, then delete it from the panel: it's gone. Make 11 snapshots: at the cap, a message asks you
+      to delete one first.
+   6. In Finder, duplicate `Auto-Redact Practice.png` and open the copy. Take a snapshot, then Auto-Redact, Solid
+      Fill, Apply, ⌘S, and choose Remove Earlier Versions and Undo History. The snapshot is gone.
+6. **Done when:** history tests cover going back, undoing a jump, the cap, the memory budget and spilling, and
+   clearing on redaction. The soak test includes snapshots. Help is updated.
 
 ### Stage 13. Sharpening and Noise Reduction in detail
 
@@ -708,7 +717,9 @@ since both use the same eight color ranges.
    - **Which numbers:** the document's own values or sRGB (Q20.2). This decides whether a brand color from a style
      guide matches.
    - **Narrow windows:** the status bar needs room.
-   - Questions: Q20.1 to Q20.4.
+   - **Only the status bar:** the Info panel (⌥⌘I) describes the document and doesn't change as the pointer moves,
+     so the readout isn't shown there (Q20.5).
+   - Questions: Q20.1 to Q20.5.
 4. **Size:** S. **Opus, medium.**
 5. **Hand test** (`Color Chart.png`, `TestImages/Help/Sample Screenshot.png`)
    1. Move over a chart patch: the status bar shows its RGB and hex, matching the chart's list.
@@ -837,6 +848,8 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
    - App: `Renderer.swift` with `Shaders.metal` (an extra pass per group), `LayersPanel.swift`, `LayerMenu.swift`.
    - Also everything that walks the layers: Auto-Redact, the Redact Brush, Subjects, the Eyedropper, Merge,
      Flatten, Save Filter from Layers, Undo on Active Layer, and History Snapshots.
+   - **Thumbnails:** `Canvas.thumbnail` draws the page, History-panel and saved-project thumbnails on the CPU,
+     separately from the display and export, and only knows simple adjustments. It must handle groups too.
 3. **Risks**
    - **The biggest change to the document since pages.** Layers stay one flat list, each naming its group. A group
      itself is a row in that list holding no pixels, and about 77 places in the code go through the list; each must
@@ -903,6 +916,8 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
    - **Memory:** a one-channel mask is a quarter of a layer's size (64 MB at 8000 × 8000), but it's a new kind of
      buffer for history's disk spill.
    - **History Snapshots** keep masks too.
+   - **Thumbnails:** `Canvas.thumbnail` (page, History-panel and saved-project thumbnails) must honor masks, since
+     it draws separately from the display and export.
    - **Redaction safety:** a mask hides pixels without removing them. Redaction must change hidden pixels too, and
      the help says masks don't hide secrets (Q28.5).
    - **Older betas** show the hidden parts (Q28.5).
@@ -991,6 +1006,7 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
      text as plain pixels.
    - **Redaction safety:** a text layer keeps its words in the file, so any redaction over it must turn it into
      pixels first (Q29.2).
+   - **Thumbnails** need no change, since the drawn pixels are an ordinary layer; a test confirms it.
    - **Missing fonts** on another Mac (Q29.4).
    - **Saving:** a text layer makes the picture a project (`Editor.isLayered`), as a mask does in stage 27;
      otherwise a PNG save would quietly turn the text into pixels. This is why Q29.1 matters.
@@ -1164,6 +1180,10 @@ _Added after the review (2026-10-27):_
 - **Q0.10 Splitting stage 1.** Split it into 1a (files, filters, sections) and 1b (Whites, eyedropper, Auto)?
   *Recommend yes:* one stage was too much to hand test in one sitting, and 1a gets your filters protected sooner.
   **Answer: yes.**
+- **Q0.11 A beta after the text stages?** Q0.3's list skips stages 29 and 30, which change the project format, and
+  stage 31 comes right after them. *Recommend one more beta after stage 30,* so a text layer made in a test build
+  can be tried in a copy outside your test folder before smoothing starts. **Answer: no** (Leah, 2026-10-27); Q0.3's
+  list stands.
 
 ### Before stages 1a and 1b
 
@@ -1279,7 +1299,10 @@ _Added after the review (2026-10-27):_
 ### Before stage 12
 
 - **Q12.1** A snapshot keeps its own copy, so it survives new edits, rather than a marker that can vanish?
-  *Recommend a copy:* a snapshot that disappears would be a nasty surprise.
+  *Recommend a copy:* a snapshot that disappears would be a nasty surprise. A copy takes space (about 48 MB for a
+  4000 × 3000 photo, about 1.3 GB at 8000 × 8000 with five layers), so *also recommend a cap of about 10 snapshots,*
+  with a message at the cap. **Answer: yes to both** (Leah, 2026-10-27). The cap counts per page, like the undo
+  history (my choice; veto any).
 - **Q12.2** Not saved in the project, like undo history? *Recommend not saved:* it keeps files small and redaction
   safe.
 - **Q12.3** "Remove Earlier Versions and Undo History" after a redaction deletes snapshots too? *Recommend yes:*
@@ -1367,6 +1390,9 @@ _Added after the review (2026-10-27):_
 - **Q20.3** Sample sizes 1 px (the default), 3 × 3 and 5 × 5? *Recommend yes.*
 - **Q20.4** The readout follows the sample size while the Eyedropper is chosen, and a click on the hex copies it?
   *Recommend yes to both.*
+- **Q20.5** Should the color readout also show in the Info panel? *Recommend no, the status bar only:* the Info
+  panel describes the document and doesn't change as the pointer moves. **Answer: status bar only** (Leah,
+  2026-10-27).
 
 ### Before stage 21
 

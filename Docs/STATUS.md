@@ -256,7 +256,7 @@ Test image: `TestImages/Several Layers/Opacity Test.colorproj`: black-and-white 
 7. Choose **Red** and **Blue** again and choose **Layer ▸ Merge Layers** (⇧⌘E). One layer named **Blue** sits where Blue was, and Green stays below it. Red now sits above Green too, so where they overlap, red covers that corner of green: that's expected, since the merged layer takes the top chosen layer's place. ⌘Z brings back Red and Blue.
 8. Set Red alone to 50% opacity. Then choose Red and Yellow and merge: the merged layer is 100% and Normal, and the picture looks the same as before (Red still half see-through).
 9. With two layers chosen, **drag one of them** to the top of the list: the other comes along, just below it.
-10. **Right-click** a chosen layer, choose **Duplicate Layers**: a copy of each appears above it, and the copies are the chosen ones. Then **Delete Layers** from the right-click menu: the copies go.
+10. **Right-click** a chosen layer: **Rename…** is greyed out, since several are chosen. Choose **Duplicate Layers**: a copy of each appears above it, and the copies are the chosen ones. Then **Delete Layers** from the right-click menu: the copies go.
 11. Close without saving.
 
 ### Test: Tooltip delay (passed 2026-10-27)

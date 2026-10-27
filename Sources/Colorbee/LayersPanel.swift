@@ -289,7 +289,8 @@ private struct LayersPanel: View {
         menu.addItem(ClosureMenuItem((active.isVisible ? "Hide " : "Show ") + layers) { editor.toggleChosenLayersVisible() })
         menu.addItem(ClosureMenuItem((active.isLocked ? "Unlock " : "Lock ") + layers) { editor.toggleChosenLayersLocked() })
         menu.addItem(.separator())
-        menu.addItem(ClosureMenuItem("Rename…") {
+        // A name belongs to one layer (Leah, 2026-10-27).
+        menu.addItem(ClosureMenuItem("Rename…", enabled: !editor.hasSeveralChosenLayers) {
             newName = layer.name
             renaming = layer
         })

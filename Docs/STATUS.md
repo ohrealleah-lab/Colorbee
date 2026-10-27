@@ -253,7 +253,7 @@ Test image: `TestImages/Several Layers/Opacity Test.colorproj`: black-and-white 
 4. With Red and Blue still chosen, set the blend mode to **Multiply**: both change, the others don't. ⌘Z.
 5. **Shift-click Yellow** (Red to Yellow are chosen). Drag Opacity to **25%**: all four blocks fade together. ⌘Z.
 6. Lock **Green** (its padlock), then choose Red, Green and Blue and drag Opacity to 50%: Red and Blue fade, Green stays solid. Merge Layers and Delete Layers are greyed out. Unlock Green.
-7. Choose **Red** and **Blue** again and choose **Layer ▸ Merge Layers** (⇧⌘E). One layer named **Blue** sits where Blue was, Green stays between it and nothing else changes on screen. ⌘Z brings back Red and Blue.
+7. Choose **Red** and **Blue** again and choose **Layer ▸ Merge Layers** (⇧⌘E). One layer named **Blue** sits where Blue was, and Green stays below it. Red now sits above Green too, so where they overlap, red covers that corner of green: that's expected, since the merged layer takes the top chosen layer's place. ⌘Z brings back Red and Blue.
 8. Set Red alone to 50% opacity. Then choose Red and Yellow and merge: the merged layer is 100% and Normal, and the picture looks the same as before (Red still half see-through).
 9. With two layers chosen, **drag one of them** to the top of the list: the other comes along, just below it.
 10. **Right-click** a chosen layer, choose **Duplicate Layers**: a copy of each appears above it, and the copies are the chosen ones. Then **Delete Layers** from the right-click menu: the copies go.

@@ -259,10 +259,11 @@ private struct LayersPanel: View {
             renaming = layer
         }
         .onTapGesture {
-            let flags = NSEvent.modifierFlags
+            // The click's own keys, as it was made.
+            let flags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
             editor.chooseLayer(at: index, extending: flags.contains(.shift), toggling: flags.contains(.command))
         }
-        .contextMenu { menu(for: layer, index: index, isChosen: isChosen) }
+        .overlay(LayerMenuArea(onOpen: { editor.chooseForMenu(layerAt: index) }, menu: { menu(for: layer, index: index) }))
         .help("Click to make active · Shift- or ⌘-click to choose several · double-click to rename · drag to reorder")
         .accessibilityAddTraits(isActive || isChosen ? [.isSelected] : [])
         .accessibilityAction(named: "Make Active") { editor.selectLayer(at: index) }
@@ -275,33 +276,26 @@ private struct LayersPanel: View {
         }
     }
 
-    /// The right-click menu (FR-8.6). A layer that isn't chosen is chosen alone before its command runs, so the menu
-    /// speaks for it alone.
-    @ViewBuilder
-    private func menu(for layer: Layer, index: Int, isChosen: Bool) -> some View {
-        let several = isChosen && editor.hasSeveralChosenLayers
-        let layers = several ? "Layers" : "Layer"
-        let leader = isChosen ? editor.canvas.activeLayer : layer
-        Button(several ? "Merge Layers" : "Merge Down") { run(index) { editor.mergeDown() } }
-            .disabled(several ? !editor.canMerge : !LayerActions.canMergeDown(editor.canvas, layerAt: index))
-        Button("Duplicate \(layers)") { run(index) { editor.duplicateLayer() } }
-        Button("Delete \(layers)") { run(index) { editor.deleteLayer() } }
-            .disabled(several ? !editor.canDeleteLayers : !LayerActions.canDelete(editor.canvas, layerAt: index))
-        Divider()
-        Button((leader.isVisible ? "Hide " : "Show ") + layers) { run(index) { editor.toggleChosenLayersVisible() } }
-        Button((leader.isLocked ? "Unlock " : "Lock ") + layers) { run(index) { editor.toggleChosenLayersLocked() } }
-        Divider()
-        Button("Rename…") {
+    /// The right-click menu (FR-8.6), built once the right-clicked layer is chosen, so it speaks for what's chosen now.
+    private func menu(for layer: Layer, index: Int) -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let layers = editor.hasSeveralChosenLayers ? "Layers" : "Layer"
+        let active = editor.canvas.activeLayer
+        menu.addItem(ClosureMenuItem(editor.mergeCommandTitle, enabled: editor.canMerge) { editor.mergeDown() })
+        menu.addItem(ClosureMenuItem("Duplicate \(layers)") { editor.duplicateLayer() })
+        menu.addItem(ClosureMenuItem("Delete \(layers)", enabled: editor.canDeleteLayers) { editor.deleteLayer() })
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem((active.isVisible ? "Hide " : "Show ") + layers) { editor.toggleChosenLayersVisible() })
+        menu.addItem(ClosureMenuItem((active.isLocked ? "Unlock " : "Lock ") + layers) { editor.toggleChosenLayersLocked() })
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem("Rename…") {
             newName = layer.name
             renaming = layer
-        }
+        })
         // Its name, blend mode and opacity are at the top of this panel once it's the active layer.
-        Button("Layer Properties…") { editor.selectLayer(at: index) }
-    }
-
-    private func run(_ index: Int, _ command: () -> Void) {
-        editor.chooseForMenu(layerAt: index)
-        command()
+        menu.addItem(ClosureMenuItem("Layer Properties…") { editor.selectLayer(at: index) })
+        return menu
     }
 
     private func finishRenaming(_ index: Int) {

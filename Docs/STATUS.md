@@ -237,6 +237,13 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
 
+### Test: Right-click chooses the layer (passed 2026-10-27)
+
+No test image needed; a new image with three added layers.
+1. Click Background, then right-click Layer 2: it turns blue as the menu opens. Delete Layer removes Layer 2.
+2. Choose Layers 1 and 3 (⌘-click), right-click Layer 3: both stay chosen and the menu says Merge Layers, Duplicate Layers and so on.
+3. Right-click a layer that isn't chosen: only it is chosen, and the menu says "Layer". Control-click works the same. Plain clicks, dragging, the eye and the padlock work as before.
+
 ### Test: Several layers
 
 Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy.
@@ -247,7 +254,7 @@ Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a 
 5. Choose Layers 1 and 3 again. Drag the **Opacity** slider to 50%: both fade. Set the blend mode to **Multiply**: both change. ⌘Z twice.
 6. With both chosen, **drag Layer 3** to the top of the list: Layer 1 comes along, just below it.
 7. **Right-click** a chosen layer: the menu has Merge Layers, Duplicate Layers, Delete Layers, Hide Layers, Lock Layers, Rename… and Layer Properties…. Choose **Duplicate Layers**: a copy of each appears above it, and the copies are the chosen ones. Choose **Delete Layers** from the right-click menu: the copies go.
-8. **Right-click a layer that isn't chosen**, such as Layer 2: it becomes the only chosen layer, and the menu says **Merge Down**. Choose **Rename…** and type a new name.
+8. **Right-click a layer that isn't chosen**, such as Layer 2: it turns blue as the only chosen layer before the menu opens, and the menu says **Merge Down**. Choose **Rename…** and type a new name.
 9. Lock Layer 1 (its padlock), then choose Layers 1 and 3: Merge Layers and Delete Layers are greyed out.
 10. Choose the Background and Layer 1 and merge: the result is at the bottom, and the Eraser still erases to Color 2 on it, as on a background.
 

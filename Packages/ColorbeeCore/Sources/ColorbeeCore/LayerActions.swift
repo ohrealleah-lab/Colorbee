@@ -87,19 +87,26 @@ public enum LayerActions {
     @discardableResult
     public static func duplicate(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         change("Duplicate Layer", canvas: canvas, history: history, context: context) {
-            let source = canvas.activeLayer
-            let copy = Layer(name: "\(source.name) copy", buffer: source.buffer.copy())
-            copy.isVisible = source.isVisible
-            copy.opacity = source.opacity
-            copy.blendMode = source.blendMode
-            copy.adjustment = source.adjustment
-            copy.clipsToLayerBelow = source.clipsToLayerBelow
-            // A copy of a clipped adjustment stays in its group; anything else goes above the group.
-            let index = source.clipsToLayerBelow ? canvas.activeLayerIndex + 1 : canvas.indexAboveActiveLayer
-            canvas.insertLayer(copy, at: index)
-            canvas.activeLayerIndex = index
+            insertCopyOfActiveLayer(canvas: canvas)
             return true
         }
+    }
+
+    /// A copy of the active layer, with its settings, inserted just above it and made active. A copy of a clipped
+    /// adjustment stays in its group; anything else goes above the group.
+    @discardableResult
+    static func insertCopyOfActiveLayer(canvas: Canvas) -> Layer {
+        let source = canvas.activeLayer
+        let copy = Layer(name: "\(source.name) copy", buffer: source.buffer.copy())
+        copy.isVisible = source.isVisible
+        copy.opacity = source.opacity
+        copy.blendMode = source.blendMode
+        copy.adjustment = source.adjustment
+        copy.clipsToLayerBelow = source.clipsToLayerBelow
+        let index = source.clipsToLayerBelow ? canvas.activeLayerIndex + 1 : canvas.indexAboveActiveLayer
+        canvas.insertLayer(copy, at: index)
+        canvas.activeLayerIndex = index
+        return copy
     }
 
     /// Deletes the active layer unless it's locked or the only one, with its clipped adjustments, which belonged to it
@@ -115,8 +122,11 @@ public enum LayerActions {
         }
     }
 
-    public static func canDelete(_ canvas: Canvas) -> Bool {
-        let going = [canvas.activeLayer] + canvas.clippedAdjustments(onLayerAt: canvas.activeLayerIndex)
+    /// Whether the layer at `index` (the active one if nil) could be deleted.
+    public static func canDelete(_ canvas: Canvas, layerAt index: Int? = nil) -> Bool {
+        let index = index ?? canvas.activeLayerIndex
+        guard canvas.layers.indices.contains(index) else { return false }
+        let going = [canvas.layers[index]] + canvas.clippedAdjustments(onLayerAt: index)
         return canvas.layers.count > going.count && !going.contains(where: \.isLocked)
     }
 
@@ -138,9 +148,10 @@ public enum LayerActions {
         }
     }
 
-    public static func canMergeDown(_ canvas: Canvas) -> Bool {
-        if canvas.activeLayer.adjustment != nil { return false }
-        let index = canvas.activeLayerIndex
+    /// Whether the layer at `index` (the active one if nil) could be merged down.
+    public static func canMergeDown(_ canvas: Canvas, layerAt index: Int? = nil) -> Bool {
+        let index = index ?? canvas.activeLayerIndex
+        guard canvas.layers.indices.contains(index), canvas.layers[index].adjustment == nil else { return false }
         // Pixels can't be merged into an adjustment layer, which has none.
         return index > 0 && !canvas.layers[index].isLocked && !canvas.layers[index - 1].isLocked && canvas.layers[index - 1].adjustment == nil
             && !canvas.clippedAdjustments(onLayerAt: index).contains(where: \.isLocked)
@@ -228,7 +239,7 @@ public enum LayerActions {
         return "Layer \((numbers.max() ?? 0) + 1)"
     }
 
-    private static func change(_ name: String, canvas: Canvas, history: History, context: SelectionContext, _ body: () -> Bool) -> Bool {
+    static func change(_ name: String, canvas: Canvas, history: History, context: SelectionContext, _ body: () -> Bool) -> Bool {
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let edit = history.beginEdit(name, on: canvas)
         edit.willChangeLayers()

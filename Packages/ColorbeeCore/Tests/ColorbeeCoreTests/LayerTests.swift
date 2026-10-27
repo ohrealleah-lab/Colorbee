@@ -324,7 +324,9 @@ struct LayerActionTests {
         let original = canvas.flattened().contentHash()
         var random = SplitMix64(seed: 99)
         for step in 0..<60 {
-            switch Int.random(in: 0..<8, using: &random) {
+            // Every other layer, with the active one, as if chosen with ⌘-click (FR-8.6).
+            let chosen = Set(canvas.layers.enumerated().filter { $0.offset % 2 == step % 2 || $0.offset == canvas.activeLayerIndex }.map(\.element.id))
+            switch Int.random(in: 0..<12, using: &random) {
             case 0: LayerActions.add(canvas: canvas, history: history, context: context)
             case 1: LayerActions.duplicate(canvas: canvas, history: history, context: context)
             case 2: LayerActions.delete(canvas: canvas, history: history, context: context)
@@ -336,6 +338,12 @@ struct LayerActionTests {
                 let count = canvas.layers.count
                 LayerActions.move(from: step % count, to: (step * 7) % count, canvas: canvas, history: history, context: context)
             case 6: LayerActions.flatten(canvas: canvas, history: history, context: context)
+            case 7: LayerActions.mergeLayers(chosen, canvas: canvas, history: history, context: context)
+            case 8: LayerActions.deleteLayers(chosen, canvas: canvas, history: history, context: context)
+            case 9: LayerActions.duplicateLayers(chosen, canvas: canvas, history: history, context: context)
+            case 10:
+                LayerActions.moveLayers(chosen, dragging: canvas.activeLayerIndex, to: (step * 5) % canvas.layers.count,
+                                        canvas: canvas, history: history, context: context)
             default:
                 let edit = history.beginEdit("Paint", on: canvas)
                 let area = IntRect(x: step % 6, y: (step * 3) % 6, width: 2, height: 2)

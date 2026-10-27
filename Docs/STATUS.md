@@ -13,7 +13,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Several layers](#test-several-layers)
 
 ---
 
@@ -73,6 +73,7 @@ Nothing waiting right now.
 **Layers** (stage 6a)
 - Info panel (View ▸ Info ⌥⌘I, 2026-10-24): read-only file, image and photo details; says Location: Removed when the original had one. Passed Leah's test 2026-10-24.
 - Sidebar shortcut (2026-10-27): ⇧S or View ▸ Sidebar (⌃⌘S) hides or shows the whole right sidebar, like the toolbar's Sidebar button. Every button's tooltip shows its key, and tool keys work as soon as a window opens. Passed Leah's tests 2026-10-27.
+- Several layers (FR-8.6, 2026-10-27): Shift- and ⌘-click choose several; Merge Down becomes Merge Layers; Delete, Duplicate, Hide, Lock, opacity, blend mode and dragging work on all chosen; a right-click menu on layers.
 - Right sidebar with the Layers panel (⌘L or the toolbar's Layers button, which shows the count): blend mode, opacity, eye, padlock, thumbnails, drag to reorder, double-click to rename, add/duplicate/delete/merge down.
 - Layer menu: New ⇧⌘N, Duplicate ⌘J, Delete ⌘⌫, Merge Down ⇧⌘E, Merge Visible ⌥⇧⌘E, Flatten, Hide/Show, Lock/Unlock, Layer Properties…. Edit ▸ Copy Merged ⇧⌘C.
 - 17 blend modes (W3C math in `BlendMode.swift`, mirrored in `Shaders.metal`); layers composite off screen in half floats. Exports use the same math.
@@ -147,7 +148,6 @@ Nothing waiting right now.
 **Feature-complete (Leah, 2026-10-19).** No more new features; the ideas once kept for later (AI fill, searchable PDF text, Split Page in Half) are dropped. From here on: fixes, polish and betas.
 
 **Next up (Leah, 2026-10-11)**
-- Choosing several layers and merging them, with a right-click menu on layers (FR-8.6, planned 2026-10-27; an exception to feature-complete). Opus, high effort.
 - Help: done 2026-10-19 (phases 1–6). Keep it current: see "Keeping it current" in `Docs/HELP-PLAN.md`.
 
 **8 Hardening**
@@ -236,6 +236,20 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 6. Choose the Text tool, click the canvas and type a capital **S**: it types the letter, and the sidebar stays.
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
+
+### Test: Several layers
+
+Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy.
+1. Open the image and add three layers (⇧⌘N three times). Paint a different color on each: a red stroke on Layer 1, green on Layer 2, blue on Layer 3.
+2. Click **Layer 1**, then **Shift-click Layer 3**. Layers 1 to 3 are tinted, and Layer 3 is solid (active). Paint a little: it goes on Layer 3 only.
+3. **⌘-click Layer 2** to take it away: only Layers 1 and 3 are tinted or solid.
+4. Open the **Layer** menu: it says **Merge Layers**, **Duplicate Layers**, **Delete Layers**, **Hide Layers** and **Lock Layers**. Choose **Merge Layers** (⇧⌘E works too). One layer named **Layer 3** takes Layer 3's place, Layer 2 stays below it, and the picture looks the same. ⌘Z brings back all three, with just one layer chosen.
+5. Choose Layers 1 and 3 again. Drag the **Opacity** slider to 50%: both fade. Set the blend mode to **Multiply**: both change. ⌘Z twice.
+6. With both chosen, **drag Layer 3** to the top of the list: Layer 1 comes along, just below it.
+7. **Right-click** a chosen layer: the menu has Merge Layers, Duplicate Layers, Delete Layers, Hide Layers, Lock Layers, Rename… and Layer Properties…. Choose **Duplicate Layers**: a copy of each appears above it, and the copies are the chosen ones. Choose **Delete Layers** from the right-click menu: the copies go.
+8. **Right-click a layer that isn't chosen**, such as Layer 2: it becomes the only chosen layer, and the menu says **Merge Down**. Choose **Rename…** and type a new name.
+9. Lock Layer 1 (its padlock), then choose Layers 1 and 3: Merge Layers and Delete Layers are greyed out.
+10. Choose the Background and Layer 1 and merge: the result is at the bottom, and the Eraser still erases to Color 2 on it, as on a background.
 
 ### Test: Tooltip delay (passed 2026-10-27)
 

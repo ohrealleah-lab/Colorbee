@@ -784,6 +784,7 @@ final class Editor {
     /// brings back the new one's.
     private func pageDidChange() {
         stopFillForChange()
+        otherChosenLayerIDs = []
         if pages.current !== page {
             opened.pack()
             saved.pack()
@@ -3487,12 +3488,107 @@ final class Editor {
         return canvas.activeLayer.isLocked || canvas.activeLayer.adjustment != nil
     }
 
-    /// Makes another layer active. Moved pixels are placed on their own layer first; the outline stays.
+    /// Makes another layer active, and the only one chosen. Moved pixels are placed on their own layer first; the
+    /// outline stays.
     func selectLayer(at index: Int) {
-        guard canvas.layers.indices.contains(index), index != canvas.activeLayerIndex else { return }
+        guard canvas.layers.indices.contains(index) else { return }
+        chooseAnchor = canvas.layers[index].id
+        if !otherChosenLayerIDs.isEmpty {
+            otherChosenLayerIDs = []
+            layersRevision += 1
+        }
+        makeActive(index)
+    }
+
+    private func makeActive(_ index: Int) {
+        guard index != canvas.activeLayerIndex else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
         canvas.activeLayerIndex = index
+        layersRevision += 1
+        onRender()
+    }
+
+    // MARK: Choosing several layers (FR-8.6)
+
+    /// The layers chosen besides the active one, with Shift- or ⌘-click (Leah, 2026-10-27). Choosing isn't an undo step
+    /// and isn't saved.
+    private(set) var otherChosenLayerIDs: Set<LayerID> = []
+    /// Where a Shift-click range starts: the layer last clicked without Shift.
+    @ObservationIgnored private var chooseAnchor: LayerID?
+
+    /// Every chosen layer, the active one included.
+    var chosenLayerIDs: Set<LayerID> {
+        _ = layersRevision
+        return otherChosenLayerIDs.intersection(canvas.layers.map(\.id)).union([canvas.activeLayer.id])
+    }
+
+    var hasSeveralChosenLayers: Bool { chosenLayerIDs.count > 1 }
+
+    /// Shift-click chooses every layer from the anchor to this one; ⌘-click adds it or takes it away. The clicked layer
+    /// becomes active, so drawing goes there.
+    func chooseLayer(at index: Int, extending: Bool, toggling: Bool) {
+        guard canvas.layers.indices.contains(index) else { return }
+        let id = canvas.layers[index].id
+        if extending {
+            let anchor = chooseAnchor.flatMap { anchor in canvas.layers.firstIndex { $0.id == anchor } } ?? canvas.activeLayerIndex
+            otherChosenLayerIDs = Set(canvas.layers[min(anchor, index)...max(anchor, index)].map(\.id))
+            layersRevision += 1
+            makeActive(index)
+        } else if toggling {
+            let chosen = chosenLayerIDs
+            if chosen.contains(id) {
+                // One layer always stays chosen.
+                guard chosen.count > 1 else { return }
+                otherChosenLayerIDs = chosen.subtracting([id])
+                layersRevision += 1
+                if id == canvas.activeLayer.id, let top = canvas.layers.lastIndex(where: { otherChosenLayerIDs.contains($0.id) }) {
+                    makeActive(top)
+                }
+            } else {
+                otherChosenLayerIDs = chosen
+                chooseAnchor = id
+                layersRevision += 1
+                makeActive(index)
+            }
+        } else {
+            selectLayer(at: index)
+        }
+    }
+
+    /// A right-click on a layer that isn't chosen chooses it alone first, as in Finder and Photoshop.
+    func chooseForMenu(layerAt index: Int) {
+        guard canvas.layers.indices.contains(index), !chosenLayerIDs.contains(canvas.layers[index].id) else { return }
+        selectLayer(at: index)
+    }
+
+    /// With several layers chosen, Merge Down is Merge Layers.
+    var mergeCommandTitle: String { hasSeveralChosenLayers ? "Merge Layers" : "Merge Down" }
+
+    var canMerge: Bool {
+        hasSeveralChosenLayers ? LayerActions.canMergeLayers(chosenLayerIDs, in: canvas) : LayerActions.canMergeDown(canvas)
+    }
+
+    var canDeleteLayers: Bool {
+        hasSeveralChosenLayers ? LayerActions.canDeleteLayers(chosenLayerIDs, in: canvas) : LayerActions.canDelete(canvas)
+    }
+
+    /// Hide or show every chosen layer, following the active one: if it's shown, they're all hidden.
+    func toggleChosenLayersVisible() {
+        let visible = !canvas.activeLayer.isVisible
+        chosenLayerSetting(visible ? "Show Layer" : "Hide Layer", includingLocked: true) { $0.isVisible = visible }
+    }
+
+    func toggleChosenLayersLocked() {
+        let locked = !canvas.activeLayer.isLocked
+        chosenLayerSetting(locked ? "Lock Layer" : "Unlock Layer", includingLocked: true) { $0.isLocked = locked }
+    }
+
+    /// A settings change on every chosen layer as one step. Locked layers keep their opacity and blend mode.
+    private func chosenLayerSetting(_ name: String, includingLocked: Bool = false, _ body: (Layer) -> Void) {
+        let ids = Set(canvas.layers.filter { chosenLayerIDs.contains($0.id) && (includingLocked || !$0.isLocked) }.map(\.id))
+        finishInteractions()
+        recordingChanges { LayerActions.update(name, layersWithIDs: ids, canvas: canvas, history: history, body) }
         layersRevision += 1
         onRender()
     }
@@ -3504,16 +3600,31 @@ final class Editor {
         isSidebarOpen = true
     }
 
+    /// Duplicates the chosen layers; the copies are then the chosen ones.
     func duplicateLayer() {
-        layerCommand { LayerActions.duplicate(canvas: canvas, history: history, context: selectionContext) }
+        guard hasSeveralChosenLayers else {
+            return layerCommand { LayerActions.duplicate(canvas: canvas, history: history, context: selectionContext) }
+        }
+        var copies: [LayerID]?
+        layerCommand { copies = LayerActions.duplicateLayers(chosenLayerIDs, canvas: canvas, history: history, context: selectionContext); return copies != nil }
+        otherChosenLayerIDs = Set(copies ?? [])
     }
 
     func deleteLayer() {
-        layerCommand { LayerActions.delete(canvas: canvas, history: history, context: selectionContext) }
+        let several = hasSeveralChosenLayers, ids = chosenLayerIDs
+        layerCommand {
+            several ? LayerActions.deleteLayers(ids, canvas: canvas, history: history, context: selectionContext)
+                : LayerActions.delete(canvas: canvas, history: history, context: selectionContext)
+        }
     }
 
+    /// Merge Down, or Merge Layers with several layers chosen (FR-8.6).
     func mergeDown() {
-        layerCommand { LayerActions.mergeDown(canvas: canvas, history: history, context: selectionContext) }
+        let several = hasSeveralChosenLayers, ids = chosenLayerIDs
+        layerCommand {
+            several ? LayerActions.mergeLayers(ids, canvas: canvas, history: history, context: selectionContext)
+                : LayerActions.mergeDown(canvas: canvas, history: history, context: selectionContext)
+        }
     }
 
     func mergeVisible() {
@@ -3524,9 +3635,15 @@ final class Editor {
         layerCommand { LayerActions.flatten(canvas: canvas, history: history, context: selectionContext) }
     }
 
-    /// Moves the layer at `source` so it sits at `destination` (stack indices; 0 is the bottom).
+    /// Moves the layer at `source` so it sits at `destination` (stack indices; 0 is the bottom). A chosen layer brings
+    /// the other chosen layers with it (FR-8.6).
     func moveLayer(from source: Int, to destination: Int) {
-        layerCommand { LayerActions.move(from: source, to: destination, canvas: canvas, history: history, context: selectionContext) }
+        let ids = chosenLayerIDs
+        let together = ids.count > 1 && canvas.layers.indices.contains(source) && ids.contains(canvas.layers[source].id)
+        layerCommand(keepingChoice: true) {
+            together ? LayerActions.moveLayers(ids, dragging: source, to: destination, canvas: canvas, history: history, context: selectionContext)
+                : LayerActions.move(from: source, to: destination, canvas: canvas, history: history, context: selectionContext)
+        }
     }
 
     func setLayerVisible(_ visible: Bool, at index: Int) {
@@ -3549,13 +3666,15 @@ final class Editor {
         layerSetting(clips ? "Only the Layer Below" : "All Layers Below", at: canvas.activeLayerIndex) { $0.clipsToLayerBelow = clips }
     }
 
+    /// On every chosen layer (FR-8.6).
     func setBlendMode(_ mode: BlendMode) {
-        layerSetting("Blend Mode", at: canvas.activeLayerIndex) { $0.blendMode = mode }
+        chosenLayerSetting("Blend Mode") { $0.blendMode = mode }
     }
 
-    /// Opacity while its slider is dragged: shown live, recorded as one step by `finishLayerSettings()`.
+    /// Opacity while its slider is dragged, on every chosen layer: shown live, recorded as one step by
+    /// `finishLayerSettings()`.
     func previewOpacity(_ opacity: Double) {
-        previewLayerSettings("Layer Opacity") { $0.opacity = min(1, max(0, opacity)) }
+        previewLayerSettings("Layer Opacity", onChosen: true) { $0.opacity = min(1, max(0, opacity)) }
     }
 
     /// An adjustment layer's settings while a slider is dragged (FR-8.4), likewise one step.
@@ -3570,14 +3689,19 @@ final class Editor {
         recordingChanges { history.commit(edit) }
     }
 
-    private func previewLayerSettings(_ name: String, _ change: (Layer) -> Void) {
+    private func previewLayerSettings(_ name: String, onChosen: Bool = false, _ change: (Layer) -> Void) {
         if layerSettingsEdit == nil {
             finishInteractions()
             let edit = history.beginEdit(name, on: canvas)
             edit.willChangeLayers()
             layerSettingsEdit = edit
         }
-        change(canvas.activeLayer)
+        if onChosen {
+            let ids = chosenLayerIDs
+            canvas.layers.filter { ids.contains($0.id) && ($0 === canvas.activeLayer || !$0.isLocked) }.forEach(change)
+        } else {
+            change(canvas.activeLayer)
+        }
         layersRevision += 1
         onRender()
     }
@@ -3647,11 +3771,13 @@ final class Editor {
         onRender()
     }
 
-    private func layerCommand(_ body: () -> Bool) {
+    /// A command that changes the layer stack. Afterwards only the active layer is chosen, unless `keepingChoice`.
+    private func layerCommand(keepingChoice: Bool = false, _ body: () -> Bool) {
         finishInteractions()
         var done = false
         recordingChanges { done = body() }
         if !done { onRefused() }
+        if done, !keepingChoice { otherChosenLayerIDs = [] }
         layersRevision += 1
         selectionDidChange()
     }
@@ -3684,6 +3810,7 @@ final class Editor {
         }
         finishInteractions()
         stopFillForChange()
+        otherChosenLayerIDs = []
         // Adding, deleting or moving a page is undone while it's the newest thing done (FR-11.6).
         if pages.undoName != nil {
             guard changePages({ try pages.undo() }) else { return }
@@ -3699,6 +3826,7 @@ final class Editor {
     func redo() {
         finishInteractions()
         stopFillForChange()
+        otherChosenLayerIDs = []
         if undone.last == .pageChange, pages.redoName != nil {
             guard changePages({ try pages.redo() }) else { return }
             undone.removeLast()

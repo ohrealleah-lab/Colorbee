@@ -6,7 +6,7 @@
     <title>Work with layers</title>
     <meta name="AppleTitle" content="Work with layers">
     <meta name="description" content="Keep parts of an image separate with layers: add, duplicate, merge and flatten them, set blend modes and opacity, lock them, and change their look with adjustment layers.">
-    <meta name="keywords" content="layer, layers, new layer, merge down, merge visible, flatten, blend mode, opacity, lock, hide, adjustment layer, only the layer below, clipping, merge adjustment, undo on active layer, revert layer, project, colorproj">
+    <meta name="keywords" content="layer, layers, new layer, merge down, merge layers, several layers, choose several, shift-click, command-click, right-click, merge visible, flatten, blend mode, opacity, lock, hide, adjustment layer, only the layer below, clipping, merge adjustment, undo on active layer, revert layer, project, colorproj">
     <link rel="stylesheet" href="../shared/help.css">
 </head>
 <body>
@@ -36,6 +36,8 @@
     <ul>
         <li><strong>Click</strong> a layer to make it active. Painting, effects and adjustments work on the active layer. Redaction works on every layer, and Crop, Straighten, Rotate and resizing the whole image change every layer.</li>
         <li><strong>Double-click</strong> to rename it. <strong>Drag</strong> to change the order.</li>
+        <li><strong>Shift-click</strong> chooses every layer between the active one and the one you click; <strong>⌘-click</strong> adds a layer or takes it away. Chosen layers are tinted; the one you clicked last is the active layer, where painting goes. See <a href="#several">Several layers at once</a>.</li>
+        <li><strong>Right-click</strong> a layer for Merge, Duplicate, Delete, Hide, Lock, Rename and Layer Properties.</li>
         <li>The <strong>eye</strong> hides or shows a layer. The <strong>padlock</strong> locks it, so it can't be painted on, moved, merged into or deleted. Commands that change the whole image, such as Crop, Rotate and Resize, still change it. A locked layer can still be hidden and reordered.</li>
         <li><strong>Blend mode</strong> and <strong>Opacity</strong>, at the top of the panel, set how the active layer mixes with the ones below.</li>
         <li>The buttons along the bottom add, duplicate, delete and merge down.</li>
@@ -53,6 +55,17 @@
         <tr><td>Flatten</td><td>Combines all visible layers into one, and drops hidden layers.</td></tr>
     </table>
     <p>All of these are in the Layer menu. Merging keeps how the picture looks.</p>
+
+    <a name="several"></a>
+    <h2>Several layers at once</h2>
+    <p>Choose several layers with Shift-click or ⌘-click, then:</p>
+    <ul>
+        <li><strong>Merge Layers</strong> (⇧⌘E, where Merge Down usually is) combines them into one, where the top one was and with its name. Unchosen layers in between stay where they are. Hidden chosen layers are left alone, and a chosen adjustment layer is merged into the chosen layers below it. If any chosen layer is locked, Merge Layers isn't available.</li>
+        <li><strong>Delete</strong>, <strong>Duplicate</strong>, <strong>Hide</strong> and <strong>Lock</strong> work on all of them, from the Layer menu or the right-click menu.</li>
+        <li><strong>Blend mode</strong> and <strong>Opacity</strong> change all of them, except locked ones.</li>
+        <li><strong>Drag</strong> one of them and the others come along, keeping their order.</li>
+    </ul>
+    <p>Each of these is one undo step. A plain click goes back to one layer.</p>
 
     <a name="adjustment-layers"></a>
     <h2>Adjustment layers</h2>

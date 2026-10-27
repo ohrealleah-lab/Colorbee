@@ -111,6 +111,9 @@ private struct LayersPanel: View {
     var body: some View {
         let layers = editor.layers
         let active = editor.activeLayerIndex
+        let chosen = editor.chosenLayerIDs
+        // Dragging a chosen layer brings the other chosen layers along (FR-8.6).
+        let movesChosen = dragged.map { chosen.count > 1 && chosen.contains($0.id) } ?? false
         VStack(alignment: .leading, spacing: 0) {
             SectionHeader(title: "Layers", detail: "\(layers.count)")
 
@@ -139,8 +142,8 @@ private struct LayersPanel: View {
                     ForEach(Array(layers.enumerated().reversed()), id: \.element.id) { index, layer in
                         // The row itself follows the pointer and lands where it's let go. The system drag never
                         // reached the drop target over the canvas (Leah, 2026-10-04).
-                        let isDragged = dragged?.id == layer.id
-                        row(layer, index: index, isActive: index == active)
+                        let isDragged = dragged?.id == layer.id || (movesChosen && chosen.contains(layer.id))
+                        row(layer, index: index, isActive: index == active, isChosen: chosen.contains(layer.id))
                             .offset(y: isDragged ? dragged?.translation ?? 0 : 0)
                             .shadow(color: .black.opacity(isDragged ? 0.25 : 0), radius: 6, y: 2)
                             .zIndex(isDragged ? 1 : 0)
@@ -163,9 +166,9 @@ private struct LayersPanel: View {
                 footerButton("plus", "New Layer", ShortcutStore.shared.hint("New Layer", command: "newLayer:")) { editor.addLayer() }
                 footerButton("plus.square.on.square", "Duplicate Layer", ShortcutStore.shared.hint("Duplicate Layer", command: "duplicateLayer:")) { editor.duplicateLayer() }
                 footerButton("trash", "Delete Layer", ShortcutStore.shared.hint("Delete Layer", command: "deleteLayer:")) { editor.deleteLayer() }
-                    .disabled(!LayerActions.canDelete(editor.canvas))
-                footerButton("arrow.down.to.line", "Merge Down", ShortcutStore.shared.hint("Merge Down", command: "mergeDown:")) { editor.mergeDown() }
-                    .disabled(!LayerActions.canMergeDown(editor.canvas))
+                    .disabled(!editor.canDeleteLayers)
+                footerButton("arrow.down.to.line", editor.mergeCommandTitle, ShortcutStore.shared.hint(editor.mergeCommandTitle, command: "mergeDown:")) { editor.mergeDown() }
+                    .disabled(!editor.canMerge)
                 Spacer()
                 AddAdjustmentMenu(editor: editor)
             }
@@ -175,7 +178,7 @@ private struct LayersPanel: View {
         .foregroundStyle(.primary)
     }
 
-    private func row(_ layer: Layer, index: Int, isActive: Bool) -> some View {
+    private func row(_ layer: Layer, index: Int, isActive: Bool, isChosen: Bool) -> some View {
         HStack(spacing: 8) {
             Button { editor.setLayerVisible(!layer.isVisible, at: index) } label: {
                 Image(systemName: layer.isVisible ? "eye" : "eye.slash")
@@ -248,15 +251,20 @@ private struct LayersPanel: View {
         .padding(.trailing, 8)
         .frame(height: 40)
         .foregroundStyle(isActive ? Color.white : Color.primary)
-        .background(isActive ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 9))
+        // The other chosen layers are tinted; the active one, where drawing goes, is solid.
+        .background(isActive ? Color.accentColor : isChosen ? Color.accentColor.opacity(0.3) : .clear, in: RoundedRectangle(cornerRadius: 9))
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
             newName = layer.name
             renaming = layer
         }
-        .onTapGesture { editor.selectLayer(at: index) }
-        .help("Click to make active · double-click to rename · drag to reorder")
-        .accessibilityAddTraits(isActive ? [.isSelected] : [])
+        .onTapGesture {
+            let flags = NSEvent.modifierFlags
+            editor.chooseLayer(at: index, extending: flags.contains(.shift), toggling: flags.contains(.command))
+        }
+        .contextMenu { menu(for: layer, index: index, isChosen: isChosen) }
+        .help("Click to make active · Shift- or ⌘-click to choose several · double-click to rename · drag to reorder")
+        .accessibilityAddTraits(isActive || isChosen ? [.isSelected] : [])
         .accessibilityAction(named: "Make Active") { editor.selectLayer(at: index) }
         // Reordering without dragging (review J, finding 29: A6).
         .accessibilityAction(named: "Move Up") { if index + 1 < editor.layers.count { editor.moveLayer(from: index, to: index + 1) } }
@@ -265,6 +273,35 @@ private struct LayersPanel: View {
             newName = layer.name
             renaming = layer
         }
+    }
+
+    /// The right-click menu (FR-8.6). A layer that isn't chosen is chosen alone before its command runs, so the menu
+    /// speaks for it alone.
+    @ViewBuilder
+    private func menu(for layer: Layer, index: Int, isChosen: Bool) -> some View {
+        let several = isChosen && editor.hasSeveralChosenLayers
+        let layers = several ? "Layers" : "Layer"
+        let leader = isChosen ? editor.canvas.activeLayer : layer
+        Button(several ? "Merge Layers" : "Merge Down") { run(index) { editor.mergeDown() } }
+            .disabled(several ? !editor.canMerge : !LayerActions.canMergeDown(editor.canvas, layerAt: index))
+        Button("Duplicate \(layers)") { run(index) { editor.duplicateLayer() } }
+        Button("Delete \(layers)") { run(index) { editor.deleteLayer() } }
+            .disabled(several ? !editor.canDeleteLayers : !LayerActions.canDelete(editor.canvas, layerAt: index))
+        Divider()
+        Button((leader.isVisible ? "Hide " : "Show ") + layers) { run(index) { editor.toggleChosenLayersVisible() } }
+        Button((leader.isLocked ? "Unlock " : "Lock ") + layers) { run(index) { editor.toggleChosenLayersLocked() } }
+        Divider()
+        Button("Rename…") {
+            newName = layer.name
+            renaming = layer
+        }
+        // Its name, blend mode and opacity are at the top of this panel once it's the active layer.
+        Button("Layer Properties…") { editor.selectLayer(at: index) }
+    }
+
+    private func run(_ index: Int, _ command: () -> Void) {
+        editor.chooseForMenu(layerAt: index)
+        command()
     }
 
     private func finishRenaming(_ index: Int) {

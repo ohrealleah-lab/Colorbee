@@ -268,15 +268,8 @@ final class DocumentWindow: NSWindow {
     }
     @objc func togglePageSidebar(_ sender: Any?) { editor?.showsPageSidebar.toggle() }
 
-    @objc func toggleLayerVisibility(_ sender: Any?) {
-        guard let editor else { return }
-        editor.setLayerVisible(!editor.canvas.activeLayer.isVisible, at: editor.activeLayerIndex)
-    }
-
-    @objc func toggleLayerLock(_ sender: Any?) {
-        guard let editor else { return }
-        editor.setLayerLocked(!editor.canvas.activeLayer.isLocked, at: editor.activeLayerIndex)
-    }
+    @objc func toggleLayerVisibility(_ sender: Any?) { editor?.toggleChosenLayersVisible() }
+    @objc func toggleLayerLock(_ sender: Any?) { editor?.toggleChosenLayersLocked() }
 
     /// The Layers panel holds the active layer's name, blend mode and opacity, so this opens it.
     @objc func showLayerProperties(_ sender: Any?) {
@@ -444,10 +437,16 @@ final class DocumentWindow: NSWindow {
             return editor.canRevertLayer
         case #selector(newAdjustmentLayer(_:)):
             return true
+        // With several layers chosen, these act on all of them (FR-8.6).
         case #selector(deleteLayer(_:)):
-            return LayerActions.canDelete(editor.canvas)
+            menuItem.title = editor.hasSeveralChosenLayers ? "Delete Layers" : "Delete Layer"
+            return editor.canDeleteLayers
         case #selector(mergeDown(_:)):
-            return LayerActions.canMergeDown(editor.canvas)
+            menuItem.title = editor.mergeCommandTitle
+            return editor.canMerge
+        case #selector(duplicateLayer(_:)):
+            menuItem.title = editor.hasSeveralChosenLayers ? "Duplicate Layers" : "Duplicate Layer"
+            return true
         case #selector(mergeVisible(_:)):
             return LayerActions.canMergeVisible(editor.canvas)
         case #selector(flattenImage(_:)):
@@ -463,12 +462,14 @@ final class DocumentWindow: NSWindow {
         case #selector(togglePageSidebar(_:)):
             return editor.pageCount > 1
         case #selector(toggleLayerVisibility(_:)):
-            menuItem.title = editor.canvas.activeLayer.isVisible ? "Hide Layer" : "Show Layer"
+            let layers = editor.hasSeveralChosenLayers ? "Layers" : "Layer"
+            menuItem.title = (editor.canvas.activeLayer.isVisible ? "Hide " : "Show ") + layers
             return true
         case #selector(toggleLayerLock(_:)):
-            menuItem.title = editor.canvas.activeLayer.isLocked ? "Unlock Layer" : "Lock Layer"
+            let layers = editor.hasSeveralChosenLayers ? "Layers" : "Layer"
+            menuItem.title = (editor.canvas.activeLayer.isLocked ? "Unlock " : "Lock ") + layers
             return true
-        case #selector(newLayer(_:)), #selector(duplicateLayer(_:)), #selector(showLayerProperties(_:)), #selector(copyMerged(_:)):
+        case #selector(newLayer(_:)), #selector(showLayerProperties(_:)), #selector(copyMerged(_:)):
             return true
         case #selector(copy(_:)), #selector(zoomIn(_:)), #selector(zoomOut(_:)),
              #selector(actualSize(_:)), #selector(zoomToFit(_:)):

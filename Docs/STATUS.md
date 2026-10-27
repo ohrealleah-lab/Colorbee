@@ -13,7 +13,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Several layers](#test-several-layers)
+Nothing waiting right now.
 
 ---
 
@@ -73,7 +73,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 **Layers** (stage 6a)
 - Info panel (View ▸ Info ⌥⌘I, 2026-10-24): read-only file, image and photo details; says Location: Removed when the original had one. Passed Leah's test 2026-10-24.
 - Sidebar shortcut (2026-10-27): ⇧S or View ▸ Sidebar (⌃⌘S) hides or shows the whole right sidebar, like the toolbar's Sidebar button. Every button's tooltip shows its key, and tool keys work as soon as a window opens. Passed Leah's tests 2026-10-27.
-- Several layers (FR-8.6, 2026-10-27): Shift- and ⌘-click choose several; Merge Down becomes Merge Layers; Delete, Duplicate, Hide, Lock, opacity, blend mode and dragging work on all chosen; a right-click menu on layers.
+- Several layers (FR-8.6, 2026-10-27): Shift- and ⌘-click choose several; Merge Down becomes Merge Layers; Delete, Duplicate, Hide, Lock, opacity, blend mode and dragging work on all chosen; a right-click menu on layers. Passed Leah's test 2026-10-27.
 - Right sidebar with the Layers panel (⌘L or the toolbar's Layers button, which shows the count): blend mode, opacity, eye, padlock, thumbnails, drag to reorder, double-click to rename, add/duplicate/delete/merge down.
 - Layer menu: New ⇧⌘N, Duplicate ⌘J, Delete ⌘⌫, Merge Down ⇧⌘E, Merge Visible ⌥⇧⌘E, Flatten, Hide/Show, Lock/Unlock, Layer Properties…. Edit ▸ Copy Merged ⇧⌘C.
 - 17 blend modes (W3C math in `BlendMode.swift`, mirrored in `Shaders.metal`); layers composite off screen in half floats. Exports use the same math.
@@ -254,7 +254,7 @@ Test image: `TestImages/Several Layers/Opacity Test.colorproj` (any image works)
 5. Try the same with the **Brush** (B) and with the page sidebar of `TestImages/Stage 10/Three Page Test.pdf`.
 6. Click and drag in the Layers panel (choose a layer, drag the opacity slider): it works as before.
 
-### Test: Several layers
+### Test: Several layers (passed 2026-10-27)
 
 Test image: `TestImages/Several Layers/Opacity Test.colorproj`: black-and-white stripes, with Red, Green, Blue and Yellow blocks on their own layers, each overlapping the next. Anything not fully opaque shows the stripes through it. Run `make run` first for a fresh Release copy.
 1. Open the project. The Layers panel shows Yellow, Blue, Green, Red and Background, with Yellow active.

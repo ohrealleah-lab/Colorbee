@@ -551,6 +551,24 @@ Quick Selection, Magnetic Lasso, Select Sky, Select and Mask edge tools, Quick M
 
 These are your functional calls. I haven't assumed any answer.
 
+### Leah's answers (2026-10-27)
+
+Recorded here only. Nothing has been added to the FRD §23 or built yet.
+
+| # | Question | Answer | Follow-up |
+|---|---|---|---|
+| 1 | Text after it's placed | **Make text re-editable** (against my recommendation to keep pixels) | Large change, reverses a classic-Paint FRD decision. Needs design questions first: is text its own layer type, what happens on merge, flatten and export, and can old projects still open? |
+| 2 | Layers round 2 | **Select All Layers, isolate (Option-click the eye), Align/Distribute, Stamp Visible and Layer Groups** (with "Group chosen layers" in the right-click menu) | Also **Lock transparent pixels** (Question on layer extras). Click-the-canvas-to-pick-a-layer: not included |
+| 2b | Layer masks and clip-to-layer-below | **Yes, as its own later stage** | Large; after round 2 |
+| 3 | Batch work | **Rarely or never** | Batch-apply stays on the maybe list |
+| 4 | Color spaces on export | **Yes**, with "keep document profile" as the default | Export gets a color-space choice, including sRGB |
+| 5 | PSD files | **No** | PSD import dropped |
+| 6 | AI | **Revisit with Apple's built-in models only** | Research what macOS offers on-device and bring options |
+| 7 | Next/previous picture in a folder | **No** | Dropped |
+| 8 | Stroke smoothing | **Yes**, as an optional setting, off by default | Smoothing slider in the palette bar |
+| 9 | Vector shapes (Pen, paths) | **Reopen it** | Large change to the product's character. Needs its own discussion (what would be vector, how it fits "a paint program first") |
+| 10 | Face redaction | **Inside Auto-Redact's review sheet, all pages** | Faces appear as boxes next to text matches, with the same treatments and one undo step |
+
 1. **Editing text after it's placed.** Colorbee turns text into pixels on purpose ("true to classic Paint"). Photoshop keeps text editable. Do you want that decision reopened? (It would be a large change and would reverse an FRD decision.)
 2. **Is "feature-complete" still the rule?** Multi-select layers was an exception. Would you want a small "layers round 2" (groups, Align/Distribute, Select All Layers), or do you want to hold the line on fixes and polish?
 3. **Batch work.** Do you ever process many images at once? If yes, should a batch still stop for a review of Auto-Redact findings on every image?

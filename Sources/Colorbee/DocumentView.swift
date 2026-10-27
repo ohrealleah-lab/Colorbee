@@ -36,7 +36,8 @@ struct DocumentView: View {
                         .glassEffect(.regular, in: Capsule())
                         .padding(.top, 12)
                     } else if editor.isFindingSubject || editor.isReadingText || editor.isFindingEyes {
-                        Label(editor.isReadingText ? "Reading text…" : editor.isFindingEyes ? "Finding eyes…" : "Finding the subject…",
+                        Label(editor.isReadingText ? "Reading text…" : editor.isFindingEyes ? "Finding eyes…"
+                              : editor.activeEffect == .pickSubject ? "Looking closer…" : "Finding the subject…",
                               systemImage: editor.isReadingText ? "text.viewfinder" : editor.isFindingEyes ? "eye" : "person.crop.rectangle")
                             .font(.system(size: 12))
                             .padding(.horizontal, 12)
@@ -372,7 +373,8 @@ private struct EffectBar: View {
                 CropOptions(editor: editor)
             }
             if kind == .pickSubject {
-                Text("There's more than one subject. Click the one you want, or press Return for all of them.")
+                Text(editor.pickHasSubjects ? "There's more than one subject. Click the one you want, even a small one, or press Return for all of them."
+                     : "Colorbee didn't find a subject by itself. Click the one you want, and it looks closer.")
                     .foregroundStyle(.secondary)
             }
             if kind == .perspective {
@@ -400,6 +402,7 @@ private struct EffectBar: View {
                 .keyboardShortcut(.cancelAction)
             Button("Apply") { editor.applyEffect() }
                 .keyboardShortcut(.defaultAction)
+                .disabled(kind == .pickSubject && !editor.pickHasSubjects)
         }
         .controlSize(.small)
         .padding(.horizontal, 12)

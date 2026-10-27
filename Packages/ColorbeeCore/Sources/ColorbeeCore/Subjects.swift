@@ -31,6 +31,46 @@ public struct SubjectScan: Sendable {
         }.value
     }
 
+    /// Looks again in ever smaller squares around `point`, for a subject too small for Vision to see in the whole
+    /// image, and returns the mask of the one under `point`, the size of the whole image (Leah, 2026-10-27).
+    public static func findCloser(at point: IntPoint, in image: CGImage) async throws -> [UInt8]? {
+        let size = IntSize(width: image.width, height: image.height)
+        for square in closerSquares(around: point, in: size) {
+            guard let crop = image.cropping(to: CGRect(x: square.x, y: square.y, width: square.width, height: square.height)) else { continue }
+            let scan = try await find(in: crop)
+            if let index = scan.subject(at: IntPoint(x: point.x - square.x, y: point.y - square.y)) {
+                return placed(scan.masks[index], from: square, in: size)
+            }
+        }
+        return nil
+    }
+
+    /// The squares to look in, largest first, kept inside the image. Vision looks at about 512 × 512, so the first is
+    /// half the image's shorter side and each is 0.7 of the one before, down to about 200 px.
+    static func closerSquares(around point: IntPoint, in size: IntSize) -> [IntRect] {
+        let shorter = min(size.width, size.height)
+        var squares: [IntRect] = []
+        var side = Double(shorter) / 2
+        while side >= 200 || squares.isEmpty {
+            let length = max(1, Int(side.rounded()))
+            let x = min(max(0, point.x - length / 2), size.width - length)
+            let y = min(max(0, point.y - length / 2), size.height - length)
+            squares.append(IntRect(x: x, y: y, width: length, height: length))
+            side *= 0.7
+        }
+        return squares
+    }
+
+    /// A mask found in `square`, placed in an empty mask of the whole image.
+    static func placed(_ mask: [UInt8], from square: IntRect, in size: IntSize) -> [UInt8] {
+        var result = [UInt8](repeating: 0, count: size.width * size.height)
+        for row in 0..<square.height {
+            let from = row * square.width, to = (square.y + row) * size.width + square.x
+            result[to..<(to + square.width)] = mask[from..<(from + square.width)]
+        }
+        return result
+    }
+
     /// A float mask from Vision as bytes, resampled to `size` if Vision's differs.
     static func bytes(of buffer: CVPixelBuffer, size: IntSize) -> [UInt8] {
         CVPixelBufferLockBaseAddress(buffer, .readOnly)

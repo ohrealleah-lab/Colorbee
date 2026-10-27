@@ -92,6 +92,35 @@ struct SubjectTests {
         #expect(canvas.layers.count == 1 && !history.canUndo)
     }
 
+    // Looking closer around a click, for a subject too small to find in the whole image.
+
+    @Test func closerSquaresShrinkAroundTheClick() {
+        let squares = SubjectScan.closerSquares(around: IntPoint(x: 960, y: 760), in: IntSize(width: 1920, height: 1200))
+        #expect(squares.map(\.width) == [600, 420, 294, 206])
+        #expect(squares.allSatisfy { $0.width == $0.height })
+        #expect(squares[1] == IntRect(x: 750, y: 550, width: 420, height: 420))
+    }
+
+    @Test func closerSquaresStayInsideTheImage() {
+        let size = IntSize(width: 1920, height: 1200)
+        for point in [IntPoint(x: 0, y: 0), IntPoint(x: 1919, y: 1199), IntPoint(x: 5, y: 1190)] {
+            for square in SubjectScan.closerSquares(around: point, in: size) {
+                #expect(square.x >= 0 && square.y >= 0 && square.x + square.width <= 1920 && square.y + square.height <= 1200)
+            }
+        }
+    }
+
+    @Test func aSmallImageGetsOneCloserSquare() {
+        #expect(SubjectScan.closerSquares(around: IntPoint(x: 50, y: 20), in: IntSize(width: 100, height: 40)) == [IntRect(x: 40, y: 10, width: 20, height: 20)])
+    }
+
+    @Test func aCloserMaskIsPlacedWhereItWasFound() {
+        let placed = SubjectScan.placed([1, 2, 3, 4], from: IntRect(x: 1, y: 1, width: 2, height: 2), in: IntSize(width: 4, height: 3))
+        #expect(placed == [0, 0, 0, 0,
+                           0, 1, 2, 0,
+                           0, 3, 4, 0])
+    }
+
     // Turning Vision's float mask into bytes (Vision itself only runs in the app).
 
     private func floatMask(width: Int, height: Int, _ values: [Float]) throws -> CVPixelBuffer {

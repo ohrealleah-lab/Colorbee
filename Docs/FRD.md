@@ -435,7 +435,11 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - **Remove Background:** writes Vision's soft edges directly into transparency. Option: put the subject on a new layer instead of erasing in place.
 - **Select Subject:** makes a selection from the subject. Its edges are hard until soft selections arrive in stage 13 (FR-3.4); then it keeps Vision's soft edges.
 - With several subjects, clicking one picks just that subject.
-- Shows "No subject found" when Vision finds nothing (screenshots, text).
+- A click where no subject was found looks again, closer: Vision shrinks the whole image to about 512 px, so a
+  small subject (a character in a game screenshot) can be missed. Colorbee tries ever smaller squares around the
+  click and takes the subject under it, or beeps if there's none.
+- When Vision finds nothing at all, the bar asks for a click on the subject instead, looked for the same way;
+  Return does nothing and Cancel leaves the image as it was.
 - **Clean Up** with an AI model isn't planned: no AI models ship in Colorbee, to keep it small (§23, 2026-10-10, 2026-10-19). Objects are removed with the Remove tool (FR-4.6), which fills from the image's own pixels.
 
 **Effects menu**
@@ -806,7 +810,7 @@ Ticked when Leah's hand tests of the stage that built it passed (stages 1–9, a
 - [x] AC-34 Straighten levels a line drawn along a tilted horizon. With Crop to Fit on, no empty corners remain.
 - [x] AC-35 Adjust Photo's Auto moves only the sliders it lists and shows which; the whole panel is one undo step and also works as an adjustment layer.
 - [x] AC-36 A filter at 50% intensity gives the same result as its slider values halved. A saved filter survives a relaunch and round-trips through a .colorbeefilter file.
-- [x] AC-37 Remove Background leaves soft edges in transparency; Select Subject picks only the clicked subject; an image with no subject says "No subject found" and changes nothing.
+- [x] AC-37 Remove Background leaves soft edges in transparency; Select Subject picks only the clicked subject; an image with no subject asks for a click on one and changes nothing if cancelled; a click on a small subject the first look missed finds it.
 - [x] AC-38 Crop with a pixel-size preset produces exactly that size; Perspective Correction turns a photographed rectangle into a rectangle.
 - [x] AC-39 Cmd+? opens Colorbee Help (FR-14.6).
 - [x] AC-40 Typing "redact" in the Help menu's search lists the Redact a screenshot guide.
@@ -836,6 +840,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-27 | **Small subjects** (Leah, both recommended): a click that misses every subject looks closer around the click before beeping, so a small character in a game screenshot can be selected or lifted; Lift All and Return stay as they were. When nothing is found at all, the bar asks for a click instead of "No subject found". My choices (veto any): the closer look tries squares of half the image's shorter side, then 0.7 of the one before, down to about 200 px, largest first, and takes the first subject under the click; "Looking closer…" shows meanwhile and clicks wait; the bar says "even a small one"; a subject found this way is cut off where its square ends (rare, since the largest square that finds it wins). |
 | 2026-10-27 | **Save and Export start in the picture's folder** (Leah, all recommended): Save, Save As, Export…, Export As presets and Export as PDF start in the folder of the file being worked on; for a picture that became a new project (or opened as a copy), the original picture's folder. Images that never came from a file (⌘N, Paste into New Image) keep the Mac's last-used folder. My choices (veto any): a developed RAW photo starts in the RAW file's folder; the folder is remembered across a relaunch for an unsaved project. See FR-12. |
 | 2026-10-27 | **Tool keys right after opening** (Leah's bug): tool and canvas keys, ⇧S included, didn't work in a new window until the image was clicked. The image now takes the keyboard as soon as its window opens. Leah also chose: when a button or panel has taken the keyboard, a tool or canvas key nothing else uses still reaches the image (never while typing in a text box). |
 | 2026-10-27 | **Every button shows its key** (Leah): the toolbar's Sidebar button says "Sidebar (⇧S)", and Clone Stamp in the Retouch menu says "Clone Stamp (S)". The size box, the Adjustments panel button, the page sidebar's New, Duplicate and Delete Page buttons and Before/After's "Last Saved" note now read their keys from Settings ▸ Shortcuts, so a changed key shows there too (the last four have no default key, so they look the same until one is given). |

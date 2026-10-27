@@ -14,6 +14,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Save starts in the picture's folder](#test-save-starts-in-the-pictures-folder)
+- [Small subjects](#test-small-subjects)
 
 ---
 
@@ -235,6 +236,16 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 6. Choose the Text tool, click the canvas and type a capital **S**: it types the letter, and the sidebar stays.
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
+
+### Test: Small subjects
+
+Test image: Leah's `Pictures/Final Fantasy/new/ffxiv_09022024_205711_085.png` (not in the repo: it's a personal screenshot). Run `make run` first for a fresh Release copy.
+1. Open the picture and choose **Layer ▸ Lift Subject to New Layer**. The bar asks you to click one, and now says "even a small one".
+2. Click **Evelyn's yellow raincoat**. "Looking closer…" shows for a second, then a new **Subject** layer appears with just Evelyn, without her shadow. Hide the bottom layer to check. ⌘Z.
+3. Choose **Edit ▸ Select Subject** and click her **head**: the marching ants go around her.
+4. Choose Select Subject again and click the **stone floor** well away from anyone: "Looking closer…", then a beep, and the bar stays. Press **Esc**.
+5. Choose Lift Subject again and press **Return**: the three big things are lifted as before, without Evelyn. ⌘Z.
+6. Open `TestImages/Auto-Redact Practice.png` (a screenshot) and choose Select Subject. If no subject is found, the bar now says to click one. **Apply** is greyed out and Return does nothing. Press **Cancel**: nothing changed.
 
 ### Test: Save starts in the picture's folder
 

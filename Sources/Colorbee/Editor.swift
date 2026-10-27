@@ -2844,11 +2844,13 @@ final class Editor {
     private(set) var isFindingSubject = false
     /// A message to show, such as "No subject found".
     var subjectMessage: String?
-    /// With several subjects: what was found and what to do with the one you click.
-    @ObservationIgnored private var subjectPick: (scan: SubjectScan, action: SubjectAction, layer: LayerID)?
+    /// With several subjects, or none: what was found, the image it was found in and what to do with the one you click.
+    @ObservationIgnored private var subjectPick: (scan: SubjectScan, image: CGImage, action: SubjectAction, layer: LayerID)?
+    /// Whether the pick has any subjects of its own to take with Return. With none, a click looks closer.
+    private(set) var pickHasSubjects = true
 
     /// Finds the subject in the active layer with Vision, on this Mac, then acts on it. With several
-    /// subjects it waits for a click on one (Return takes them all).
+    /// subjects it waits for a click on one (Return takes them all); with none, for a click to look closer at.
     func findSubject(_ action: SubjectAction) {
         guard !isFindingSubject, activeEffect == nil else { return }
         if action != .select, refusedBecauseLocked() { return }
@@ -2869,14 +2871,13 @@ final class Editor {
                 self.subjectMessage = "The image changed while Colorbee was looking for the subject. Try again."
                 return
             }
-            guard let scan, !scan.isEmpty else {
-                self.subjectMessage = "No subject found. Remove Background and Select Subject work on photos of people, pets and objects, not on screenshots or text."
-                return
-            }
-            if scan.masks.count == 1 {
-                self.perform(action, mask: scan.mask())
+            let found = scan ?? SubjectScan(size: layer.buffer.size, masks: [])
+            if found.masks.count == 1 {
+                self.perform(action, mask: found.mask())
             } else {
-                self.subjectPick = (scan, action, layer.id)
+                // None found: a small subject can still be clicked, and is looked for closer (Leah, 2026-10-27).
+                self.subjectPick = (found, image, action, layer.id)
+                self.pickHasSubjects = !found.isEmpty
                 self.beginEffect(.pickSubject)
             }
         }
@@ -2894,12 +2895,29 @@ final class Editor {
         onRender()
     }
 
-    /// A click while picking: that subject, or a beep on the background.
+    /// A click while picking: that subject, or one found by looking closer around the click, or a beep.
     private func pickSubject(at point: Point2D) {
-        guard let pick = subjectPick, let index = pick.scan.subject(at: IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))) else { return onRefused() }
-        subjectPick = nil
-        activeEffect = nil
-        perform(pick.action, mask: pick.scan.mask(for: [index]))
+        guard let pick = subjectPick, !isFindingSubject else { return }
+        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        if let index = pick.scan.subject(at: pixel) {
+            subjectPick = nil
+            activeEffect = nil
+            perform(pick.action, mask: pick.scan.mask(for: [index]))
+            return
+        }
+        guard canvas.bounds.contains(pixel) else { return onRefused() }
+        // Vision shrinks the whole image to about 512 px, so a small subject is missed there (Leah, 2026-10-27).
+        isFindingSubject = true
+        Task { @MainActor [weak self] in
+            let mask = try? await SubjectScan.findCloser(at: pixel, in: pick.image)
+            guard let self else { return }
+            self.isFindingSubject = false
+            guard self.activeEffect == .pickSubject, self.subjectPick?.layer == pick.layer else { return }
+            guard let mask else { return self.onRefused() }
+            self.subjectPick = nil
+            self.activeEffect = nil
+            self.perform(pick.action, mask: mask)
+        }
     }
 
     /// Drop Shadow and Border: takes back the last preview step and draws the new one. Straighten does this in the
@@ -3219,6 +3237,8 @@ final class Editor {
     func applyEffect() {
         if effectPreviewScheduled { renderEffectPreview() }
         if activeEffect == .pickSubject {
+            // With no subjects of its own there's nothing for Return to take; waiting on a closer look, it waits.
+            guard pickHasSubjects, !isFindingSubject else { return onRefused() }
             activeEffect = nil
             if let pick = subjectPick { perform(pick.action, mask: pick.scan.mask()) }
             subjectPick = nil

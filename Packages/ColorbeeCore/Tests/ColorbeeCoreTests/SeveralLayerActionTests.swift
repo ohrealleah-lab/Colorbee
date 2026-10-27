@@ -138,6 +138,28 @@ struct SeveralLayerActionTests {
         #expect(canvas.layers.count == 3)
     }
 
+    /// Review T, finding 3.
+    @Test func duplicatingALayerWithItsClippedAdjustmentCopiesThePair() {
+        let (canvas, history) = makeCanvas(layers: 2)
+        canvas.layers[1].buffer.fill(red, in: IntRect(x: 0, y: 0, width: 2, height: 2))
+        canvas.activeLayerIndex = 1
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        canvas.layers[2].clipsToLayerBelow = true
+        let before = canvas.flattened().contentHash()
+        #expect(LayerActions.duplicateLayers(ids(canvas, 1, 2), canvas: canvas, history: history, context: context) != nil)
+        #expect(names(canvas) == ["Background", "Layer 1", "Invert", "Layer 1 copy", "Invert copy", "Layer 2"])
+        #expect(canvas.layers[4].clipsToLayerBelow && canvas.clipBaseIndex(forLayerAt: 4) == 3)
+        #expect(canvas.flattened().contentHash() == before)
+    }
+
+    @Test func aClippedAdjustmentChosenWithoutItsLayerIsCopiedInPlace() {
+        let (canvas, history) = makeCanvas(layers: 1)
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        canvas.layers[2].clipsToLayerBelow = true
+        #expect(LayerActions.duplicateLayers(ids(canvas, 0, 2), canvas: canvas, history: history, context: context) != nil)
+        #expect(names(canvas) == ["Background", "Background copy", "Layer 1", "Invert", "Invert copy"])
+    }
+
     @Test func movingKeepsTheChosenLayersTogetherInOrder() {
         let (canvas, history) = makeCanvas(layers: 4)
         canvas.activeLayerIndex = 3

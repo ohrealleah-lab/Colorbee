@@ -20,9 +20,11 @@ extension View {
 
     /// Dragging sideways across this moves `value` as far as dragging a slider as wide as this would, so a slider's
     /// name line grabs it too (Leah, 2026-10-27). A click alone changes nothing; `onEnd` follows a drag.
-    func slides(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double = 1, onEnd: @escaping () -> Void = {}) -> some View {
+    /// `help` is the line's tooltip, since this covers whatever tooltips are under it.
+    func slides(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double = 1, help: String? = nil,
+                onEnd: @escaping () -> Void = {}) -> some View {
         overlay(ScrubArea(value: value, range: range, step: step, onClick: nil, onScrubStart: nil, passesClicksThrough: false,
-                          followsWidth: true, onScrubEnd: onEnd))
+                          followsWidth: true, onScrubEnd: onEnd, help: help))
     }
 }
 
@@ -35,6 +37,7 @@ private struct ScrubArea: NSViewRepresentable {
     let passesClicksThrough: Bool
     var followsWidth = false
     var onScrubEnd: (() -> Void)?
+    var help: String?
 
     func makeNSView(context: Context) -> ScrubView {
         let view = ScrubView()
@@ -55,6 +58,7 @@ private struct ScrubArea: NSViewRepresentable {
         view.passesClicksThrough = passesClicksThrough
         view.followsWidth = followsWidth
         view.onScrubEnd = onScrubEnd
+        view.toolTip = help
     }
 }
 

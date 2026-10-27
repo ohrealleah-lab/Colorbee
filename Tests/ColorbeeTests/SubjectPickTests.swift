@@ -43,6 +43,22 @@ struct SubjectPickTests {
         editor.cancelEffect()
     }
 
+    /// Review T, finding 5: Esc mid-look ends it at once, and a new search isn't upset when the old look finishes.
+    @Test func cancellingDuringACloserLookClearsItAtOnce() async throws {
+        let editor = makeEditor()
+        editor.findSubject(.select)
+        try await waitForTheLook(editor)
+        editor.beginCanvasToolDrag(at: pt(30, 30), viewPoint: pt(30, 30))
+        #expect(editor.isFindingSubject)
+        editor.cancelEffect()
+        #expect(!editor.isFindingSubject && editor.activeEffect == nil)
+        editor.findSubject(.select)
+        #expect(editor.isFindingSubject)
+        try await waitForTheLook(editor)
+        #expect(editor.activeEffect == .pickSubject)
+        editor.cancelEffect()
+    }
+
     @Test func aClickOffTheImageBeepsWithoutLooking() async throws {
         let editor = makeEditor()
         var refusals = 0

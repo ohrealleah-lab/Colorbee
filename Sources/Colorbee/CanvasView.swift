@@ -462,7 +462,8 @@ final class CanvasView: NSView {
     private func updatePointer(_ event: NSEvent) {
         guard isUncovered(event) else {
             if hoverPoint != nil { pointerLeft() }
-            NSCursor.arrow.set()
+            // Mid-drag the tool's pointer stays, so it's still there back on the picture (review T, finding 7).
+            if drag == nil { NSCursor.arrow.set() }
             return
         }
         let point = imagePoint(event)

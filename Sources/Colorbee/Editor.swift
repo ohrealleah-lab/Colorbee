@@ -827,6 +827,8 @@ final class Editor {
     /// Steps only the page shown, never a page change, which isn't in its list (review L, finding 1).
     func jump(toStep count: Int) {
         finishInteractions()
+        // Like Undo and Redo, it leaves just the active layer chosen (review T, finding 4).
+        otherChosenLayerIDs = []
         while history.undoCount > count, history.canUndo, stepShownPage(undoing: true) {}
         while history.undoCount < count, history.canRedo, stepShownPage(undoing: false) {}
     }
@@ -2849,6 +2851,8 @@ final class Editor {
     @ObservationIgnored private var subjectPick: (scan: SubjectScan, image: CGImage, action: SubjectAction, layer: LayerID)?
     /// Whether the pick has any subjects of its own to take with Return. With none, a click looks closer.
     private(set) var pickHasSubjects = true
+    /// Counts closer looks, so one that was cancelled can't touch a later search when it finishes.
+    @ObservationIgnored private var closerLook = 0
 
     /// Finds the subject in the active layer with Vision, on this Mac, then acts on it. With several
     /// subjects it waits for a click on one (Return takes them all); with none, for a click to look closer at.
@@ -2884,11 +2888,13 @@ final class Editor {
         }
     }
 
-    private func perform(_ action: SubjectAction, mask: [UInt8]) {
+    func perform(_ action: SubjectAction, mask: [UInt8]) {
         recordingChanges {
             switch action {
             case .removeBackground: SubjectActions.removeBackground(mask, canvas: canvas, history: history, context: selectionContext)
-            case .liftToNewLayer: SubjectActions.liftToNewLayer(mask, canvas: canvas, history: history, context: selectionContext)
+            case .liftToNewLayer:
+                // The new Subject layer is active and the only one chosen, as after New Layer (review T, finding 4).
+                if SubjectActions.liftToNewLayer(mask, canvas: canvas, history: history, context: selectionContext) { otherChosenLayerIDs = [] }
             case .select: SubjectActions.select(mask, canvas: canvas, history: history, context: selectionContext)
             }
         }
@@ -2909,9 +2915,11 @@ final class Editor {
         guard canvas.bounds.contains(pixel) else { return onRefused() }
         // Vision shrinks the whole image to about 512 px, so a small subject is missed there (Leah, 2026-10-27).
         isFindingSubject = true
+        closerLook += 1
+        let look = closerLook
         Task { @MainActor [weak self] in
             let mask = try? await SubjectScan.findCloser(at: pixel, in: pick.image)
-            guard let self else { return }
+            guard let self, self.closerLook == look else { return }
             self.isFindingSubject = false
             guard self.activeEffect == .pickSubject, self.subjectPick?.layer == pick.layer else { return }
             guard let mask else { return self.onRefused() }
@@ -3397,6 +3405,11 @@ final class Editor {
             selectionDidChange()
         }
         decorationPreviewed = false
+        if subjectPick != nil, isFindingSubject {
+            // A closer look still running is dropped at once (review T, finding 5).
+            closerLook += 1
+            isFindingSubject = false
+        }
         subjectPick = nil
         effectEdit?.restoreOriginals()
         endEffectSession()

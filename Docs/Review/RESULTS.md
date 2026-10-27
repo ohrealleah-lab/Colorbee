@@ -392,3 +392,23 @@ No deadlock in the Match Tone wait; the other fixes and the six small files unna
 | 1 | High | A huge Clone Stamp stroke's Match Tone took up to a minute and several GB while the next edit waited | **Fixed.** The plan keeps everything per stroke pixel (not per pixel of its box), and the blend is a pyramid: solved on the smallest level (from the edge's average, over-relaxed), then carried down and relaxed a few passes per level, half the pixels at a time on all cores. A stroke filling 4000 × 4000: about 0.6 s (was about 9 s); a thin stroke across 8000 × 8000: about 0.15 s. Release tests in `make perf`. |
 | 2 | Medium | Closing or quitting right after a big stroke autosaved it without its tone | **Fixed.** Every save, autosave too, waits for a pending tone. App test. |
 | 3 | Low | A faint tinted rim where the Clone Stamp copies see-through pixels onto solid ones with Match Tone on | **Kept (Leah, 2026-10-22)** as a known edge case: fixing it needs the copy's opacity for every stroke pixel, which would bring back the end-of-stroke pause, for a case that's really erasing with the Clone Stamp. |
+
+---
+
+# Code review round 8 ([PLAN-9.md](PLAN-9.md)), 2026-10-27
+
+## Session T: everything since round 7 ([findings](findings-T.md))
+
+Several layers, the keyboard and pointer fixes, the save folder, small subjects, sliders, the Info panel and review S's fixes. The save folder, the Info panel (no location ever shown) and review S's pyramid were clean.
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | A canvas key with an effect's bar open looped between the window and the canvas and crashed Colorbee | **Fixed.** A key handed to the canvas isn't handed to it again when it comes back up. App test (proven to fail without the fix). |
+| 2 | High | Merge Layers changes the picture when a chosen layer uses a non-Normal blend mode | **Kept (Leah, 2026-10-27)**, as in Photoshop: no single merged layer can carry a blend mode's look. FR-8.6 and the help say the look holds for Normal layers. |
+| 3 | Medium | Duplicate Layers put a copied "Only the layer below" adjustment on the original layer | **Fixed.** A layer and its chosen adjustments are copied as a pair of their own. Core tests. |
+| 4 | Medium | A History click and Lift Subject kept the old choice of layers | **Fixed.** Both leave just the active layer chosen. App tests. |
+| 5 | Low | Esc during "Looking closer…" left "Finding the subject…" showing | **Fixed.** Cancel ends the look at once; a look that finishes later is ignored. App test. |
+| 6 | Low | The "Set by Auto" tooltip was hidden under the name line's grab area | **Fixed.** The whole line shows "Set by Auto" when Auto moved that slider. |
+| 7 | Low | A drag passing under the sidebar left the arrow pointer | **Fixed.** During a drag the tool's pointer stays. |
+| 8 | Low | A quick Shift- or ⌘-click might be read as a plain click | **Waiting for Leah's hand test**; fixed only if it happens. |
+

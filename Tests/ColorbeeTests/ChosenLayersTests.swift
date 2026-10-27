@@ -113,6 +113,23 @@ struct ChosenLayersTests {
         #expect(chosenNames(editor) == ["Layer 3"])
     }
 
+    /// Review T, finding 4.
+    @Test func aHistoryClickChoosesJustTheActiveLayer() {
+        let editor = editor()
+        editor.addLayer()
+        editor.chooseLayer(at: 2, extending: false, toggling: false)
+        editor.chooseLayer(at: 3, extending: false, toggling: true)
+        editor.jump(toStep: editor.history.undoCount - 1)
+        #expect(!editor.hasSeveralChosenLayers)
+    }
+
+    @Test func liftingASubjectChoosesJustTheNewLayer() {
+        let editor = editor()
+        editor.chooseLayer(at: 3, extending: false, toggling: true)
+        editor.perform(.liftToNewLayer, mask: [UInt8](repeating: 255, count: 64))
+        #expect(editor.canvas.activeLayer.name == "Subject" && !editor.hasSeveralChosenLayers)
+    }
+
     @Test func addingALayerChoosesJustIt() {
         let editor = editor()
         editor.chooseLayer(at: 3, extending: false, toggling: true)

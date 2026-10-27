@@ -97,15 +97,21 @@ public enum LayerActions {
     @discardableResult
     static func insertCopyOfActiveLayer(canvas: Canvas) -> Layer {
         let source = canvas.activeLayer
+        let copy = copy(of: source)
+        let index = source.clipsToLayerBelow ? canvas.activeLayerIndex + 1 : canvas.indexAboveActiveLayer
+        canvas.insertLayer(copy, at: index)
+        canvas.activeLayerIndex = index
+        return copy
+    }
+
+    /// "Name copy", with the same pixels and settings.
+    static func copy(of source: Layer) -> Layer {
         let copy = Layer(name: "\(source.name) copy", buffer: source.buffer.copy())
         copy.isVisible = source.isVisible
         copy.opacity = source.opacity
         copy.blendMode = source.blendMode
         copy.adjustment = source.adjustment
         copy.clipsToLayerBelow = source.clipsToLayerBelow
-        let index = source.clipsToLayerBelow ? canvas.activeLayerIndex + 1 : canvas.indexAboveActiveLayer
-        canvas.insertLayer(copy, at: index)
-        canvas.activeLayerIndex = index
         return copy
     }
 

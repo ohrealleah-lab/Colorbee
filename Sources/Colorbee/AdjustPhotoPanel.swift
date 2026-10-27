@@ -96,7 +96,8 @@ struct PhotoControls: View {
                     .frame(height: 18)
                     .background(Theme.field, in: RoundedRectangle(cornerRadius: 5))
             }
-            .slides(Binding(get: { value }, set: { set($0.rounded()) }), in: range, onEnd: onFinish)
+            // The wand's own tooltip is under the grab area, so the line carries it (review T, finding 6).
+            .slides(Binding(get: { value }, set: { set($0.rounded()) }), in: range, help: moved ? "Set by Auto" : nil, onEnd: onFinish)
             SwiftUI.Slider(value: Binding(get: { value }, set: { set($0.rounded()) }), in: range) { editing in
                 if !editing { onFinish() }
             }

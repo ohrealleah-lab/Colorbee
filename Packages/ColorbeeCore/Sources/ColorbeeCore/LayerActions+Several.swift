@@ -96,8 +96,9 @@ extension LayerActions {
         return result.sorted()
     }
 
-    /// A copy of every chosen layer, each just above its own. Returns the copies, with the active layer's copy active,
-    /// or nil if nothing was copied.
+    /// A copy of every chosen layer, each just above its own. A chosen layer's chosen "Only the layer below"
+    /// adjustments are copied with it, onto its copy (review T, finding 3); one chosen without its layer is copied in
+    /// place, as Duplicate does. Returns the copies, with the active layer's copy active, or nil if nothing was copied.
     @discardableResult
     public static func duplicateLayers(_ ids: Set<LayerID>, canvas: Canvas, history: History, context: SelectionContext) -> [LayerID]? {
         var copies: [LayerID] = []
@@ -106,10 +107,26 @@ extension LayerActions {
             var activeCopy: Layer?
             // Top down, so inserting a copy never moves a layer still to be copied.
             for source in canvas.layers.reversed() where ids.contains(source.id) {
-                canvas.activeLayerIndex = canvas.layers.firstIndex { $0 === source }!
-                let copy = insertCopyOfActiveLayer(canvas: canvas)
-                copies.append(copy.id)
-                if source === active { activeCopy = copy }
+                let index = canvas.layers.firstIndex { $0 === source }!
+                if source.adjustment == nil {
+                    // The layer and its chosen clipped adjustments, as a group of their own above its group.
+                    let clips = canvas.clippedAdjustments(onLayerAt: index)
+                    var at = index + 1 + clips.count
+                    for layer in [source] + clips.filter({ ids.contains($0.id) }) {
+                        let copy = copy(of: layer)
+                        canvas.insertLayer(copy, at: at)
+                        at += 1
+                        copies.append(copy.id)
+                        if layer === active { activeCopy = copy }
+                    }
+                } else if source.clipsToLayerBelow, let base = canvas.clipBaseIndex(forLayerAt: index), ids.contains(canvas.layers[base].id) {
+                    continue
+                } else {
+                    canvas.activeLayerIndex = index
+                    let copy = insertCopyOfActiveLayer(canvas: canvas)
+                    copies.append(copy.id)
+                    if source === active { activeCopy = copy }
+                }
             }
             guard !copies.isEmpty else { return false }
             canvas.activeLayerIndex = canvas.layers.firstIndex { $0 === activeCopy } ?? canvas.activeLayerIndex

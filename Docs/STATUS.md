@@ -13,7 +13,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Review T fixes](#test-review-t-fixes)
 
 ---
 
@@ -244,6 +244,17 @@ No test image needed; a new image with three added layers.
 1. Click Background, then right-click Layer 2: it turns blue as the menu opens. Delete Layer removes Layer 2.
 2. Choose Layers 1 and 3 (⌘-click), right-click Layer 3: both stay chosen and the menu says Merge Layers, Duplicate Layers and so on.
 3. Right-click a layer that isn't chosen: only it is chosen, and the menu says "Layer". Control-click works the same. Plain clicks, dragging, the eye and the padlock work as before.
+
+### Test: Review T fixes
+
+Run `make run` first for a fresh Release copy. Save other work before step 1, in case the fix didn't take.
+1. **The crash.** Open `TestImages/Help/Sample Screenshot.png`. Double-click the layer's name in the Layers panel, type `Test` and press Return. Choose **Effects ▸ Gaussian Blur…** and press **B**. Nothing happens (or a beep) and the blur bar stays open; Colorbee doesn't quit.
+2. **Duplicate pairs.** Open `TestImages/Several Layers/Opacity Test.colorproj`. Click **Red**, choose **Layer ▸ New Adjustment Layer ▸ Invert** and turn on **Only the layer below**: the red block turns cyan. ⌘-click **Red** so both are chosen, then **Layer ▸ Duplicate Layers**. The block stays cyan, and the panel shows Red, Invert, **Red copy**, **Invert copy** (with its arrow).
+3. **History keeps one layer.** Click **Blue**, then ⌘-click **Yellow**. Open **View ▸ History** and click an earlier step. Only the active layer is highlighted; the Layer menu says "Delete Layer", not "Delete Layers".
+4. **Esc mid-look.** Open `TestImages/Stage 9 Practice Photo.png`, choose **Edit ▸ Select Subject**, click an empty corner, and press **Esc** while "Looking closer…" shows. The bar and the capsule both go away at once, and Select Subject works again straight away.
+5. **Set by Auto.** On the same photo, open **Adjust Photo**, click **Auto**, then rest the pointer on a slider's name that has the wand: the tooltip says **Set by Auto**. Cancel.
+6. **Drag pointer.** Choose the **Eraser** (E), press on the picture and, holding the button, drag onto the Layers panel and back onto the picture. Only the eraser square shows, with no arrow, until you let go.
+7. **Quick Shift-click (finding 8).** In `Opacity Test.colorproj`, click **Red**, then Shift-click **Yellow** while lifting Shift as quickly as you can. Try a few times. Tell me if it ever chooses only Yellow.
 
 ### Test: Pointer over the sidebar (passed 2026-10-27)
 

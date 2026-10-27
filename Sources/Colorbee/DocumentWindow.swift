@@ -7,12 +7,18 @@ final class DocumentWindow: NSWindow {
         didSet { editor?.onViewStateChange = { [weak self] in self?.invalidateRestorableState() } }
     }
     weak var canvasView: CanvasView?
+    /// While a key is handed to the canvas, which may pass it back up the responder chain to here.
+    private var isForwardingKey = false
 
     /// A tool or canvas key that nothing else used, because a button or panel took the keyboard from the canvas,
-    /// still reaches it. Text boxes use every letter themselves, so typing never gets here.
+    /// still reaches it. Text boxes use every letter themselves, so typing never gets here. A key the canvas passes
+    /// back (with an effect's bar open) isn't handed to it again: that looped until Colorbee crashed (review T,
+    /// finding 1).
     override func keyDown(with event: NSEvent) {
-        if let canvasView, firstResponder !== canvasView, !(firstResponder is NSText),
+        if !isForwardingKey, let canvasView, firstResponder !== canvasView, !(firstResponder is NSText),
            ShortcutStore.shared.canvasCommand(for: event) != nil {
+            isForwardingKey = true
+            defer { isForwardingKey = false }
             canvasView.keyDown(with: event)
         } else {
             super.keyDown(with: event)

@@ -96,10 +96,12 @@ struct PhotoControls: View {
                     .frame(height: 18)
                     .background(Theme.field, in: RoundedRectangle(cornerRadius: 5))
             }
+            .slides(Binding(get: { value }, set: { set($0.rounded()) }), in: range, onEnd: onFinish)
             SwiftUI.Slider(value: Binding(get: { value }, set: { set($0.rounded()) }), in: range) { editing in
                 if !editing { onFinish() }
             }
-            .controlSize(.mini)
+            // The size the Adjustments panel uses, easier to grab than mini (Leah, 2026-10-27).
+            .controlSize(.small)
             .accessibilityLabel(title)
             // Control-click a slider to put it back to zero.
             .contextMenu { Button("Reset \(title)") { set(0); onFinish() } }

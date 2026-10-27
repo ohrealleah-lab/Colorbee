@@ -17,6 +17,13 @@ extension View {
                           onScrubStart: focus.map { focus in { focus.wrappedValue = false } },
                           passesClicksThrough: passingClicksThrough))
     }
+
+    /// Dragging sideways across this moves `value` as far as dragging a slider as wide as this would, so a slider's
+    /// name line grabs it too (Leah, 2026-10-27). A click alone changes nothing; `onEnd` follows a drag.
+    func slides(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double = 1, onEnd: @escaping () -> Void = {}) -> some View {
+        overlay(ScrubArea(value: value, range: range, step: step, onClick: nil, onScrubStart: nil, passesClicksThrough: false,
+                          followsWidth: true, onScrubEnd: onEnd))
+    }
 }
 
 private struct ScrubArea: NSViewRepresentable {
@@ -26,6 +33,8 @@ private struct ScrubArea: NSViewRepresentable {
     let onClick: (() -> Void)?
     let onScrubStart: (() -> Void)?
     let passesClicksThrough: Bool
+    var followsWidth = false
+    var onScrubEnd: (() -> Void)?
 
     func makeNSView(context: Context) -> ScrubView {
         let view = ScrubView()
@@ -44,6 +53,8 @@ private struct ScrubArea: NSViewRepresentable {
         view.onClick = onClick
         view.onScrubStart = onScrubStart
         view.passesClicksThrough = passesClicksThrough
+        view.followsWidth = followsWidth
+        view.onScrubEnd = onScrubEnd
     }
 }
 
@@ -54,6 +65,9 @@ final class ScrubView: NSView {
     var onClick: (() -> Void)?
     var onScrubStart: (() -> Void)?
     var passesClicksThrough = false
+    /// Sideways, with the whole range across the view's width, as on a slider.
+    var followsWidth = false
+    var onScrubEnd: (() -> Void)?
     /// The press that started this drag or click, kept to hand on as a click.
     private var pressEvent: NSEvent?
 
@@ -64,6 +78,7 @@ final class ScrubView: NSView {
 
     private var pressedAt: NSPoint?
     private var lastY = 0.0
+    private var lastX = 0.0
     private var isScrubbing = false
     /// Movement not yet worth a whole step, so slow drags still add up.
     private var remainder = 0.0
@@ -78,7 +93,7 @@ final class ScrubView: NSView {
     }
 
     override func resetCursorRects() {
-        addCursorRect(bounds, cursor: .resizeUpDown)
+        addCursorRect(bounds, cursor: followsWidth ? .resizeLeftRight : .resizeUpDown)
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -87,6 +102,7 @@ final class ScrubView: NSView {
         pressEvent = event
         pressedAt = event.locationInWindow
         lastY = event.locationInWindow.y
+        lastX = event.locationInWindow.x
         isScrubbing = false
         remainder = 0
     }
@@ -99,9 +115,14 @@ final class ScrubView: NSView {
             isScrubbing = true
             onScrubStart?()
         }
-        // Window coordinates grow upward, so moving down (a smaller y) makes the number bigger.
-        let speed = event.modifierFlags.contains(.shift) ? 5.0 : 1.0
-        remainder += (lastY - point.y) * speed / Self.pointsPerStep
+        if followsWidth {
+            remainder += (point.x - lastX) * (range.upperBound - range.lowerBound) / max(bounds.width, 1) / step
+        } else {
+            // Window coordinates grow upward, so moving down (a smaller y) makes the number bigger.
+            let speed = event.modifierFlags.contains(.shift) ? 5.0 : 1.0
+            remainder += (lastY - point.y) * speed / Self.pointsPerStep
+        }
+        lastX = point.x
         lastY = point.y
         let steps = remainder.rounded(.towardZero)
         guard steps != 0 else { return }
@@ -114,6 +135,7 @@ final class ScrubView: NSView {
             pressedAt = nil
             pressEvent = nil
         }
+        if isScrubbing { onScrubEnd?() }
         guard !isScrubbing, pressedAt != nil else { return }
         if passesClicksThrough, let press = pressEvent, let window {
             // Out of the way while the click is sent again, so it lands on the field underneath. The release is queued

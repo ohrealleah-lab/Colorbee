@@ -13,7 +13,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Easier sliders](#test-easier-sliders)
 
 ---
 
@@ -235,6 +235,17 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 6. Choose the Text tool, click the canvas and type a capital **S**: it types the letter, and the sidebar stays.
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
+
+### Test: Easier sliders
+
+Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy.
+1. Choose **Adjustments ▸ Adjust Photo…**. The slider knobs are a little bigger than before.
+2. Point at the word **Definition**: the pointer shows left-right arrows. Press there and drag right. The Definition slider follows, as if you'd dragged its knob, and the photo updates live.
+3. Click once on the word **Exposure** without dragging: nothing changes.
+4. Drag sideways on the **number box** of a slider: that works too.
+5. Press **Apply**, then ⌘Z: the whole Adjust Photo change comes back off in one step.
+6. Add an adjustment layer (**Layer ▸ New Adjustment Layer ▸ Hue/Saturation**). In the Adjustments panel, drag sideways on the **Saturation** name line: the slider follows. ⌘Z once undoes that drag.
+7. Hover the wand mark next to a slider that **Auto** moved (press Auto in Adjust Photo first): check whether "Set by Auto" still shows. If not, tell me.
 
 ### Test: Small subjects (passed 2026-10-27)
 

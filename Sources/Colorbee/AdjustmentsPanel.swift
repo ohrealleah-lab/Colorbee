@@ -245,6 +245,8 @@ struct AdjustmentsPanel: View {
                     .frame(height: 18)
                     .background(Theme.field, in: RoundedRectangle(cornerRadius: 5))
             }
+            .slides(Binding(get: { value }, set: { set(($0 / parameter.step).rounded() * parameter.step) }), in: parameter.range,
+                    step: parameter.step, onEnd: { editor.finishLayerSettings() })
             Slider(value: Binding(get: { value }, set: { set(($0 / parameter.step).rounded() * parameter.step) }), in: parameter.range) { editing in
                 if !editing { editor.finishLayerSettings() }
             }

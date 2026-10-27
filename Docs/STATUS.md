@@ -246,17 +246,18 @@ No test image needed; a new image with three added layers.
 
 ### Test: Several layers
 
-Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy.
-1. Open the image and add three layers (⇧⌘N three times). Paint a different color on each: a red stroke on Layer 1, green on Layer 2, blue on Layer 3.
-2. Click **Layer 1**, then **Shift-click Layer 3**. Layers 1 to 3 are tinted, and Layer 3 is solid (active). Paint a little: it goes on Layer 3 only.
-3. **⌘-click Layer 2** to take it away: only Layers 1 and 3 are tinted or solid.
-4. Open the **Layer** menu: it says **Merge Layers**, **Duplicate Layers**, **Delete Layers**, **Hide Layers** and **Lock Layers**. Choose **Merge Layers** (⇧⌘E works too). One layer named **Layer 3** takes Layer 3's place, Layer 2 stays below it, and the picture looks the same. ⌘Z brings back all three, with just one layer chosen.
-5. Choose Layers 1 and 3 again. Drag the **Opacity** slider to 50%: both fade. Set the blend mode to **Multiply**: both change. ⌘Z twice.
-6. With both chosen, **drag Layer 3** to the top of the list: Layer 1 comes along, just below it.
-7. **Right-click** a chosen layer: the menu has Merge Layers, Duplicate Layers, Delete Layers, Hide Layers, Lock Layers, Rename… and Layer Properties…. Choose **Duplicate Layers**: a copy of each appears above it, and the copies are the chosen ones. Choose **Delete Layers** from the right-click menu: the copies go.
-8. **Right-click a layer that isn't chosen**, such as Layer 2: it turns blue as the only chosen layer before the menu opens, and the menu says **Merge Down**. Choose **Rename…** and type a new name.
-9. Lock Layer 1 (its padlock), then choose Layers 1 and 3: Merge Layers and Delete Layers are greyed out.
-10. Choose the Background and Layer 1 and merge: the result is at the bottom, and the Eraser still erases to Color 2 on it, as on a background.
+Test image: `TestImages/Several Layers/Opacity Test.colorproj`: black-and-white stripes, with Red, Green, Blue and Yellow blocks on their own layers, each overlapping the next. Anything not fully opaque shows the stripes through it. Run `make run` first for a fresh Release copy.
+1. Open the project. The Layers panel shows Yellow, Blue, Green, Red and Background, with Yellow active.
+2. Click **Red**, then **⌘-click Blue**. Red and Blue are chosen, Blue solid (active), Green between them not chosen.
+3. Drag **Opacity** to **50%**. Red and Blue both fade and show the stripes; Green and Yellow stay solid. Each chosen row reads "Normal · 50%". ⌘Z once: both back to 100%.
+4. With Red and Blue still chosen, set the blend mode to **Multiply**: both change, the others don't. ⌘Z.
+5. **Shift-click Yellow** (Red to Yellow are chosen). Drag Opacity to **25%**: all four blocks fade together. ⌘Z.
+6. Lock **Green** (its padlock), then choose Red, Green and Blue and drag Opacity to 50%: Red and Blue fade, Green stays solid. Merge Layers and Delete Layers are greyed out. Unlock Green.
+7. Choose **Red** and **Blue** again and choose **Layer ▸ Merge Layers** (⇧⌘E). One layer named **Blue** sits where Blue was, Green stays between it and nothing else changes on screen. ⌘Z brings back Red and Blue.
+8. Set Red alone to 50% opacity. Then choose Red and Yellow and merge: the merged layer is 100% and Normal, and the picture looks the same as before (Red still half see-through).
+9. With two layers chosen, **drag one of them** to the top of the list: the other comes along, just below it.
+10. **Right-click** a chosen layer, choose **Duplicate Layers**: a copy of each appears above it, and the copies are the chosen ones. Then **Delete Layers** from the right-click menu: the copies go.
+11. Close without saving.
 
 ### Test: Tooltip delay (passed 2026-10-27)
 

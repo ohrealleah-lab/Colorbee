@@ -14,6 +14,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Sidebar shortcut](#test-sidebar-shortcut)
+- [Buttons show their keys](#test-buttons-show-their-keys)
 
 ---
 
@@ -235,6 +236,15 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 6. Choose the Text tool, click the canvas and type a capital **S**: it types the letter, and the sidebar stays.
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
+
+### Test: Buttons show their keys
+
+Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `make run` first for a fresh Release copy. Hover over each thing for a second until its tooltip shows.
+1. The **Sidebar** button at the far right of the toolbar: **Sidebar (⇧S)**.
+2. Click the **Retouch** button (the wand with rays), then hover **Clone Stamp** in its menu: **Clone Stamp (S): Option-click where to copy from**.
+3. Choose the Pencil and hover the **size box**: **Size of the Pencil. [ and ] change it.**
+4. Hover a few tools for a spot check: Pencil **(P)**, Fill **(G)**, Magic Wand **(W)**, Step Badge **(N)**. Gradient and Ellipse Select have no key, so they show just their names.
+5. **Colorbee ▸ Settings ▸ Shortcuts**: change **Larger Size** to **=**. Hover the size box again: **[ and = change it.** Then click the ↺ next to Larger Size to put it back to **]**.
 
 ### Test: Info panel (passed 2026-10-24)
 

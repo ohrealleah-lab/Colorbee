@@ -195,7 +195,13 @@ private struct SizeControl: View {
             .padding(.leading, 4)
         }
         .padding(.trailing, 2)
-        .help("Size of the \(editor.tool.name). [ and ] change it.")
+        .help(sizeHelp)
+    }
+
+    private var sizeHelp: String {
+        let keys = ["canvas.smaller", "canvas.larger"].compactMap { ShortcutStore.shared.book.shortcut(for: $0)?.display }
+        let change = keys.isEmpty ? "" : " \(keys.joined(separator: " and ")) change\(keys.count == 1 ? "s" : "") it."
+        return "Size of the \(editor.tool.name).\(change)"
     }
 }
 
@@ -437,7 +443,7 @@ private struct SidebarButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!editor.canToggleSidebar)
-        .help("Sidebar")
+        .help(ShortcutStore.shared.hint("Sidebar", command: "canvas.sidebar"))
         .accessibilityLabel("Sidebar")
     }
 }

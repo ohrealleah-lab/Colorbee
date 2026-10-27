@@ -492,7 +492,7 @@ private struct CompareBar: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
-            .help(!editor.hasLastSaved ? "Last Saved is available after you save with ⌘S" : "")
+            .help(!editor.hasLastSaved ? ShortcutStore.shared.hint("Last Saved is available after you save", command: "saveDocument:") : "")
             Spacer()
             Picker("Layout", selection: layout) {
                 Label("Side by side", systemImage: "rectangle.split.2x1").tag(Comparison.Layout.sideBySide)

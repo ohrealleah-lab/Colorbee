@@ -158,7 +158,7 @@ private struct RetouchGallery: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(kind.hint)
+                    .help(kind.tooltip)
                 }
             }
             .focusEffectDisabled()

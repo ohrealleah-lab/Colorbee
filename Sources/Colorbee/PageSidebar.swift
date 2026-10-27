@@ -60,9 +60,9 @@ struct PageSidebar: View {
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { places.list = $0 }
             }
             HStack(spacing: 2) {
-                footerButton("plus", "New Page") { editor.newPage() }
-                footerButton("plus.square.on.square", "Duplicate Page") { editor.duplicatePage() }
-                footerButton("trash", "Delete Page") { editor.deletePage() }
+                footerButton("plus", "New Page", command: "newPage:") { editor.newPage() }
+                footerButton("plus.square.on.square", "Duplicate Page", command: "duplicatePage:") { editor.duplicatePage() }
+                footerButton("trash", "Delete Page", command: "deletePage:") { editor.deletePage() }
                     .disabled(editor.pageCount < 2)
                 Spacer()
             }
@@ -150,12 +150,12 @@ struct PageSidebar: View {
         return NSImage(cgImage: image, size: NSSize(width: thumbnail.width, height: thumbnail.height))
     }
 
-    private func footerButton(_ symbol: String, _ label: String, _ action: @escaping () -> Void) -> some View {
+    private func footerButton(_ symbol: String, _ label: String, command: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 12)).frame(width: 26, height: 22)
         }
         .buttonStyle(.plain)
-        .help(label)
+        .help(ShortcutStore.shared.hint(label, command: command))
         .accessibilityLabel(label)
     }
 }

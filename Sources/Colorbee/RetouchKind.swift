@@ -54,6 +54,12 @@ enum RetouchKind: CaseIterable {
         }
     }
 
+    /// Clone Stamp is the one kind with its own key.
+    @MainActor
+    var tooltip: String {
+        self == .cloneStamp ? ShortcutStore.shared.hint(name, command: "canvas.cloneStamp") + ": \(hint)" : hint
+    }
+
     /// Remove and Spot Heal fill the painted area when the stroke ends; the others change pixels as you paint.
     var fillsArea: Bool { self == .remove || self == .spotHeal }
 

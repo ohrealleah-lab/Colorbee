@@ -11,7 +11,7 @@ struct Sidebar: View {
         VStack(spacing: 0) {
             HStack(spacing: 2) {
                 switcherButton("square.3.layers.3d", "Layers", ShortcutStore.shared.hint("Layers panel", command: "toggleLayers:"), panel: \.showsLayersPanel)
-                switcherButton("slider.horizontal.3", "Adjustments", "Adjustments panel", panel: \.showsAdjustmentsPanel)
+                switcherButton("slider.horizontal.3", "Adjustments", ShortcutStore.shared.hint("Adjustments panel", command: "toggleAdjustmentsPanel:"), panel: \.showsAdjustmentsPanel)
                 switcherButton("clock.arrow.circlepath", "History", ShortcutStore.shared.hint("History panel", command: "toggleHistoryPanel:"), panel: \.showsHistoryPanel)
                 switcherButton("list.clipboard", "Clipboard History", ShortcutStore.shared.hint("Clipboard History panel", command: "toggleClipboardPanel:"), panel: \.showsClipboardPanel)
                 switcherButton("info.circle", "Info", ShortcutStore.shared.hint("Info panel", command: "toggleInfoPanel:"), panel: \.showsInfoPanel)

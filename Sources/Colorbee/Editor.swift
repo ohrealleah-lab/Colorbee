@@ -3427,9 +3427,13 @@ final class Editor {
 
     private var showsAnyPanel: Bool { showsLayersPanel || showsAdjustmentsPanel || showsHistoryPanel || showsClipboardPanel || showsInfoPanel }
 
-    /// The toolbar's Sidebar button. Opened with no panel chosen, it shows the Layers panel, so it's never an empty
-    /// shell (Leah, 2026-10-10).
+    /// Adjust Photo's sliders are in the sidebar, so it stays while they're open (review D, finding 5).
+    var canToggleSidebar: Bool { activeEffect != .adjustPhoto }
+
+    /// The toolbar's Sidebar button, View ▸ Sidebar and ⇧S. Opened with no panel chosen, it shows the Layers panel,
+    /// so it's never an empty shell (Leah, 2026-10-10).
     func toggleSidebar() {
+        guard canToggleSidebar else { return }
         if isSidebarOpen {
             isSidebarOpen = false
         } else {

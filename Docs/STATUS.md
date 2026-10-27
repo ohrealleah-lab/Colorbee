@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-24 · 568 core tests and 139 app tests passing, plus `make perf`_
+_Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Sidebar shortcut](#test-sidebar-shortcut)
 
 ---
 
@@ -72,6 +72,7 @@ Nothing waiting right now.
 
 **Layers** (stage 6a)
 - Info panel (View ▸ Info ⌥⌘I, 2026-10-24): read-only file, image and photo details; says Location: Removed when the original had one. Passed Leah's test 2026-10-24.
+- Sidebar shortcut (2026-10-27): ⇧S or View ▸ Sidebar (⌃⌘S) hides or shows the whole right sidebar, like the toolbar's Sidebar button.
 - Right sidebar with the Layers panel (⌘L or the toolbar's Layers button, which shows the count): blend mode, opacity, eye, padlock, thumbnails, drag to reorder, double-click to rename, add/duplicate/delete/merge down.
 - Layer menu: New ⇧⌘N, Duplicate ⌘J, Delete ⌘⌫, Merge Down ⇧⌘E, Merge Visible ⌥⇧⌘E, Flatten, Hide/Show, Lock/Unlock, Layer Properties…. Edit ▸ Copy Merged ⇧⌘C.
 - 17 blend modes (W3C math in `BlendMode.swift`, mirrored in `Shaders.metal`); layers composite off screen in half floats. Exports use the same math.
@@ -222,6 +223,18 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Sidebar shortcut
+
+Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `make run` first for a fresh Release copy.
+1. Open the test image. If the sidebar on the right is closed, press **⇧S**: it opens.
+2. Show **History** and **Info** too (⌘Y, ⌥⌘I), so three panels are showing.
+3. Press **⇧S**: the whole sidebar hides and the canvas gets wider. Press **⇧S** again: it comes back with the same three panels.
+4. Open the **View** menu: **Sidebar** is just above Layers, shows **⌃⌘S**, and has a checkmark. Choose it: the sidebar hides, and the checkmark is gone next time you open the menu. Press **⌃⌘S**: it's back.
+5. Press plain **S**: Clone Stamp is chosen, and the sidebar doesn't move.
+6. Choose the Text tool, click the canvas and type a capital **S**: it types the letter, and the sidebar stays.
+7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
+8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
 
 ### Test: Info panel (passed 2026-10-24)
 

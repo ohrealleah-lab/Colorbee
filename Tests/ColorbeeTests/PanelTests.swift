@@ -28,6 +28,32 @@ struct PanelTests {
         #expect(editor.isSidebarOpen && editor.showsLayersPanel)
     }
 
+    /// View ▸ Sidebar and ⇧S hide the whole sidebar and bring back the panels that were showing.
+    @Test func hidingTheSidebarKeepsItsPanels() {
+        let editor = editor(keeping: \.showsHistoryPanel)
+        editor.showsInfoPanel = true
+        editor.toggleSidebar()
+        #expect(!editor.isSidebarOpen)
+        editor.toggleSidebar()
+        #expect(editor.isSidebarOpen && editor.showsHistoryPanel && editor.showsInfoPanel && !editor.showsLayersPanel)
+    }
+
+    /// Adjust Photo's sliders are in the sidebar, so ⇧S and View ▸ Sidebar leave it alone (review D, finding 5).
+    @Test func adjustPhotoKeepsTheSidebarOpen() {
+        let editor = editor(keeping: \.showsLayersPanel)
+        editor.beginEffect(.adjustPhoto)
+        editor.toggleSidebar()
+        #expect(editor.isSidebarOpen && !editor.canToggleSidebar)
+        editor.cancelEffect()
+    }
+
+    /// ⇧S is the Sidebar; plain S stays Clone Stamp.
+    @Test func shiftSIsTheSidebarKey() {
+        let book = ShortcutBook(commands: ShortcutStore.canvasCommands)
+        #expect(book.command(for: KeyShortcut("s", .shift), kind: .canvas)?.id == "canvas.sidebar")
+        #expect(book.command(for: KeyShortcut("s"), kind: .canvas)?.id == "canvas.cloneStamp")
+    }
+
     /// Review P, finding 3.
     @Test func newLayerShowsTheLayersPanel() {
         let editor = editor()

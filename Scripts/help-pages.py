@@ -102,7 +102,7 @@ body = ['    <a name="shortcuts"></a>\n    <h1>Keyboard shortcuts</h1>\n',
         '    <p class="lead">Every shortcut in Colorbee, as it comes. You can change any of them in '
         'Colorbee ▸ Settings ▸ Shortcuts, except the Mac\'s own, such as Quit and Hide.</p>\n',
         '\n    <a name="tools"></a>\n    <h2>Tools and canvas keys</h2>\n',
-        "    <p>Single keys work whenever you're not typing text.</p>\n    <table>\n",
+        "    <p>These keys work whenever you're not typing text.</p>\n    <table>\n",
         "        <tr><th>Key</th><th>Tool or action</th></tr>\n"]
 for entry in dump["canvasKeys"]:
     body.append(f"        <tr><td>{key(entry)}</td><td>{html.escape(entry['title'])}</td></tr>\n")

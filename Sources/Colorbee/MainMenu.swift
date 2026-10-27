@@ -76,6 +76,7 @@ enum MainMenu {
         "setDesktopPicture:": "Use the image as your desktop picture.",
         "runPageLayout:": "Choose the paper size and orientation for printing.",
         "printDocument:": "Print the image, scaled to fit the page.",
+        "toggleSidebar:": "Show or hide the whole sidebar on the right, with the panels you last had open.",
         "toggleLayers:": "Show or hide the Layers panel.",
         "togglePageSidebar:": "Show or hide the pages, down the left side.",
         "newPage:": "Add a blank page after this one, the same size, filled with Color 2.",
@@ -248,6 +249,7 @@ enum MainMenu {
         menu.addItem(item("Rulers", "toggleRulers:", "r"))
         menu.addItem(item("Before/After", "toggleBeforeAfter:", "b", [.command, .option]))
         menu.addItem(.separator())
+        menu.addItem(item("Sidebar", "toggleSidebar:", "s", [.command, .control]))
         menu.addItem(item("Layers", "toggleLayers:", "l"))
         menu.addItem(item("Adjustments", "toggleAdjustmentsPanel:"))
         menu.addItem(item("History", "toggleHistoryPanel:", "y"))

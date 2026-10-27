@@ -15,7 +15,7 @@ final class ShortcutStore {
     private(set) var system: [KeyShortcut: String] = [:]
     @ObservationIgnored private weak var menu: NSMenu?
 
-    /// The single-key canvas actions, in the order shown in Settings.
+    /// The canvas keys (a single key, or Shift + a key), in the order shown in Settings.
     static let canvasCommands: [ShortcutCommand] = [
         ("canvas.pencil", "Pencil", "p"), ("canvas.brush", "Brush", "b"), ("canvas.eraser", "Eraser", "e"),
         ("canvas.fill", "Fill", "g"), ("canvas.text", "Text", "t"), ("canvas.eyedropper", "Eyedropper", "i"),
@@ -26,6 +26,8 @@ final class ShortcutStore {
         ("canvas.swapColors", "Swap Colors", "x"), ("canvas.resetColors", "Default Colors", "d"),
         ("canvas.smaller", "Smaller Size", "["), ("canvas.larger", "Larger Size", "]"),
     ].map { ShortcutCommand(id: $0.0, title: $0.1, group: "Tools and Canvas Keys", kind: .canvas, defaultShortcut: KeyShortcut($0.2)) }
+        + [ShortcutCommand(id: "canvas.sidebar", title: "Sidebar", group: "Tools and Canvas Keys", kind: .canvas,
+                           defaultShortcut: KeyShortcut("s", .shift))]
 
     /// The Mac's own app and window commands: listed, but not changeable.
     private static let fixedActions: Set<String> = [

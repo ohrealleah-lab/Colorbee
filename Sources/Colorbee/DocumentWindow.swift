@@ -201,6 +201,7 @@ final class DocumentWindow: NSWindow {
         copyToClipboard(selected: editor.selectedMergedPixels(), editor: editor)
     }
 
+    @objc func toggleSidebar(_ sender: Any?) { editor?.toggleSidebar() }
     @objc func toggleLayers(_ sender: Any?) { editor?.toggleLayersPanel() }
     @objc func toggleAdjustmentsPanel(_ sender: Any?) { editor?.toggleAdjustmentsPanel() }
     @objc func applyAdjustment(_ sender: Any?) { editor?.applyAdjustmentLayer() }
@@ -338,6 +339,8 @@ final class DocumentWindow: NSWindow {
         // Before the early returns below: these still work while an effect's bar or the text box is open, so their
         // checkmarks must still follow (review R, finding 3).
         if let isOn = Self.isOn(menuItem, in: editor) { menuItem.state = isOn ? .on : .off }
+        // Adjust Photo's sliders are in the sidebar, as for the toolbar's Sidebar button (review D, finding 5).
+        if menuItem.action == #selector(toggleSidebar(_:)) { return editor.canToggleSidebar }
         // While an effect's bar, Auto-Redact, Resize and Skew, Canvas Properties or Feather is open, only viewing and window
         // commands work; Apply or Cancel comes first. Sheets don't stop menu commands reaching the window (review E,
         // finding 2; review J, findings 7 and 18).
@@ -473,6 +476,7 @@ final class DocumentWindow: NSWindow {
         case #selector(togglePixelGrid(_:)): editor.showsPixelGrid
         case #selector(toggleRulers(_:)): editor.showsRulers
         case #selector(toggleStatusBar(_:)): editor.showsStatusBar
+        case #selector(toggleSidebar(_:)): editor.isSidebarOpen
         case #selector(toggleLayers(_:)): editor.isSidebarOpen && editor.showsLayersPanel
         case #selector(toggleAdjustmentsPanel(_:)): editor.isSidebarOpen && editor.showsAdjustmentsPanel
         case #selector(toggleHistoryPanel(_:)): editor.isSidebarOpen && editor.showsHistoryPanel
@@ -487,7 +491,7 @@ final class DocumentWindow: NSWindow {
         #selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)), #selector(zoomToFit(_:)),
         #selector(togglePixelGrid(_:)), #selector(toggleRulers(_:)), #selector(toggleStatusBar(_:)), #selector(toggleLayers(_:)),
         #selector(toggleAdjustmentsPanel(_:)), #selector(toggleHistoryPanel(_:)), #selector(toggleClipboardPanel(_:)), #selector(toggleInfoPanel(_:)),
-        #selector(togglePageSidebar(_:)),
+        #selector(togglePageSidebar(_:)), #selector(toggleSidebar(_:)),
     ]
 
     private static let pixelCommands: Set<Selector> = [

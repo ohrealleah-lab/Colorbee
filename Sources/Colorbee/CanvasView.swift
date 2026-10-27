@@ -940,6 +940,7 @@ final class CanvasView: NSView {
             "canvas.cloneStamp": { self.editor.selectTool(.retouch); self.editor.retouchKind = .cloneStamp },
             "canvas.swapColors": { self.editor.swapColors() }, "canvas.resetColors": { self.editor.resetColors() },
             "canvas.smaller": { self.editor.adjustToolSize(larger: false) }, "canvas.larger": { self.editor.adjustToolSize(larger: true) },
+            "canvas.sidebar": { self.editor.toggleSidebar() },
         ]
     }
 

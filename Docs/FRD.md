@@ -86,7 +86,8 @@ Colorbee is a fast, native raster editor for macOS with the immediacy of classic
 - A palette menu: choose, save, import, export or reset palettes (FR-15.1). **Hidden for now** (Leah, 2026-10-05); it's all still there and comes back with one switch.
 
 ### FR-1.3 Right sidebar
-One collapsible sidebar holds these panels. Each panel can be shown or hidden on its own:
+One collapsible sidebar holds these panels. Each panel can be shown or hidden on its own, and the whole sidebar
+with ⇧S, View ▸ Sidebar (⌃⌘S) or the toolbar's Sidebar button, which bring back the same panels:
 - **Layers** (FR-8)
 - **History** (FR-13.2)
 - **Clipboard History** (FR-10.2)
@@ -649,7 +650,7 @@ Open camera RAW files, develop them, then edit and export like any image.
 |---|---|
 | **File** | New (Cmd+N), Paste into New Image (Cmd+Shift+V), Open (Cmd+O), Open Recent · Close (Cmd+W), Save (Cmd+S), Save As (Cmd+Shift+S), Duplicate, Revert To · Export… (Cmd+Opt+S), Export as PDF…, Export As ▸ presets · Share, Set as Desktop Picture · Page Setup, Print (Cmd+P) |
 | **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z) · Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Copy Text (Cmd+Opt+C), Paste (Cmd+V), Delete · Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I), Feather…, Select Subject |
-| **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9) · Pixel Grid (Cmd+'), Rulers (Cmd+R), Before/After (Cmd+Opt+B) · Layers (Cmd+L), Adjustments, History (Cmd+Y), Clipboard History (Cmd+Opt+V), Info (Cmd+Opt+I), Page Sidebar (Cmd+Opt+2), Status Bar · Enter Full Screen. Panels and display aids show a checkmark when on. |
+| **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9) · Pixel Grid (Cmd+'), Rulers (Cmd+R), Before/After (Cmd+Opt+B) · Sidebar (Ctrl+Cmd+S), Layers (Cmd+L), Adjustments, History (Cmd+Y), Clipboard History (Cmd+Opt+V), Info (Cmd+Opt+I), Page Sidebar (Cmd+Opt+2), Status Bar · Enter Full Screen. Panels and display aids show a checkmark when on. |
 | **Image** | Crop to Selection (Cmd+Shift+X), Crop…, Resize and Skew (Cmd+E), Canvas Properties (Cmd+Opt+E) · Rotate ▸, Flip ▸, Straighten…, Perspective Correction… · Remove Background · Symmetry ▸ |
 | **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete (Cmd+Delete), Lift Subject to New Layer · Merge Down (Cmd+Shift+E), Merge Visible (Cmd+Opt+Shift+E), Flatten · New Adjustment Layer ▸, Merge Adjustment, Revert Layer · Hide/Show Layer (no default shortcut), Lock/Unlock Layer, Layer Properties |
 | **Page** | New Page, Duplicate Page, Delete Page · Move Page Up, Move Page Down · Previous Page (Cmd+Opt+Up), Next Page (Cmd+Opt+Down) |
@@ -831,6 +832,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-27 | **Sidebar shortcut** (Leah): ⇧S hides or shows the whole right sidebar, and so does a new View ▸ Sidebar (⌃⌘S, the usual Mac key), both doing what the toolbar's Sidebar button does. My choices (veto any): ⇧S is listed with the tool and canvas keys in Settings ▸ Shortcuts, so it doesn't work while typing text; View ▸ Sidebar has a checkmark when the sidebar is open and sits just above Layers; both are greyed out or do nothing while Adjust Photo is open, as the toolbar button already is. |
 | 2026-10-24 | **Info panel** (Leah): a read-only fifth sidebar panel showing the file, image and photo details (FR-1.3), an exception to "no more new features". When the original had a GPS location it says **Location: Removed**. My choices (veto any): View ▸ Info is Cmd+Opt+I, as Finder's Show Inspector; its switcher button is an ⓘ; it describes the page being viewed; resolution shows only for pages opened from a PDF, since other pictures' DPI is only used by Export as PDF; the camera is shown once when its model already names the maker ("Canon EOS R5", not "Canon Canon EOS R5"); a project saved from a photo whose location was removed still says so. |
 | 2026-10-22 | From code review round 7, session S (Leah): Match Tone may leave a faint tinted rim where the Clone Stamp copies see-through pixels onto solid ones (in effect erasing with it); kept as a known edge case, since fixing it would bring back the pause at the end of a stroke. Every save, autosave too, waits for a Match Tone still being worked out. |
 | 2026-10-22 | **Help menu quick links** (Leah): every guide and reference page is listed in the Help menu under Colorbee Help, flat, under "Guides" and "Reference" headings, in the contents page's order. My choices (veto any): titles in menu title case (Getting Started); each item's hover text is its line from the contents page; each opens its page in Help Viewer at a `page-` anchor at its top; they have no shortcuts and aren't listed in Settings ▸ Shortcuts, since the Help menu is left out there (macOS manages it). |

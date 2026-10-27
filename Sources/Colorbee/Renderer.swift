@@ -17,7 +17,7 @@ struct QuadUniforms {
     var blendMode: Float = 0
     var adjustParams: SIMD4<Float> = .zero
     var adjustKind: Float = 0
-    /// Adjust Photo's vignette (x); the rest is spare.
+    /// Adjust Photo: how many vignettes (x), whose amounts are in fragment buffer 1; the rest is spare.
     var photoParams: SIMD4<Float> = .zero
     /// 1 when layers are sampled smoothly, which the shaders do in premultiplied color.
     var smooth: Float = 0
@@ -292,7 +292,12 @@ final class Renderer {
                 uniforms.rect = canvasRect
                 uniforms.adjustParams = SIMD4(Float(lookup.width), fine ? Float(a[.sharpness] / 100) : 0,
                                               wide ? Float(a[.definition] / 100) : 0, fine ? Float(a[.noiseReduction] / 100) : 0)
-                uniforms.photoParams = SIMD4(Float(a[.vignette]), 0, 0, 0)
+                // The filter's vignettes, then the panel's own, as Effects.photoAdjusted applies them. A buffer can't
+                // be empty, and setFragmentBytes takes at most 4 KB.
+                var vignettes = edit.vignetteAmounts.prefix(1024).map(Float.init)
+                uniforms.photoParams = SIMD4(Float(vignettes.count), 0, 0, 0)
+                if vignettes.isEmpty { vignettes = [0] }
+                encoder.setFragmentBytes(vignettes, length: vignettes.count * MemoryLayout<Float>.stride, index: 1)
                 draw(adjustPhotoPipeline)
             } else if let table = channelTexture(for: adjustment) {
                 encoder.setFragmentTexture(table, index: 0)

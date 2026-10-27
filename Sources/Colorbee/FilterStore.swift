@@ -16,12 +16,37 @@ final class FilterStore {
     /// Filters you saved or imported, in the order you made them.
     private(set) var custom: [PhotoFilter] = []
 
-    private let file = URL.applicationSupportDirectory.appending(path: "Colorbee/Filters.json")
+    private static let fileName = "Photo Filters.json"
+    /// Where beta 7 and earlier keep their filters. They can't read newer filters, and saving would write an empty
+    /// list over them, so filters moved to `fileName` (stage 1a). This one is read once, never written.
+    private static let olderFile = SettingsFolder.everyday.appending(path: "Filters.json")
+
+    /// Nil while testing: filters then live only in memory.
+    private let file = SettingsFolder.current?.appending(path: FilterStore.fileName)
 
     private init() {
-        if let data = try? Data(contentsOf: file), let saved = try? JSONDecoder().decode([PhotoFilter].self, from: data) {
-            custom = saved.map { PhotoFilter(name: $0.name, steps: $0.steps) }
+        guard let file else { return }
+        Self.copyOnce(to: file)
+        if let data = try? Data(contentsOf: file), let saved = try? JSONDecoder().decode([Readable].self, from: data) {
+            custom = saved.compactMap(\.filter).map { PhotoFilter(name: $0.name, steps: $0.steps) }
         }
+    }
+
+    /// The first time `file` is needed, it starts as a copy of the newest filters there are: the everyday copy's, or
+    /// an older version's.
+    private static func copyOnce(to file: URL) {
+        let manager = FileManager.default
+        guard !manager.fileExists(atPath: file.path) else { return }
+        let everyday = SettingsFolder.everyday.appending(path: fileName)
+        guard let source = [everyday, olderFile].first(where: { $0 != file && manager.fileExists(atPath: $0.path) }) else { return }
+        try? manager.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? manager.copyItem(at: source, to: file)
+    }
+
+    /// One filter, or none if this version can't read it, so the others are still kept.
+    private struct Readable: Decodable {
+        let filter: PhotoFilter?
+        init(from decoder: Decoder) throws { filter = try? PhotoFilter(from: decoder) }
     }
 
     var all: [PhotoFilter] { PhotoFilter.builtIn + custom }
@@ -68,6 +93,7 @@ final class FilterStore {
     }
 
     private func persist() {
+        guard let file else { return }
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

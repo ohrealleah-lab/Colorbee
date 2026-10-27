@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `make perf`_
+_Last updated: 2026-10-27 · 601 core tests and 174 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Stage 1a: Adjust Photo groundwork](#test-stage-1a-adjust-photo-groundwork) (2026-10-27)
 
 ---
 
@@ -55,9 +55,19 @@ Nothing waiting right now.
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
+| 14 · 1a. Adjust Photo groundwork (FR-9.7 rule) | Built 2026-10-27; waiting for Leah's test. Stage 1b not started | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
+
+**Lightroom-style photo editing (FR-9.7, `Docs/Development-Plan.md`)**
+- Stage 1a (2026-10-27): saved filters live in `Photo Filters.json`, copied once from `Filters.json`, which beta 7 keeps
+  using. Test builds keep theirs in Application Support ▸ Colorbee Test Builds (`SettingsFolder.swift`; betas are marked
+  by `COLORBEE_BETA` in `Scripts/make-beta.sh`); `make test` keeps them in memory. Unknown sliders and filter steps
+  are skipped instead of losing the whole adjustment or filter, and sliders added from now on go under `added`, beside
+  the list beta 7 reads. Filters hold the vignette (applied after all the colors, in exports and in the shader) and
+  keep the rest of an Adjust Photo step with Sharpness instead of dropping it. Adjust Photo's Light, Color and Detail
+  sections fold, remembered app-wide. Fixtures from before the change: `TestImages/Photo Editing/`.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -225,6 +235,38 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 1a: Adjust Photo groundwork
+
+Test files: in `TestImages/Photo Editing/`, `Old Adjust Photo.colorproj`, `Old Adjust Photo (as shown before stage 1a).png`
+and `Old Filter.colorbeefilter` (all saved by the code before stage 1a); also `TestImages/Stage 9 Practice Photo.png`
+and `TestImages/Help/Sample Screenshot.png`. Run `make run` first for a fresh Release copy (a test build: it keeps its
+filters in Application Support ▸ Colorbee Test Builds, starting from a copy of yours).
+1. Open `TestImages/Stage 9 Practice Photo.png` and choose Adjustments ▸ Adjust Photo…. The filter strip has
+   **all of your own saved filters** (such as My Filter 2), each looking as it does in beta 7. Cancel.
+2. Open `Old Adjust Photo.colorproj`, and open `Old Adjust Photo (as shown before stage 1a).png` in Preview beside
+   it: they look the same. Click each Adjust Photo layer and check its numbers in the Adjustments panel:
+   - **Every Slider:** Exposure +10, Brilliance +15, Highlights −20, Shadows +25, Contrast +12, Brightness +8, Black
+     Point +6, Saturation +18, Vibrance +22, Warmth +14, Tint −6, Sharpness 30, Definition 20, Noise Reduction 15,
+     Vignette −25.
+   - **Vivid Warm 60%:** Vivid Warm chosen, Intensity 60%, with Exposure −5, Contrast +10, Warmth −8.
+   - **Layer Below Only:** Saturation −40, Brightness +10, Sharpness 25.
+3. In the filter menu (the ⋯ beside Filters), choose Import… and pick `Old Filter.colorbeefilter`: an "Old Filter"
+   chip appears. On the practice photo, Adjust Photo ▸ Old Filter: warmer and more colorful, as in beta 7. Cancel.
+4. On the practice photo, Adjust Photo: Vignette +60 (the edges darken) and Saturation +30. Choose ⋯ ▸ Save as
+   Filter… and name it "Dark Edges". Vignette and Saturation go back to 0, Dark Edges is chosen, and the picture
+   doesn't change. Cancel.
+5. Open `TestImages/Help/Sample Screenshot.png`, Adjust Photo, choose Dark Edges: the corners darken. Intensity
+   50%: half as dark. Back to 100%, then As Adjustment Layer: the corners still darken. File ▸ Export… as a PNG and
+   open it in Preview: its corners match the screen.
+6. In Adjust Photo, click the **Light**, **Color** and **Detail** headings: each folds away and opens again. Leave
+   Detail folded, quit Colorbee, reopen it and open Adjust Photo: Detail is still folded. It's folded in the
+   Adjustments panel for an Adjust Photo layer too.
+7. In the old project, hide **Vivid Warm 60%** and **Layer Below Only** (their eyes). Choose ⋯ ▸ Save Filter from
+   Layers… and name it "Every Slider Filter": it's saved (beta 7 would say there are no color or tone layers). On the
+   practice photo it changes the colors and lightens the corners a little, with no sharpening.
+8. Quit, then open your everyday beta 7: your filters are just as they were, and Dark Edges, Old Filter and Every
+   Slider Filter aren't there (test builds keep their own).
 
 ### Test: Sidebar shortcut (passed 2026-10-27)
 

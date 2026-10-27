@@ -112,7 +112,8 @@ struct AdjustPhotoTests {
 struct PhotoFilterTests {
     @Test func thereAreNineBuiltInFiltersOfColorAndToneOnly() {
         #expect(PhotoFilter.builtIn.map(\.name) == ["Vivid", "Vivid Warm", "Vivid Cool", "Dramatic", "Dramatic Warm", "Dramatic Cool", "Mono", "Silvertone", "Noir"])
-        #expect(PhotoFilter.builtIn.allSatisfy { $0.isBuiltIn && $0.steps.allSatisfy(\.isColorOrTone) })
+        #expect(PhotoFilter.builtIn.allSatisfy { $0.isBuiltIn && $0.steps.allSatisfy { $0.forFilters == $0 } })
+        #expect(PhotoFilter.builtIn.allSatisfy { PhotoEdit(filter: $0).vignetteAmounts.isEmpty })
         let mono = PhotoFilter.builtIn[6].steps(atIntensity: 1)
         let pixel = mono.compactMap(\.colorTransform).reduce(Pixel(r: 200, g: 50, b: 80)) { $1($0) }
         #expect(pixel.r == pixel.g && pixel.g == pixel.b)
@@ -140,12 +141,67 @@ struct PhotoFilterTests {
         // What Save as Filter keeps: the chosen filter at its intensity, then the color and tone sliders.
         let before = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 18, .warmth: 22, .vibrance: 10, .sharpness: 40]),
                                filter: PhotoFilter.builtIn[0], filterIntensity: 60)
-        let steps = before.filter!.steps(atIntensity: 0.6) + [.photo(PhotoEdit(adjustments: before.adjustments.colorAndTone))]
+        let steps = before.filter!.steps(atIntensity: 0.6) + [.photo(PhotoEdit(adjustments: before.adjustments.forFilters))]
         let saved = PhotoFilter(name: "Mine", steps: steps)
         let after = PhotoEdit(adjustments: PhotoAdjustments([.sharpness: 40]), filter: saved, filterIntensity: 100)
         for pixel in [Pixel(r: 30, g: 60, b: 90), Pixel(r: 200, g: 180, b: 40), Pixel(r: 128, g: 128, b: 128, a: 77)] {
             #expect(after.colorTransform(pixel) == before.colorTransform(pixel))
         }
+    }
+
+    @Test func aFilterKeepsWhatFiltersMayHoldAndLeavesOutTheRest() {
+        // An Adjust Photo step with Sharpness used to be dropped whole (stage 1a).
+        let step = Effect.photo(PhotoEdit(adjustments: PhotoAdjustments([.saturation: 30, .sharpness: 40, .definition: 10, .noiseReduction: 5, .vignette: -60])))
+        #expect(step.forFilters == .photo(PhotoEdit(adjustments: PhotoAdjustments([.saturation: 30, .vignette: -60]))))
+        #expect(Effect.photo(PhotoEdit(adjustments: PhotoAdjustments([.sharpness: 40]))).forFilters == nil)
+        #expect(Effect.gaussianBlur(radius: 3).forFilters == nil)
+        let filter = PhotoFilter(name: "Mine", adjustments: PhotoAdjustments([.contrast: 20, .vignette: -40, .sharpness: 50]))
+        #expect(filter.steps == [.photo(PhotoEdit(adjustments: PhotoAdjustments([.contrast: 20, .vignette: -40])))])
+    }
+
+    @Test func savedFromLayersKeepsTheRestOfAnAdjustPhotoLayerWithSharpness() {
+        let canvas = Canvas(size: IntSize(width: 4, height: 4), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max), context = SelectionContext(color2: .white)
+        LayerActions.addAdjustment(.photo(PhotoEdit(adjustments: PhotoAdjustments([.warmth: 20, .sharpness: 30, .vignette: -25]))),
+                                   named: "Adjust Photo", canvas: canvas, history: history, context: context)
+        let filter = PhotoFilter.fromLayers(canvas.layers, name: "Kept")
+        #expect(filter?.steps == [.photo(PhotoEdit(adjustments: PhotoAdjustments([.warmth: 20, .vignette: -25])))])
+    }
+
+    @Test func vignettesApplyTheFiltersThenTheirOwnAndScaleWithIntensity() {
+        let inner = PhotoFilter(name: "Inner", adjustments: PhotoAdjustments([.vignette: -20]))
+        let outer = PhotoFilter(name: "Outer", steps: [.photo(PhotoEdit(adjustments: PhotoAdjustments([.vignette: 40]), filter: inner, filterIntensity: 50)),
+                                                       .sepia(amount: 30)])
+        let edit = PhotoEdit(adjustments: PhotoAdjustments([.vignette: 10]), filter: outer, filterIntensity: 50)
+        // Inner's −20 at 50% of 50%, then outer's own 40 at 50%, then the panel's 10.
+        #expect(edit.vignetteAmounts == [-5, 20, 10])
+        #expect(PhotoEdit(filter: outer, filterIntensity: 0).vignetteAmounts.isEmpty)
+    }
+
+    @Test func aFiltersVignetteLooksTheSameAsTheSlider() {
+        let buffer = PixelBuffer(width: 9, height: 7, fill: Pixel(r: 180, g: 120, b: 60))
+        let region = buffer.bounds
+        let slider = Effects.photoAdjusted(buffer, region: region, edit: PhotoEdit(adjustments: PhotoAdjustments([.vignette: -60])), selection: nil).0
+        let filter = PhotoFilter(name: "Edges", adjustments: PhotoAdjustments([.vignette: -60]))
+        let viaFilter = Effects.photoAdjusted(buffer, region: region, edit: PhotoEdit(filter: filter), selection: nil).0
+        #expect(viaFilter.pixels(in: region) == slider.pixels(in: region))
+        #expect(viaFilter.row(0)[0] != buffer.row(0)[0])
+        let half = Effects.photoAdjusted(buffer, region: region, edit: PhotoEdit(filter: filter, filterIntensity: 50), selection: nil).0
+        let halfSlider = Effects.photoAdjusted(buffer, region: region, edit: PhotoEdit(adjustments: PhotoAdjustments([.vignette: -30])), selection: nil).0
+        #expect(half.pixels(in: region) == halfSlider.pixels(in: region))
+    }
+
+    @Test func savingAFilterWithAVignetteLooksTheSame() {
+        // Save as Filter absorbs the vignette as well as the colors; Sharpness stays on the panel.
+        let before = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 18, .vignette: -45, .sharpness: 40]),
+                               filter: PhotoFilter.builtIn[3], filterIntensity: 70)
+        let saved = PhotoFilter(name: "Mine", steps: before.filter!.steps(atIntensity: 0.7) + [.photo(PhotoEdit(adjustments: before.adjustments.forFilters))])
+        let after = PhotoEdit(adjustments: PhotoAdjustments([.sharpness: 40]), filter: saved, filterIntensity: 100)
+        let buffer = PixelBuffer(width: 12, height: 8, fill: Pixel(r: 90, g: 140, b: 200))
+        buffer.row(3)[5] = Pixel(r: 250, g: 20, b: 20)
+        let a = Effects.photoAdjusted(buffer, region: buffer.bounds, edit: before, selection: nil).0
+        let b = Effects.photoAdjusted(buffer, region: buffer.bounds, edit: after, selection: nil).0
+        #expect(a.pixels(in: buffer.bounds) == b.pixels(in: buffer.bounds))
     }
 
     @Test func otherStepsScaleTowardNoChange() {

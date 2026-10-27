@@ -3131,23 +3131,23 @@ final class Editor {
         addAdjustmentLayer(.photo(settings), named: settings.filter?.name ?? "Adjust Photo")
     }
 
-    /// Save as Filter…: the filter at its intensity, then the color and tone sliders, as one filter.
-    /// Returns the settings that now look the same: the new filter at 100%, with the color and tone
-    /// sliders it absorbed back at zero (only the detail sliders stay). Nil if there was nothing to save.
+    /// Save as Filter…: the filter at its intensity, then the sliders a filter may hold, as one filter.
+    /// Returns the settings that now look the same: the new filter at 100%, with the sliders it absorbed
+    /// back at zero (only Sharpness, Definition and Noise Reduction stay). Nil if there was nothing to save.
     func saveFilter(from edit: PhotoEdit, named name: String) -> PhotoEdit? {
         var steps = edit.filter?.steps(atIntensity: edit.filterIntensity / 100) ?? []
-        let own = edit.adjustments.colorAndTone
+        let own = edit.adjustments.forFilters
         if !own.isNeutral { steps.append(.photo(PhotoEdit(adjustments: own))) }
         guard !steps.isEmpty else {
             onRefused()
             return nil
         }
         let savedName = FilterStore.shared.add(PhotoFilter(name: name, steps: steps))
-        let detail = PhotoAdjustments(edit.adjustments.values.filter { !$0.key.isColorOrTone })
+        let detail = PhotoAdjustments(edit.adjustments.values.filter { !$0.key.inFilters })
         return PhotoEdit(adjustments: detail, filter: FilterStore.shared.filter(named: savedName), filterIntensity: 100)
     }
 
-    /// Save Filter from Layers: the visible color and tone adjustment layers, bottom to top.
+    /// Save Filter from Layers: the visible adjustment layers, bottom to top, each with what a filter may hold.
     /// False when there are none to save.
     func saveFilterFromLayers(named name: String) -> Bool {
         guard let filter = PhotoFilter.fromLayers(canvas.layers, name: name) else { return false }

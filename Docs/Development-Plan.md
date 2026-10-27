@@ -183,20 +183,37 @@ since both use the same eight color ranges.
    - **Performance:** none new; Vignette is already worked out in the shader.
    - Questions: Q1.1.
 4. **Size:** M. **Opus, high:** every later stage builds on this format and these filters.
-5. **Hand test** (`Old Adjust Photo.colorproj`, `Old Filter.colorbeefilter`, `TestImages/Stage 9 Practice Photo.png`)
-   1. Open Adjust Photo on any picture and look at the filter strip: **all of your own saved filters are there**,
-      with their names, and each looks as it did in beta 7.
-   2. Open `Old Adjust Photo.colorproj`. It looks exactly as in beta 7, and each Adjust Photo layer's sliders show
-      the same numbers.
-   3. Import `Old Filter.colorbeefilter` from the filter strip's menu. It looks the same as in beta 7.
-   4. On the practice photo, Adjust Photo: Vignette −60, Saturation +30. Save as Filter… named "Dark Edges". Open
-      another picture and choose it: the edges darken too. At 50% Intensity: half as dark.
-   5. Fold and unfold Light, Color and Detail. Quit and reopen Colorbee: the same sections are folded.
-   6. In the old project, choose the layer with every slider set and use Save Filter from Layers: the new filter
-      has its colors and its vignette (before, this layer was skipped).
+5. **Hand test** (`TestImages/Photo Editing/`: `Old Adjust Photo.colorproj`, `Old Adjust Photo (as shown before stage
+   1a).png`, `Old Filter.colorbeefilter`; `TestImages/Stage 9 Practice Photo.png`, `TestImages/Help/Sample Screenshot.png`)
+   1. Open `TestImages/Stage 9 Practice Photo.png` and choose Adjustments ▸ Adjust Photo…. The filter strip has
+      **all of your own saved filters** (such as My Filter 2), each looking as it does in beta 7. Cancel.
+   2. Open `Old Adjust Photo.colorproj`, and open `Old Adjust Photo (as shown before stage 1a).png` in Preview beside
+      it: they look the same. Click each Adjust Photo layer and check its numbers in the Adjustments panel:
+      - **Every Slider:** Exposure +10, Brilliance +15, Highlights −20, Shadows +25, Contrast +12, Brightness +8, Black
+        Point +6, Saturation +18, Vibrance +22, Warmth +14, Tint −6, Sharpness 30, Definition 20, Noise Reduction 15,
+        Vignette −25.
+      - **Vivid Warm 60%:** Vivid Warm chosen, Intensity 60%, with Exposure −5, Contrast +10, Warmth −8.
+      - **Layer Below Only:** Saturation −40, Brightness +10, Sharpness 25.
+   3. In the filter menu (the ⋯ beside Filters), choose Import… and pick `Old Filter.colorbeefilter`: an "Old Filter"
+      chip appears. On the practice photo, Adjust Photo ▸ Old Filter: warmer and more colorful, as in beta 7. Cancel.
+   4. On the practice photo, Adjust Photo: Vignette +60 (the edges darken) and Saturation +30. Choose ⋯ ▸ Save as
+      Filter… and name it "Dark Edges". Vignette and Saturation go back to 0, Dark Edges is chosen, and the picture
+      doesn't change. Cancel.
+   5. Open `TestImages/Help/Sample Screenshot.png`, Adjust Photo, choose Dark Edges: the corners darken. Intensity
+      50%: half as dark. Back to 100%, then As Adjustment Layer: the corners still darken. File ▸ Export… as a PNG and
+      open it in Preview: its corners match the screen.
+   6. In Adjust Photo, click the **Light**, **Color** and **Detail** headings: each folds away and opens again. Leave
+      Detail folded, quit Colorbee, reopen it and open Adjust Photo: Detail is still folded. It's folded in the
+      Adjustments panel for an Adjust Photo layer too.
+   7. In the old project, hide **Vivid Warm 60%** and **Layer Below Only** (their eyes). Choose ⋯ ▸ Save Filter from
+      Layers… and name it "Every Slider Filter": it's saved (beta 7 would say there are no color or tone layers). On the
+      practice photo it changes the colors and lightens the corners a little, with no sharpening.
+   8. Quit, then open your everyday beta 7: your filters are just as they were, and Dark Edges, Old Filter and Every
+      Slider Filter aren't there (test builds keep their own).
 6. **Done when:** tests cover saving and reopening, the fixtures, beta 7's reading of a file with a new entry (its
-   decoder, kept in a test), filters keeping and leaving out the right parts, and a filter's vignette on screen
-   versus export. Help and STATUS are updated, and the beta is cut (Q0.3).
+   decoder, kept in a test), filters keeping and leaving out the right parts, and a filter's vignette in exports.
+   On screen, the vignette is checked by hand (step 5): the app tests can't draw the Metal canvas. Help and STATUS are
+   updated, and the beta is cut (Q0.3).
 
 ### Stage 1b. Whites and the white-balance eyedropper
 

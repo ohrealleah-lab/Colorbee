@@ -1,7 +1,8 @@
 import Foundation
 
-/// A named recipe of color and tone changes (FR-9.5). Built-in filters and "Save as Filter…" hold one Adjust
-/// Photo step; "Save Filter from Layers" holds one step per adjustment layer. Filters never crop or straighten.
+/// A named recipe of color and tone changes, and the vignette (FR-9.5, FR-9.7). Built-in filters and "Save as
+/// Filter…" hold one Adjust Photo step; "Save Filter from Layers" holds one step per adjustment layer. Filters never
+/// crop or straighten.
 public struct PhotoFilter: Sendable, Hashable, Codable {
     public var name: String
     public var steps: [Effect]
@@ -9,12 +10,12 @@ public struct PhotoFilter: Sendable, Hashable, Codable {
 
     public init(name: String, steps: [Effect], isBuiltIn: Bool = false) {
         self.name = name
-        self.steps = steps.filter(\.isColorOrTone)
+        self.steps = steps.compactMap(\.forFilters)
         self.isBuiltIn = isBuiltIn
     }
 
     public init(name: String, adjustments: PhotoAdjustments, isBuiltIn: Bool = false) {
-        self.init(name: name, steps: [.photo(PhotoEdit(adjustments: adjustments.colorAndTone))], isBuiltIn: isBuiltIn)
+        self.init(name: name, steps: [.photo(PhotoEdit(adjustments: adjustments))], isBuiltIn: isBuiltIn)
     }
 
     /// The steps at `intensity` (0...1): each value scaled toward no change. Steps with no amount to scale
@@ -24,10 +25,11 @@ public struct PhotoFilter: Sendable, Hashable, Codable {
         return steps.map { $0.scaled(by: intensity) }
     }
 
-    /// The color and tone adjustment layers of `layers`, bottom to top, as one filter. Others are skipped.
+    /// The visible adjustment layers of `layers`, bottom to top, as one filter, each with only what a filter may
+    /// hold. An Adjust Photo layer with Sharpness keeps its other sliders (stage 1a); a Blur layer is skipped.
     public static func fromLayers(_ layers: [Layer], name: String) -> PhotoFilter? {
-        let steps = layers.filter(\.isVisible).compactMap(\.adjustment).filter(\.isColorOrTone)
-        return steps.isEmpty ? nil : PhotoFilter(name: name, steps: steps)
+        let filter = PhotoFilter(name: name, steps: layers.filter(\.isVisible).compactMap(\.adjustment))
+        return filter.steps.isEmpty ? nil : filter
     }
 
     // MARK: Built in
@@ -56,30 +58,44 @@ public struct PhotoFilter: Sendable, Hashable, Codable {
     private struct Stored: Codable {
         var version = 1
         var name: String
-        var steps: [Effect]
+        var steps: [LenientStep]
+    }
+
+    /// A step that reads back as none if it's of a kind this version doesn't know, so the filter keeps the rest.
+    struct LenientStep: Codable {
+        var effect: Effect?
+
+        init(_ effect: Effect) { self.effect = effect }
+        init(from decoder: Decoder) throws { effect = try? Effect(from: decoder) }
+        func encode(to encoder: Encoder) throws { try effect?.encode(to: encoder) }
     }
 
     public func exported() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(Stored(name: name, steps: steps))
+        return try encoder.encode(Stored(name: name, steps: steps.map(LenientStep.init)))
     }
 
     public static func imported(from data: Data) throws -> PhotoFilter {
         let stored = try JSONDecoder().decode(Stored.self, from: data)
-        let filter = PhotoFilter(name: stored.name, steps: stored.steps)
+        let filter = PhotoFilter(name: stored.name, steps: stored.steps.compactMap(\.effect))
         guard !filter.steps.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
         return filter
     }
 }
 
 extension Effect {
-    /// Color and tone adjustments, which filters may hold.
-    public var isColorOrTone: Bool {
+    /// The part of this adjustment a filter may hold (FR-9.7): color and tone, and Adjust Photo's Vignette. An Adjust
+    /// Photo step loses just the sliders filters leave out, rather than being dropped whole. Nil when nothing's left.
+    public var forFilters: Effect? {
         switch self {
-        case .invert, .desaturate, .brightnessContrast, .hueSaturation, .levels, .curves, .sepia, .posterize: true
-        case .photo(let edit): edit.adjustments.values.keys.allSatisfy(\.isColorOrTone)
-        default: false
+        case .invert, .desaturate, .brightnessContrast, .hueSaturation, .levels, .curves, .sepia, .posterize:
+            return self
+        case .photo(var edit):
+            edit.adjustments = edit.adjustments.forFilters
+            return edit.isNeutral ? nil : .photo(edit)
+        default:
+            return nil
         }
     }
 
@@ -112,10 +128,12 @@ extension PhotoFilter {
         case name, steps, isBuiltIn
     }
 
-    /// Through `init`, so a filter read from a project holds only color and tone steps, like an imported one.
+    /// Through `init`, so a filter read from a project holds only what filters may, like an imported one. A step of a
+    /// kind this version doesn't know is skipped.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(name: try container.decode(String.self, forKey: .name), steps: try container.decode([Effect].self, forKey: .steps),
+        self.init(name: try container.decode(String.self, forKey: .name),
+                  steps: try container.decode([LenientStep].self, forKey: .steps).compactMap(\.effect),
                   isBuiltIn: try container.decode(Bool.self, forKey: .isBuiltIn))
     }
 }

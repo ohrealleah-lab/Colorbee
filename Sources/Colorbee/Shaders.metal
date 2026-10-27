@@ -15,7 +15,7 @@ struct QuadUniforms {
     float blendMode;      // BlendMode.rawValue
     float4 adjustParams;  // the adjustment's settings (see Renderer.adjustmentUniforms)
     float adjustKind;     // 0 none, 1 invert, 2 desaturate, 3 brightness/contrast, 4 hue/saturation, 5 blur, 6 sharpen
-    float4 photoParams;   // Adjust Photo's vignette (x)
+    float4 photoParams;   // Adjust Photo: how many vignettes (x), their amounts in buffer 1
     float smooth;         // 1 when layers are sampled smoothly (zoomed out, or a stretched selection)
 };
 
@@ -330,7 +330,8 @@ fragment float4 adjust_channel_fragment(QuadOut in [[stage_in]],
 }
 
 // Adjust Photo (PhotoAdjustments in ColorbeeCore): detail from blurred copies of what's below, then the color
-// table, then the vignette. adjustParams: table size, sharpness, definition, noise reduction (0...1).
+// table, then the vignettes (the filter's, then the panel's own). adjustParams: table size, sharpness, definition,
+// noise reduction (0...1).
 static float3 unblurred(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel, float3 fallback) {
     float4 soft = blurred.read(pixel);
     float weight = coverage.read(pixel).r;
@@ -345,6 +346,7 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
                                       texture2d<float> wide [[texture(3)]],
                                       texture2d<float> wideCoverage [[texture(4)]],
                                       constant QuadUniforms &u [[buffer(0)]],
+                                      constant float *vignettes [[buffer(1)]],
                                       float4 backdrop [[color(0)]]) {
     constexpr sampler tableSampler(filter::linear, address::clamp_to_edge);
     if (backdrop.a <= 0) return backdrop;
@@ -366,14 +368,17 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
     }
     float size = u.adjustParams.x;
     c = lookup.sample(tableSampler, (c * (size - 1) + 0.5) / size).rgb;
-    float vignette = u.photoParams.x / 100;
-    if (vignette != 0) {
+    int vignetteCount = int(u.photoParams.x + 0.5);
+    if (vignetteCount > 0) {
         // Vignette.strength with size 50.
         float distance = length(in.uv * 2 - 1) / sqrt(2.0);
         float start = 0.5 * 0.95;
         float t = clamp((distance - start) / (1 - start), 0.0, 1.0);
-        float strength = t * t * (3 - 2 * t) * vignette;
-        c = strength >= 0 ? c * (1 - strength) : c + (1 - c) * -strength;
+        float falloff = t * t * (3 - 2 * t);
+        for (int i = 0; i < vignetteCount; i++) {
+            float strength = falloff * vignettes[i] / 100;
+            c = strength >= 0 ? c * (1 - strength) : c + (1 - c) * -strength;
+        }
     }
     return fadeIn(backdrop, c, backdrop.a, u);
 }

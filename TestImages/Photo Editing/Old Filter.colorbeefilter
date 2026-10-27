@@ -1,0 +1,56 @@
+{
+  "name" : "Old Filter",
+  "steps" : [
+    {
+      "kind" : "photo",
+      "photo" : {
+        "adjustments" : {
+          "values" : [
+            "exposure",
+            -5,
+            "contrast",
+            10,
+            "warmth",
+            -8
+          ]
+        },
+        "filter" : {
+          "isBuiltIn" : true,
+          "name" : "Vivid Warm",
+          "steps" : [
+            {
+              "kind" : "photo",
+              "photo" : {
+                "adjustments" : {
+                  "values" : [
+                    "highlights",
+                    -10,
+                    "vibrance",
+                    20,
+                    "shadows",
+                    10,
+                    "warmth",
+                    25,
+                    "saturation",
+                    25,
+                    "contrast",
+                    15
+                  ]
+                },
+                "filterIntensity" : 100
+              },
+              "values" : [
+
+              ]
+            }
+          ]
+        },
+        "filterIntensity" : 60
+      },
+      "values" : [
+
+      ]
+    }
+  ],
+  "version" : 1
+}

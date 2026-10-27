@@ -32,12 +32,15 @@ fi
 derived=build/BetaBuild
 out=build/Beta
 app=$derived/Build/Products/Release/Colorbee.app
+# COLORBEE_BETA marks the everyday copy: only it keeps saved filters in Application Support/Colorbee; every other
+# build keeps them in "Colorbee Test Builds" (SettingsFolder.swift).
 
 xcodegen generate --quiet
 xcodebuild -project Colorbee.xcodeproj -scheme Colorbee -configuration Release \
     -destination 'platform=macOS,arch=arm64' -derivedDataPath "$derived" -quiet \
     CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application" DEVELOPMENT_TEAM="$team" \
     ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+    SWIFT_ACTIVE_COMPILATION_CONDITIONS=COLORBEE_BETA \
     "${versioning[@]}" clean build
 codesign --verify --strict --deep "$app"
 # Apple refuses apps that allow debugger attachment.

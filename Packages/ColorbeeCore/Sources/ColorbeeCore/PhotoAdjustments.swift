@@ -36,13 +36,22 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
             }
         }
 
-        /// Color and tone: what filters may hold. Sharpness, Definition, Noise Reduction and Vignette are not.
-        public var isColorOrTone: Bool {
+        /// What filters may hold (FR-9.7): color and tone, and Vignette (Leah, 2026-10-27). Sharpness, Definition
+        /// and Noise Reduction depend on each photo's own detail, so they stay out.
+        public var inFilters: Bool {
             switch self {
-            case .sharpness, .definition, .noiseReduction, .vignette: false
+            case .sharpness, .definition, .noiseReduction: false
             default: true
             }
         }
+
+        /// The sliders beta 7 knows, saved in `values`. Sliders added since are saved under `added`, which older
+        /// versions skip, so they still open the rest of the adjustment (stage 1a). Beta 7 can't read a name it
+        /// doesn't know in `values`, and would lose the whole adjustment.
+        static let original: Set<Slider> = [
+            .exposure, .brilliance, .highlights, .shadows, .contrast, .brightness, .blackPoint,
+            .saturation, .vibrance, .warmth, .tint, .sharpness, .definition, .noiseReduction, .vignette,
+        ]
     }
 
     public var values: [Slider: Double] = [:]
@@ -66,9 +75,9 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
         PhotoAdjustments(values.mapValues { $0 * factor })
     }
 
-    /// Only the color and tone sliders.
-    public var colorAndTone: PhotoAdjustments {
-        PhotoAdjustments(values.filter { $0.key.isColorOrTone })
+    /// Only the sliders a filter may hold.
+    public var forFilters: PhotoAdjustments {
+        PhotoAdjustments(values.filter { $0.key.inFilters })
     }
 
     var hasDetail: Bool { self[.sharpness] != 0 || self[.definition] != 0 || self[.noiseReduction] != 0 }
@@ -173,6 +182,7 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
 }
 
 /// What the Adjust Photo panel holds (FR-9.5): a filter at an intensity, then the sliders on top.
+/// New controls that aren't a single slider get keys of their own here: older versions skip keys they don't know.
 public struct PhotoEdit: Sendable, Hashable, Codable {
     public var adjustments: PhotoAdjustments
     public var filter: PhotoFilter?
@@ -193,20 +203,58 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
         let own = adjustments.colorTransform
         return { pixel in own(steps.reduce(pixel) { $1($0) }) }
     }
+
+    /// The vignettes, in the order they apply after all the color: the filter's at its intensity, then the
+    /// panel's own (Leah, 2026-10-27). Zero amounts are left out.
+    public var vignetteAmounts: [Double] {
+        let fromFilter = (filter?.steps(atIntensity: filterIntensity / 100) ?? []).flatMap { step -> [Double] in
+            if case .photo(let edit) = step { return edit.vignetteAmounts }
+            return []
+        }
+        return (fromFilter + [adjustments[.vignette]]).filter { $0 != 0 }
+    }
 }
 
 extension PhotoAdjustments {
     private enum CodingKeys: String, CodingKey {
-        case values
+        case values, added
     }
 
-    /// Values from a file are kept within each slider's range.
+    /// Values from a file are kept within each slider's range. A slider this version doesn't know is skipped, so a
+    /// file from a newer Colorbee opens with only that slider missing.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init()
-        for (slider, value) in try container.decode([Slider: Double].self, forKey: .values) where value.isFinite {
-            self[slider] = value
+        // Name and value, one after the other: how a dictionary keyed by `Slider` was always saved.
+        var list = try container.nestedUnkeyedContainer(forKey: .values)
+        while !list.isAtEnd {
+            let name = try list.decode(String.self), value = try list.decode(Double.self)
+            set(name, value)
         }
+        for (name, value) in try container.decodeIfPresent([String: Double].self, forKey: .added) ?? [:] {
+            set(name, value)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        var list = container.nestedUnkeyedContainer(forKey: .values)
+        var added: [String: Double] = [:]
+        for slider in Slider.allCases {
+            guard let value = values[slider] else { continue }
+            if Slider.original.contains(slider) {
+                try list.encode(slider.rawValue)
+                try list.encode(value)
+            } else {
+                added[slider.rawValue] = value
+            }
+        }
+        if !added.isEmpty { try container.encode(added, forKey: .added) }
+    }
+
+    private mutating func set(_ name: String, _ value: Double) {
+        guard let slider = Slider(rawValue: name), value.isFinite else { return }
+        self[slider] = value
     }
 }
 

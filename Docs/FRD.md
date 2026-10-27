@@ -490,6 +490,22 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - Blur and Pixelate strength follows the brush size, as Auto-Redact's follows the text height.
 - It's a redaction, so the after-redaction offers apply (earlier Versions, Clipboard History; §23, 2026-10-04).
 
+### FR-9.7 Lightroom-style photo editing (Leah, 2026-10-27; planned, not built yet)
+Colorbee's next aim is editing one picture at a time the way Lightroom does, with saved settings to re-apply the same look. There is no library or catalog. Background: `Docs/Feature-Gap-Analysis.md`.
+
+**Rule:** the new controls live inside Adjust Photo (FR-9.5), so saved Filters, adjustment layers and Save Filter from Layers include them. Filters and projects saved before open unchanged, with the new controls at neutral. Ranges, defaults and keys for each item are settled with Leah when its part starts.
+
+1. **Basic and Color:** a white-balance eyedropper (click something that should be gray; it sets Warmth and Tint), Texture, Dehaze, Whites, and a Color Mixer (hue, saturation and luminance for each of eight color ranges).
+2. **Color Grading:** color wheels for shadows, midtones and highlights (hue, saturation, luminance), with Blending and Balance; and Point Color (choose a color in the picture and shift just that color).
+3. **Local edits:** Color Range (select by the colors you click, with a fuzziness setting) and Luminance Range (select shadows, midtones or highlights); a graduated selection (drag a line, soft falloff on one side); and Select ▸ Expand, Contract and Smooth, in pixels. All of them follow the soft-selection rules (FR-3.4).
+4. **Saved settings:** re-apply the last Adjust Photo settings; copy the settings and paste them onto another picture; History Snapshots (named save points in the History panel); and importing `.cube` LUT looks as filters, with an intensity slider.
+5. **Detail controls:** Sharpening radius, detail and masking; Noise Reduction for luminance and color separately; Vignette midpoint, roundness and feather; Grain size and roughness.
+6. **Tone extras:** a parametric tone curve, a Black and White mix, dragging on the picture to adjust the tone or color under the pointer, and clipping warnings on the histogram.
+7. **Photo geometry:** Perspective Correction finds the corners itself (on this Mac, with Apple Vision) for you to nudge before applying; more crop overlays (golden ratio and others); and the area a crop cuts out shown dimmed.
+8. **Export:** a color-space choice (sRGB, Display P3, or keep the document's, which stays the default) and Limit file size (JPEG and HEIC pick the quality to fit; PNG can't).
+9. **Color readout and sampling:** the color under the pointer (RGB and hex) in the status bar, and an Eyedropper sample size that averages a small area.
+10. **Auto-redact faces:** found on this Mac with Apple Vision and listed in Auto-Redact's review sheet (FR-9.3), on every page, with the same Blur, Pixelate and Solid Fill choice and one undo step.
+
 ---
 
 ## 13. FR-10 — Clipboard
@@ -779,6 +795,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
     - **13b Match Surroundings:** a trial build of the fill engine first, judged by Leah on her own test pictures; then the engine with its own performance and soak checks, Remove and Spot Heal.
     - **13c** Clone Stamp, the local brushes, Remove Red-Eye.
     - **13d Soft selections** (FR-3.4). This touches every command that uses a selection, so it comes last.
+14. **Lightroom-style photo editing (Leah, 2026-10-27):** FR-9.7, built in parts that Leah and Claude settle together. After it come the layer follow-ups and the other approved ideas.
 
 ---
 
@@ -856,6 +873,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-27 | **Lightroom-style photo editing is the next aim** (Leah), an exception to "no more new features": editing one picture at a time like Lightroom, with saved settings to re-apply a look. "We have enough stuff to edit already." The ten items are in FR-9.7 and come from the feature comparison in `Docs/Feature-Gap-Analysis.md`. New controls live inside Adjust Photo so saved filters include them. Leah also approved, for after this (not yet written into the FRD): a layers round 2 (Select All Layers, isolate with Option-click on the eye, Align and Distribute, Stamp Visible, Layer Groups, Lock transparent pixels), then layer masks; re-editable text; optional stroke smoothing; and revisiting AI with Apple's built-in models only. Reopened for discussion: vector shapes. Dropped: batch work, PSD import, next/previous picture in a folder. |
 | 2026-10-27 | **Pointer over the sidebar** (Leah's bug): over the sidebar, or anything else floating on the canvas, the pointer is the normal arrow, with no brush or eraser outline and no pixel position in the status bar; the tool's pointer is only over the picture itself. |
 | 2026-10-27 | **Rename with several layers** (Leah): the right-click menu's Rename… is greyed out while several layers are chosen, since a name belongs to one layer. Double-clicking a layer still renames it. |
 | 2026-10-27 | **Right-click chooses the layer** (Leah's test): the right-click menu acted on the layer right-clicked, but the highlight stayed on the old one, so it looked as if the menu was for that one. Now a right-click on a layer that isn't chosen chooses it before the menu opens, so it turns blue first, as in Photoshop. The menu is an AppKit menu, built after the layer is chosen. |

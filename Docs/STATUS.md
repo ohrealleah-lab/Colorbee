@@ -148,6 +148,7 @@ Nothing waiting right now.
 **Feature-complete (Leah, 2026-10-19).** No more new features; the ideas once kept for later (AI fill, searchable PDF text, Split Page in Half) are dropped. From here on: fixes, polish and betas.
 
 **Next up (Leah, 2026-10-11)**
+- Lightroom-style photo editing (FR-9.7, planned 2026-10-27; an exception to feature-complete): ten items, built in parts, with new controls inside Adjust Photo so saved filters include them. Details to settle with Leah when each part starts. Background: `Docs/Feature-Gap-Analysis.md`. After it: the approved layer follow-ups (see FRD §23, 2026-10-27).
 - Help: done 2026-10-19 (phases 1–6). Keep it current: see "Keeping it current" in `Docs/HELP-PLAN.md`.
 
 **8 Hardening**

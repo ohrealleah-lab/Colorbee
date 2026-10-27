@@ -1,6 +1,8 @@
 # Colorbee Feature Gap Analysis: Photoshop and Lightroom
 
-_Written 2026-10-27 for Leah (PM). Research only: nothing in the FRD or the code was changed, and nothing is committed. Every decision here is yours; the rankings are my suggestions, and you can veto any of them._
+_Written 2026-10-27 for Leah (PM). These are research notes, not a spec: the FRD is the source of truth, and the decisions that came out of this are in FRD §23 and FR-9.7._
+
+**How much to trust the Adobe side.** Adobe's own help pages blocked my reader, so the Photoshop and Lightroom feature lists are a best effort: the long "always had" lists come from general knowledge of the apps, and the "NEW" items come from Adobe's community announcements and third-party summaries of them. Names, availability and plans may be out of date or slightly off. Treat a row as a lead to check against Adobe's current documentation, not as a statement of fact. Section 7 lists what was and wasn't read.
 
 **How to read this.** Section 1 is the short version. Sections 2 and 3 are the full comparison tables (every feature I could find, grouped by category). Section 4 explains why each gap is or isn't a good fit, and Section 5 shows the workflows the best ones help. Section 6 is the questions I need you to answer. Section 7 lists my sources, including what I could and couldn't read.
 
@@ -25,7 +27,28 @@ _Written 2026-10-27 for Leah (PM). Research only: nothing in the FRD or the code
 
 ## 1. Summary
 
-### Top 10 recommended additions, ranked
+### Your main aim (Leah, 2026-10-27): Lightroom-style photo editing
+
+**Photo editing is the main thing to build next.** The use is one-off edits, with saved settings to re-apply the same look. Colorbee has enough drawing and annotation tools already. So this ranking puts photo editing first, and the layer work you approved earlier follows it.
+
+**One rule that shapes everything:** a saved Filter remembers only Adjust Photo's slider values (FR-9.5). So new Lightroom-style controls should live *inside* Adjust Photo, or saved looks won't include them.
+
+| # | Addition | Size | Why |
+|---|---|---|---|
+| 1 | **Adjust Photo, Lightroom Basic and Color:** white-balance eyedropper (click something gray), Texture, Dehaze, Whites, and a per-color HSL mixer (hue, saturation, luminance for each color) | S to M each | These are Lightroom's most-used controls and Adjust Photo lacks them. Each also becomes an adjustment layer and part of a saved filter. |
+| 2 | **Color Grading** (shadows, midtones, highlights color wheels) and **Point Color** | M each | The "look" tools: how people make a photo feel warm, teal and orange, or faded. The core of a reusable preset. |
+| 3 | **Local edits:** Color Range and Luminance Range selections, a graduated (linear) selection, plus Expand, Contract and Smooth | M, S | Lightroom's masks. Feathered selections plus Adjust Photo already give you radial-style local edits; these fill the rest. |
+| 4 | **Saved settings upgrades:** re-apply the last settings, copy and paste settings onto another picture, History Snapshots, import `.cube` LUT looks | S, S, S, M | Makes "apply the same thing over and over" two clicks instead of Save as Filter and back. |
+| 5 | **Finer detail controls:** Sharpening (radius, detail, masking), separate luminance and color noise reduction, Vignette (midpoint, roundness, feather), Grain (size, roughness) | S each | Closes the gap with Lightroom's Detail and Effects panels. |
+| 6 | **Tone extras:** parametric tone curve, Black and White mix, drag-on-the-image adjustment (Targeted Adjustment), clipping warnings on the histogram | S to M | Lightroom conveniences photographers use all the time. |
+| 7 | **Photo geometry:** auto-detected corners for Perspective Correction, more crop overlays (golden ratio and others), and dimming what a crop cuts out | S to M | Faster straightening and cropping of whiteboards, documents and buildings. |
+| 8 | **Export upgrades:** convert to sRGB or pick the color space (default stays "keep document profile", as you chose), and Limit file size | S to M | Colors that look right everywhere, and sizes that fit email and Slack. |
+| 9 | **Color readout under the pointer** (RGB and hex) and **eyedropper sample size** | S | Check a color in one glance; averaging avoids noisy single pixels. |
+| 10 | **Auto-redact faces** | M | Still a strong fit with Colorbee's redaction roots, and photos have faces. You chose to put it in Auto-Redact's review sheet. |
+
+**After photo editing:** the layer work you approved (Select All Layers, isolate, Align/Distribute, Stamp Visible, Layer Groups, Lock transparent pixels), then layer masks, re-editable text and stroke smoothing. Guides and snapping, batch-apply and the other items are on the maybe list.
+
+### Earlier ranking (general-purpose; kept for reference, superseded by your aim above)
 
 | # | Addition | Size | Why |
 |---|---|---|---|
@@ -46,13 +69,13 @@ _Written 2026-10-27 for Leah (PM). Research only: nothing in the FRD or the code
 Auto-Redact (text patterns, on-device, every page of a PDF), Batch Redact and the Redact Brush, Copy Text from an image, numbered Step Badges, Before/After built in, Clipboard History, "Undo on Active Layer", the Info panel's "Location: Removed", a full keyboard-shortcut editor that protects macOS shortcuts, and instant start. Photoshop and Lightroom don't aim at these jobs.
 
 ### What the Adobe apps are doing lately (last year)
-Most big new features in both apps are **AI and cloud features** (Generative Fill, Expand, Remove, Upscale, Harmonize, AI Assistant, Assisted Culling). Those don't fit Colorbee's no-AI, no-network rules. The non-AI new items worth noting are Photoshop's **Clarity, Dehaze and Grain adjustment layers** and **Temperature/Tint in Color & Vibrance**, and Lightroom's **Feather and Edge sliders on masks** and **Point Color Variance**. Items tagged NEW in the tables below came from the last year of release notes.
+Most big new features in both apps are **AI and cloud features** (Generative Fill, Expand, Remove, Upscale, Harmonize, AI Assistant, Assisted Culling). Those don't fit Colorbee's no-AI, no-network rules. The non-AI new items worth noting are Photoshop's **Clarity, Dehaze and Grain adjustment layers** and **Temperature/Tint in Color & Vibrance**, and Lightroom's **Feather and Edge sliders on masks** and **Point Color Variance**. Items tagged NEW in the tables below are reported in recent Adobe announcements and third-party summaries; check Adobe's documentation before relying on any one of them.
 
 ---
 
 ## 2. Photoshop vs Colorbee
 
-_Photoshop = the desktop app, 2026 line (27.x). "NEW" = added in roughly the last year, per Adobe's release notes and announcements. "(beta)" = not yet in the regular release._
+_Photoshop = the desktop app, 2026 line (sources disagree on version numbers). "NEW" = reported as added in roughly the last year, per Adobe's announcements and third-party summaries; not every item was confirmed on Adobe's own help pages. "(beta)" = reported as not yet in the regular release._
 
 ### 2.1 Selection
 
@@ -557,7 +580,7 @@ Recorded here only. Nothing has been added to the FRD §23 or built yet.
 
 | # | Question | Answer | Follow-up |
 |---|---|---|---|
-| 1 | Text after it's placed | **Make text re-editable** (against my recommendation to keep pixels) | Large change, reverses a classic-Paint FRD decision. Needs design questions first: is text its own layer type, what happens on merge, flatten and export, and can old projects still open? |
+| 1 | Text after it's placed | **Make text re-editable** | Large change, reverses a classic-Paint FRD decision. Needs design questions first: is text its own layer type, what happens on merge, flatten and export, and can old projects still open? |
 | 2 | Layers round 2 | **Select All Layers, isolate (Option-click the eye), Align/Distribute, Stamp Visible and Layer Groups** (with "Group chosen layers" in the right-click menu) | Also **Lock transparent pixels** (Question on layer extras). Click-the-canvas-to-pick-a-layer: not included |
 | 2b | Layer masks and clip-to-layer-below | **Yes, as its own later stage** | Large; after round 2 |
 | 3 | Batch work | **Rarely or never** | Batch-apply stays on the maybe list |
@@ -568,6 +591,7 @@ Recorded here only. Nothing has been added to the FRD §23 or built yet.
 | 8 | Stroke smoothing | **Yes**, as an optional setting, off by default | Smoothing slider in the palette bar |
 | 9 | Vector shapes (Pen, paths) | **Reopen it** | Large change to the product's character. Needs its own discussion (what would be vector, how it fits "a paint program first") |
 | 10 | Face redaction | **Inside Auto-Redact's review sheet, all pages** | Faces appear as boxes next to text matches, with the same treatments and one undo step |
+| 11 | Main aim | **Photo editing: Lightroom-style, one-off edits with saved settings to re-apply.** "We have enough stuff to edit already." | The top 10 at the start of this doc is re-ranked around it. New controls go inside Adjust Photo so saved Filters include them |
 
 1. **Editing text after it's placed.** Colorbee turns text into pixels on purpose ("true to classic Paint"). Photoshop keeps text editable. Do you want that decision reopened? (It would be a large change and would reverse an FRD decision.)
 2. **Is "feature-complete" still the rule?** Multi-select layers was an exception. Would you want a small "layers round 2" (groups, Align/Distribute, Select All Layers), or do you want to hold the line on fixes and polish?

@@ -21,6 +21,12 @@ final class ImageDocument: NSDocument {
     /// The file can't be saved back without losing frames or precision, so it opens as an untitled copy
     /// (Leah; review J, finding 2).
     private var opensAsCopy = false
+    /// The folder of the picture this untitled document came from, where Save and Export start (Leah, 2026-10-27).
+    private var sourceFolder: URL?
+
+    /// Where Save and Export panels start: the file's own folder, or the folder of the picture it came from. Nil
+    /// leaves the Mac's usual last-used folder.
+    private var startFolder: URL? { fileURL?.deletingLastPathComponent() ?? sourceFolder }
 
     override init() {
         super.init()
@@ -28,10 +34,11 @@ final class ImageDocument: NSDocument {
     }
 
     /// Opens `canvas` as a new untitled document in its own window (Paste into New Image, a drop, or a developed RAW
-    /// photo, titled `name`).
-    static func open(_ canvas: ColorbeeCore.Canvas, clipboardSource: ClipboardHistory.Item.ID? = nil, name: String? = nil) {
+    /// photo, titled `name`). `folder` is where the picture came from, if it was a file.
+    static func open(_ canvas: ColorbeeCore.Canvas, clipboardSource: ClipboardHistory.Item.ID? = nil, name: String? = nil, folder: URL? = nil) {
         let document = ImageDocument()
         document.projectName = name
+        document.sourceFolder = folder
         let editor = Editor(canvas: canvas)
         editor.noteClipboardSource(clipboardSource)
         document.editor = editor
@@ -91,6 +98,7 @@ final class ImageDocument: NSDocument {
         if opensAsCopy, let fileURL {
             opensAsCopy = false
             projectName = fileURL.deletingPathExtension().lastPathComponent
+            sourceFolder = fileURL.deletingLastPathComponent()
             self.fileURL = nil
             fileType = editor.isLayered ? UTType.colorbeeProject.identifier : UTType.png.identifier
             updateChangeCount(.changeDone)
@@ -277,6 +285,7 @@ final class ImageDocument: NSDocument {
         guard let editor, editor.isLayered, let fileType, UTType(fileType)?.conforms(to: .colorbeeProject) != true else { return }
         if let fileURL {
             projectName = fileURL.deletingPathExtension().lastPathComponent
+            sourceFolder = fileURL.deletingLastPathComponent()
             self.fileURL = nil
         }
         self.fileType = UTType.colorbeeProject.identifier
@@ -287,10 +296,12 @@ final class ImageDocument: NSDocument {
     override func encodeRestorableState(with coder: NSCoder) {
         super.encodeRestorableState(with: coder)
         coder.encode(projectName, forKey: "ColorbeeProjectName")
+        coder.encode(sourceFolder, forKey: "ColorbeeSourceFolder")
     }
 
     override func restoreState(with coder: NSCoder) {
         super.restoreState(with: coder)
+        sourceFolder = coder.decodeObject(of: NSURL.self, forKey: "ColorbeeSourceFolder") as URL?
         if let name = coder.decodeObject(of: NSString.self, forKey: "ColorbeeProjectName") as String? {
             projectName = name
             windowControllers.forEach { $0.synchronizeWindowTitleWithDocumentName() }
@@ -315,6 +326,11 @@ final class ImageDocument: NSDocument {
             if writableTypes(for: saveOperation).contains(remembered) { fileType = remembered }
         }
         super.runModalSavePanel(for: saveOperation, delegate: delegate, didSave: didSaveSelector, contextInfo: contextInfo)
+    }
+
+    override func prepareSavePanel(_ savePanel: NSSavePanel) -> Bool {
+        if let startFolder { savePanel.directoryURL = startFolder }
+        return super.prepareSavePanel(savePanel)
     }
 
     override func writableTypes(for saveOperation: NSDocument.SaveOperationType) -> [String] {
@@ -432,6 +448,7 @@ final class ImageDocument: NSDocument {
         let preset = ExportPresetStore.shared.presets[tag]
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
+        if let startFolder { panel.directoryURL = startFolder }
         let base = (displayName as NSString).deletingPathExtension
         let size = preset.targetSize(for: editor.canvasSize)
         panel.nameFieldStringValue = "\(base) \(size.width)x\(size.height).png"
@@ -448,6 +465,7 @@ final class ImageDocument: NSDocument {
         options.hasCameraDetails = editor.canvas.cameraDetails != nil
         let panel = NSSavePanel()
         panel.allowedContentTypes = [options.format.type]
+        if let startFolder { panel.directoryURL = startFolder }
         panel.nameFieldStringValue = (displayName as NSString).deletingPathExtension
         // A hosting view starts with no size, and a save panel only passes clicks inside the accessory's frame, so
         // the controls showed but only the keyboard reached them (Leah, 2026-10-05). The frame follows the content
@@ -475,6 +493,7 @@ final class ImageDocument: NSDocument {
         guard let editor, let window = windowForSheet else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
+        if let startFolder { panel.directoryURL = startFolder }
         panel.nameFieldStringValue = (displayName as NSString).deletingPathExtension
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }

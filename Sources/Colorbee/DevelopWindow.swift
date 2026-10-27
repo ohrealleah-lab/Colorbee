@@ -113,7 +113,8 @@ final class DevelopSession {
                     UncheckedCanvas(value: try developer.develop(settings))
                 }.value
                 guard !cancelled else { return }
-                ImageDocument.open(canvas.value, name: developer.url.deletingPathExtension().lastPathComponent)
+                ImageDocument.open(canvas.value, name: developer.url.deletingPathExtension().lastPathComponent,
+                                   folder: developer.url.deletingLastPathComponent())
                 NSDocumentController.shared.noteNewRecentDocumentURL(developer.url)
                 onOpened()
             } catch {

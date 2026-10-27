@@ -16,6 +16,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Sidebar shortcut](#test-sidebar-shortcut)
 - [Buttons show their keys](#test-buttons-show-their-keys)
 - [Tool keys right after opening](#test-tool-keys-right-after-opening)
+- [Save starts in the picture's folder](#test-save-starts-in-the-pictures-folder)
 
 ---
 
@@ -237,6 +238,16 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 6. Choose the Text tool, click the canvas and type a capital **S**: it types the letter, and the sidebar stays.
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
+
+### Test: Save starts in the picture's folder
+
+Test images: `TestImages/Stage 9 Practice Photo.png` and `TestImages/Stage 10/Three Page Test.pdf`. Run `make run` first for a fresh Release copy. Press **Cancel** in every panel below, so nothing gets saved into TestImages.
+1. ⌘N for a new image, ⌘S, and save it to the **Desktop**, so the last folder used is somewhere else. Close it.
+2. Open `Stage 9 Practice Photo.png`. Add a layer (⇧⌘N), then ⌘S. The Save panel is in **TestImages**, named **Stage 9 Practice Photo**, as a Colorbee project. Cancel.
+3. **File ▸ Export…**: also in **TestImages**. Cancel. Try an **Export As** preset and **Export as PDF**: both in TestImages. Cancel each.
+4. Open `Three Page Test.pdf` and press ⌘S: the panel is in **Stage 10**. Cancel.
+5. ⌘N for a new image and ⌘S: the panel is on the **Desktop** (the last folder used), as before. Cancel.
+6. Back on the Stage 9 photo, Save As (⇧⌘S) to the Desktop. Then **File ▸ Export…**: it now starts on the **Desktop**, where the project is. Cancel. You can delete the Desktop test files afterwards.
 
 ### Test: Tool keys right after opening
 

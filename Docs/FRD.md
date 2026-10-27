@@ -605,6 +605,10 @@ Open camera RAW files, develop them, then edit and export like any image.
 - When you quit and reopen Colorbee, open windows come back exactly as they were, including untitled ones. There is **no** restore prompt.
 - File → Revert To → Browse All Versions works.
 - **Undo history survives saves.** Saving never clears the undo stack.
+- **Where Save and Export start:** in the folder of the file being worked on. A picture that has to become a new
+  file (it gained layers, or opened as a copy such as a PDF or RAW photo) starts in the original picture's folder,
+  so `Pictures/photo.jpg` offers `Pictures/photo.colorproj`. Images that never came from a file start in the last
+  folder used, as usual on a Mac.
 - If nothing needs restoring, launch opens a blank white 1920×1080 canvas.
 
 ---
@@ -832,6 +836,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-27 | **Save and Export start in the picture's folder** (Leah, all recommended): Save, Save As, Export…, Export As presets and Export as PDF start in the folder of the file being worked on; for a picture that became a new project (or opened as a copy), the original picture's folder. Images that never came from a file (⌘N, Paste into New Image) keep the Mac's last-used folder. My choices (veto any): a developed RAW photo starts in the RAW file's folder; the folder is remembered across a relaunch for an unsaved project. See FR-12. |
 | 2026-10-27 | **Tool keys right after opening** (Leah's bug): tool and canvas keys, ⇧S included, didn't work in a new window until the image was clicked. The image now takes the keyboard as soon as its window opens. Leah also chose: when a button or panel has taken the keyboard, a tool or canvas key nothing else uses still reaches the image (never while typing in a text box). |
 | 2026-10-27 | **Every button shows its key** (Leah): the toolbar's Sidebar button says "Sidebar (⇧S)", and Clone Stamp in the Retouch menu says "Clone Stamp (S)". The size box, the Adjustments panel button, the page sidebar's New, Duplicate and Delete Page buttons and Before/After's "Last Saved" note now read their keys from Settings ▸ Shortcuts, so a changed key shows there too (the last four have no default key, so they look the same until one is given). |
 | 2026-10-27 | **Sidebar shortcut** (Leah): ⇧S hides or shows the whole right sidebar, and so does a new View ▸ Sidebar (⌃⌘S, the usual Mac key), both doing what the toolbar's Sidebar button does. My choices (veto any): ⇧S is listed with the tool and canvas keys in Settings ▸ Shortcuts, so it doesn't work while typing text; View ▸ Sidebar has a checkmark when the sidebar is open and sits just above Layers; both are greyed out or do nothing while Adjust Photo is open, as the toolbar button already is. |

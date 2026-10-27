@@ -13,7 +13,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Easier sliders](#test-easier-sliders)
+Nothing waiting right now.
 
 ---
 
@@ -236,7 +236,7 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
 
-### Test: Easier sliders
+### Test: Easier sliders (passed 2026-10-27)
 
 Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy.
 1. Choose **Adjustments ▸ Adjust Photo…**. The slider knobs are a little bigger than before.

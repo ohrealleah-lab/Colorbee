@@ -13,9 +13,6 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Sidebar shortcut](#test-sidebar-shortcut)
-- [Buttons show their keys](#test-buttons-show-their-keys)
-- [Tool keys right after opening](#test-tool-keys-right-after-opening)
 - [Save starts in the picture's folder](#test-save-starts-in-the-pictures-folder)
 
 ---
@@ -75,7 +72,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 **Layers** (stage 6a)
 - Info panel (View ▸ Info ⌥⌘I, 2026-10-24): read-only file, image and photo details; says Location: Removed when the original had one. Passed Leah's test 2026-10-24.
-- Sidebar shortcut (2026-10-27): ⇧S or View ▸ Sidebar (⌃⌘S) hides or shows the whole right sidebar, like the toolbar's Sidebar button.
+- Sidebar shortcut (2026-10-27): ⇧S or View ▸ Sidebar (⌃⌘S) hides or shows the whole right sidebar, like the toolbar's Sidebar button. Every button's tooltip shows its key, and tool keys work as soon as a window opens. Passed Leah's tests 2026-10-27.
 - Right sidebar with the Layers panel (⌘L or the toolbar's Layers button, which shows the count): blend mode, opacity, eye, padlock, thumbnails, drag to reorder, double-click to rename, add/duplicate/delete/merge down.
 - Layer menu: New ⇧⌘N, Duplicate ⌘J, Delete ⌘⌫, Merge Down ⇧⌘E, Merge Visible ⌥⇧⌘E, Flatten, Hide/Show, Lock/Unlock, Layer Properties…. Edit ▸ Copy Merged ⇧⌘C.
 - 17 blend modes (W3C math in `BlendMode.swift`, mirrored in `Shaders.metal`); layers composite off screen in half floats. Exports use the same math.
@@ -227,7 +224,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Sidebar shortcut
+### Test: Sidebar shortcut (passed 2026-10-27)
 
 Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `make run` first for a fresh Release copy.
 1. Open the test image. If the sidebar on the right is closed, press **⇧S**: it opens.
@@ -249,7 +246,7 @@ Test images: `TestImages/Stage 9 Practice Photo.png` and `TestImages/Stage 10/Th
 5. ⌘N for a new image and ⌘S: the panel is on the **Desktop** (the last folder used), as before. Cancel.
 6. Back on the Stage 9 photo, Save As (⇧⌘S) to the Desktop. Then **File ▸ Export…**: it now starts on the **Desktop**, where the project is. Cancel. You can delete the Desktop test files afterwards.
 
-### Test: Tool keys right after opening
+### Test: Tool keys right after opening (passed 2026-10-27)
 
 Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy. Don't click the image during steps 1–4.
 1. Open the test image. Right away, press **⇧S**: the sidebar hides. Press it again: it's back.
@@ -259,7 +256,7 @@ Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a 
 5. Double-click the size box in the toolbar and type a number: the digits go in the box, and nothing else changes. Press Return.
 6. Choose the Text tool, click the image and type **"Pass"** with a capital P: the letters are typed, and neither the tool nor the sidebar changes.
 
-### Test: Buttons show their keys
+### Test: Buttons show their keys (passed 2026-10-27)
 
 Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `make run` first for a fresh Release copy. Hover over each thing for a second until its tooltip shows.
 1. The **Sidebar** button at the far right of the toolbar: **Sidebar (⇧S)**.

@@ -367,6 +367,20 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - **Only the layer below** (a switch in the Layers panel; Leah, 2026-10-10): the adjustment changes just the pixel layer under it, not everything below, like a clipping mask. Several such adjustments can sit on one layer, in order. The layer list shows them with an arrow and "Layer below only". If the layer under it is an adjustment that changes everything below (or there's none), it changes nothing, and says "Layer below only: none". Merge Adjustment on one goes into that layer only. Such adjustments stay with their layer (Leah, 2026-10-13): a new layer added with it selected goes above them, Merge Down bakes them in, and Delete Layer deletes them with it.
 - **Merge Adjustment** (the Merge button in the Adjustments panel) merges it and every visible layer below it into one pixel layer, so the picture looks the same. Layers above stay as they are; hidden layers below are kept. ⌘C on an adjustment layer copies what you see (like Copy Merged).
 
+### FR-8.6 Choosing several layers (Leah, 2026-10-27; planned, not built yet)
+- **Choosing:** Shift-click chooses every layer between the active one and the one clicked; ⌘-click adds or
+  removes one layer; a plain click chooses just that layer. Drawing, effects and adjustments still go to the layer
+  clicked last (the active layer). Choosing layers isn't an undo step and isn't saved in the project.
+- **Merge Layers:** with several layers chosen, Layer ▸ Merge Down becomes **Merge Layers**, on the same key
+  (⇧⌘E). The merged layer sits where the topmost chosen layer was and keeps its name; unchosen layers in between
+  stay where they are. Hidden chosen layers are left as they are. If any chosen layer is locked, Merge Layers is
+  greyed out. A chosen adjustment layer is baked into the chosen layers below it, and goes away.
+- **On every chosen layer:** Delete, Duplicate (each copy just above its layer), Hide/Show and Lock/Unlock (Layer
+  menu and right-click menu), opacity and blend mode in the Layers panel, and dragging to reorder (they move
+  together, keeping their order). Each is one undo step.
+- **Right-click menu on a layer:** Merge Down (or Merge Layers), Duplicate, Delete, Hide/Show, Lock/Unlock,
+  Rename and Layer Properties.
+
 ### FR-8.5 Saving with layers
 - **.colorproj** keeps everything: layers, names, opacity, blend modes, visibility and adjustment layers.
 - Exporting to a flat format (PNG, JPEG and so on) combines all visible layers and applies the adjustments. The document itself is not changed.
@@ -840,6 +854,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-27 | **Choosing several layers** (Leah, all recommended; planned, not built yet), an exception to "no more new features": Shift-click and ⌘-click choose several layers; Merge Down becomes Merge Layers (⇧⌘E) when several are chosen, the result taking the top chosen layer's place and name; hidden chosen layers are skipped and a locked one greys out the merge; a chosen adjustment layer is baked into the chosen layers below it; Delete, Duplicate, Hide/Show, Lock/Unlock, opacity, blend mode and dragging work on every chosen layer; a right-click menu on layers has Merge, Duplicate, Delete, Hide/Show, Lock/Unlock, Rename and Layer Properties. See FR-8.6. My choices (veto any): right-clicking a layer that isn't chosen chooses it alone first, as in Finder and Photoshop; the merged layer is Normal at 100%, so the picture looks the same; with several chosen, opacity and blend mode show the active layer's, and a change sets every chosen layer to it; Merge Layers needs at least two visible chosen layers; Delete is greyed out if it would leave no layer or a chosen layer is locked; Hide/Show and Lock/Unlock follow the active layer (if it's shown, Hide hides them all); a chosen layer's "Only the layer below" adjustments are baked in when it merges, as Merge Down does; after Duplicate the copies are the chosen layers. |
 | 2026-10-27 | **Tooltip delay** (Leah): tooltips in Colorbee appear after half a second instead of macOS's usual delay (about a second). Other apps are unchanged. |
 | 2026-10-27 | **Easier sliders** (Leah, both recommended): in Adjust Photo and the Adjustments panel, dragging sideways anywhere on a slider's name line moves it, and a click there alone changes nothing; Adjust Photo's sliders are the "small" size, like the Adjustments panel's, rather than "mini". My choices (veto any): the name line moves the value as far as dragging the knob would (the whole range across the row's width), with no Shift speed-up; the pointer shows left-right arrows there; the Develop window, the effect bar and the tool options keep their sliders as they are. |
 | 2026-10-27 | **Small subjects** (Leah, both recommended): a click that misses every subject looks closer around the click before beeping, so a small character in a game screenshot can be selected or lifted; Lift All and Return stay as they were. When nothing is found at all, the bar asks for a click instead of "No subject found". My choices (veto any): the closer look tries squares of half the image's shorter side, then 0.7 of the one before, down to about 200 px, largest first, and takes the first subject under the click; "Looking closer…" shows meanwhile and clicks wait; the bar says "even a small one"; a subject found this way is cut off where its square ends (rare, since the largest square that finds it wins). |

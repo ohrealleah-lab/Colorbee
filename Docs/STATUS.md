@@ -13,7 +13,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Tooltip delay](#test-tooltip-delay)
+Nothing waiting right now.
 
 ---
 
@@ -147,6 +147,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 **Feature-complete (Leah, 2026-10-19).** No more new features; the ideas once kept for later (AI fill, searchable PDF text, Split Page in Half) are dropped. From here on: fixes, polish and betas.
 
 **Next up (Leah, 2026-10-11)**
+- Choosing several layers and merging them, with a right-click menu on layers (FR-8.6, planned 2026-10-27; an exception to feature-complete). Opus, high effort.
 - Help: done 2026-10-19 (phases 1–6). Keep it current: see "Keeping it current" in `Docs/HELP-PLAN.md`.
 
 **8 Hardening**
@@ -236,7 +237,7 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
 
-### Test: Tooltip delay
+### Test: Tooltip delay (passed 2026-10-27)
 
 No test image needed. Quit Colorbee, then run `make run` for a fresh Release copy (the delay is read at launch).
 1. Rest the pointer on the **Pencil** in the toolbar: its tooltip shows after about half a second.

@@ -10,6 +10,17 @@ enum LayerMenu {
         menu.autoenablesItems = false
         let layers = editor.hasSeveralChosenLayers ? "Layers" : "Layer"
         let active = editor.canvas.activeLayer
+        // Adding first, as in Photoshop's layer menu; each goes just above the right-clicked layer (Leah, 2026-10-27).
+        menu.addItem(ClosureMenuItem("New Layer") { editor.addLayer() })
+        let adjustments = NSMenuItem(title: "New Adjustment Layer", action: nil, keyEquivalent: "")
+        adjustments.submenu = NSMenu(title: "New Adjustment Layer")
+        for choice in AdjustmentChoice.allCases {
+            let item = ClosureMenuItem(choice.title) { editor.addAdjustmentLayer(choice) }
+            item.image = NSImage(systemSymbolName: choice.symbol, accessibilityDescription: nil)
+            adjustments.submenu?.addItem(item)
+        }
+        menu.addItem(adjustments)
+        menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(editor.mergeCommandTitle, enabled: editor.canMerge) { editor.mergeDown() })
         menu.addItem(ClosureMenuItem("Duplicate \(layers)") { editor.duplicateLayer() })
         menu.addItem(ClosureMenuItem("Delete \(layers)", enabled: editor.canDeleteLayers) { editor.deleteLayer() })

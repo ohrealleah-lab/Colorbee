@@ -380,7 +380,8 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - **On every chosen layer:** Delete, Duplicate (each copy just above its layer), Hide/Show and Lock/Unlock (Layer
   menu and right-click menu), opacity and blend mode in the Layers panel, and dragging to reorder (they move
   together, keeping their order). Each is one undo step.
-- **Right-click menu on a layer:** Merge Down (or Merge Layers), Duplicate, Delete, Hide/Show, Lock/Unlock,
+- **Right-click menu on a layer:** New Layer and New Adjustment Layer ▸ (every kind, as in the Layer menu), each
+  added just above that layer; then Merge Down (or Merge Layers), Duplicate, Delete, Hide/Show, Lock/Unlock,
   Rename and Layer Properties. Rename is greyed out while several layers are chosen. Right-clicking (or Control-clicking) a layer that isn't chosen chooses it alone, and
   it turns blue before the menu opens, so it's clear which layer the menu is for. Right-clicking one of several
   chosen layers keeps them all chosen.
@@ -876,6 +877,7 @@ None right now.
 | Date | Decision |
 |---|---|
 | 2026-10-27 | **Lightroom-style photo editing is the next aim** (Leah), an exception to "no more new features": editing one picture at a time like Lightroom, with saved settings to re-apply a look. "We have enough stuff to edit already." The ten items are in FR-9.7 and come from the feature comparison in `Docs/Feature-Gap-Analysis.md`. New controls live inside Adjust Photo so saved filters include them. Leah also approved, for after this (not yet written into the FRD): a layers round 2 (Select All Layers, isolate with Option-click on the eye, Align and Distribute, Stamp Visible, Layer Groups, Lock transparent pixels), then layer masks; re-editable text; optional stroke smoothing; and revisiting AI with Apple's built-in models only. Reopened for discussion: vector shapes. Dropped: batch work, PSD import, next/previous picture in a folder. |
+| 2026-10-27 | **Adding from the layer menu** (Leah, both recommended): the right-click menu starts with New Layer and New Adjustment Layer ▸ (the same kinds as the Layer menu, with their icons), each added just above the right-clicked layer. |
 | 2026-10-27 | **Review T** (Leah, all recommended): a canvas key the canvas hands back to the window (an effect's bar open) is no longer handed to it again, which looped until Colorbee crashed. Merge Layers keeps baking blend modes as Photoshop does (Leah, after "like Merge Down" turned out to change the look of half-transparent layers); FR-8.6 says the look holds for Normal layers only. Duplicate Layers copies a layer and its chosen "Only the layer below" adjustments as a pair of their own. A History click and Lift Subject leave just the active layer chosen. Esc during "Looking closer…" ends it at once. During a drag the tool's pointer stays, also under the sidebar. When Auto moved a slider, its whole name line shows "Set by Auto". Finding 8 (a quick Shift-click read as a plain click) waits for Leah's hand test. |
 | 2026-10-27 | **Pointer over the sidebar** (Leah's bug): over the sidebar, or anything else floating on the canvas, the pointer is the normal arrow, with no brush or eraser outline and no pixel position in the status bar; the tool's pointer is only over the picture itself. |
 | 2026-10-27 | **Rename with several layers** (Leah): the right-click menu's Rename… is greyed out while several layers are chosen, since a name belongs to one layer. Double-clicking a layer still renames it. |

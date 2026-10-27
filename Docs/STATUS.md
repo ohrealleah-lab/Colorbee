@@ -14,6 +14,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Review T fixes](#test-review-t-fixes)
+- [Adding from the layer menu](#test-adding-from-the-layer-menu)
 
 ---
 
@@ -244,6 +245,14 @@ No test image needed; a new image with three added layers.
 1. Click Background, then right-click Layer 2: it turns blue as the menu opens. Delete Layer removes Layer 2.
 2. Choose Layers 1 and 3 (⌘-click), right-click Layer 3: both stay chosen and the menu says Merge Layers, Duplicate Layers and so on.
 3. Right-click a layer that isn't chosen: only it is chosen, and the menu says "Layer". Control-click works the same. Plain clicks, dragging, the eye and the padlock work as before.
+
+### Test: Adding from the layer menu
+
+Test image: `TestImages/Several Layers/Opacity Test.colorproj`. Run `make run` first for a fresh Release copy.
+1. Right-click **Green**. The menu starts with **New Layer** and **New Adjustment Layer ▸**, then a line, then Merge Down and the rest.
+2. Choose **New Layer**: "Layer 1" appears just above Green and is active.
+3. Right-click **Red** and point at **New Adjustment Layer ▸**: the same kinds as Layer ▸ New Adjustment Layer, with icons. Choose **Invert**: it appears just above Red, the Adjustments panel shows it, and the red block and everything under it turn inverted.
+4. ⌘Z twice: both are gone. Close without saving.
 
 ### Test: Review T fixes
 

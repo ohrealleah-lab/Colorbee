@@ -24,8 +24,8 @@ struct LayerMenuTests {
     @Test func oneLayerReadsInTheSingular() throws {
         let editor = editor()
         let menu = LayerMenu.make(for: editor, layerAt: 1) {}
-        #expect(menu.items.map(\.title) == ["Merge Down", "Duplicate Layer", "Delete Layer", "", "Hide Layer", "Lock Layer", "",
-                                            "Rename…", "Layer Properties…"])
+        #expect(menu.items.map(\.title) == ["New Layer", "New Adjustment Layer", "", "Merge Down", "Duplicate Layer", "Delete Layer", "",
+                                            "Hide Layer", "Lock Layer", "", "Rename…", "Layer Properties…"])
         #expect(try #require(item(menu, "Rename…")).isEnabled)
         #expect(try #require(item(menu, "Merge Down")).isEnabled)
     }
@@ -34,8 +34,9 @@ struct LayerMenuTests {
         let editor = editor()
         editor.chooseLayer(at: 3, extending: false, toggling: true)
         let menu = LayerMenu.make(for: editor, layerAt: 3) {}
-        #expect(menu.items.map(\.title).filter { !$0.isEmpty } == ["Merge Layers", "Duplicate Layers", "Delete Layers", "Hide Layers",
-                                                                    "Lock Layers", "Rename…", "Layer Properties…"])
+        #expect(menu.items.map(\.title).filter { !$0.isEmpty } == ["New Layer", "New Adjustment Layer", "Merge Layers", "Duplicate Layers",
+                                                                    "Delete Layers", "Hide Layers", "Lock Layers", "Rename…",
+                                                                    "Layer Properties…"])
         #expect(try !#require(item(menu, "Rename…")).isEnabled)
         #expect(try #require(item(menu, "Merge Layers")).isEnabled)
     }
@@ -57,6 +58,18 @@ struct LayerMenuTests {
         #expect(editor.canvas.layers.map(\.isVisible) == [true, false, true, false])
         choose(item(LayerMenu.make(for: editor, layerAt: 3) {}, "Delete Layers"))
         #expect(editor.canvas.layers.map(\.name) == ["Background", "Layer 2"])
+    }
+
+    @Test func newLayersGoJustAboveTheRightClickedLayer() throws {
+        let editor = editor()
+        editor.chooseForMenu(layerAt: 2)
+        choose(item(LayerMenu.make(for: editor, layerAt: 2) {}, "New Layer"))
+        #expect(editor.canvas.layers.map(\.name) == ["Background", "Layer 1", "Layer 2", "Layer 4", "Layer 3"])
+        editor.chooseForMenu(layerAt: 1)
+        let adjustments = try #require(item(LayerMenu.make(for: editor, layerAt: 1) {}, "New Adjustment Layer")?.submenu)
+        #expect(adjustments.items.map(\.title) == AdjustmentChoice.allCases.map(\.title))
+        choose(adjustments.items.first { $0.title == AdjustmentChoice.invert.title })
+        #expect(editor.canvas.layers[2].adjustment != nil && editor.canvas.activeLayerIndex == 2)
     }
 
     @Test func renameAndLayerPropertiesActOnTheRightClickedLayer() {

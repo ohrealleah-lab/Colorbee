@@ -263,7 +263,12 @@ private struct LayersPanel: View {
             let flags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
             editor.chooseLayer(at: index, extending: flags.contains(.shift), toggling: flags.contains(.command))
         }
-        .overlay(LayerMenuArea(onOpen: { editor.chooseForMenu(layerAt: index) }, menu: { menu(for: layer, index: index) }))
+        .overlay(LayerMenuArea(onOpen: { editor.chooseForMenu(layerAt: index) }, menu: {
+            LayerMenu.make(for: editor, layerAt: index) {
+                newName = layer.name
+                renaming = layer
+            }
+        }))
         .help("Click to make active · Shift- or ⌘-click to choose several · double-click to rename · drag to reorder")
         .accessibilityAddTraits(isActive || isChosen ? [.isSelected] : [])
         .accessibilityAction(named: "Make Active") { editor.selectLayer(at: index) }
@@ -274,29 +279,6 @@ private struct LayersPanel: View {
             newName = layer.name
             renaming = layer
         }
-    }
-
-    /// The right-click menu (FR-8.6), built once the right-clicked layer is chosen, so it speaks for what's chosen now.
-    private func menu(for layer: Layer, index: Int) -> NSMenu {
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-        let layers = editor.hasSeveralChosenLayers ? "Layers" : "Layer"
-        let active = editor.canvas.activeLayer
-        menu.addItem(ClosureMenuItem(editor.mergeCommandTitle, enabled: editor.canMerge) { editor.mergeDown() })
-        menu.addItem(ClosureMenuItem("Duplicate \(layers)") { editor.duplicateLayer() })
-        menu.addItem(ClosureMenuItem("Delete \(layers)", enabled: editor.canDeleteLayers) { editor.deleteLayer() })
-        menu.addItem(.separator())
-        menu.addItem(ClosureMenuItem((active.isVisible ? "Hide " : "Show ") + layers) { editor.toggleChosenLayersVisible() })
-        menu.addItem(ClosureMenuItem((active.isLocked ? "Unlock " : "Lock ") + layers) { editor.toggleChosenLayersLocked() })
-        menu.addItem(.separator())
-        // A name belongs to one layer (Leah, 2026-10-27).
-        menu.addItem(ClosureMenuItem("Rename…", enabled: !editor.hasSeveralChosenLayers) {
-            newName = layer.name
-            renaming = layer
-        })
-        // Its name, blend mode and opacity are at the top of this panel once it's the active layer.
-        menu.addItem(ClosureMenuItem("Layer Properties…") { editor.selectLayer(at: index) })
-        return menu
     }
 
     private func finishRenaming(_ index: Int) {

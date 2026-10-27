@@ -13,7 +13,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Tooltip delay](#test-tooltip-delay)
 
 ---
 
@@ -235,6 +235,14 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 6. Choose the Text tool, click the canvas and type a capital **S**: it types the letter, and the sidebar stays.
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
+
+### Test: Tooltip delay
+
+No test image needed. Quit Colorbee, then run `make run` for a fresh Release copy (the delay is read at launch).
+1. Rest the pointer on the **Pencil** in the toolbar: its tooltip shows after about half a second.
+2. Rest it on the **Sidebar** button, a sidebar panel button and a palette color: same quick delay.
+3. Open a menu and rest on an item, such as **View ▸ Sidebar**: same.
+4. Rest the pointer on a button in another app, such as Finder's toolbar: that one still takes its usual time.
 
 ### Test: Easier sliders (passed 2026-10-27)
 

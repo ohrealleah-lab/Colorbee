@@ -1,13 +1,16 @@
 # Colorbee Development Plan: after feature-complete
 
 _Written 2026-10-27 by Claude for Leah. Planning only: no code or FRD changes. Functional decisions are Leah's; the questions are at the end._
+_Updated 2026-10-27 after an independent review checked the plan against the code: stage 1 and stage 28 are now in two
+parts each, filters gain a way to hold more than colors, and test builds get their own settings folder._
 
 **Scope:** FR-9.7 (all ten items), multi-select layers (FR-8.6), the approved layer follow-ups, layer masks,
 re-editable text, stroke smoothing, Paste in Place and Trim.
 
 **How to read this**
-- 31 stages in five parts: **A** photo editing (FR-9.7), **B** layer follow-ups, **C** layer masks, **D** re-editable
-  text, **E** stroke smoothing. The two small extras sit inside part A, next to the code they share.
+- 31 numbered stages in five parts (stages 1, 18 and 28 have an a and a b): **A** photo editing (FR-9.7), **B**
+  layer follow-ups, **C** layer masks, **D** re-editable text, **E** stroke smoothing. The three small extras (Paste
+  in Place, Trim and the Canvas Size anchor) sit inside part A, next to related work.
 - Each stage works end to end and gets your hand test before the next one starts.
 - **Size:** S = a short sitting, M = a full sitting, L = a long sitting. Anything bigger is split into parts.
 - **Model:** Opus throughout, as agreed. "High" is for design-heavy stages (new formats, new kinds of control,
@@ -32,7 +35,17 @@ re-editable text, stroke smoothing, Paste in Place and Trim.
    filters file. Once a test build saves a filter that uses a new control, beta 7 can't read the file. The next
    filter you save or delete in beta 7 would then write an empty list over all your filters. Projects have a
    smaller version of the same problem: beta 7 opens a project with new controls, but its Adjust Photo layer comes
-   back as an empty layer with the same name, and the adjustment is gone. Stage 1 fixes this going forward (Q0.3).
+   back as an empty layer with the same name, and the adjustment is gone. Stage 1a fixes this going forward (Q0.3).
+   - **Why:** the sliders are saved as a list of name and value pairs. Beta 7 can't read a slider name it doesn't
+     know (`PhotoAdjustments.init(from:)`), and that loses the whole adjustment. It ignores anything saved *next to*
+     the list. So new controls are saved as new entries beside the list, never as new slider names; beta 7 then
+     opens them with only the new controls missing. (Beta 7's reading code is the same as today's; checked against
+     tag `v0.9.0-beta.7`.)
+   - **Reading tolerantly isn't enough on its own.** An older copy that skips what it doesn't know writes the file
+     back without it the next time it saves. Your everyday copy and the test builds share one Application Support
+     folder (same bundle ID, no sandbox), so a filter saved by a later test build would lose its new settings the
+     next time you saved or deleted a filter in your everyday copy. So test builds get their own settings folder
+     (Q0.6), and `make test` never writes to yours.
 5. **How Adjust Photo works today**, since most of part A builds on it:
    - The 15 sliders are one list of named values. Filters scale those values by their Intensity.
    - **Color and tone** settings use exact math in exports. On screen, an Adjust Photo layer uses a 33-point color
@@ -40,8 +53,15 @@ re-editable text, stroke smoothing, Paste in Place and Trim.
    - **Sharpness, Definition, Noise Reduction and Vignette** are worked out in the display shader from blurred
      copies of the image.
    - **Saved filters hold color and tone only.** Save as Filter leaves out the detail sliders and Vignette.
+   - **A filter only ever changes colors.** Its steps are applied through their color part alone
+     (`PhotoEdit.colorTransform`), and Vignette is read only from the panel's own slider, in the core
+     (`Effects.photoAdjusted`) and on screen (`adjust_photo_fragment`). A filter holding Dehaze, Vignette or Grain
+     (Q0.4) would do nothing, so stage 1a gives filters a way to carry settings that aren't colors.
+   - **An Adjust Photo step with any detail slider is dropped whole from a filter** (`Effect.isColorOrTone` is
+     all-or-nothing). Today, Save Filter from Layers skips an Adjust Photo layer entirely if its Sharpness is above
+     0. Stage 1a changes this to keep the parts a filter may hold and leave out only the rest, as FR-9.7's rule says.
    - **While Adjust Photo is open, the picture is view-only:** any drag pans (§23, 2026-10-02). The white-balance
-     eyedropper, Point Color, Color Range and drag-to-adjust all need clicks on the picture, so stage 1 adds a
+     eyedropper, Point Color, Color Range and drag-to-adjust all need clicks on the picture, so stage 1b adds a
      "pick from the picture" mode for them to share.
 
 ### Things that look unclear or conflict
@@ -56,7 +76,7 @@ I haven't guessed at any of these. Each one is a question at the end.
 | 4 | FR-9.7 item 6 | "Clipping warnings on the histogram": only Levels has a histogram. Adjust Photo has none. | Q15.1 |
 | 5 | FR-9.5 Auto, AC-35 | AC-35 says Auto moves only the sliders it lists. Should Auto also set the new ones (Whites, Dehaze)? | Q1.3 (answered) |
 | 6 | FR-6.3 vs re-editable text | FR-6.3 says placed text can't be edited again, "true to classic Paint". Also, a layered image saves as .colorproj (§23, 2026-10-03), so if every text became a layer, an annotated PNG would stop saving as a PNG. | Q29.1 |
-| 7 | §23 vs gap analysis answer 2b | §23 says "then layer masks". The gap analysis answer also says "clip-to-layer-below" for pixel layers. Is that included? | Q28.4 |
+| 7 | §23 vs gap analysis answer 2b | §23 says "then layer masks". The gap analysis answer also says "clip-to-layer-below" for pixel layers. Is that included? | Q28.4 (answered: yes) |
 | 8 | Paste in Place shortcut | Photoshop's ⇧⌘V is Colorbee's Paste into New Image. | Q8.1 |
 | 9 | Stamp Visible shortcut | Photoshop's ⌥⇧⌘E is Colorbee's Merge Visible. | Q22.5 |
 | 10 | Adjust Photo slider names | Adjust Photo already has Highlights and Shadows sliders. A Lightroom tone curve's regions use the same names. | Q15.3 |
@@ -70,13 +90,16 @@ I haven't guessed at any of these. Each one is a question at the end.
 
 1. **Panel:** the control appears in Adjust Photo and in the Adjustments panel for an Adjust Photo layer. Both use
    the same `PhotoControls` view. Reset, Control-click to reset, sliding on the name and "Set by Auto" all work.
-2. **Saved:** it's stored in `PhotoEdit`, read back safely, and a missing value means neutral. Projects and
+2. **Saved:** it's stored in `PhotoEdit` as a new entry beside the slider list, never as a new slider name (so
+   beta 7 still opens the file, section 1). It's read back safely, and a missing value means neutral. Projects and
    filters from before open unchanged (the FR-9.7 rule).
 3. **Exports:** exact math in the core (`PhotoAdjustments`, `Effects.photoAdjusted`).
 4. **Screen:** the live preview and an Adjust Photo layer match the export. Color-only controls go through the
-   color table. Controls that look at neighboring pixels go in `adjust_photo_fragment` with `Renderer`.
-5. **Filters:** Intensity scales it by the agreed rule. It's in or out of filters by category (Q0.4). Save as
-   Filter and Save Filter from Layers handle it.
+   color table. Controls that look at neighboring pixels or at the pixel's position go in `adjust_photo_fragment`
+   with `Renderer`, and in `Canvas.pixelAsShown` (stage 20).
+5. **Filters:** in or out by category (Q0.4). Intensity scales only amounts, never shape settings (Q0.7). A
+   setting that isn't a color goes through the filter path stage 1a builds, in the core and on screen. Save as
+   Filter and Save Filter from Layers keep it or leave just it out; they never drop the whole step.
 6. **Selections:** soft edges are respected (FR-3.4).
 7. **Tests:** exact values on small images; save and reopen; the old fixture files open unchanged; a filter at 50%
    equals half; screen versus export; a time limit at 8000 × 8000 in `make perf` for controls that look at
@@ -100,13 +123,15 @@ Each is made by a small script and kept in `TestImages/Photo Editing/` unless no
 
 | File | Made from | For |
 |---|---|---|
-| `Old Adjust Photo.colorproj`, `Old Filter.colorbeefilter` | Saved from **today's** build, before stage 1 changes anything | Proving old files open unchanged |
+| `Old Adjust Photo.colorproj`, `Old Filter.colorbeefilter` | Saved from **today's** build, before stage 1a changes anything. The project holds the practice photo with three Adjust Photo layers: one with every slider set to a non-zero value; one with a built-in filter at 60% Intensity plus a few sliders; and one set to "Only the layer below". The filter is a Save Filter from Layers of the first two. | Proving old files open unchanged (stages 1a, 13, 14) |
 | `Color Cast.png` | The Stage 9 practice photo with a blue cast and a gray card | White-balance eyedropper |
+| `Texture Practice.png` | The practice photo with fine grass and bark detail drawn into the hills | Texture |
+| `No Rectangle.png` | Soft hills and round clouds, with nothing rectangular | Perspective Correction with nothing to find |
 | `Dull Photo.png`, `Bright Photo.png` | The Stage 9 practice photo with its brightest parts dimmed to light gray, and with a patch of pure white | Auto's Whites |
 | `Hazy.png` | The practice photo with haze added | Dehaze |
-| `Color Chart.png` | Patches of the eight color ranges, skin tones and a gray ramp | Color Mixer, Grading, Point Color, Color Range, curve, readout |
+| `Color Chart.png` | Patches of the eight color ranges, skin tones and a gray ramp, saved in sRGB, with a list of each patch's sRGB values and hex | Color Mixer, Grading, Point Color, Color Range, curve, readout |
 | `Noisy.png` | The practice photo with noise added | Noise reduction, sharpening |
-| `Looks/Warm.cube`, `Looks/Identity.cube` | Written by a script | .cube looks |
+| `Looks/Warm.cube`, `Looks/Identity.cube`, `Looks/Curve 1D.cube` | Written by a script (the last is a one-dimensional look) | .cube looks |
 | `Trim Practice.png`, `Trim Practice Solid.png` | A picture with a transparent border; one with a white border | Trim |
 | `Align Practice.colorproj` (in `TestImages/Several Layers/`) | Three badges on their own layers, out of line | Align and Distribute |
 | Faces picture | Your choice (Q21.1) | Auto-redact faces |
@@ -120,59 +145,100 @@ they work on all of Adjust Photo's settings, so every later control is included 
 your main aim of re-applying a look early. Black and White mix (item 6) is built with the Color Mixer (item 1),
 since both use the same eight color ranges.
 
-### Stage 1. Adjust Photo groundwork, Whites and the white-balance eyedropper
+### Stage 1a. Adjust Photo groundwork: files, filters and sections
 
 1. **What gets built**
-   - Room in Adjust Photo's saved settings for controls that aren't a single slider (tables, colors, curves).
-     Each starts at neutral, so filters and projects from before open unchanged.
-   - Reading that skips a setting it doesn't know, instead of dropping the whole adjustment. Every beta from this
-     one on can then open newer files with only the unknown controls missing.
-   - Saved filters move to a new file, copied from the old one, so an older Colorbee can't wipe them (Q0.3).
+   - **Fixtures first:** `Old Adjust Photo.colorproj` and `Old Filter.colorbeefilter` are saved from today's build
+     before anything changes (recipe in section 2).
+   - Room in Adjust Photo's saved settings for new controls, including ones that aren't a single slider (tables,
+     colors, curves). Each is saved as a new entry beside the slider list, never as a new slider name, so beta 7
+     still opens the file with only the new controls missing. Each starts at neutral, so filters and projects from
+     before open unchanged.
+   - Reading that skips a setting it doesn't know, instead of dropping the whole adjustment.
+   - Saved filters move to a new file, copied once from the old one, so an older Colorbee can't wipe them (Q0.3).
+   - **Test builds get their own settings folder** (Q0.6): every build except a signed beta keeps its Application
+     Support files (saved filters, and later the last-used settings) in a folder of its own, and `make test` never
+     writes to your real one. So test builds can't change your everyday copy's filters. The first time a test build
+     runs, it copies your filters in, so you can try them there.
+   - **Filters that hold more than colors:** a filter can carry settings that aren't a color change, and they're
+     applied in exports (`Effects.photoAdjusted`) and on screen (`adjust_photo_fragment`). Intensity scales only
+     their amounts (Q0.7). Vignette is the first one, since it exists today and you chose to keep it in filters
+     (Q0.4): Save as Filter now keeps it.
+   - **Keep, don't drop:** Save as Filter, Save Filter from Layers and importing keep the parts a filter may hold
+     and leave out only the rest. An Adjust Photo layer with Sharpness set is no longer skipped whole.
    - Panel sections you can fold: Light, Color and Detail now, with more sections in later stages.
+   - Covers the FR-9.7 rule.
+2. **Depends on:** nothing. **Touches:**
+   - Core: `PhotoAdjustments.swift` (reading and writing), `PhotoFilter.swift` (`isColorOrTone`, `fromLayers`,
+     `scaled(by:)`), `Effect+Codable.swift`, `Effects+Photo.swift`.
+   - App: `AdjustPhotoPanel.swift`, `AdjustmentsPanel.swift`, `FilterStore.swift` (the new file and folder),
+     `Renderer.swift` and `Shaders.metal` (a filter's vignette), `TestHost.swift`.
+3. **Risks**
+   - **Old projects and filters:** proven by the fixture files.
+   - **Your filters:** the copy to the new file happens once, the first time a build with this stage runs. Until the
+     beta after this stage, don't save or delete filters in beta 7, since they won't carry over (Q0.3).
+   - **Built-in filters** hold no vignette, so they look exactly as before.
+   - **Performance:** none new; Vignette is already worked out in the shader.
+   - Questions: Q1.1.
+4. **Size:** M. **Opus, high:** every later stage builds on this format and these filters.
+5. **Hand test** (`Old Adjust Photo.colorproj`, `Old Filter.colorbeefilter`, `TestImages/Stage 9 Practice Photo.png`)
+   1. Open Adjust Photo on any picture and look at the filter strip: **all of your own saved filters are there**,
+      with their names, and each looks as it did in beta 7.
+   2. Open `Old Adjust Photo.colorproj`. It looks exactly as in beta 7, and each Adjust Photo layer's sliders show
+      the same numbers.
+   3. Import `Old Filter.colorbeefilter` from the filter strip's menu. It looks the same as in beta 7.
+   4. On the practice photo, Adjust Photo: Vignette −60, Saturation +30. Save as Filter… named "Dark Edges". Open
+      another picture and choose it: the edges darken too. At 50% Intensity: half as dark.
+   5. Fold and unfold Light, Color and Detail. Quit and reopen Colorbee: the same sections are folded.
+   6. In the old project, choose the layer with every slider set and use Save Filter from Layers: the new filter
+      has its colors and its vignette (before, this layer was skipped).
+6. **Done when:** tests cover saving and reopening, the fixtures, beta 7's reading of a file with a new entry (its
+   decoder, kept in a test), filters keeping and leaving out the right parts, and a filter's vignette on screen
+   versus export. Help and STATUS are updated, and the beta is cut (Q0.3).
+
+### Stage 1b. Whites and the white-balance eyedropper
+
+1. **What gets built**
    - **Pick from the picture:** while Adjust Photo is open, or an Adjust Photo layer is being edited, a dropper
      button lets one click sample the picture. Space-drag and scrolling still pan.
    - A **Whites** slider, and the **white-balance eyedropper**: click something that should be gray, and it sets
-     Warmth and Tint.
+     Warmth and Tint. It reads the picture before Adjust Photo's other settings; on an Adjust Photo layer, the
+     layers below it (Q1.7). So a click on gray comes out neutral whatever Exposure or filter is set.
    - **Auto sets Whites** too (Q1.3): it raises Whites on a photo whose brightest parts fall short of white, and
      leaves it at 0 otherwise.
-   - Covers the FR-9.7 rule, and item 1's eyedropper and Whites.
-2. **Depends on:** nothing. **Touches:**
-   - Core: `PhotoAdjustments.swift` (sliders, reading and writing), `PhotoFilter.swift`, `Effect+Codable.swift`,
-     `Effects+Photo.swift`.
-   - App: `AdjustPhotoPanel.swift`, `AdjustmentsPanel.swift`, `FilterStore.swift`, `Editor.swift` (the Adjust Photo
-     session, pick mode), `CanvasView.swift` (clicks while a bar is open).
+   - Covers item 1's eyedropper and Whites.
+2. **Depends on:** stage 1a. **Touches:**
+   - Core: `PhotoAdjustments.swift` (Whites), `PhotoAuto.swift`.
+   - App: `AdjustPhotoPanel.swift`, `AdjustmentsPanel.swift`, `Editor.swift` (the Adjust Photo session, pick mode),
+     `CanvasView.swift` (clicks while a bar is open).
 3. **Risks**
-   - **Old projects:** proven by the fixture files, which are saved from today's build before anything changes.
-   - **Older betas:** beta 7 still reads files the old way. A new beta right after this stage protects your
-     everyday copy and your friend's (Q0.3).
    - **Strong color casts:** Warmth and Tint are gentle channel multipliers, so a very strong cast may need more
      than ±100 can give. The eyedropper then stops at the limit (Q1.5).
    - **Pick mode:** while the dropper is on, it suspends "the canvas is view-only while a bar is open".
    - **Performance:** none. Whites is color-only, so it goes in the color table.
-   - Questions: Q1.1 to Q1.6.
-4. **Size:** M. **Opus, high:** every later stage builds on this format and panel structure.
-5. **Hand test** (`Old Adjust Photo.colorproj`, `TestImages/Stage 6b Practice.colorproj`, `Color Cast.png`,
-   `Dull Photo.png`, `Bright Photo.png`)
-   1. Open both projects. Each looks exactly as in beta 7, and the Adjust Photo layer's sliders show the same
-      numbers.
-   2. Open `Color Cast.png` and choose Adjustments ▸ Adjust Photo…. Fold and unfold Light, Color and Detail.
-   3. Click the dropper by Warmth, then click the gray card. The blue cast goes, and Warmth and Tint have moved.
+   - Questions: Q1.2 to Q1.7.
+4. **Size:** S–M. **Opus, high** (a new kind of canvas click).
+5. **Hand test** (`Color Cast.png`, `Dull Photo.png`, `Bright Photo.png`)
+   1. Open `Color Cast.png` and choose Adjustments ▸ Adjust Photo….
+   2. Click the dropper by Warmth, then click the gray card. The blue cast goes, and Warmth and Tint have moved.
       Apply, then ⌘Z: it's all undone in one step.
+   3. Open Adjust Photo again, choose Vivid Warm, then use the dropper on the gray card: the card still comes out
+      gray. Cancel.
    4. Open Adjust Photo again and drag Whites to the right. Only the brightest parts get brighter. Cancel.
    5. Open `Dull Photo.png`, Adjust Photo ▸ Auto: Whites moves up and shows "Set by Auto". On `Bright Photo.png`,
       whose brights already reach white, Auto leaves Whites at 0.
-   6. Import `Old Filter.colorbeefilter` from the filter strip's menu. It looks the same as in beta 7.
-   7. Choose As Adjustment Layer, then use the dropper in the Adjustments panel. Save, close and reopen: the same.
-6. **Done when:** tests cover saving and reopening, the fixtures, an eyedropper click on a made-up gray patch
-   coming out neutral within one level, Auto's Whites on a dull and a bright image, and filter scaling. Help and STATUS are updated, and a beta is cut if you
-   agree (Q0.3).
+   6. On `Color Cast.png`, choose As Adjustment Layer, then use the dropper in the Adjustments panel. Save as a
+      project, close and reopen: the same.
+6. **Done when:** tests cover an eyedropper click on a made-up gray patch coming out neutral within one level (also
+   under a filter), Auto's Whites on a dull and a bright image, and Whites in filters at 50%. Help and STATUS are
+   updated.
 
 ### Stage 2. Same as Last, and copy and paste settings
 
 1. **What gets built:** re-apply the last Adjust Photo settings to the selection or active layer. Copy Settings
    and Paste Settings put one picture's look on another, in the same or another document. Covers FR-9.7 item 4
    (first two parts).
-2. **Depends on:** stage 1. **Touches:** `Editor.swift` (the Adjust Photo session), `AdjustPhotoPanel.swift`,
+2. **Depends on:** stage 1a. **Touches:** `Editor.swift` (the Adjust Photo session), `AdjustPhotoPanel.swift`,
    `MainMenu.swift` (Adjustments menu), and a small new store for the last-used and copied settings (app side).
 3. **Risks**
    - What counts as "last", and whether it survives a relaunch (Q2.2).
@@ -193,27 +259,38 @@ since both use the same eight color ranges.
 
 1. **What gets built:** **Texture** brings out or softens fine detail without Definition's wider halos (a negative
    value smooths skin). **Dehaze** removes haze (a negative value adds it). Covers FR-9.7 item 1.
-2. **Depends on:** stage 1. **Touches:**
+2. **Depends on:** stage 1a. **Touches:**
    - Core: `PhotoAdjustments.swift` (math), `Effects+Photo.swift`.
-   - App: `Shaders.metal` (`adjust_photo_fragment`), `Renderer.swift` (one more blurred copy, and a haze
-     estimate passed in).
+   - App: `Shaders.metal` (`adjust_photo_fragment`), `Renderer.swift` (one more blurred copy for Texture; for
+     Dehaze, a "darkest nearby" pass and a haze estimate passed in).
    - Tests: `PerformanceTests.swift`.
 3. **Risks**
    - **Dehaze looks at the whole picture** to estimate the haze color (the standard "dark channel" method). On an
      adjustment layer, painting below changes that estimate. It's refreshed in the background at a reduced size,
      and exports use the same numbers, so the screen and the file agree.
-   - **Performance:** one more blur per frame under an Adjust Photo layer; strokes beneath it must stay under 16 ms.
-   - **Filters:** Dehaze is saved in filters; Texture isn't (Q0.4). **Look:** Definition is already close to Lightroom's Clarity, so I'll show you Texture next
-     to Definition to make sure they feel different.
+   - **Dehaze also looks at neighbors:** how hazy each pixel is comes from the darkest color in a small patch
+     around it. That's an extra pass on the GPU every frame, and in the core for exports, like Definition's blur.
+     So Dehaze isn't a pure tone change; in a filter it goes through stage 1a's path for settings that aren't
+     colors.
+   - **Performance:** one more blur and one "darkest nearby" pass per frame under an Adjust Photo layer; strokes
+     beneath it must stay under 16 ms.
+   - **Filters:** Dehaze is saved in filters, and Intensity scales its amount; Texture isn't saved (Q0.4).
+   - **Look:** Definition is already close to Lightroom's Clarity, so the hand test puts Texture next to Definition
+     to make sure they feel different.
    - Questions: Q3.1, Q3.2.
 4. **Size:** M–L. **Opus, high.**
-5. **Hand test** (`Hazy.png`, `Stage 9 Practice Photo.png`)
+5. **Hand test** (`Hazy.png`, `Texture Practice.png`)
    1. Open `Hazy.png`, Adjust Photo, Dehaze +50: the haze lifts and colors return. Apply. ⌘Z.
    2. Dehaze −50: haze is added. Cancel.
-   3. Open the practice photo, zoom to 200%, Texture +60: the hills' fine detail sharpens with no glow around
-      edges. Try −60: it softens.
-   4. As Adjustment Layer, then paint with the Brush on the layer below: it stays smooth, and the look follows.
-   5. Export a PNG and compare it with the screen: the same.
+   3. Dehaze +50, then Save as Filter… named "Clear". Open `Texture Practice.png` and choose Clear: haze is
+      removed there too. Cancel.
+   4. On `Texture Practice.png`, zoom to 200%, Texture +60: the grass and bark sharpen, with no glow around the
+      hills' edges. Try −60: they soften.
+   5. Texture back to 0, Definition +60: the hills' edges get a wider glow. That's the difference between the two.
+      Cancel.
+   6. As Adjustment Layer with Texture +60, then paint with the Brush on the layer below: it stays smooth, and the
+      look follows.
+   7. Export a PNG and compare it with the screen: the same.
 6. **Done when:** exact-value tests, a screen-versus-export test, and a time limit at 8000 × 8000 all pass. Help is
    updated.
 
@@ -225,7 +302,7 @@ since both use the same eight color ranges.
    - **Black & White:** a switch that makes the picture black and white. The same eight sliders then set how light
      each color becomes.
    - Covers FR-9.7 item 1 (Color Mixer) and item 6 (Black and White mix).
-2. **Depends on:** stage 1. **Touches:** the core (a new `ColorMixer.swift`, plus `PhotoAdjustments`,
+2. **Depends on:** stage 1a. **Touches:** the core (a new `ColorMixer.swift`, plus `PhotoAdjustments`,
    `ColorLookup.swift`), `AdjustPhotoPanel.swift` (a new section).
 3. **Risks**
    - **Screen versus export:** narrow color changes through a 33-point table can differ from the export by more than
@@ -249,7 +326,7 @@ since both use the same eight color ranges.
 
 1. **What gets built:** color wheels for shadows, midtones and highlights. Each sets a hue and a strength, with a
    luminance slider, plus Blending and Balance. Covers FR-9.7 item 2 (color grading).
-2. **Depends on:** stage 1. **Touches:** the core (a new `ColorGrading.swift`, the color table), a new
+2. **Depends on:** stage 1a. **Touches:** the core (a new `ColorGrading.swift`, the color table), a new
    `ColorWheel.swift` control (app), `AdjustPhotoPanel.swift`.
 3. **Risks**
    - **A new kind of control:** a wheel you drag a point around. Fine moves, double-click to reset, VoiceOver.
@@ -270,7 +347,7 @@ since both use the same eight color ranges.
 1. **What gets built:** pick a color in the picture, then shift just that color's hue, saturation and luminance,
    with a Range setting for how wide "that color" is. You can pick several colors. Covers FR-9.7 item 2 (Point
    Color).
-2. **Depends on:** stage 1 (pick mode) and stage 4 (shared color-range math). **Touches:** the core
+2. **Depends on:** stage 1b (pick mode) and stage 4 (shared color-range math). **Touches:** the core
    (`ColorMixer.swift` or a new `PointColor.swift`), `AdjustPhotoPanel.swift` (a swatch list), `Editor.swift` (pick
    mode).
 3. **Risks**
@@ -308,8 +385,8 @@ since both use the same eight color ranges.
 ### Stage 8. Paste in Place (small extra)
 
 1. **What gets built:** paste the copied pixels exactly where they were copied from, in the same document or
-   another one, instead of at the top-left of the view. It fits here because it uses the same selection code as
-   stage 7.
+   another one, instead of at the top-left of the view. It sits here only because it's a small Edit menu command
+   like stage 7's; the two share no code.
 2. **Depends on:** nothing. **Touches:** `Editor.swift` (copy remembers where; `paste(_:at:)` already takes a
    place), `ClipboardImage.swift` and `PasteboardImages.swift` (the place travels with the copy), `MainMenu.swift`.
 3. **Risks**
@@ -331,11 +408,13 @@ since both use the same eight color ranges.
      preview. Return makes it a soft selection.
    - **Luminance Range:** select by brightness, from shadows to highlights, with a soft falloff.
    - Both follow the soft-selection rules (FR-3.4). Covers FR-9.7 item 3.
-2. **Depends on:** stage 1 (pick mode), stage 7 (its menu). **Touches:** the core (a new `ColorRange.swift`,
+2. **Depends on:** stage 1b (pick mode), stage 7 (its menu). **Touches:** the core (a new `ColorRange.swift`,
    `SelectionActions.swift`), `Editor.swift`, `CanvasView.swift`, `MainMenu.swift`, and Feather's red-tint preview
    (reused).
 3. **Risks**
-   - **What it reads:** the active layer or everything shown (Q9.2).
+   - **What it reads:** the active layer or everything shown (Q9.2). "Everything shown" uses
+     `Canvas.pixelAsShown`'s fix from stage 20 if that's built first; until then, adjustments that look at
+     neighbors (Vignette, Sharpness, blur layers) aren't included in what it reads.
    - **Combining** with an existing selection (Q9.3).
    - **Redaction** hardens soft selections, as today.
    - Questions: Q9.1 to Q9.5.
@@ -344,8 +423,9 @@ since both use the same eight color ranges.
    1. Color Range…, then click the sky. It tints everything but the sky; raise Fuzziness to take in more blue.
       Return.
    2. Adjust Photo, Saturation +40: only the sky changes, with a soft edge at the hills. Apply.
-   3. Luminance Range…, then choose Shadows. On the chart's gray ramp, only the dark end is selected, fading in.
-   4. ⌘Z returns everything as it was.
+   3. ⌘Z returns the photo as it was.
+   4. Open `Color Chart.png`, then Luminance Range… and choose Shadows. On the gray ramp, only the dark end is
+      selected, fading in.
 6. **Done when:** exact-value tests on the chart's colors pass. Help is updated, and `make help` has run.
 
 ### Stage 10. Graduated selection
@@ -368,7 +448,7 @@ since both use the same eight color ranges.
 1. **What gets built:** import a `.cube` file (the standard format for color "looks") as a filter. It appears in
    the filter strip with Intensity, can be an adjustment layer, and exports as a `.colorbeefilter`. Covers FR-9.7
    item 4.
-2. **Depends on:** stage 1. **Touches:**
+2. **Depends on:** stage 1a. **Touches:**
    - Core: a new kind of adjustment that holds a color table (`Effects.swift`, `Effect+Codable.swift`,
      `PhotoFilter.swift`), a new `CubeFile.swift` reader, `ColorLookup.swift`.
    - App: `FilterStore.swift` (import).
@@ -377,15 +457,17 @@ since both use the same eight color ranges.
      text.
    - **Color:** looks are usually made for sRGB pictures (Q11.2).
    - **Damaged files:** a damaged `.cube` gives a plain message; added to the damaged-file tests.
+   - **One-dimensional looks** (a curve per channel, not a color table) get a plain "not supported" message (Q11.5).
    - **Older betas:** older Colorbee versions show such a layer with no settings, as before.
-   - Questions: Q11.1 to Q11.4.
+   - Questions: Q11.1 to Q11.5.
 4. **Size:** M. **Opus, high.**
-5. **Hand test** (`Looks/Warm.cube`, `Looks/Identity.cube`, `Stage 9 Practice Photo.png`)
+5. **Hand test** (`Looks/Warm.cube`, `Looks/Identity.cube`, `Looks/Curve 1D.cube`, `Stage 9 Practice Photo.png`)
    1. Adjust Photo ▸ filter menu ▸ Import…, then choose `Warm.cube`. A "Warm" filter appears; the photo warms.
    2. Intensity 50%: half as warm.
    3. Import `Identity.cube`: no visible change.
    4. As Adjustment Layer, then save, close and reopen: still warm.
    5. Rename a text file to `.cube` and import it: a plain message, and nothing is added.
+   6. Import `Curve 1D.cube`: a "not supported" message, and nothing is added.
 6. **Done when:** reader tests, including damaged files, pass, and the exact result matches a reference. Help is
    updated.
 
@@ -402,11 +484,16 @@ since both use the same eight color ranges.
    - **Redaction safety:** a snapshot from before a redaction would bring the secret back, so clearing history
      after a redaction must clear snapshots too (Q12.3).
    - **Pages:** each page has its own.
+   - **Naming:** the app already has a `Snapshot` type (the help-picture runs) and `SaveSnapshot`, so this one gets
+     a name of its own, such as `HistorySnapshot`.
+   - **Later layer stages** (groups, masks, text layers) add to what a snapshot keeps; each of those stages checks
+     snapshots too.
    - Questions: Q12.1 to Q12.6.
 4. **Size:** M. **Opus, high** (history).
 5. **Hand test** (`Stage 9 Practice Photo.png`, `TestImages/Auto-Redact Practice.png`)
    1. History panel ▸ New Snapshot…, and name it "Start".
-   2. Paint, apply Noir, then crop. Click "Start": the photo is back as it began.
+   2. Paint a stroke, choose Adjust Photo ▸ Noir ▸ Apply, then Image ▸ Crop… and Return. Click "Start": the
+      photo is back as it began.
    3. ⌘Z: you're back at the cropped Noir version.
    4. Click "Start", paint a stroke, then click "Start" again: it still works.
    5. On a copy of `Auto-Redact Practice.png`: take a snapshot, Auto-Redact, ⌘S, then choose Remove Earlier
@@ -418,7 +505,7 @@ since both use the same eight color ranges.
 
 1. **What gets built:** Sharpness gets Radius, Detail and Masking (sharpen only edges). Noise Reduction splits into
    Luminance and Color, each with Detail. Covers FR-9.7 item 5.
-2. **Depends on:** stage 1. **Touches:** the core (`PhotoAdjustments.detail`, `Effects+Photo.swift`),
+2. **Depends on:** stage 1a. **Touches:** the core (`PhotoAdjustments.detail`, `Effects+Photo.swift`),
    `Shaders.metal`, `Renderer.swift` (radius-dependent blurs, an edge map for Masking), tests.
 3. **Risks**
    - **Old files:** today's Sharpness and Noise Reduction must look the same afterwards. They become Amount and
@@ -440,11 +527,11 @@ since both use the same eight color ranges.
 ### Stage 14. Vignette and Grain
 
 1. **What gets built:** Vignette gets Midpoint, Roundness and Feather. **Grain** has Amount,
-   Size and Roughness, fixed to the image so the preview matches the export. Vignette and Grain are now saved in
-   filters and scaled by Intensity (Q0.4); Save as Filter absorbs them like the color and tone sliders. Covers FR-9.7
-   item 5.
-2. **Depends on:** stage 1. **Touches:** the core (`PhotoAdjustments.swift`, `Effects+Photo.swift`, `Vignette`,
-   the noise code in `Effects+Texture.swift`), `Shaders.metal`.
+   Size and Roughness, fixed to the image so the preview matches the export. Vignette and Grain are saved in filters
+   through stage 1a's path for settings that aren't colors (Q0.4). Intensity scales only Vignette's and Grain's
+   amounts; Midpoint, Roundness, Feather, Size and Roughness stay as saved (Q0.7). Covers FR-9.7 item 5.
+2. **Depends on:** stage 1a. **Touches:** the core (`PhotoAdjustments.swift`, `Effects+Photo.swift`, `Vignette`,
+   the noise code in `Effects+Texture.swift`, `PhotoFilter.swift` for scaling), `Shaders.metal`, `Renderer.swift`.
 3. **Risks**
    - **Old files:** the new settings start at today's vignette shape.
    - **Zoomed out,** the screen shows grain smaller than the file has it (each grain is image pixels), so it can
@@ -456,8 +543,8 @@ since both use the same eight color ranges.
    1. Vignette −50, then Roundness +100: the darkening becomes a circle. Feather 0: a hard edge. Midpoint: the
       darkening moves in or out.
    2. Grain 50, at 100%: film-like grain. Size up: coarser. Export, and zoom both to 100%: the same grain.
-   3. Save as Filter… named "Film". Open another picture and choose Film at 50%: half the vignette and grain.
-      An older filter of yours shows no vignette or grain.
+   3. Save as Filter… named "Film". Open another picture and choose Film at 50%: half the vignette and grain, and
+      the grain is the same size as at 100%. An older filter of yours shows no vignette or grain.
 6. **Done when:** exact-value tests and the fixture unchanged. Help is updated.
 
 ### Stage 15. Tone curve and clipping warnings
@@ -467,7 +554,7 @@ since both use the same eight color ranges.
    - A **live histogram** at the top of Adjust Photo, with **clipping warnings:** when they're on, blown highlights
      show red and crushed shadows blue on the picture. This is display only and never exported.
    - Covers FR-9.7 item 6.
-2. **Depends on:** stage 1. **Touches:**
+2. **Depends on:** stage 1a. **Touches:**
    - Core: a new `ToneCurve.swift`, plus `Histogram.swift` (reused).
    - App: `ToneViews.swift` (the curve graph, reused), `AdjustPhotoPanel.swift`, and `Renderer.swift` with
      `Shaders.metal` (the clipping overlay).
@@ -475,6 +562,7 @@ since both use the same eight color ranges.
    - **The histogram** of the edited result is worked out in the background as sliders move, from a smaller copy on
      big images.
    - **Naming** clashes with the existing Highlights and Shadows sliders (Q15.3).
+   - **Filters:** Intensity scales the four region amounts; the split points stay where they were saved (Q0.7).
    - Questions: Q15.1 to Q15.4.
 4. **Size:** M. **Opus, high.**
 5. **Hand test** (`Color Chart.png`, `Stage 9 Practice Photo.png`)
@@ -490,7 +578,7 @@ since both use the same eight color ranges.
 
 1. **What gets built:** a hand button. While it's on, dragging up or down on the picture changes the tone-curve
    region under the pointer, or, in the Color Mixer, the color under it. Covers FR-9.7 item 6.
-2. **Depends on:** stages 1, 4 and 15. **Touches:** `Editor.swift` (pick mode with drags), `CanvasView.swift`,
+2. **Depends on:** stages 1b, 4 and 15. **Touches:** `Editor.swift` (pick mode with drags), `CanvasView.swift`,
    `AdjustPhotoPanel.swift`.
 3. **Risks**
    - **Panning:** today any drag pans while the bar is open. While the hand is on, drags adjust and Space-drag pans.
@@ -521,15 +609,16 @@ since both use the same eight color ranges.
    - "Finding corners…" shows while it looks.
    - Questions: Q17.1 to Q17.3.
 4. **Size:** M. **Opus, medium** (it follows Select Subject's pattern).
-5. **Hand test** (`TestImages/Stage 9 Practice Perspective.png`)
-   1. Image ▸ Perspective Correction…: after "Finding corners…", the corners sit on the shape's corners. Nudge one,
-      then Return. The result is square.
-   2. On a picture with no rectangle (the practice photo), the corners are where they are today.
+5. **Hand test** (`TestImages/Stage 9 Practice Perspective.png`, `No Rectangle.png`)
+   1. Image ▸ Perspective Correction…: after "Finding corners…", the corners sit on the whiteboard's corners. Nudge
+      one, then Return. The whiteboard is now a straight-sided rectangle, and its grid lines are straight.
+   2. Open `No Rectangle.png` and choose Perspective Correction…: the corners are where they are today. (Not the
+      practice photo: its black box and striped box are rectangles Vision may find.)
    3. Crop…, then press the overlay key: thirds, grid, golden ratio and so on, in turn.
 6. **Done when:** a test on a made-up rectangle (corners within 2 px) passes. Help is updated, and `make help` has
    run if a key was added.
 
-### Stage 18. Trim (small extra)
+### Stage 18a. Trim (small extra)
 
 1. **What gets built:** crop away borders that are transparent or all one color. It fits here, next to Crop and
    Straighten, and uses the same crop step.
@@ -546,11 +635,38 @@ since both use the same eight color ranges.
    1. Open `Trim Practice.png` and choose Image ▸ Trim. The see-through border is gone; the status bar shows the new
       size.
    2. `Trim Practice Solid.png`: the white border is gone.
-   3. On the cutout, run Remove Background, then Trim: tight around the subject. ⌘Z.
+   3. On the cutout, run Remove Background, then Trim: the edges are tight around the circle and the star together.
+      ⌘Z.
 6. **Done when:** exact-value tests (including soft edges and one-pixel lines) pass. Help is updated, and `make
    help` has run.
 
-### Stage 19. Export: color space and Limit file size  *(could run in its own session, see section 7)*
+### Stage 18b. Canvas Size anchor (small extra)
+
+1. **What gets built:** Canvas Properties gets an **anchor**: a 3 × 3 grid of squares that chooses where the picture
+   stays when the canvas changes size. Today it always stays at the top-left, so new space goes on the right and
+   bottom. With Center, new space is split evenly on every side, for an even margin around a screenshot; with
+   top-center, it all goes below, for a caption. Shrinking cuts the edges away from the anchor (Q18.5).
+2. **Depends on:** nothing. **Touches:** the core (`ImageActions.resizeCanvas` takes where the picture goes, tested
+   exactly, including the selection and every layer), `CanvasPropertiesSheet.swift` (the grid, and its preview),
+   `Editor.swift`. Help: the Canvas Properties section of `annotate-an-image.html`.
+3. **Risks**
+   - **Odd sizes:** adding an odd number of pixels with Center can't split evenly; the extra pixel goes on the right
+     or bottom.
+   - **History:** one undo step, as today (all layers change size together). On a page document, it changes the page
+     being viewed.
+   - **VoiceOver:** each square says where it puts the picture ("Top left", "Center"…).
+   - Questions: Q18.4, Q18.5.
+4. **Size:** S. **Opus, medium.** First I'll draft its FRD lines (Q0.1).
+5. **Hand test** (`TestImages/Help/Sample Screenshot.png`, 1200 × 760)
+   1. Image ▸ Canvas Properties…: the anchor shows Center. Make it 1400 × 960 and press OK: an even 100 px border
+      on every side, filled with Color 2. ⌘Z.
+   2. Again, choose the top-middle square, make it 1200 × 960: all 200 px of new space is below the picture. ⌘Z.
+   3. Again, Center, make it 1000 × 560: 100 px is cut from every side. ⌘Z: the whole picture is back.
+   4. Open Canvas Properties once more: the anchor is back on Center.
+6. **Done when:** exact tests of each anchor, growing and shrinking, odd sizes, and several layers pass. Help is
+   updated.
+
+### Stage 19. Export: color space and Limit file size
 
 1. **What gets built:** Export… gets **Color:** keep the document's (the default), sRGB or Display P3. **Limit file
    size** for JPEG and HEIC: enter a size, and Colorbee finds the best quality that fits. It's greyed out for PNG
@@ -563,7 +679,9 @@ since both use the same eight color ranges.
    - **Size limit:** encodes several times in the background. An 8000 × 8000 HEIC may take a few seconds, so it
      shows progress.
    - **Camera details** count toward the size.
-   - Questions: Q19.1 to Q19.5.
+   - **What a KB is:** Finder counts 1 KB as 1,000 bytes. If Colorbee counted 1,024, a file it calls 200 KB could
+     show as 205 KB in Finder (Q19.6).
+   - Questions: Q19.1 to Q19.6.
 4. **Size:** M. **Opus, high.**
 5. **Hand test** (`Stage 9 Practice Photo.png`)
    1. Export…, JPEG, Color sRGB. Open the file in Preview, then Tools ▸ Show Inspector: the profile is sRGB.
@@ -573,14 +691,19 @@ since both use the same eight color ranges.
    5. Limit 5 KB on a big image: the message you chose (Q19.3).
 6. **Done when:** tests check the profile and the size stays under the limit. Help is updated.
 
-### Stage 20. Color readout and Eyedropper sample size  *(could run in its own session)*
+### Stage 20. Color readout and Eyedropper sample size
 
 1. **What gets built:** the status bar shows the color under the pointer, as RGB and hex. The Eyedropper gets a
    Sample Size that averages a small area. Covers FR-9.7 item 9.
 2. **Depends on:** nothing. **Touches:** `StatusBar.swift`, `Editor.swift` (the pointer and colors), the
    Eyedropper in `CanvasView.swift`, `PaletteBar.swift` (tool options), and the core's `Canvas.pixelAsShown` (an
-   averaging helper).
+   averaging helper, and a fix).
 3. **Risks**
+   - **`pixelAsShown` misses some adjustments today.** It works out one pixel on its own, so anything that looks
+     at neighbors or at where the pixel is gets left out: Vignette, Sharpness, Definition, Noise Reduction, Blur
+     and Sharpen layers (and later Texture, Dehaze and Grain). Under such a layer the readout wouldn't match the
+     screen. The fix works out a small patch around the pointer, with the vignette placed by the whole canvas.
+     This also fixes the Eyedropper's Option-click, which has the same gap today.
    - **Which pixel** (Q20.1).
    - **Which numbers:** the document's own values or sRGB (Q20.2). This decides whether a brand color from a style
      guide matches.
@@ -592,9 +715,12 @@ since both use the same eight color ranges.
    2. Eyedropper, Sample Size 5 × 5, then click an anti-aliased letter edge in the screenshot: an in-between color.
       At 1 px: one exact pixel.
    3. Point at the gray surround: the readout clears.
-6. **Done when:** an exact averaging test passes. Help is updated.
+   4. Open `Old Adjust Photo.colorproj` and point at a corner of the picture, where the vignette darkens it. Then
+      hide the Adjust Photo layers: the readout changes, so it was reading what you see.
+6. **Done when:** exact averaging tests, and a test that the readout under a vignette and a blur layer matches the
+   export. Help is updated.
 
-### Stage 21. Auto-redact faces  *(could run in its own session)*
+### Stage 21. Auto-redact faces
 
 1. **What gets built:** Auto-Redact also finds faces (Apple Vision, on this Mac) on every page. They're listed in
    the review sheet with the text matches and boxed on the canvas, with the same Blur, Pixelate and Solid Fill and
@@ -653,20 +779,32 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
      `History.swift`.
    - App: `LayersPanel.swift`, `Editor.swift`.
 3. **Risks**
-   - **It reaches every tool that writes pixels.** Rather than changing each tool, every edit on such a layer gets
-     its old transparency put back from history's before-images when the edit finishes. That's one place to get
-     right, and history already has those images.
+   - **It reaches every tool that writes pixels.** Rather than changing each tool, the old transparency is put back
+     from history's before-images in one place. That's one place to get right, and history already has those images.
+   - **While drawing, not just at the end.** It's put back on each part of a stroke as it's drawn, before it's
+     shown, so paint never appears in the empty area and then vanishes when you let go. Strokes must stay under
+     16 ms.
+   - **Whole pixels:** where a pixel was fully clear, the whole pixel is put back, not just its transparency, so no
+     stray colors hide in clear pixels (the Magic Wand and Color Eraser read those exactly).
+   - **Edits with no before-images:** flip and rotate, and crop, resize and Straighten, keep no before-images. They
+     move the outline itself, so they work as usual on such a layer (Q23.4).
+   - **Saving:** a picture with one layer saves as a PNG, so the lock, like today's padlock, isn't kept there
+     (Q23.5).
    - **The Eraser** can't make holes (Q23.2).
    - **Older betas** open such a layer unlocked.
-   - Questions: Q23.1 to Q23.3.
+   - Questions: Q23.1 to Q23.5.
 4. **Size:** M. **Opus, high.**
-5. **Hand test** (`TestImages/Stage 9 Practice Cutout.png` after Remove Background, or `Opacity Test.colorproj`)
-   1. Lock transparent pixels on the cutout. Paint across it with a big red Brush: the subject turns red and the
-      empty area stays empty.
-   2. Fill Bucket and Gradient inside: the same.
-   3. Eraser: it paints Color 2 inside the shape (or the behavior you chose).
-   4. Save, close and reopen: still locked.
-6. **Done when:** a test checks that every tool keeps transparency on such a layer. Help is updated.
+5. **Hand test** (`TestImages/Stage 9 Practice Cutout.png`)
+   1. Open the cutout and choose Remove Background with "put the subject on a new layer" on, so there are two
+      layers. Choose the subject layer and lock its transparent pixels.
+   2. Paint across it slowly with a big red Brush: the circle and star turn red, and the empty area stays empty the
+      whole time, not only when you let go.
+   3. Fill Bucket and Gradient inside: the same.
+   4. Eraser: it paints Color 2 inside the shape (or the behavior you chose).
+   5. Image ▸ Flip ▸ Horizontal: the layer flips as usual, and it's still locked. ⌘Z.
+   6. Save (it's a project, since it has two layers), close and reopen: still locked.
+6. **Done when:** a test checks that every tool keeps transparency on such a layer, mid-stroke too, with clear
+   pixels left exactly as they were. Help is updated.
 
 ### Stage 24. Align and Distribute
 
@@ -694,13 +832,15 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
    hidden, and has its own opacity and blend mode. It's saved in .colorproj, and the screen, exports and Copy
    Merged all match.
 2. **Depends on:** stage 22. **Touches:**
-   - Core: `Layer.swift`, `Canvas.swift` (compositing, "Only the layer below"), the layer-stack state in
-     `History.swift`, `ProjectFile.swift`, `LayerActions*.swift`.
+   - Core: `Layer.swift`, `Canvas.swift` (compositing, "Only the layer below", and the layer-stack state history
+     keeps), `History.swift`, `ProjectFile.swift`, `LayerActions*.swift`.
    - App: `Renderer.swift` with `Shaders.metal` (an extra pass per group), `LayersPanel.swift`, `LayerMenu.swift`.
-   - Also everything that walks the layers: Auto-Redact, Subjects, the Eyedropper, Merge.
+   - Also everything that walks the layers: Auto-Redact, the Redact Brush, Subjects, the Eyedropper, Merge,
+     Flatten, Save Filter from Layers, Undo on Active Layer, and History Snapshots.
 3. **Risks**
-   - **The biggest change to the document since pages.** Layers stay one flat list, each naming its group, so most
-     code doesn't change. This also prepares the project format for masks and text layers.
+   - **The biggest change to the document since pages.** Layers stay one flat list, each naming its group. A group
+     itself is a row in that list holding no pixels, and about 77 places in the code go through the list; each must
+     skip group rows or treat them right. This also prepares the project format for masks and text layers.
    - **A group that isn't Pass Through** needs its own off-screen picture, which costs memory and GPU time.
    - **Older betas** would show each group as an empty layer, with its layers no longer grouped (Q25.5).
    - **The soak test** must include groups.
@@ -719,19 +859,24 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
 1. **What gets built:** drag layers into and out of groups, groups inside groups (Q25.1), Merge Group, duplicating,
    deleting and locking groups, "Group chosen layers" in the right-click menu (approved), and adjustment layers
    inside groups. Choosing a group works with Align and Stamp Visible.
-2. **Depends on:** stage 25. **Touches:** `LayersPanel.swift` (dragging), `LayerActions+Several.swift`,
-   `LayerMenu.swift`, `MainMenu.swift`.
+2. **Depends on:** stage 25, stage 24 (Align with a chosen group), stage 22 (Stamp Visible) and stage 23 (the
+   padlock menu, for locking a group). **Touches:** `LayersPanel.swift` (dragging), `LayerActions+Several.swift`,
+   `LayerAlign.swift`, `LayerMenu.swift`, `MainMenu.swift`.
 3. **Risks**
    - **Dragging** onto a row versus between rows is fiddly to get right.
    - **Edge cases:** locked layers, and "Only the layer below" at a group's edge.
-   - Questions: Q25.2, Q25.6.
+   - **Locking a group** offers the same two locks as a layer (Q25.4).
+   - Questions: Q25.2, Q25.4, Q25.6.
 4. **Size:** M–L. **Opus, high.**
 5. **Hand test** (`Opacity Test.colorproj`)
    1. Drag Blue into the group, then out again.
    2. Add a Hue/Saturation layer inside the group. With Pass Through it changes everything below; with Normal, only
       the group.
    3. Right-click two chosen layers, then Group chosen layers. Merge Group: one layer, same look.
-6. **Done when:** tests and help.
+   4. Choose the group and Align ▸ Left: everything in it moves together. ⌘Z.
+   5. Lock the group: none of its layers can be painted. Unlock it.
+6. **Done when:** core tests of moving into and out of groups (also nested ones), Merge Group's look, and adjustment
+   layers inside Pass Through and Normal groups, screen versus export. Help is updated, and `make help` has run.
 
 ---
 
@@ -745,50 +890,87 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
    - Delete Mask, and Apply Mask (bake it in).
    - Saved in .colorproj, and the screen matches the export.
 2. **Depends on:** stage 25 (the layer model settles first). **Touches:**
-   - Core: `Layer.swift`, a one-channel picture type for the mask, `History.swift` (before-images keyed by layer
-     and by mask), `Canvas.swift` with `Compositing.swift`, `ProjectFile.swift`.
+   - Core: `Layer.swift`, a one-channel picture type for the mask, `History.swift` (`TileKey` today is layer,
+     column and row, so it gains which picture: the layer's or its mask's), `Canvas.swift` with
+     `Compositing.swift`, `ProjectFile.swift`, `PageBaseline.swift` (Revert Layer).
    - App: every tool's "where do I draw", `Renderer.swift` with `Shaders.metal`, `LayersPanel.swift`, and Merge,
-     Flatten, Copy Merged and Remove Background.
+     Flatten, Copy Merged and Remove Background. `Editor.isLayered` and `ImageDocument.swift` (see Saving).
 3. **Risks**
+   - **Saving:** today a picture counts as layered (and saves as a project) only with several pages, several layers
+     or an adjustment layer (`Editor.isLayered`). A one-layer photo with a mask would save as a PNG and silently
+     lose the mask, so a mask makes it a project too.
+   - **Per-layer undo:** Undo on Active Layer and Revert Layer include the layer's mask (Q28.8).
    - **Memory:** a one-channel mask is a quarter of a layer's size (64 MB at 8000 × 8000), but it's a new kind of
      buffer for history's disk spill.
+   - **History Snapshots** keep masks too.
    - **Redaction safety:** a mask hides pixels without removing them. Redaction must change hidden pixels too, and
      the help says masks don't hide secrets (Q28.5).
    - **Older betas** show the hidden parts (Q28.5).
    - **Painting** on a mask must stay under 16 ms.
+   - Questions: Q28.3, Q28.5 to Q28.8.
 4. **Size:** L. **Opus, high.**
 5. **Hand test** (`Stage 9 Practice Photo.png` with `Stage 9 Practice Cutout.png` pasted on a layer above)
    1. Add Mask on the cutout layer, click the mask thumbnail, and paint black on part of it: that part hides, and
       the photo shows through. Paint white: it's back.
    2. Save, close and reopen: the same. Export: it matches.
-   3. Apply Mask: the hidden part is now gone for real. ⌘Z.
-6. **Done when:** compositing, history (undo of mask strokes), format and memory tests pass. Help is updated, and
-   `make help` has run.
+   3. Paint on the layer itself, then a mask stroke. Edit ▸ Undo on Active Layer: the mask stroke goes. Again: the
+      paint goes.
+   4. Apply Mask: the hidden part is now gone for real. ⌘Z.
+   5. Open the practice photo alone (one layer), Add Mask, paint black on the sky, then ⌘S: it saves as a new
+      project (.colorproj) in the photo's folder, as a picture that gains layers does, not over the PNG. Reopen the
+      project: the mask is there.
+6. **Done when:** compositing, history (undo of mask strokes, Undo on Active Layer, Revert Layer), format, saving and
+   memory tests pass. Help is updated, and `make help` has run.
 
-### Stage 28. Layer masks, part 2: adjustment layers and mask tools
+### Stage 28a. Layer masks, part 2: adjustment layers and mask tools
 
 1. **What gets built:**
    - Masks on adjustment layers: local Adjust Photo that never changes pixels, the most Lightroom-like result in
      this plan (Q28.1).
-   - Masks on groups (Q28.2).
    - Shift-click turns a mask off; Option-click shows it alone; Invert Mask.
    - Masks from Color Range, Luminance Range and graduated selections, through "from the selection".
-   - Masks with "Only the layer below", with Merge Layers, and with several chosen layers.
-   - Clipping for pixel layers too, if you choose it (Q28.4).
-2. **Depends on:** stage 27, and stages 9 and 10 (useful). **Touches:** every adjustment shader in
-   `Shaders.metal`, `Renderer.swift`, `Canvas.swift`, `AdjustmentsPanel.swift`, `LayersPanel.swift`.
+   - Masks with "Only the layer below", with Merge Layers, Merge Adjustment, and with several chosen layers.
+2. **Depends on:** stage 27, and stages 9 and 10 (for masks from those selections). **Touches:** every adjustment
+   shader in `Shaders.metal`, `Renderer.swift`, `Canvas.swift`, `AdjustmentsPanel.swift`, `LayersPanel.swift`.
 3. **Risks:**
    - Every adjustment display path gets a mask input.
    - Merge Adjustment with a mask.
-   - Questions: Q28.1 to Q28.7.
+   - Questions: Q28.1, Q28.5.
 4. **Size:** L. **Opus, high.**
 5. **Hand test** (`Stage 9 Practice Photo.png`)
    1. Color Range on the sky, then add an Adjust Photo layer with Saturation +50. Its mask is the sky.
    2. Paint on the mask to take the hills back out. Shift-click the mask: the adjustment applies everywhere.
       Shift-click again.
    3. Option-click the mask: you see the mask in gray. Option-click again.
-   4. Save, close and reopen: the same.
-6. **Done when:** tests and help.
+   4. Invert Mask: now only the hills are more colorful. ⌘Z.
+   5. Merge Adjustment: the picture looks the same, and the sky's saturation is now in the pixels. ⌘Z.
+   6. Save, close and reopen: the same. Export: it matches the screen.
+6. **Done when:** screen-versus-export tests for a masked layer of each adjustment kind, Merge Adjustment with a
+   mask, and format tests pass. Help is updated, and `make help` has run.
+
+### Stage 28b. Masks on groups, and clipping for pixel layers
+
+1. **What gets built:**
+   - Masks on groups (Q28.2).
+   - **Only the layer below for pixel layers** (Q28.4, answered yes): a pixel layer shows only where the layer
+     under it has pixels, the same switch adjustment layers have today, like a clipping mask.
+2. **Depends on:** stages 26 and 28a. **Touches:** `Canvas.swift` (compositing), `Renderer.swift` with
+   `Shaders.metal` (a group's off-screen picture with its mask, clipped pixel layers), `LayersPanel.swift`,
+   `ProjectFile.swift`, and Merge Down, Merge Layers and Duplicate for clipped pixel layers.
+3. **Risks:**
+   - **Clipped pixel layers** follow today's rules for clipped adjustments: they stay with their layer when it moves,
+     Merge Down bakes them in, and Delete takes them along (FR-8.4).
+   - **Older betas** show clipped pixel layers unclipped, and group masks not at all.
+   - Questions: Q28.2, Q28.4.
+4. **Size:** M. **Opus, high.**
+5. **Hand test** (`Opacity Test.colorproj`)
+   1. Group Red and Green, Add Mask on the group, and paint black across both: both hide there.
+   2. Add a new layer above Blue, paint stripes across the whole canvas, and turn on Only the layer below: the
+      stripes show only on Blue.
+   3. Move Blue up one place: the striped layer goes with it.
+   4. Save, close and reopen: the same. Export: it matches the screen.
+6. **Done when:** compositing tests (screen versus export) for group masks and clipped pixel layers, and format
+   tests, pass. Help is updated, and `make help` has run.
 
 ---
 
@@ -803,13 +985,15 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
 2. **Depends on:** stages 25 and 27 (layer kinds settled). **Touches:**
    - Core: `Layer.swift` (holds the text and its drawn pixels), `TextRenderer.swift` (the text settings saved),
      `ProjectFile.swift`, `History.swift`.
-   - App: the Text section of `Editor.swift`, `CanvasTextView.swift`, `LayersPanel.swift`.
+   - App: the Text section of `Editor.swift`, `Editor.isLayered`, `CanvasTextView.swift`, `LayersPanel.swift`.
 3. **Risks**
    - **The drawn pixels are stored as an ordinary layer,** so compositing doesn't change, and older betas show the
      text as plain pixels.
    - **Redaction safety:** a text layer keeps its words in the file, so any redaction over it must turn it into
      pixels first (Q29.2).
    - **Missing fonts** on another Mac (Q29.4).
+   - **Saving:** a text layer makes the picture a project (`Editor.isLayered`), as a mask does in stage 27;
+     otherwise a PNG save would quietly turn the text into pixels. This is why Q29.1 matters.
    - This reverses FR-6.3 (Q29.1).
    - Questions: Q29.1 to Q29.6.
 4. **Size:** L. **Opus, high.**
@@ -835,9 +1019,13 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
    1. Paint on a text layer: the behavior you chose (a message, or it turns into pixels first).
    2. Resize the image to 200%: the text stays crisp (if you chose re-rendering).
    3. Redact Brush over the text: it becomes pixels and is redacted. ⌘Z.
-6. **Done when:** tests and help.
+   4. Layer ▸ Rasterize Text: the layer's text can no longer be edited, and it looks the same.
+   5. Merge it down: one pixel layer, same look.
+6. **Done when:** tests check each entry point (painting, effects, adjustments, Merge, Flatten, rotate, resize,
+   crop, every redaction) does what you chose on a text layer, and that no redaction leaves the words in the saved
+   file. Help is updated, and `make help` has run.
 
-### Stage 31. Stroke smoothing  *(could run in its own session beside stages 22–24)*
+### Stage 31. Stroke smoothing
 
 1. **What gets built:** a Smoothing slider in the palette bar, 0% (off) by default, as you chose. The line trails
    the pointer a little to take out the wobble, and catches up when you let go.
@@ -861,20 +1049,21 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
 
 ## 7. What can be built together, and what must not
 
-**Safe to run side by side** (each in its own local worktree, while the Adjust Photo stages go on):
-- **Stage 19 (Export):** touches only the export panel, `SaveSnapshot` and `ImageCodec`.
-- **Stage 20 (readout):** the status bar and the Eyedropper. It also touches `Editor.swift`, but a different
-  section.
-- **Stage 21 (faces):** the Auto-Redact files.
-- **Stage 31 (smoothing)** beside stages 22–24: the painting section, not the layer code.
+**You chose one stage at a time (Q0.5),** so this section is for reference only.
+
+**Least overlap** (no stage is completely free of shared files):
+- **Stage 19 (Export):** the export panel, `SaveSnapshot` and `ImageCodec`. No other stage touches those.
+- **Stage 21 (faces):** the Auto-Redact files, plus the Auto-Redact section of `Editor.swift`.
+- **Stage 20 (readout)** shares `Editor.swift` and `CanvasView.swift` with stages 1b, 9, 10 and 16, and
+  `PaletteBar.swift` with stage 31. Different sections, but real merge conflicts are likely.
 
 **Must not run together:**
-- **Any two Adjust Photo stages** (1–6, 11, 13–16): they all change `PhotoAdjustments`, `adjust_photo_fragment` and
-  `PhotoControls`.
-- **Any two of stages 23, 25, 26, 27, 28, 29 and 30:** each changes the layer model, the project format and
-  compositing.
+- **Any two Adjust Photo stages** (1a–6, 11, 13–16): they all change `PhotoAdjustments`, `adjust_photo_fragment`
+  and `PhotoControls`.
+- **Any two of stages 12, 23, 25, 26, 27, 28a, 28b, 29 and 30:** each changes the layer model, the project format,
+  history or compositing.
 - **Stages 7, 8, 9 and 10:** the selection code and the Edit menu.
-- **Stage 12 (snapshots) with stage 27 (masks):** both change history.
+- **Stage 31 (smoothing) with stage 23 (lock transparent pixels):** both change what happens as a stroke is drawn.
 
 **Things to know before running side by side:**
 - STATUS.md, the FRD log and generated help pages get small merge conflicts.
@@ -882,46 +1071,49 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
 - Two `make test` runs at once share Colorbee's settings.
 - You test one thing at a time anyway.
 
-**My recommendation:** build one stage at a time. The pace is set by your hand tests, not by build time. If you'd
-like more speed, stages 19–21 are the safe ones to run beside the Adjust Photo work.
+**My recommendation:** build one stage at a time (your answer to Q0.5). The pace is set by your hand tests, not by
+build time.
 
 ---
 
 ## 8. Overview
 
-| # | Stage | Covers | Size | Effort | Depends on | Side by side? |
-|---|---|---|---|---|---|---|
-| 1 | Adjust Photo groundwork, Whites, white-balance eyedropper | FR-9.7 rule, item 1 | M | High | — | No |
-| 2 | Same as Last, copy and paste settings | Item 4 | S–M | Medium | 1 | No |
-| 3 | Texture and Dehaze | Item 1 | M–L | High | 1 | No |
-| 4 | Color Mixer and Black & White | Items 1, 6 | M | High | 1 | No |
-| 5 | Color Grading | Item 2 | M | High | 1 | No |
-| 6 | Point Color | Item 2 | M | High | 1, 4 | No |
-| 7 | Expand, Contract, Smooth | Item 3 | S | Medium | — | No |
-| 8 | **Paste in Place** (extra) | Gap analysis | S | Medium | — | No |
-| 9 | Color Range and Luminance Range | Item 3 | M | High | 1, 7 | No |
-| 10 | Graduated selection | Item 3 | S–M | High | 9 | No |
-| 11 | .cube looks | Item 4 | M | High | 1 | No |
-| 12 | History Snapshots | Item 4 | M | High | — | No |
-| 13 | Sharpening and Noise Reduction detail | Item 5 | M | High | 1 | No |
-| 14 | Vignette and Grain | Item 5 | M | Medium | 1 | No |
-| 15 | Tone curve and clipping warnings | Item 6 | M | High | 1 | No |
-| 16 | Drag on the picture to adjust | Item 6 | M | High | 1, 4, 15 | No |
-| 17 | Photo geometry | Item 7 | M | Medium | — | No |
-| 18 | **Trim** (extra) | Gap analysis | S | Medium | — | No |
-| 19 | Export color space and file size | Item 8 | M | High | — | Yes |
-| 20 | Color readout and sample size | Item 9 | S | Medium | — | Yes |
-| 21 | Auto-redact faces | Item 10 | M | High | — | Yes |
-| 22 | Select All Layers, isolate, Stamp Visible | §23 layers | S–M | Medium | FR-8.6 | No |
-| 23 | Lock transparent pixels | §23 layers | M | High | — | No |
-| 24 | Align and Distribute | §23 layers | M | High | FR-8.6 | No |
-| 25 | Layer groups 1 | §23 layers | L | High | 22 | No |
-| 26 | Layer groups 2 | §23 layers | M–L | High | 25 | No |
-| 27 | Layer masks 1 | §23 masks | L | High | 25 | No |
-| 28 | Layer masks 2 | §23 masks | L | High | 27 (9, 10 help) | No |
-| 29 | Re-editable text 1 | §23 text | L | High | 25, 27 | No |
-| 30 | Re-editable text 2 | §23 text | M | High | 29 | No |
-| 31 | Stroke smoothing | §23 smoothing | M | High | — | Beside 22–24 |
+| # | Stage | Covers | Size | Effort | Depends on |
+|---|---|---|---|---|---|
+| 1a | Adjust Photo groundwork: files, filters, sections | FR-9.7 rule | M | High | — |
+| 1b | Whites and the white-balance eyedropper | Item 1 | S–M | High | 1a |
+| 2 | Same as Last, copy and paste settings | Item 4 | S–M | Medium | 1a |
+| 3 | Texture and Dehaze | Item 1 | M–L | High | 1a |
+| 4 | Color Mixer and Black & White | Items 1, 6 | M | High | 1a |
+| 5 | Color Grading | Item 2 | M | High | 1a |
+| 6 | Point Color | Item 2 | M | High | 1b, 4 |
+| 7 | Expand, Contract, Smooth | Item 3 | S | Medium | — |
+| 8 | **Paste in Place** (extra) | Gap analysis | S | Medium | — |
+| 9 | Color Range and Luminance Range | Item 3 | M | High | 1b, 7 |
+| 10 | Graduated selection | Item 3 | S–M | High | 9 |
+| 11 | .cube looks | Item 4 | M | High | 1a |
+| 12 | History Snapshots | Item 4 | M | High | — |
+| 13 | Sharpening and Noise Reduction detail | Item 5 | M | High | 1a |
+| 14 | Vignette and Grain | Item 5 | M | Medium | 1a |
+| 15 | Tone curve and clipping warnings | Item 6 | M | High | 1a |
+| 16 | Drag on the picture to adjust | Item 6 | M | High | 1b, 4, 15 |
+| 17 | Photo geometry | Item 7 | M | Medium | — |
+| 18a | **Trim** (extra) | Gap analysis | S | Medium | — |
+| 18b | **Canvas Size anchor** (extra) | Gap analysis, Q0.9 | S | Medium | — |
+| 19 | Export color space and file size | Item 8 | M | High | — |
+| 20 | Color readout and sample size | Item 9 | S | Medium | — |
+| 21 | Auto-redact faces | Item 10 | M | High | — |
+| 22 | Select All Layers, isolate, Stamp Visible | §23 layers | S–M | Medium | FR-8.6 |
+| 23 | Lock transparent pixels | §23 layers | M | High | — |
+| 24 | Align and Distribute | §23 layers | M | High | FR-8.6 |
+| 25 | Layer groups 1 | §23 layers | L | High | 22 |
+| 26 | Layer groups 2 | §23 layers | M–L | High | 22, 23, 24, 25 |
+| 27 | Layer masks 1 | §23 masks | L | High | 25 |
+| 28a | Layer masks 2: adjustment layers, mask tools | §23 masks | L | High | 27, 9, 10 |
+| 28b | Masks on groups, clipping for pixel layers | §23 masks, gap analysis 2b | M | High | 26, 28a |
+| 29 | Re-editable text 1 | §23 text | L | High | 25, 27 |
+| 30 | Re-editable text 2 | §23 text | M | High | 29 |
+| 31 | Stroke smoothing | §23 smoothing | M | High | — |
 
 All Opus. FR-8.6 is already built, so it has no stage.
 
@@ -933,18 +1125,20 @@ Each has my recommendation and why. "Before stage N" means I need the answer bef
 
 ### Before any stage
 
-- **Q0.1 FRD first.** For the items not yet in the FRD (stages 8, 18 and 22–31), I'll draft each FRD section at the
+- **Q0.1 FRD first.** For the items not yet in the FRD (stages 8, 18a, 18b and 22–31), I'll draft each FRD section at the
   start of its stage, you approve it, and then I build. *Recommend yes:* it keeps the FRD the single source of
   truth, as CLAUDE.md asks.
   **Answer: yes.**
 - **Q0.2 FR-8.6.** It's built and passed. Is anything else wanted there? *Recommend nothing;* the follow-ups are part
   B. **Answer: nothing more.**
-- **Q0.3 Saved filters and older betas.** Stage 1 moves filters to a new file and makes reading tolerant, but beta 7
-  in your Applications folder stays old. *Recommend* cutting a beta right after stage 1 and using it as your
-  everyday copy (and sending it to your friend). Until then, don't save or delete filters in beta 7.
-  Another beta after stages 6, 16, 21, 26, 28 and 31. **Answer: yes.**
+- **Q0.3 Saved filters and older betas.** Stage 1a moves filters to a new file and makes reading tolerant, but beta 7
+  in your Applications folder stays old. *Recommend* cutting a beta right after stage 1a and using it as your
+  everyday copy. Until then, don't save or delete filters in beta 7.
+  Another beta after stages 6, 16, 21, 26, 28b and 31. **Answer: yes.** (The beta moved from after stage 1 to after
+  stage 1a when stage 1 was split, Q0.10.)
 - **Q0.4 What filters hold.** Should these be saved in filters? *Recommend:*
-  - **Dehaze: in.** It's a tone change.
+  - **Dehaze: in.** It changes the tone. (The review found it also looks at neighboring pixels, so in a filter it
+    goes through stage 1a's path for settings that aren't colors. That doesn't change the answer.)
   - **Texture, sharpening and noise reduction: out.** They depend on each photo's own detail.
   - **Vignette and Grain: in,** as Lightroom presets do, since they're part of a "look". This changes today's rule
     that leaves Vignette out, so it's your call.
@@ -952,7 +1146,26 @@ Each has my recommendation and why. "Before stage N" means I need the answer bef
 - **Q0.5 Side-by-side sessions.** *Recommend no* (section 7). If you want them, only stages 19–21. **Answer: one at a
   time.**
 
-### Before stage 1
+_Added after the review (2026-10-27):_
+
+- **Q0.6 Test builds' settings.** Should test builds keep their own settings folder, apart from your everyday copy?
+  *Recommend yes:* otherwise a filter saved in a test build can lose its new settings the next time your everyday
+  copy saves its filters. A test build copies your filters in once, so you can try them there. **Answer: yes.**
+- **Q0.7 Intensity and shape settings.** At 50%, do only the amounts halve, while Grain Size and Roughness, Vignette
+  Midpoint, Roundness and Feather, and the curve's split points stay put? *Recommend yes:* otherwise "Film" at 50%
+  has smaller grain, not less grain. **Answer: yes.**
+- **Q0.8 Warning in an older Colorbee.** Should an older Colorbee warn when it opens a file made by a newer one, since
+  saving there drops the newer settings? *Recommend a one-line note.* **Answer: no;** you're the only user for now.
+- **Q0.9 Canvas Size anchor.** Today, making the canvas bigger keeps the picture at the top-left, so all the new
+  space goes on the right and bottom. An anchor (a 3 × 3 grid of squares in Canvas Properties) chooses where the
+  picture stays: Center splits the new space evenly on every side, for an even margin. It was in the gap analysis's
+  "quick wins" with Paste in Place and Trim. Add it as a small stage next to Trim? *Recommend yes,* with Center chosen
+  at first. **Answer: yes** (stage 18b).
+- **Q0.10 Splitting stage 1.** Split it into 1a (files, filters, sections) and 1b (Whites, eyedropper, Auto)?
+  *Recommend yes:* one stage was too much to hand test in one sitting, and 1a gets your filters protected sooner.
+  **Answer: yes.**
+
+### Before stages 1a and 1b
 
 - **Q1.1** Remember which Adjust Photo sections are folded between launches? *Recommend yes,* for the whole app
   rather than per document: you'll settle into a layout. **Answer: yes, app-wide.**
@@ -966,6 +1179,9 @@ Each has my recommendation and why. "Before stage N" means I need the answer bef
 - **Q1.5** A click on something that isn't gray at all, or a cast stronger than Warmth and Tint can fix: set as
   far as it can, with no message? *Recommend yes;* you can see the result and undo it. **Answer: yes.**
 - **Q1.6** Add a Blacks slider too? FR-9.7 names only Whites. *Recommend no:* Black Point already does this. **Answer: no.**
+- **Q1.7** The white-balance dropper reads the picture before Adjust Photo's other settings, and on an Adjust Photo
+  layer, the layers below it? *Recommend yes,* so a click on gray comes out neutral whatever Exposure or filter is
+  set. **Answer: yes.**
 
 ### Before stage 2
 
@@ -1057,6 +1273,8 @@ Each has my recommendation and why. "Before stage N" means I need the answer bef
   pictures.
 - **Q11.3** Name it from the file's TITLE line, or the file name if there's none? *Recommend yes.*
 - **Q11.4** A look filter exported as .colorbeefilter carries its table (1–3 MB)? *Recommend yes.*
+- **Q11.5** One-dimensional .cube files (a curve per channel): accept them, or a plain "not supported" message?
+  *Recommend the message:* most looks are 3D. **Answer: the message.**
 
 ### Before stage 12
 
@@ -1114,12 +1332,19 @@ Each has my recommendation and why. "Before stage N" means I need the answer bef
 - **Q17.3** Crop… already shades what it cuts out. What should change? *Recommend* looking at today's Crop… first;
   if it's enough, this part is done. Otherwise tell me what you'd like: darker, or fully hidden.
 
-### Before stage 18
+### Before stage 18a
 
 - **Q18.1** One click, Image ▸ Trim: transparent borders if there are any, otherwise the top-left pixel's color.
   No dialog? *Recommend yes:* it's immediate, like Paint. Photoshop's dialog with choices is the other way.
 - **Q18.2** A small fixed tolerance (about 2%) so JPEG edges still trim? *Recommend yes.*
 - **Q18.3** Decided by everything shown, with all layers cropped together? *Recommend yes,* the same as Crop.
+
+### Before stage 18b
+
+- **Q18.4** The anchor is a 3 × 3 grid of squares in Canvas Properties, set to Center each time the sheet opens
+  (not remembered)? *Recommend yes:* Center is the common case, and it's never a surprise.
+- **Q18.5** The anchor also decides which edges are cut when the canvas gets smaller? *Recommend yes,* as in
+  Photoshop.
 
 ### Before stage 19
 
@@ -1130,6 +1355,8 @@ Each has my recommendation and why. "Before stage N" means I need the answer bef
   written? *Recommend yes;* shrinking the picture is Export As's job.
 - **Q19.4** Remember both settings between launches? *Recommend yes,* like format and quality.
 - **Q19.5** Just sRGB, Display P3 and Keep, with no Adobe RGB? *Recommend yes,* per FR-9.7.
+- **Q19.6** Count 1 KB as 1,000 bytes, as Finder does? *Recommend yes,* so a 200 KB limit never shows as more in
+  Finder. **Answer: yes.**
 
 ### Before stage 20
 
@@ -1169,6 +1396,10 @@ Each has my recommendation and why. "Before stage N" means I need the answer bef
 - **Q23.2** The Eraser on such a layer paints Color 2 inside the shape, with no holes? *Recommend yes,* close to
   Photoshop.
 - **Q23.3** Every tool, effect, adjustment and Delete respects it? *Recommend yes.*
+- **Q23.4** Flip, Rotate, Crop, Resize and Straighten work as usual on such a layer, moving its outline with the
+  picture? *Recommend yes,* as in Photoshop: they move the whole layer rather than paint on it. **Answer: yes.**
+- **Q23.5** A one-layer picture saved as a PNG doesn't keep the lock, like today's padlock? *Recommend yes:* a lock
+  alone shouldn't turn a PNG into a project. **Answer: yes.**
 
 ### Before stage 24
 
@@ -1189,18 +1420,20 @@ Each has my recommendation and why. "Before stage N" means I need the answer bef
 - **Q25.6** Merge Down on a group merges the group into one layer? *Recommend yes.*
 - **Q25.7** Named "Group 1", "Group 2"…? *Recommend yes.*
 
-### Before stage 27 and 28
+### Before stages 27, 28a and 28b
 
-- **Q28.1** Masks on adjustment layers? *Recommend yes,* in part 2: it's local, non-destructive Adjust Photo.
-- **Q28.2** Masks on groups? *Recommend yes,* in part 2.
+- **Q28.1** Masks on adjustment layers? *Recommend yes,* in stage 28a: it's local, non-destructive Adjust Photo.
+- **Q28.2** Masks on groups? *Recommend yes,* in stage 28b.
 - **Q28.3** While a mask is chosen, the color wells and swatches turn to grays, and D gives white and black?
   *Recommend yes,* as in Photoshop.
-- **Q28.4** "Only the layer below" for pixel layers too (from the gap analysis answer)? *Recommend yes,* in part 2;
-  it's the same switch adjustments have.
+- **Q28.4** "Only the layer below" for pixel layers too (from the gap analysis answer)? *Recommend yes,* in stage
+  28b; it's the same switch adjustments have. **Answer: yes** (gap analysis answer 2b, confirmed after the review).
 - **Q28.5** Redaction changes hidden pixels too, and the help says masks don't hide secrets. Older betas show
   masked parts. *Recommend* accepting this, with the help's warning.
 - **Q28.6** Add Mask uses the selection when there is one? *Recommend yes.*
 - **Q28.7** No default keys for mask commands? *Recommend yes.*
+- **Q28.8** Undo on Active Layer and Revert Layer include the layer's mask? *Recommend yes:* the mask belongs to the
+  layer. **Answer: yes.**
 
 ### Before stage 29
 

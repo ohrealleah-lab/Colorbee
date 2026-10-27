@@ -460,6 +460,11 @@ final class CanvasView: NSView {
     }
 
     private func updatePointer(_ event: NSEvent) {
+        guard isUncovered(event) else {
+            if hoverPoint != nil { pointerLeft() }
+            NSCursor.arrow.set()
+            return
+        }
         let point = imagePoint(event)
         let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         editor.pointer = editor.canvas.bounds.contains(pixel) ? pixel : nil
@@ -804,14 +809,26 @@ final class CanvasView: NSView {
     override func rightMouseUp(with event: NSEvent) { endDrag(event) }
 
     override func mouseMoved(with event: NSEvent) { updatePointer(event) }
-    override func mouseExited(with event: NSEvent) {
+    override func mouseExited(with event: NSEvent) { pointerLeft() }
+
+    private func pointerLeft() {
         editor.pointer = nil
         hoverPoint = nil
         setNeedsRender()
     }
 
     override func cursorUpdate(with event: NSEvent) {
-        currentCursor(at: imagePoint(event)).set()
+        (isUncovered(event) ? currentCursor(at: imagePoint(event)) : .arrow).set()
+    }
+
+    /// Whether the pointer is over the canvas itself rather than the sidebar or a bar floating on it. The tracking area
+    /// covers the whole view, so without this the tool's pointer and outline showed over the Layers panel (Leah,
+    /// 2026-10-27).
+    private func isUncovered(_ event: NSEvent) -> Bool {
+        guard let content = window?.contentView else { return true }
+        let point = content.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
+        guard let hit = content.hitTest(point) else { return false }
+        return hit.isDescendant(of: self)
     }
 
     /// Pressing or releasing Shift mid-drag changes the marquee's constraint without moving the mouse.

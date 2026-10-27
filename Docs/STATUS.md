@@ -14,6 +14,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Several layers](#test-several-layers)
+- [Pointer over the sidebar](#test-pointer-over-the-sidebar)
 
 ---
 
@@ -243,6 +244,16 @@ No test image needed; a new image with three added layers.
 1. Click Background, then right-click Layer 2: it turns blue as the menu opens. Delete Layer removes Layer 2.
 2. Choose Layers 1 and 3 (⌘-click), right-click Layer 3: both stay chosen and the menu says Merge Layers, Duplicate Layers and so on.
 3. Right-click a layer that isn't chosen: only it is chosen, and the menu says "Layer". Control-click works the same. Plain clicks, dragging, the eye and the padlock work as before.
+
+### Test: Pointer over the sidebar
+
+Test image: `TestImages/Several Layers/Opacity Test.colorproj` (any image works).
+1. Open it and show the Layers panel (⌘L). Choose the **Eraser** (E).
+2. Move the pointer over the picture: the eraser's square outline follows it, and the status bar shows the pixel position.
+3. Move the pointer onto the **Layers panel**: it becomes the normal arrow, the outline goes away (nothing slides under the panel), and the status bar's position clears.
+4. Move back onto the picture: the eraser outline is back.
+5. Try the same with the **Brush** (B) and with the page sidebar of `TestImages/Stage 10/Three Page Test.pdf`.
+6. Click and drag in the Layers panel (choose a layer, drag the opacity slider): it works as before.
 
 ### Test: Several layers
 

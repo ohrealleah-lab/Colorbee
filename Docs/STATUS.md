@@ -14,7 +14,6 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Several layers](#test-several-layers)
-- [Pointer over the sidebar](#test-pointer-over-the-sidebar)
 
 ---
 
@@ -245,7 +244,7 @@ No test image needed; a new image with three added layers.
 2. Choose Layers 1 and 3 (⌘-click), right-click Layer 3: both stay chosen and the menu says Merge Layers, Duplicate Layers and so on.
 3. Right-click a layer that isn't chosen: only it is chosen, and the menu says "Layer". Control-click works the same. Plain clicks, dragging, the eye and the padlock work as before.
 
-### Test: Pointer over the sidebar
+### Test: Pointer over the sidebar (passed 2026-10-27)
 
 Test image: `TestImages/Several Layers/Opacity Test.colorproj` (any image works).
 1. Open it and show the Layers panel (⌘L). Choose the **Eraser** (E).

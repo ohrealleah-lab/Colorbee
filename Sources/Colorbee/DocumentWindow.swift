@@ -6,6 +6,18 @@ final class DocumentWindow: NSWindow {
     weak var editor: Editor? {
         didSet { editor?.onViewStateChange = { [weak self] in self?.invalidateRestorableState() } }
     }
+    weak var canvasView: CanvasView?
+
+    /// A tool or canvas key that nothing else used, because a button or panel took the keyboard from the canvas,
+    /// still reaches it. Text boxes use every letter themselves, so typing never gets here.
+    override func keyDown(with event: NSEvent) {
+        if let canvasView, firstResponder !== canvasView, !(firstResponder is NSText),
+           ShortcutStore.shared.canvasCommand(for: event) != nil {
+            canvasView.keyDown(with: event)
+        } else {
+            super.keyDown(with: event)
+        }
+    }
 
     /// ⌘W, File ▸ Close and the close button: an unsaved redaction is saved, and the earlier-versions warning
     /// shown, before the window goes (Leah, 2026-10-04).

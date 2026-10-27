@@ -15,6 +15,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 - [Sidebar shortcut](#test-sidebar-shortcut)
 - [Buttons show their keys](#test-buttons-show-their-keys)
+- [Tool keys right after opening](#test-tool-keys-right-after-opening)
 
 ---
 
@@ -236,6 +237,16 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 6. Choose the Text tool, click the canvas and type a capital **S**: it types the letter, and the sidebar stays.
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
+
+### Test: Tool keys right after opening
+
+Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy. Don't click the image during steps 1–4.
+1. Open the test image. Right away, press **⇧S**: the sidebar hides. Press it again: it's back.
+2. Press **P**: the Pencil is chosen. Press **B**: the Brush.
+3. ⌘N for a new image, and press **⇧S** and **P** in it straight away: both work.
+4. Click the **Layers** button in the toolbar, then a panel button at the top of the sidebar (History, say). Press **P**, then **⇧S**: both still work.
+5. Double-click the size box in the toolbar and type a number: the digits go in the box, and nothing else changes. Press Return.
+6. Choose the Text tool, click the image and type **"Pass"** with a capital P: the letters are typed, and neither the tool nor the sidebar changes.
 
 ### Test: Buttons show their keys
 

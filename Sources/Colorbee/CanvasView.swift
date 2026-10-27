@@ -151,6 +151,8 @@ final class CanvasView: NSView {
             link.add(to: .main, forMode: .common)
             displayLink = link
         }
+        // SwiftUI adds the canvas after the window is made, so this is the first moment it can take the keyboard.
+        if window?.firstResponder === window { window?.makeFirstResponder(self) }
     }
 
     override func viewDidChangeBackingProperties() {

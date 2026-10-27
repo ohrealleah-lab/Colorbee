@@ -17,6 +17,7 @@ final class DocumentWindowController: NSWindowController {
         )
         window.minSize = NSSize(width: 800, height: 600)
         window.editor = editor
+        window.canvasView = canvasView
         let hostingView = NSHostingView(rootView: DocumentView(editor: editor, canvasView: canvasView))
         // The SwiftUI toolbar becomes the window's own toolbar, so its groups get Liquid Glass.
         hostingView.sceneBridgingOptions = [.toolbars]
@@ -25,7 +26,6 @@ final class DocumentWindowController: NSWindowController {
         window.center()
         super.init(window: window)
 
-        window.makeFirstResponder(canvasView)
         editor.onFocusCanvas = { [weak window, weak canvasView] in
             guard let window, let canvasView, !(window.firstResponder is NSTextView) else { return }
             window.makeFirstResponder(canvasView)

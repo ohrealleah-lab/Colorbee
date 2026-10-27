@@ -13,8 +13,7 @@ _Last updated: 2026-10-27 · 568 core tests and 142 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Save starts in the picture's folder](#test-save-starts-in-the-pictures-folder)
-- [Small subjects](#test-small-subjects)
+Nothing waiting right now.
 
 ---
 
@@ -237,7 +236,7 @@ Test image: `TestImages/Stage 9 Practice Photo.png` (any picture works). Run `ma
 7. Open **Adjust Photo**. Press **⇧S**: the sidebar stays (its sliders live there). View ▸ Sidebar is greyed out. Cancel Adjust Photo.
 8. **Colorbee ▸ Settings ▸ Shortcuts**: **Sidebar** appears under Tools and Canvas Keys as ⇧S, and under View as ⌃⌘S.
 
-### Test: Small subjects
+### Test: Small subjects (passed 2026-10-27)
 
 Test image: Leah's `Pictures/Final Fantasy/new/ffxiv_09022024_205711_085.png` (not in the repo: it's a personal screenshot). Run `make run` first for a fresh Release copy.
 1. Open the picture and choose **Layer ▸ Lift Subject to New Layer**. The bar asks you to click one, and now says "even a small one".
@@ -247,7 +246,7 @@ Test image: Leah's `Pictures/Final Fantasy/new/ffxiv_09022024_205711_085.png` (n
 5. Choose Lift Subject again and press **Return**: the three big things are lifted as before, without Evelyn. ⌘Z.
 6. Open `TestImages/Auto-Redact Practice.png` (a screenshot) and choose Select Subject. If no subject is found, the bar now says to click one. **Apply** is greyed out and Return does nothing. Press **Cancel**: nothing changed.
 
-### Test: Save starts in the picture's folder
+### Test: Save starts in the picture's folder (passed 2026-10-27)
 
 Test images: `TestImages/Stage 9 Practice Photo.png` and `TestImages/Stage 10/Three Page Test.pdf`. Run `make run` first for a fresh Release copy. Press **Cancel** in every panel below, so nothing gets saved into TestImages.
 1. ⌘N for a new image, ⌘S, and save it to the **Desktop**, so the last folder used is somewhere else. Close it.

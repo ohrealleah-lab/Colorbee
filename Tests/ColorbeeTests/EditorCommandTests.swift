@@ -155,8 +155,9 @@ struct EditorCommandTests {
         #expect(editor.comparison == nil)
     }
 
-    /// Every effect with a bar: opened, applied at its starting settings, and undone exactly.
-    @Test(arguments: EffectKind.allCases.filter { ![.pickSubject, .crop, .perspective].contains($0) })
+    /// Every effect with a bar: opened, applied at its starting settings, and undone exactly. Color Range waits for a
+    /// click, like picking a subject; `SelectionRangeBarTests` covers it.
+    @Test(arguments: EffectKind.allCases.filter { ![.pickSubject, .crop, .perspective, .colorRange].contains($0) })
     func everyEffectAppliesAndUndoes(kind: EffectKind) async throws {
         let editor = pictureEditor()
         if kind == .spotlight { editor.selectionDrag(from: pt(10, 10), to: pt(30, 25)) }

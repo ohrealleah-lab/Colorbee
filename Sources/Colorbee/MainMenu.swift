@@ -103,6 +103,8 @@ enum MainMenu {
         "selectAll:": "Select the whole image.",
         "deselect:": "Remove the selection, placing any moved pixels.",
         "invertSelection:": "Select everything that isn't selected, and nothing that is.",
+        "showColorRange:": "Select the colors you click in the picture, and colors near them.",
+        "showLuminanceRange:": "Select by brightness: the shadows, midtones or highlights.",
         "pasteInPlace:": "Paste exactly where the copied pixels came from, in this image or another one.",
         "showFeather:": "Soften the selection's edge, so changes fade out across it.",
         "showExpandSelection:": "Grow the selection outward by a number of pixels.",
@@ -249,6 +251,8 @@ enum MainMenu {
         modify.addItem(item("Smooth…", "showSmoothSelection:"))
         menu.addItem(submenu(modify))
         menu.addItem(item("Select Subject", "selectSubject:"))
+        menu.addItem(item("Color Range…", "showColorRange:"))
+        menu.addItem(item("Luminance Range…", "showLuminanceRange:"))
         return menu
     }
 

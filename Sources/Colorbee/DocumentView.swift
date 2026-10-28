@@ -324,7 +324,7 @@ private struct EffectBar: View {
 
     var body: some View {
         HStack(alignment: kind == .curves ? .top : .center, spacing: 14) {
-            Text(kind.title).font(.headline)
+            Text(kind.title).font(.headline).fixedSize()
             if kind == .levels {
                 HistogramView(histogram: editor.effectHistogram, black: editor.effectValues[safe: 0] ?? 0, white: editor.effectValues[safe: 2] ?? 255)
                     .frame(width: 160, height: 34)
@@ -342,9 +342,13 @@ private struct EffectBar: View {
                 }
                 .help("Back to a straight line")
             }
-            ForEach(Array(kind.parameters.enumerated()), id: \.offset) { index, parameter in
+            if kind == .luminanceRange {
+                LuminanceRangeControls(editor: editor)
+            }
+            ForEach(Array(kind.parameters.enumerated()).filter { kind != .luminanceRange || $0.offset > 1 }, id: \.offset) { index, parameter in
                 HStack(spacing: 6) {
-                    Text(parameter.label)
+                    // Labels stay on one line when the bar is short of room; the sliders give way instead.
+                    Text(parameter.label).fixedSize()
                     if let options = parameter.options {
                         Picker(parameter.label, selection: value(at: index, step: 1)) {
                             ForEach(Array(options.enumerated()), id: \.offset) { option, title in
@@ -372,6 +376,19 @@ private struct EffectBar: View {
             if kind == .crop {
                 CropOptions(editor: editor)
             }
+            if kind.choosesSelection {
+                Toggle(isOn: Binding(get: { editor.rangeSamplesAllLayers }, set: { editor.rangeSamplesAllLayers = $0 })) {
+                    Text("Sample All Layers").fixedSize()
+                }
+                    .disabled(editor.canvas.activeLayer.adjustment != nil)
+                    .help("Read every visible layer together, as the Magic Wand's Sample All Layers does")
+                    .fixedSize()
+            }
+            if kind == .colorRange {
+                Text(editor.rangeColors.isEmpty ? "Click a color in the picture." : "Shift-click to add more colors.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+            }
             if kind == .pickSubject {
                 Text(editor.pickSubjectCount > 1 ? "There's more than one subject. Click the one you want, even a small one, or press Return for all of them."
                      : editor.pickSubjectCount == 1 ? "Click the subject you want, even a small one, or press Return for the one Colorbee found."
@@ -392,7 +409,7 @@ private struct EffectBar: View {
                     .help("Set the black and white points to the darkest and lightest pixels")
             }
             Spacer(minLength: 0)
-            if kind != .pickSubject {
+            if kind != .pickSubject && !kind.choosesSelection {
                 Text(kind.appliesToWholeImage ? "Applies to every layer"
                      : editor.effectCoversAllLayers ? (editor.hasSelection ? "Redacts every layer in the selection" : "Redacts every layer")
                      : editor.hasSelection ? "Applies to the selection" : "Applies to the whole layer")
@@ -403,7 +420,7 @@ private struct EffectBar: View {
                 .keyboardShortcut(.cancelAction)
             Button("Apply") { editor.applyEffect() }
                 .keyboardShortcut(.defaultAction)
-                .disabled(kind == .pickSubject && !editor.pickHasSubjects)
+                .disabled(kind == .pickSubject && !editor.pickHasSubjects || kind == .colorRange && editor.rangeColors.isEmpty)
         }
         .controlSize(.small)
         .padding(.horizontal, 12)
@@ -588,6 +605,30 @@ private struct SelectionChangeSheet: View {
         case .expand: "The selection grows outward on every side. The red tint shows what isn't selected."
         case .contract: "The selection shrinks inward from every edge. The red tint shows what isn't selected."
         case .smooth: "Ragged edges round off, small gaps fill in and stray specks go. The red tint shows what isn't selected."
+        }
+    }
+}
+
+/// Luminance Range's bounds as one two-handle slider, with buttons for the usual three ranges (FR-9.7 item 3).
+private struct LuminanceRangeControls: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        let lower = editor.effectValues[safe: 0] ?? 0, upper = editor.effectValues[safe: 1] ?? 100
+        HStack(spacing: 6) {
+            RangeSlider(lower: Binding(get: { lower }, set: { editor.effectValues[0] = $0.rounded() }),
+                        upper: Binding(get: { upper }, set: { editor.effectValues[1] = $0.rounded() }),
+                        bounds: 0...100)
+            Text("\(Int(lower))–\(Int(upper))")
+                .monospacedDigit()
+                .fixedSize()
+                .frame(width: 52, alignment: .leading)
+            HStack(spacing: 2) {
+                Button("Shadows") { editor.setLuminanceRange(.shadows) }
+                Button("Midtones") { editor.setLuminanceRange(.midtones) }
+                Button("Highlights") { editor.setLuminanceRange(.highlights) }
+            }
+            .fixedSize()
         }
     }
 }

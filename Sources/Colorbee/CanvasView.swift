@@ -264,7 +264,7 @@ final class CanvasView: NSView {
             lines: comparing ? [] : overlayLines + editor.canvasToolLines,
             highlights: redactionHighlights,
             dimmedOutside: editor.activeEffect == .crop ? editor.cropRect : nil,
-            tintsOutsideSelection: editor.selectionChange != nil,
+            tintsOutsideSelection: editor.selectionChange != nil || (editor.activeEffect?.choosesSelection == true && editor.marqueePreview != nil),
             comparison: comparisonScene
         )
     }
@@ -552,7 +552,7 @@ final class CanvasView: NSView {
         }
         if !spaceHeld, !secondary, editor.activeEffect?.isCanvasTool == true {
             drag = .canvasTool
-            editor.beginCanvasToolDrag(at: imagePoint(event), viewPoint: viewPoint(event))
+            editor.beginCanvasToolDrag(at: imagePoint(event), viewPoint: viewPoint(event), adding: event.modifierFlags.contains(.shift))
             return
         }
         // While an effect's bar is open the canvas is view-only, so any drag pans.

@@ -110,13 +110,21 @@ enum EffectKind: CaseIterable {
     case crop
     /// Waiting for a click on one of several subjects (Remove Background, Select Subject).
     case pickSubject
+    /// Edit ▸ Color Range… and Luminance Range… (FR-9.7 item 3): a selection chosen in the bar, previewed with a tint.
+    case colorRange
+    case luminanceRange
 
     /// Drop Shadow, Border and Straighten change the canvas's size, so their preview is a real step, redone as
     /// settings change.
     var previewsAsStep: Bool { self == .dropShadow || self == .border || self == .straighten }
 
     /// Straighten, Perspective Correction and Crop: dragging on the canvas sets them, rather than panning.
-    var isCanvasTool: Bool { self == .straighten || self == .perspective || self == .crop || self == .pickSubject }
+    var isCanvasTool: Bool {
+        self == .straighten || self == .perspective || self == .crop || self == .pickSubject || choosesSelection
+    }
+
+    /// Color Range and Luminance Range: they make a selection rather than change pixels.
+    var choosesSelection: Bool { self == .colorRange || self == .luminanceRange }
 
     /// Changes every layer, not just the active one.
     var appliesToWholeImage: Bool { self == .straighten || self == .perspective || self == .crop }
@@ -154,8 +162,13 @@ enum EffectKind: CaseIterable {
         case .perspective: "Perspective Correction"
         case .crop: "Crop"
         case .pickSubject: "Pick a Subject"
+        case .colorRange: "Color Range"
+        case .luminanceRange: "Luminance Range"
         }
     }
+
+    /// How a range's selection combines with the one there already (Leah, 2026-10-28).
+    static let combineOptions = ["Replace", "Add", "Subtract", "Intersect"]
 
     var parameters: [Parameter] {
         switch self {
@@ -173,6 +186,17 @@ enum EffectKind: CaseIterable {
             Parameter(label: "White", range: 1...255, defaultValue: 255, unit: ""),
         ]
         case .curves, .adjustPhoto, .perspective, .crop, .pickSubject: []
+        case .colorRange: [
+            Parameter(label: "Fuzziness", range: 0...100, defaultValue: 25, unit: "%"),
+            Parameter(label: "Selection", range: 0...3, defaultValue: 0, unit: "", options: Self.combineOptions),
+        ]
+        // From and To are shown as one two-handle slider, with the Shadows, Midtones and Highlights buttons.
+        case .luminanceRange: [
+            Parameter(label: "From", range: 0...100, defaultValue: LuminanceRange.shadows.lower, unit: ""),
+            Parameter(label: "To", range: 0...100, defaultValue: LuminanceRange.shadows.upper, unit: ""),
+            Parameter(label: "Smoothness", range: 0...100, defaultValue: 50, unit: ""),
+            Parameter(label: "Selection", range: 0...3, defaultValue: 0, unit: "", options: Self.combineOptions),
+        ]
         case .straighten: [
             Parameter(label: "Angle", range: -45...45, defaultValue: 0, unit: "°", step: 0.1),
             Parameter(label: "Corners", range: 0...1, defaultValue: 0, unit: "", options: ["Crop to Fit", "Grow Canvas"]),
@@ -236,7 +260,7 @@ enum EffectKind: CaseIterable {
             default: .brightnessContrast(brightness: -value(1) * 0.8, contrast: 0)
             }
         // Done by Decorations and ImageActions, not as an effect (see Editor.renderEffectPreview).
-        case .dropShadow, .border, .straighten, .perspective, .crop, .pickSubject: .invert
+        case .dropShadow, .border, .straighten, .perspective, .crop, .pickSubject, .colorRange, .luminanceRange: .invert
         }
     }
 }
@@ -2475,6 +2499,149 @@ final class Editor {
         selectionChangeSession += 1
     }
 
+    // MARK: Edit ▸ Color Range… and Luminance Range… (FR-9.7 item 3)
+
+    /// The colors clicked for Color Range; Shift-click adds more.
+    private(set) var rangeColors: [Pixel] = []
+    /// What the range reads: the active layer, or everything shown with Sample All Layers (shared with the Magic Wand).
+    @ObservationIgnored private var rangeSource: PixelBuffer?
+    /// The settings the preview shows, whether one is being worked out, and a count that drops a stale one.
+    @ObservationIgnored private var rangeShown: RangeSettings?
+    @ObservationIgnored private var rangeRunning = false
+    @ObservationIgnored private var rangeSession = 0
+    /// The range's own selection for the settings shown, before it's combined with the one there already.
+    @ObservationIgnored private var rangeMask: SelectionMask?
+
+    private enum RangeSettings: Equatable {
+        case color(ColorRange)
+        case luminance(LuminanceRange)
+    }
+
+    private var rangeSettings: RangeSettings? {
+        func value(_ index: Int) -> Double { effectValues[safe: index] ?? 0 }
+        switch activeEffect {
+        case .colorRange: return .color(ColorRange(colors: rangeColors, fuzziness: value(0)))
+        case .luminanceRange: return .luminance(LuminanceRange(lower: value(0), upper: value(1), smoothness: value(2)))
+        default: return nil
+        }
+    }
+
+    private var rangeCombineMode: SelectionCombineMode {
+        let index = Int((effectValues[safe: activeEffect == .colorRange ? 1 : 3] ?? 0).rounded())
+        return [.replace, .add, .subtract, .intersect][min(max(index, 0), 3)]
+    }
+
+    /// Whether the range reads everything shown. An adjustment layer has no pixels of its own to read, so on one it
+    /// always does (my choice, §23).
+    var rangeSamplesAllLayers: Bool {
+        get { wandSamplesAllLayers || canvas.activeLayer.adjustment != nil }
+        set {
+            wandSamplesAllLayers = newValue
+            guard activeEffect?.choosesSelection == true else { return }
+            rangeSource = nil
+            rangeShown = nil
+            refreshRangePreview()
+        }
+    }
+
+    private func beginRange() {
+        rangeColors = []
+        rangeShown = nil
+        rangeMask = nil
+        rangeSource = nil
+    }
+
+    private func endRange() {
+        if activeEffect?.choosesSelection == true { marqueePreview = nil }
+        rangeColors = []
+        rangeShown = nil
+        rangeRunning = false
+        rangeMask = nil
+        rangeSource = nil
+        rangeSession += 1
+    }
+
+    private func rangeSampled() -> PixelBuffer {
+        if let rangeSource { return rangeSource }
+        let source = rangeSamplesAllLayers ? canvas.flattened() : canvas.activeLayer.buffer
+        rangeSource = source
+        return source
+    }
+
+    /// A click picks the color there, a 5 × 5 average like the other eyedroppers; Shift-click adds it to those
+    /// picked. A click where there's nothing to read beeps.
+    private func pickRangeColor(at point: Point2D, adding: Bool) {
+        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        guard canvas.bounds.contains(pixel),
+              let color = rangeSampled().averageColor(in: IntRect(x: pixel.x - 2, y: pixel.y - 2, width: 5, height: 5)) else { return onRefused() }
+        rangeColors = adding ? rangeColors + [color] : [color]
+        refreshRangePreview()
+    }
+
+    /// The range's selection is worked out in the background, with changes made meanwhile merged, then combined with
+    /// the selection there already for the tint.
+    private func refreshRangePreview() {
+        guard !rangeRunning, let settings = rangeSettings else { return onRender() }
+        guard settings != rangeShown else { return showRangePreview() }
+        rangeRunning = true
+        let session = rangeSession, source = UnsafeTransfer(rangeSampled())
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let mask: SelectionMask? = switch settings {
+            case .color(let range): range.selection(in: source.value)
+            case .luminance(let range): range.selection(in: source.value)
+            }
+            let result = UnsafeTransfer(mask)
+            await MainActor.run { [weak self] in
+                guard let self, session == self.rangeSession else { return }
+                self.rangeRunning = false
+                self.rangeMask = result.value
+                self.rangeShown = settings
+                self.refreshRangePreview()
+            }
+        }
+    }
+
+    private func showRangePreview() {
+        // Nothing clicked yet: the selection as it is, untinted.
+        if activeEffect == .colorRange, rangeColors.isEmpty {
+            marqueePreview = nil
+        } else {
+            marqueePreview = SelectionMask.combine(canvas.selection.marquee, with: rangeMask, mode: rangeCombineMode)
+        }
+        onRender()
+    }
+
+    /// Return makes the range the selection, combined as the bar says; with no color clicked yet there's nothing to
+    /// take. It's no more an undo step than any other selection.
+    private func applyRange() {
+        guard let settings = rangeSettings else { return }
+        if activeEffect == .colorRange, rangeColors.isEmpty { return onRefused() }
+        let mask: SelectionMask?
+        if settings == rangeShown {
+            mask = rangeMask
+        } else {
+            // The newest settings aren't worked out yet: OK keeps exactly what's in the bar.
+            let source = rangeSampled()
+            mask = switch settings {
+            case .color(let range): range.selection(in: source)
+            case .luminance(let range): range.selection(in: source)
+            }
+        }
+        let mode = rangeCombineMode
+        endEffectSession()
+        activeEffect = nil
+        recordingChanges { SelectionActions.select(mask, mode: mode, canvas: canvas, history: history, context: selectionContext) }
+        if !tool.isSelectionTool { tool = .rectangleSelect }
+        selectionDidChange()
+    }
+
+    /// Luminance Range's Shadows, Midtones and Highlights buttons.
+    func setLuminanceRange(_ range: LuminanceRange) {
+        guard activeEffect == .luminanceRange, effectValues.count > 1 else { return }
+        effectValues[0] = range.lower
+        effectValues[1] = range.upper
+    }
+
     func invertSelection() {
         if !tool.isSelectionTool { tool = .rectangleSelect }
         performSelectionCommand { SelectionActions.invert(canvas: canvas, history: history, context: selectionContext) }
@@ -2577,7 +2744,7 @@ final class Editor {
     func beginEffect(_ kind: EffectKind, coveringAllLayers: Bool = false) {
         // Whole-image tools apply to every layer, locked or not (§23), and picking a subject was already
         // checked by findSubject, since selecting one doesn't change pixels (review B, findings 4 and 5).
-        guard coveringAllLayers || kind.appliesToWholeImage || kind == .pickSubject || !refusedBecauseLocked() else { return }
+        guard coveringAllLayers || kind.appliesToWholeImage || kind == .pickSubject || kind.choosesSelection || !refusedBecauseLocked() else { return }
         effectCoversAllLayers = coveringAllLayers
         finishInteractions()
         placeFloatingKeepingOutline()
@@ -2623,6 +2790,7 @@ final class Editor {
         }
         activeEffect = kind
         shownEffect = nil
+        if kind.choosesSelection { beginRange() }
         // Batch Redact previews several layers, so it's worked out here rather than from a copy of one.
         effectSource = effectEdit == nil || coveringAllLayers ? nil : canvas.activeLayer.buffer.copy()
         if effectSource != nil { previewEffect() } else { renderEffectPreview() }
@@ -2712,10 +2880,13 @@ final class Editor {
     }
 
     /// A drag on the canvas while Straighten, Perspective Correction or Crop is open.
-    func beginCanvasToolDrag(at point: Point2D, viewPoint: Point2D) {
+    func beginCanvasToolDrag(at point: Point2D, viewPoint: Point2D, adding: Bool = false) {
         switch activeEffect {
         case .pickSubject:
             pickSubject(at: point)
+            return
+        case .colorRange:
+            pickRangeColor(at: point, adding: adding)
             return
         case .straighten:
             straightenLine = (point, point)
@@ -3119,6 +3290,7 @@ final class Editor {
         effectPreviewScheduled = false
         guard let kind = activeEffect else { return }
         if kind.previewsAsStep { return renderDecorationPreview(kind) }
+        if kind.choosesSelection { return refreshRangePreview() }
         if kind.isCanvasTool { return onRender() }
         guard let edit = effectEdit else { return }
         edit.restoreOriginals()
@@ -3434,6 +3606,7 @@ final class Editor {
     }
 
     func applyEffect() {
+        if activeEffect?.choosesSelection == true { return applyRange() }
         if effectPreviewScheduled { renderEffectPreview() }
         if activeEffect == .pickSubject {
             // With no subjects of its own there's nothing for Return to take; waiting on a closer look, it waits.
@@ -3576,6 +3749,7 @@ final class Editor {
     /// Drops the background preview state; a render still running finds a newer generation and is ignored.
     private func endEffectSession() {
         picturePick = nil
+        endRange()
         effectCoversAllLayers = false
         effectLayers = []
         effectEdit = nil

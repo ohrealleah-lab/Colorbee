@@ -70,7 +70,8 @@ enum Snapshot {
         }
         if let name = defaults.string(forKey: "ColorbeeSnapshotAdjustment"), let choice = AdjustmentChoice.allCases.first(where: { "\($0)" == name }) {
             editor.addAdjustmentLayer(choice)
-            editor.showsLayersPanel = true
+            // `-ColorbeeSnapshotAdjustmentAlone YES` shows the Adjustments panel on its own.
+            editor.showsLayersPanel = !defaults.bool(forKey: "ColorbeeSnapshotAdjustmentAlone")
         }
         // `-ColorbeeSnapshotSelectionChange contract` selects a box and opens that selection sheet (feather, expand,
         // contract or smooth); `-ColorbeeSnapshotSelectionRadius 60` sets its radius.

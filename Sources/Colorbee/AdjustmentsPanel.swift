@@ -155,6 +155,8 @@ struct AdjustmentsPanel: View {
     var body: some View {
         let adjustment = editor.activeAdjustment
         let choice = adjustment.flatMap(AdjustmentChoice.init)
+        // Open on its own, the panel has the whole sidebar for Adjust Photo's sliders (Leah, 2026-10-28).
+        let alone = !editor.showsLayersPanel && !editor.showsHistoryPanel && !editor.showsClipboardPanel && !editor.showsInfoPanel
         VStack(alignment: .leading, spacing: 12) {
             if let adjustment, let choice {
                 if case .photo(let photo) = adjustment {
@@ -172,7 +174,8 @@ struct AdjustmentsPanel: View {
                         editor.setAdjustment(.photo(changed))
                     }
                     }
-                    .frame(maxHeight: 340)
+                    .frame(maxHeight: alone ? .infinity : 340)
+                    .layoutPriority(alone ? 1 : 0)
                 }
                 if case .curves(let curves) = adjustment {
                     CurvesEditor(curves: curves, channel: $curvesChannel) { editor.previewAdjustment(.curves($0)) } onFinish: {

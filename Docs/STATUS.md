@@ -338,7 +338,10 @@ Test files: `TestImages/Photo Editing/Color Chart.png` (its colors are listed in
 
 Test files: `TestImages/Photo Editing/Hazy.png`, `TestImages/Photo Editing/Texture Practice.png`. Run `make run` first for a fresh Release copy.
 1. Open `Hazy.png` and choose Adjust Photo. Drag **Dehaze** (in Light, after Brilliance) to +50: the haze lifts, the
-   hills turn green again and the sky deepens. Apply, then ⌘Z.
+   hills turn green again and the sky deepens. Drag it on to +100 and look at the sky at 100%: a smooth gradient with
+   fine grain, no stripes. Apply, then ⌘Z.
+   (Remade 2026-10-28: the first `Hazy.png` had no grain, so its sky held only a few shades and Dehaze stretched them
+   into stripes. Real photos have grain that hides those steps; the new picture does too.)
 2. Open Adjust Photo again and drag Dehaze to −50: the picture gets hazier. Cancel.
 3. Open Adjust Photo again, Dehaze +50, then ⋯ ▸ Save as Filter… named "Clear". Open `Texture Practice.png` and
    choose Clear: it gets clearer and more contrasty too (filters keep Dehaze). Cancel.

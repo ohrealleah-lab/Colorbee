@@ -6,7 +6,7 @@
     <title>Fix up a photo</title>
     <meta name="AppleTitle" content="Fix up a photo">
     <meta name="description" content="Quick photo fixes: Adjust Photo and its filters, Levels and Curves, straightening, perspective, removing the background, retouching spots and objects, red-eye, and developing RAW photos.">
-    <meta name="keywords" content="photo, adjust photo, auto, filter, look, LUT, cube, levels, curves, exposure, white balance, straighten, perspective, remove background, lift subject, select subject, retouch, remove, spot heal, clone stamp, lighten, darken, smudge, red-eye, RAW, develop, camera details">
+    <meta name="keywords" content="photo, adjust photo, auto, filter, look, LUT, cube, grain, vignette, sharpen, noise, levels, curves, exposure, white balance, straighten, perspective, remove background, lift subject, select subject, retouch, remove, spot heal, clone stamp, lighten, darken, smudge, red-eye, RAW, develop, camera details">
     <link rel="stylesheet" href="../shared/help.css">
 </head>
 <body>
@@ -20,9 +20,9 @@
 
     <a name="adjust-photo"></a>
     <h2>Adjust Photo</h2>
-    <p>Adjustments ▸ Adjust Photo… opens a panel at the side with the sliders you'd find in the iPhone's Photos app: Exposure, Brilliance, Dehaze, Highlights, Shadows, Contrast, Brightness, Whites, Black Point, Saturation, Vibrance, Warmth, Tint, Sharpness, Definition, Texture, Noise Reduction and Vignette.</p>
+    <p>Adjustments ▸ Adjust Photo… opens a panel at the side with the sliders you'd find in the iPhone's Photos app: Exposure, Brilliance, Dehaze, Highlights, Shadows, Contrast, Brightness, Whites, Black Point, Saturation, Vibrance, Warmth, Tint, Sharpness, Definition, Texture, Noise Reduction, Vignette and Grain.</p>
     <ul>
-        <li>The sliders are in three sections, Light, Color and Detail. Click a section's name to fold it away or open it again. Colorbee remembers which sections you folded.</li>
+        <li>The sliders are in sections: Light, Color (with the Color Mixer, Point Color and Color Grading), Detail and Effects. Click a section's name to fold it away or open it again. Colorbee remembers which sections you folded.</li>
         <li>To move a slider, drag its knob, or drag sideways anywhere on its name line, which is easier to catch.</li>
         <li><strong>Auto</strong> looks at the photo and sets the light, color and white balance for you. The sliders it moved are marked, and you can fine-tune any of them.</li>
         <li><strong>Dehaze</strong> takes off a veil of haze, bringing back contrast and color in a hazy or misty photo; dragged left, it adds haze.</li>
@@ -33,10 +33,11 @@
                 <li>The <strong>Noise Reduction</strong> slider smooths grain in brightness. Its <strong>Detail</strong> keeps more fine detail when higher. <strong>Color</strong> smooths colored speckles, common in photos taken in low light, while keeping the brightness, and <strong>Color Detail</strong> keeps more small bits of real color when higher.</li>
             </ul>
         </li>
+        <li>In <strong>Effects</strong>, <strong>Vignette</strong> darkens the edges (or, dragged left, lightens them), and <strong>Grain</strong> adds film-like grain. Click the arrow beside either for its shape: the vignette's <strong>Midpoint</strong> (how much of the middle stays untouched), <strong>Roundness</strong> (left toward a rectangle, right toward a circle) and <strong>Feather</strong> (how gradually it fades in; 0 is a hard edge), and the grain's <strong>Size</strong> and <strong>Roughness</strong>. The grain belongs to the picture's pixels, so what you see at 100% is what you export; zoomed out, it can look finer than it is.</li>
         <li><strong>Whites</strong> brightens or dims only the brightest parts. Auto raises it when a photo's brightest parts don't reach white.</li>
         <li><strong>Warmth</strong> and <strong>Tint</strong> fix a color cast: cooler to warmer, and green to magenta. Or click the eyedropper beside Warmth, then click something in the picture that should be gray, such as a white wall or a gray card: Warmth and Tint are set for you. A very strong cast may need more than they can give. Esc turns the eyedropper off.</li>
         <li><strong>Vibrance</strong> boosts dull colors more than bright ones, so skin stays natural.</li>
-        <li><strong>Filters</strong> such as Vivid, Dramatic, Mono and Noir each have an intensity slider. Save as Filter… keeps your own settings as a filter: the light and color sliders (Dehaze too) and the vignette. Sharpness, Definition, Texture and Noise Reduction stay out, since they depend on each photo's own detail. At half intensity, every setting in the filter goes halfway.</li>
+        <li><strong>Filters</strong> such as Vivid, Dramatic, Mono and Noir each have an intensity slider. Save as Filter… keeps your own settings as a filter: the light and color sliders (Dehaze too), the vignette and the grain, each with its shape. At half intensity a filter's vignette and grain are half as strong, and keep their shape and size. Sharpness, Definition, Texture and Noise Reduction stay out, since they depend on each photo's own detail. At half intensity, every setting in the filter goes halfway.</li>
         <li><strong>Looks:</strong> to use a color look made for other photo apps, choose <strong>Import Filter…</strong> from the filter menu (the <strong>…</strong> button by the filters) and pick a <strong>.cube</strong> file. It becomes a filter of its own, with an intensity slider, and you can use it as an adjustment layer or export it to share. Colorbee takes 3D looks; a one-dimensional .cube file (a curve for each color) isn't supported.</li>
         <li><strong>Color Mixer</strong> (under Color) changes one color at a time: choose Hue, Saturation or Luminance, then drag the slider for Red, Orange, Yellow, Green, Aqua, Blue, Purple or Magenta. Colors in between change partly, and grays never change. Darken a blue sky with Blue's Luminance, or calm a green cast in foliage with Green's Saturation.</li>
         <li><strong>Black &amp; White</strong>, at the top of the Color Mixer, turns the picture to gray. The eight sliders then set how light each color becomes: drag Red up to brighten red things in the gray picture.</li>

@@ -1,11 +1,11 @@
 import simd
 
 extension Effects {
-    /// Adjust Photo on a region: detail (from the original pixels), then color and tone, then the vignettes (the
-    /// filter's, then the panel's own).
+    /// Adjust Photo on a region: detail (from the original pixels), then color and tone, then the vignettes and then
+    /// the grain (the filter's, then the panel's own).
     /// Shaders.metal's photo_fragment does the same for adjustment layers on screen.
     static func photoAdjusted(_ buffer: PixelBuffer, region: IntRect, edit: PhotoEdit, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
-        let amounts = DetailAmounts(edit), vignettes = edit.vignetteAmounts
+        let amounts = DetailAmounts(edit), vignettes = edit.vignettes, grains = edit.grains
         func blur(_ needed: Bool, _ sigma: Double) -> (PixelBuffer, IntPoint)? {
             needed ? blurred(buffer, region: region, sigma: sigma, selection: selection) : nil
         }
@@ -42,10 +42,10 @@ extension Effects {
                         }
                     }
                     pixel = color(pixel)
-                    if !vignettes.isEmpty {
-                        let strength = Vignette.strength(x: x, y: y, in: region, size: 50)
-                        for amount in vignettes { pixel = Vignette.apply(strength * amount / 100, to: pixel) }
+                    for vignette in vignettes {
+                        pixel = Vignette.apply(Vignette.strength(x: x, y: y, in: region, shape: vignette) * vignette.amount / 100, to: pixel)
                     }
+                    for grain in grains { pixel = grain.apply(to: pixel, x: x, y: y) }
                     target[x - region.minX] = pixel
                 }
             }

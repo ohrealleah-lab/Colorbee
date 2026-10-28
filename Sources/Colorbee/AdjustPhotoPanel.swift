@@ -38,7 +38,8 @@ struct PhotoControls: View {
     private typealias Slider = PhotoAdjustments.Slider
     /// The titles of the folded sections, one per line, the same in every window (Leah, 2026-10-27).
     @AppStorage("adjustPhotoFoldedSections") private var folded = ""
-    /// The sliders whose finer settings are open (Sharpness, Noise Reduction), one per line; closed to start (Q13.3).
+    /// The sliders whose finer settings are open (Sharpness, Noise Reduction, Vignette, Grain), one per line; closed to
+    /// start (Q13.3).
     @AppStorage("adjustPhotoOpenDetails") private var openDetails = ""
     /// Which of the Color Mixer's settings its eight sliders show.
     @State var mixerSetting = ColorMixer.Setting.hue
@@ -49,7 +50,9 @@ struct PhotoControls: View {
     private static let groups: [(String, [Slider])] = [
         ("Light", [.exposure, .brilliance, .dehaze, .highlights, .shadows, .contrast, .brightness, .whites, .blackPoint]),
         ("Color", [.saturation, .vibrance, .warmth, .tint]),
-        ("Detail", [.sharpness, .definition, .texture, .noiseReduction, .vignette]),
+        ("Detail", [.sharpness, .definition, .texture, .noiseReduction]),
+        // Vignette moved here from Detail, beside Grain, as in Lightroom (Q14.4).
+        ("Effects", [.vignette, .grain]),
     ]
 
     var body: some View {
@@ -85,7 +88,7 @@ struct PhotoControls: View {
             ForEach(Self.groups, id: \.0) { title, sliders in
                 sectionHeading(title)
                 ForEach(isFolded(title) ? [] : sliders, id: \.self) { slider in
-                    let hasMore = slider == .sharpness || slider == .noiseReduction
+                    let hasMore = [.sharpness, .noiseReduction, .vignette, .grain].contains(slider)
                     row(slider.title, value: edit.adjustments[slider], range: slider.range, unit: "", moved: autoMoved.contains(slider),
                         dropper: slider == .warmth, disclosure: hasMore ? detailDisclosure(slider) : nil) { value in
                         var changed = edit
@@ -121,6 +124,19 @@ struct PhotoControls: View {
         })
     }
 
+    private func effectsRow(_ title: String, _ key: WritableKeyPath<PhotoEffects, Double>, range: ClosedRange<Double>, help: String) -> some View {
+        let effects = edit.effects ?? PhotoEffects()
+        return row(title, value: effects[keyPath: key], range: range, unit: "", resetValue: PhotoEffects()[keyPath: key]) { value in
+            var changed = edit
+            var settings = changed.effects ?? PhotoEffects()
+            settings[keyPath: key] = value
+            changed.effects = settings
+            onChange(changed)
+        }
+        .help(help)
+        .padding(.leading, 14)
+    }
+
     private func detailRow(_ title: String, _ key: WritableKeyPath<PhotoDetail, Double>, range: ClosedRange<Double>, unit: String = "",
                            step: Double = 1, help: String, onEditing: ((Bool) -> Void)? = nil) -> some View {
         let detail = edit.detail ?? PhotoDetail()
@@ -137,7 +153,15 @@ struct PhotoControls: View {
     }
 
     @ViewBuilder private func finerSettings(for slider: Slider) -> some View {
-        if slider == .sharpness {
+        if slider == .vignette {
+            effectsRow("Midpoint", \.midpoint, range: PhotoEffects.range, help: "Higher leaves more of the middle untouched")
+            effectsRow("Roundness", \.roundness, range: PhotoEffects.roundnessRange,
+                       help: "Left toward a rectangle, right toward a circle; 0 follows the picture's shape")
+            effectsRow("Feather", \.feather, range: PhotoEffects.range, help: "How gradually it fades in: 0 is a hard edge")
+        } else if slider == .grain {
+            effectsRow("Size", \.grainSize, range: PhotoEffects.range, help: "How big each grain is")
+            effectsRow("Roughness", \.grainRoughness, range: PhotoEffects.range, help: "How uneven the grain is")
+        } else if slider == .sharpness {
             detailRow("Radius", \.radius, range: PhotoDetail.radiusRange, unit: " px", step: 0.1,
                       help: "The size of the detail Sharpness brings out")
             detailRow("Detail", \.sharpnessDetail, range: PhotoDetail.range,

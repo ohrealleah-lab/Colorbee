@@ -24,6 +24,21 @@ struct FilterStoreTests {
         #expect(after.vignetteAmounts == edit.vignetteAmounts)
     }
 
+    @Test func saveAsFilterKeepsTheVignetteShapeAndGrain() {
+        let editor = makeEditor()
+        var effects = PhotoEffects()
+        effects.roundness = 80
+        effects.grainRoughness = 20
+        let edit = PhotoEdit(adjustments: PhotoAdjustments([.vignette: -30, .grain: 40, .noiseReduction: 20]), effects: effects)
+        guard let after = editor.saveFilter(from: edit, named: "Film Test") else {
+            Issue.record("Nothing saved")
+            return
+        }
+        defer { FilterStore.shared.delete(after.filter?.name ?? "") }
+        #expect(after.adjustments == PhotoAdjustments([.noiseReduction: 20]) && after.effects == nil)
+        #expect(after.vignettes == edit.vignettes && after.grains == edit.grains)
+    }
+
     private let looks = URL(filePath: #filePath).deletingLastPathComponent()
         .appending(path: "../../TestImages/Photo Editing/Looks")
 

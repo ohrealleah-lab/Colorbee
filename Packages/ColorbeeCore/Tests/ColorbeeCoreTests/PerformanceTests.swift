@@ -149,6 +149,21 @@ struct PerformanceTests {
         #expect(table < .milliseconds(50), "the screen's color table took \(table)")
     }
 
+    /// Adjust Photo's Effects section (stage 14): a shaped vignette and grain, on top of a color change.
+    @Test func adjustPhotoWithVignetteAndGrain() {
+        let canvas = PerformanceFixture.photo(side: Self.side)
+        var effects = PhotoEffects()
+        effects.roundness = -60
+        effects.grainSize = 60
+        let edit = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 10, .vignette: -40, .grain: 50]), effects: effects)
+        let time = fastest {
+            let step = Edit(name: "Adjust Photo", canvas: canvas)
+            Effects.apply(.photo(edit), to: canvas.activeLayer, selection: nil, edit: step)
+        }
+        #expect(time < .milliseconds(2200), "took \(time)")
+        print("Adjust Photo with vignette and grain at 8000 × 8000: \(time)")
+    }
+
     /// History Snapshots (stage 12): taking one copies every layer to disk, compressed; going to it reads them back.
     @Test func takeAndGoToASnapshot() throws {
         let canvas = PerformanceFixture.photo(side: Self.side)

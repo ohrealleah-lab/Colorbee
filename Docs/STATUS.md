@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-28 · 686 core tests and 217 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
+_Last updated: 2026-10-28 · 695 core tests and 218 app tests passing; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run_
 
 ## Waiting for Leah's tests
 
@@ -16,6 +16,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 11: .cube looks](#test-stage-11-cube-looks) (2026-10-28; stages 11 to 14 are built in a row, then tested together)
 - [Stage 12: History Snapshots](#test-stage-12-history-snapshots) (2026-10-28)
 - [Stage 13: Sharpening and Noise Reduction in detail](#test-stage-13-sharpening-and-noise-reduction-in-detail) (2026-10-28)
+- [Stage 14: Vignette and Grain](#test-stage-14-vignette-and-grain) (2026-10-28)
 
 ---
 
@@ -71,6 +72,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 11. .cube looks | Built 2026-10-28; waiting for Leah's test (with stages 12 to 14) | High |
 | 14 · 12. History Snapshots | Built 2026-10-28; waiting for Leah's test (with stages 11, 13 and 14) | High |
 | 14 · 13. Sharpening and Noise Reduction in detail | Built 2026-10-28; waiting for Leah's test (with stages 11, 12 and 14) | High |
+| 14 · 14. Vignette and Grain | Built 2026-10-28; waiting for Leah's test (with stages 11 to 13) | Medium |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -124,6 +126,9 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   (`PhotoDetail.swift`: the settings, `DetailAmounts`, and `PhotoAdjustments.detail`, mirrored in
   `adjust_photo_fragment`). Sharpness at its own radius gets a fourth GPU blur slot. Option-drag on Masking sets
   `PhotoEdit.showsSharpeningMask`, never saved or applied.
+- Stage 14 (2026-10-28): Adjust Photo's Effects section, Vignette (moved from Detail) and Grain, with the vignette's
+  Midpoint, Roundness and Feather and the grain's Size and Roughness (`PhotoEffects.swift`: `PhotoEffects`,
+  `Vignette.Shape`, `Grain`; mirrored in `adjust_photo_fragment`). Grain uses a 32-bit hash so the GPU matches.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -291,6 +296,24 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 14: Vignette and Grain
+
+Test files: `TestImages/Photo Editing/Dull Photo.png` and `TestImages/Photo Editing/Old Adjust Photo.colorproj`. Run
+`make run` first.
+1. Open `Old Adjust Photo.colorproj`: its vignette looks just as before.
+2. Open `Dull Photo.png` and choose Adjustments ▸ **Adjust Photo…**. Vignette is now in a new **Effects** section,
+   with **Grain** under it. Set Vignette to −50, then click the arrow beside Vignette.
+3. **Roundness** +100: the darkening becomes a circle. −100: closer to a rectangle. **Feather** 0: a hard edge.
+   **Midpoint**: the darkening moves in or out.
+4. Set **Grain** to 50 and zoom to 100%: film-like grain. Click the arrow beside Grain and drag **Size** up: coarser.
+   **Roughness** up: more uneven.
+5. Press Apply, export as PNG, and open the export at 100% next to Colorbee at 100%: the same grain. Then ⌘Z.
+6. Set Vignette and Grain again, then use the filter menu's **Save as Filter…**, named "Film". Open another picture,
+   choose **Film**, and set its intensity to 50%: half the vignette and grain, the same shape, and grain the same
+   size. One of your older filters shows no vignette or grain.
+7. Choose Film again and **As Adjustment Layer**: the screen shows the same vignette and grain. Delete the Film
+   filter when you're done.
 
 ### Test: Stage 13: Sharpening and Noise Reduction in detail
 

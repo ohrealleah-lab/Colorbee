@@ -2,12 +2,12 @@ import Foundation
 import simd
 
 /// The Adjust Photo panel's sliders (FR-9.5, FR-9.7), modeled on the iPhone Photos editor. Each is -100...100 with 0
-/// meaning no change, except Sharpness, Definition and Noise Reduction, which are 0...100.
+/// meaning no change, except Sharpness, Definition, Noise Reduction and Grain, which are 0...100.
 public struct PhotoAdjustments: Sendable, Hashable, Codable {
     public enum Slider: String, CaseIterable, Sendable, Codable {
         case exposure, brilliance, dehaze, highlights, shadows, contrast, brightness, whites, blackPoint
         case saturation, vibrance, warmth, tint
-        case sharpness, definition, texture, noiseReduction, vignette
+        case sharpness, definition, texture, noiseReduction, vignette, grain
 
         public var title: String {
             switch self {
@@ -29,17 +29,18 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
             case .texture: "Texture"
             case .noiseReduction: "Noise Reduction"
             case .vignette: "Vignette"
+            case .grain: "Grain"
             }
         }
 
         public var range: ClosedRange<Double> {
             switch self {
-            case .sharpness, .definition, .noiseReduction: 0...100
+            case .sharpness, .definition, .noiseReduction, .grain: 0...100
             default: -100...100
             }
         }
 
-        /// What filters may hold (FR-9.7): color and tone, Dehaze and Vignette (Leah, 2026-10-27). Sharpness,
+        /// What filters may hold (FR-9.7): color and tone, Dehaze, Vignette and Grain (Leah, 2026-10-27). Sharpness,
         /// Definition, Texture and Noise Reduction depend on each photo's own detail, so they stay out.
         public var inFilters: Bool {
             switch self {
@@ -211,11 +212,16 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     public var detail: PhotoDetail? {
         didSet { if detail?.isDefault == true { detail = nil } }
     }
+    /// The Vignette's shape and the Grain's look (FR-9.7 item 5); nil while all are at their start. Filters keep it.
+    public var effects: PhotoEffects? {
+        didSet { if effects?.isDefault == true { effects = nil } }
+    }
     /// Shows Masking's edge mask instead of the photo while Masking is Option-dragged (Q13.2). Never saved.
     public var showsSharpeningMask = false
 
     public init(adjustments: PhotoAdjustments = PhotoAdjustments(), filter: PhotoFilter? = nil, filterIntensity: Double = 100,
-                mixer: ColorMixer? = nil, grading: ColorGrading? = nil, pointColors: PointColors? = nil, detail: PhotoDetail? = nil) {
+                mixer: ColorMixer? = nil, grading: ColorGrading? = nil, pointColors: PointColors? = nil, detail: PhotoDetail? = nil,
+                effects: PhotoEffects? = nil) {
         self.adjustments = adjustments
         self.filter = filter
         self.filterIntensity = filterIntensity
@@ -223,6 +229,7 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
         self.grading = grading?.isUntouched == true ? nil : grading
         self.pointColors = pointColors?.isEmpty == true ? nil : pointColors
         self.detail = detail?.isDefault == true ? nil : detail
+        self.effects = effects?.isDefault == true ? nil : effects
     }
 
     public var isNeutral: Bool {
@@ -269,13 +276,29 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     }
 
     /// The vignettes, in the order they apply after all the color: the filter's at its intensity, then the
-    /// panel's own (Leah, 2026-10-27). Zero amounts are left out.
-    public var vignetteAmounts: [Double] {
-        let fromFilter = (filter?.steps(atIntensity: filterIntensity / 100) ?? []).flatMap { step -> [Double] in
-            if case .photo(let edit) = step { return edit.vignetteAmounts }
-            return []
+    /// panel's own (Leah, 2026-10-27), each with its own shape. Zero amounts are left out.
+    public var vignettes: [Vignette.Shape] {
+        let fromFilter = filterEdits.flatMap(\.vignettes)
+        let shape = effects ?? PhotoEffects()
+        let own = Vignette.Shape(amount: adjustments[.vignette], midpoint: shape.midpoint, roundness: shape.roundness, feather: shape.feather)
+        return (fromFilter + [own]).filter { $0.amount != 0 }
+    }
+
+    public var vignetteAmounts: [Double] { vignettes.map(\.amount) }
+
+    /// The grains, after the vignettes: the filter's at its intensity, then the panel's own. Zero amounts are left out.
+    public var grains: [Grain] {
+        let fromFilter = filterEdits.flatMap(\.grains)
+        let look = effects ?? PhotoEffects()
+        return (fromFilter + [Grain(amount: adjustments[.grain], size: look.grainSize, roughness: look.grainRoughness)]).filter { $0.amount != 0 }
+    }
+
+    /// The filter's Adjust Photo steps at its intensity.
+    private var filterEdits: [PhotoEdit] {
+        (filter?.steps(atIntensity: filterIntensity / 100) ?? []).compactMap { step in
+            if case .photo(let edit) = step { return edit }
+            return nil
         }
-        return (fromFilter + [adjustments[.vignette]]).filter { $0 != 0 }
     }
 }
 
@@ -324,7 +347,7 @@ extension PhotoAdjustments {
 
 extension PhotoEdit {
     private enum CodingKeys: String, CodingKey {
-        case adjustments, filter, filterIntensity, mixer, grading, pointColors, detail
+        case adjustments, filter, filterIntensity, mixer, grading, pointColors, detail, effects
     }
 
     /// A control this version can't read is left at neutral rather than losing the whole adjustment.
@@ -337,6 +360,7 @@ extension PhotoEdit {
                   mixer: try? container.decodeIfPresent(ColorMixer.self, forKey: .mixer),
                   grading: try? container.decodeIfPresent(ColorGrading.self, forKey: .grading),
                   pointColors: try? container.decodeIfPresent(PointColors.self, forKey: .pointColors),
-                  detail: try? container.decodeIfPresent(PhotoDetail.self, forKey: .detail))
+                  detail: try? container.decodeIfPresent(PhotoDetail.self, forKey: .detail),
+                  effects: try? container.decodeIfPresent(PhotoEffects.self, forKey: .effects))
     }
 }

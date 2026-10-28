@@ -1,6 +1,6 @@
 import Foundation
 
-/// A named recipe of color and tone changes, and the vignette (FR-9.5, FR-9.7). Built-in filters and "Save as
+/// A named recipe of color and tone changes, the vignette and grain (FR-9.5, FR-9.7). Built-in filters and "Save as
 /// Filter…" hold one Adjust Photo step; "Save Filter from Layers" holds one step per adjustment layer. Filters never
 /// crop or straighten.
 public struct PhotoFilter: Sendable, Hashable, Codable {
@@ -93,6 +93,9 @@ extension Effect {
             return self
         case .photo(var edit):
             edit.adjustments = edit.adjustments.forFilters
+            // Sharpness's and Noise Reduction's finer settings go with them; the Vignette's shape and Grain stay.
+            edit.detail = nil
+            edit.showsSharpeningMask = false
             return edit.isNeutral ? nil : .photo(edit)
         default:
             return nil

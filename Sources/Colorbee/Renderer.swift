@@ -17,7 +17,7 @@ struct QuadUniforms {
     var blendMode: Float = 0
     var adjustParams: SIMD4<Float> = .zero
     var adjustKind: Float = 0
-    /// Adjust Photo: how many vignettes (x), whose amounts are in fragment buffer 1, and Texture (y, -1...1).
+    /// Adjust Photo: how many vignettes (x) and grains (z), which are in fragment buffer 1, and Texture (y, -1...1).
     var photoParams: SIMD4<Float> = .zero
     /// 1 when layers are sampled smoothly, which the shaders do in premultiplied color.
     var smooth: Float = 0
@@ -307,12 +307,15 @@ final class Renderer {
                 uniforms.adjustParams = SIMD4(Float(lookup.width), Float(amounts.sharpness), Float(amounts.definition), Float(amounts.noiseReduction))
                 uniforms.detailParams = SIMD4(Float(amounts.color), Float(amounts.luminanceScale), Float(amounts.colorScale), Float(amounts.haloDamping))
                 uniforms.detailParams2 = SIMD4(Float(amounts.fineBoost), Float(amounts.maskThreshold), amounts.showsMask ? 1 : 0, 0)
-                // The filter's vignettes, then the panel's own, as Effects.photoAdjusted applies them. A buffer can't
-                // be empty, and setFragmentBytes takes at most 4 KB.
-                var vignettes = edit.vignetteAmounts.prefix(1024).map(Float.init)
-                uniforms.photoParams = SIMD4(Float(vignettes.count), Float(amounts.texture), 0, 0)
-                if vignettes.isEmpty { vignettes = [0] }
-                encoder.setFragmentBytes(vignettes, length: vignettes.count * MemoryLayout<Float>.stride, index: 1)
+                // The filter's vignettes, then the panel's own, then the grains, as Effects.photoAdjusted applies them.
+                // A buffer can't be empty, and setFragmentBytes takes at most 4 KB.
+                let vignettes = edit.vignettes.prefix(128).map { SIMD4(Float($0.amount), Float($0.midpoint), Float($0.roundness), Float($0.feather)) }
+                let grains = edit.grains.prefix(128).map { SIMD4(Float($0.amount), Float($0.size), Float($0.roughness), 0) }
+                var effects = vignettes + grains
+                uniforms.photoParams = SIMD4(Float(vignettes.count), Float(amounts.texture), Float(grains.count), 0)
+                uniforms.imageSize = SIMD2(Float(canvas.size.width), Float(canvas.size.height))
+                if effects.isEmpty { effects = [.zero] }
+                encoder.setFragmentBytes(effects, length: effects.count * MemoryLayout<SIMD4<Float>>.stride, index: 1)
                 draw(adjustPhotoPipeline)
             } else if let table = channelTexture(for: adjustment) {
                 encoder.setFragmentTexture(table, index: 0)

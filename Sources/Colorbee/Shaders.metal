@@ -15,7 +15,7 @@ struct QuadUniforms {
     float blendMode;      // BlendMode.rawValue
     float4 adjustParams;  // the adjustment's settings (see Renderer.adjustmentUniforms)
     float adjustKind;     // 0 none, 1 invert, 2 desaturate, 3 brightness/contrast, 4 hue/saturation, 5 blur, 6 sharpen
-    float4 photoParams;   // Adjust Photo: how many vignettes (x), their amounts in buffer 1; Texture (y, -1...1)
+    float4 photoParams;   // Adjust Photo: how many vignettes (x) and grains (z), in buffer 1; Texture (y, -1...1)
     float smooth;         // 1 when layers are sampled smoothly (zoomed out, or a stretched selection)
     float4 detailParams;  // Adjust Photo (DetailAmounts): color noise, luminance and color detail scales, halo damping
     float4 detailParams2; // fine boost, Masking's threshold, 1 to show the Masking mask
@@ -335,6 +335,64 @@ fragment float4 adjust_channel_fragment(QuadOut in [[stage_in]],
 // table, then the vignettes (the filter's, then the panel's own). adjustParams: table size, sharpness, definition,
 // noise reduction (0...1); detailParams and detailParams2 the rest of DetailAmounts. PhotoAdjustments.detail does the
 // same on the CPU.
+// Vignette.strength(x:y:in:shape:) over the canvas, at `position` in image pixels. shape: amount, midpoint, roundness,
+// feather.
+static float vignette_strength(float2 position, float2 size, float4 shape) {
+    float2 halfSize = size / 2;
+    float2 d = position - halfSize;
+    float roundness = shape.z, distance;
+    if (roundness > 0) {
+        float k = min(roundness, 100.0) / 100, shortSide = min(halfSize.x, halfSize.y);
+        distance = length(d / (halfSize + (shortSide - halfSize) * k)) / sqrt(2.0);
+    } else if (roundness < 0) {
+        float p = 2 + min(-roundness, 100.0) / 100 * 6;
+        float2 n = max(abs(d / halfSize), 1e-6);
+        distance = pow(pow(n.x, p) + pow(n.y, p), 1 / p) / pow(2.0, 1 / p);
+    } else {
+        distance = length(d / halfSize) / sqrt(2.0);
+    }
+    float start = clamp(shape.y, 0.0, 100.0) / 100 * 0.95;
+    float width = (1 - start) * clamp(shape.w, 0.0, 100.0) / 50;
+    if (width <= 0) return distance > start ? 1 : 0;
+    float t = clamp((distance - start) / width, 0.0, 1.0);
+    return t * t * (3 - 2 * t);
+}
+
+// Grain.hash, Grain.valueNoise and Grain.offset: the same grain at the same image pixel as on the CPU.
+static uint grain_hash(int x, int y, uint seed) {
+    uint h = uint(x) * 0x8DA6B343u ^ uint(y) * 0xD8163841u ^ seed * 0xCB1AB31Fu;
+    h ^= h >> 16;
+    h *= 0x7FEB352Du;
+    h ^= h >> 15;
+    h *= 0x846CA68Bu;
+    h ^= h >> 16;
+    return h;
+}
+
+static float grain_corner(int x, int y, uint seed) {
+    return float(grain_hash(x, y, seed)) / 4294967295.0 * 2 - 1;
+}
+
+static float grain_noise(float2 p, float cell, uint seed) {
+    float2 g = p / cell - 0.5;
+    float2 i = floor(g), f = g - i;
+    float2 s = f * f * (3 - 2 * f);
+    int ix = int(i.x), iy = int(i.y);
+    float top = grain_corner(ix, iy, seed) + (grain_corner(ix + 1, iy, seed) - grain_corner(ix, iy, seed)) * s.x;
+    float bottom = grain_corner(ix, iy + 1, seed) + (grain_corner(ix + 1, iy + 1, seed) - grain_corner(ix, iy + 1, seed)) * s.x;
+    return top + (bottom - top) * s.y;
+}
+
+// grain: amount, size, roughness.
+static float grain_offset(int2 pixel, float3 grain) {
+    float cell = 1 + clamp(grain.y, 0.0, 100.0) / 100 * 3;
+    float k = clamp(grain.z, 0.0, 100.0) / 100;
+    float2 p = float2(pixel) + 0.5;
+    float even = grain_noise(p, cell, 1u);
+    float rough = k > 0 ? grain_noise(p, max(1.0, cell / 2), 2u) : 0;
+    return (even * (1 - k) + rough * k) * clamp(grain.x, 0.0, 100.0) / 100 * 0.2;
+}
+
 static float3 unblurred(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel, float3 fallback) {
     float4 soft = blurred.read(pixel);
     float weight = coverage.read(pixel).r;
@@ -353,7 +411,7 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
                                       texture2d<float> sharp [[texture(7)]],
                                       texture2d<float> sharpCoverage [[texture(8)]],
                                       constant QuadUniforms &u [[buffer(0)]],
-                                      constant float *vignettes [[buffer(1)]],
+                                      constant float4 *effects [[buffer(1)]],
                                       float4 backdrop [[color(0)]]) {
     constexpr sampler tableSampler(filter::linear, address::clamp_to_edge);
     if (backdrop.a <= 0) return backdrop;
@@ -402,16 +460,17 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
     }
     float size = u.adjustParams.x;
     c = lookup.sample(tableSampler, (c * (size - 1) + 0.5) / size).rgb;
-    int vignetteCount = int(u.photoParams.x + 0.5);
-    if (vignetteCount > 0) {
-        // Vignette.strength with size 50.
-        float distance = length(in.uv * 2 - 1) / sqrt(2.0);
-        float start = 0.5 * 0.95;
-        float t = clamp((distance - start) / (1 - start), 0.0, 1.0);
-        float falloff = t * t * (3 - 2 * t);
-        for (int i = 0; i < vignetteCount; i++) {
-            float strength = falloff * vignettes[i] / 100;
-            c = strength >= 0 ? c * (1 - strength) : c + (1 - c) * -strength;
+    // The vignettes, then the grains: the filter's, then the panel's own, as in Effects.photoAdjusted.
+    int vignetteCount = int(u.photoParams.x + 0.5), grainCount = int(u.photoParams.z + 0.5);
+    float2 position = in.uv * u.imageSize;
+    for (int i = 0; i < vignetteCount; i++) {
+        float strength = vignette_strength(position, u.imageSize, effects[i]) * effects[i].x / 100;
+        c = strength >= 0 ? c * (1 - strength) : c + (1 - c) * -strength;
+    }
+    if (grainCount > 0) {
+        int2 pixel = int2(clamp(floor(position), float2(0), u.imageSize - 1));
+        for (int i = 0; i < grainCount; i++) {
+            c = clamp(c + grain_offset(pixel, effects[vignetteCount + i].xyz), 0.0, 1.0);
         }
     }
     return fadeIn(backdrop, c, backdrop.a, u);

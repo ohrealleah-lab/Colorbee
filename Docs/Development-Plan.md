@@ -1433,24 +1433,24 @@ _Added after the review (2026-10-27):_
 ### Before stage 19
 
 - **Q19.1** The color choice goes in Export… and in each Export As preset (Settings), while Copy, Share and PDF keep
-  the document's profile? *Recommend yes:* those are the "sending it somewhere" paths.
-- **Q19.2** "Limit file size to [ ] KB/MB" as a checkbox in Export…? *Recommend yes.*
+  the document's profile? *Recommend yes:* those are the "sending it somewhere" paths. **Answer: yes, as recommended.**
+- **Q19.2** "Limit file size to [ ] KB/MB" as a checkbox in Export…? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q19.3** If it can't fit even at the lowest quality: a message with the smallest size possible, and nothing
-  written? *Recommend yes;* shrinking the picture is Export As's job.
-- **Q19.4** Remember both settings between launches? *Recommend yes,* like format and quality.
-- **Q19.5** Just sRGB, Display P3 and Keep, with no Adobe RGB? *Recommend yes,* per FR-9.7.
+  written? *Recommend yes;* shrinking the picture is Export As's job. **Answer: yes, as recommended.**
+- **Q19.4** Remember both settings between launches? *Recommend yes,* like format and quality. **Answer: yes, as recommended.**
+- **Q19.5** Just sRGB, Display P3 and Keep, with no Adobe RGB? *Recommend yes,* per FR-9.7. **Answer: yes, as recommended.**
 - **Q19.6** Count 1 KB as 1,000 bytes, as Finder does? *Recommend yes,* so a 200 KB limit never shows as more in
   Finder. **Answer: yes.**
 
 ### Before stage 20
 
-- **Q20.1** Read what you see (all layers), like the Eyedropper's Option-click? *Recommend yes.*
+- **Q20.1** Read what you see (all layers), like the Eyedropper's Option-click? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q20.2** Show the document's own values (they match what the Eyedropper picks), or sRGB (it matches a style
   guide's hex)? *Recommend sRGB, labeled "sRGB":* checking brand colors is the stated use, and style guides are in
-  sRGB. Your call, since it won't match the color panel's Display P3 numbers.
-- **Q20.3** Sample sizes 1 px (the default), 3 × 3 and 5 × 5? *Recommend yes.*
+  sRGB. Your call, since it won't match the color panel's Display P3 numbers. **Answer: sRGB, labeled "sRGB".**
+- **Q20.3** Sample sizes 1 px (the default), 3 × 3 and 5 × 5? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q20.4** The readout follows the sample size while the Eyedropper is chosen, and a click on the hex copies it?
-  *Recommend yes to both.*
+  *Recommend yes to both.* **Answer: yes, as recommended.**
 - **Q20.5** Should the color readout also show in the Info panel? *Recommend no, the status bar only:* the Info
   panel describes the document and doesn't change as the pointer moves. **Answer: status bar only** (Leah,
   2026-10-27).
@@ -1459,11 +1459,11 @@ _Added after the review (2026-10-27):_
 
 - **Q21.1** Test picture: real faces can't go in the public repo. *Recommend* a photo of your own, kept outside the
   repo like the small-subjects screenshot. Or I can try made-up pictures first and see whether Vision finds faces
-  in them.
-- **Q21.2** A "Faces" row in the pattern list, on by default? *Recommend on:* a missed face is the risk.
-- **Q21.3** Boxes 30% bigger than Vision's, to cover hair and chin? *Recommend yes.*
-- **Q21.4** The same treatment as the text matches (one choice in the sheet)? *Recommend yes:* it's simplest.
-- **Q21.5** List even tiny faces, for you to untick? *Recommend yes.*
+  in them. **Answer: try made-up faces first; ask for a photo of Leah's own, kept outside the repo, only if Vision misses them.**
+- **Q21.2** A "Faces" row in the pattern list, on by default? *Recommend on:* a missed face is the risk. **Answer: yes, as recommended.**
+- **Q21.3** Boxes 30% bigger than Vision's, to cover hair and chin? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q21.4** The same treatment as the text matches (one choice in the sheet)? *Recommend yes:* it's simplest. **Answer: yes, as recommended.**
+- **Q21.5** List even tiny faces, for you to untick? *Recommend yes.* **Answer: yes, as recommended.**
 
 ### Before stage 22
 

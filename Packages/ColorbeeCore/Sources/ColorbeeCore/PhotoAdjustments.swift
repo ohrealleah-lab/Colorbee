@@ -255,11 +255,14 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     }
 
     /// Whether the display needs `ColorLookup.fineSize` to show this closely: a Color Mixer or Point Color, here or in
-    /// the filter.
+    /// the filter, or a look.
     public var needsFineColorTable: Bool {
         mixer != nil || pointColors != nil || (filter?.steps ?? []).contains { step in
-            if case .photo(let edit) = step { return edit.needsFineColorTable }
-            return false
+            switch step {
+            case .photo(let edit): edit.needsFineColorTable
+            case .look: true
+            default: false
+            }
         }
     }
 

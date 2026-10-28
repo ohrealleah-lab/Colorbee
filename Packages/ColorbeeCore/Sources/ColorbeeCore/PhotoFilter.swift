@@ -89,7 +89,7 @@ extension Effect {
     /// Photo step loses just the sliders filters leave out, rather than being dropped whole. Nil when nothing's left.
     public var forFilters: Effect? {
         switch self {
-        case .invert, .desaturate, .brightnessContrast, .hueSaturation, .levels, .curves, .sepia, .posterize:
+        case .invert, .desaturate, .brightnessContrast, .hueSaturation, .levels, .curves, .sepia, .posterize, .look:
             return self
         case .photo(var edit):
             edit.adjustments = edit.adjustments.forFilters
@@ -113,6 +113,9 @@ extension Effect {
             }
             return .curves(curves)
         case .sepia(let amount): return .sepia(amount: amount * f)
+        case .look(var look):
+            look.amount *= f
+            return .look(look)
         case .desaturate: return .photo(PhotoEdit(adjustments: PhotoAdjustments([.saturation: -100 * f])))
         case .photo(var edit):
             edit.adjustments = edit.adjustments.scaled(by: f)

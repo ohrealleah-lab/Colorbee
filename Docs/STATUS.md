@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-28 · 659 core tests and 205 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
+_Last updated: 2026-10-28 · 670 core tests and 208 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- Nothing right now. Stages 11 to 14 are being built next, to be tested together.
+- [Stage 11: .cube looks](#test-stage-11-cube-looks) (2026-10-28; stages 11 to 14 are built in a row, then tested together)
 
 ---
 
@@ -66,6 +66,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 8. Paste in Place | ✅ Done; passed Leah's test 2026-10-28 | Medium |
 | 14 · 9. Color Range and Luminance Range | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 10. Graduated selection | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 11. .cube looks | Built 2026-10-28; waiting for Leah's test (with stages 12 to 14) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -108,6 +109,9 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   of room (a squeezed label wrapped letter by letter and made the bar 140 pt tall).
 - Stage 10 (2026-10-28): Edit ▸ Graduated Selection (`GraduatedSelection.swift`), a third `choosesSelection` bar: drag
   a line, drag its ends, Shift snaps to 45°; guides across the canvas at both ends.
+- Stage 11 (2026-10-28): .cube looks. `CubeFile.swift` reads them; `ColorLook.swift` holds the table (stored as
+  binary) and blends between its points (tetrahedral). A look is `Effect.look`, a step of a filter, so it gets
+  Intensity, adjustment layers and .colorbeefilter export from the filter code. Import Filter… takes .cube files.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -275,6 +279,24 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 11: .cube looks
+
+Test files: `TestImages/Photo Editing/Dull Photo.png` and the three looks in `TestImages/Photo Editing/Looks`. Run
+`make run` first.
+1. Open `Dull Photo.png` and choose Adjustments ▸ **Adjust Photo…**. Click the **…** button by the filters and
+   choose **Import Filter…**, then pick `Looks/Warm.cube`. A **Warm** filter appears in the strip, already chosen,
+   and the photo warms up.
+2. Drag the filter's intensity to 50%: half as warm.
+3. Import `Looks/Identity.cube`: an **Identity** filter appears (named from the file, since it has no title inside),
+   and the photo looks just as it did before any filter.
+4. Choose **Warm** again, then **As Adjustment Layer**. Save as a project, close it, and reopen it: still warm.
+5. Import `Looks/Curve 1D.cube`: a message says one-dimensional .cube files aren't supported, and nothing is added.
+6. In Finder, make a copy of any text file and rename it to end in `.cube`. Import it: a message says it isn't a
+   .cube look Colorbee can read, and nothing is added.
+7. With **Warm** chosen, use the **…** menu's **Export Filter…**, then delete Warm from the strip and import the
+   exported file: Warm is back and works the same.
+8. Delete the Warm and Identity filters when you're done, so they don't clutter your filter strip.
 
 ### Test: Stage 10: Graduated selection (passed 2026-10-28)
 

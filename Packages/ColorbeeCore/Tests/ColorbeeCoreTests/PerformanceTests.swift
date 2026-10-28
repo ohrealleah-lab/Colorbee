@@ -125,6 +125,22 @@ struct PerformanceTests {
         #expect(table < .milliseconds(50), "the screen's color table took \(table)")
     }
 
+    /// A 65-point .cube look as a filter, with a slider: applying it, and the screen's color table while it's chosen.
+    @Test func adjustPhotoWithALook() {
+        let canvas = PerformanceFixture.photo(side: Self.side)
+        let n = 65
+        let values = (0..<(n * n * n * 3)).map { UInt16(($0 * 7919) % 65536) }
+        let filter = PhotoFilter(name: "Look", steps: [.look(ColorLook(size: n, values: values))])
+        let edit = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 10]), filter: filter, filterIntensity: 80)
+        let time = fastest {
+            let step = Edit(name: "Adjust Photo", canvas: canvas)
+            Effects.apply(.photo(edit), to: canvas.activeLayer, selection: nil, edit: step)
+        }
+        #expect(time < .milliseconds(400), "took \(time)")
+        let table = fastest { _ = ColorLookup(.photo(edit)) }
+        #expect(table < .milliseconds(50), "the screen's color table took \(table)")
+    }
+
     /// Edit ▸ Modify Selection at its largest radius on a selection nearly the size of the image. Hard edges use a
     /// distance map and take about as long at any radius; soft edges take longer, worked out in the background.
     @Test func modifyALargeSelection() throws {

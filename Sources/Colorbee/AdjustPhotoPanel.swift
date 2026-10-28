@@ -309,9 +309,18 @@ private struct FilterMenu: View {
 
     private func importFilter() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.colorbeeFilter]
+        panel.allowedContentTypes = [.colorbeeFilter, .cubeLook]
+        panel.message = "Choose a Colorbee filter, or a .cube color look."
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do { try store.importFilter(from: url) } catch { NSAlert(error: error).runModal() }
+        // The imported filter is chosen, so you see it straight away.
+        do {
+            var changed = edit
+            changed.filter = store.filter(named: try store.importFilter(from: url))
+            changed.filterIntensity = 100
+            onChange(changed)
+        } catch {
+            NSAlert(error: error).runModal()
+        }
     }
 
     private func exportFilter() {

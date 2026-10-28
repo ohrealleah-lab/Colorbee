@@ -33,6 +33,8 @@ public enum Effect: Sendable, Hashable {
     case vignette(amount: Double, size: Double)
     /// The Adjust Photo panel: a filter, then the sliders (FR-9.5).
     case photo(PhotoEdit)
+    /// A color look imported from a .cube file (FR-9.7 item 4); only ever a step of a filter.
+    case look(ColorLook)
 
     public var name: String {
         switch self {
@@ -53,13 +55,14 @@ public enum Effect: Sendable, Hashable {
         case .emboss: "Emboss"
         case .vignette: "Vignette"
         case .photo: "Adjust Photo"
+        case .look: "Look"
         }
     }
 
     /// Color adjustments the display shows through a `ColorLookup` table.
     public var usesColorLookup: Bool {
         switch self {
-        case .sepia, .photo: true
+        case .sepia, .photo, .look: true
         default: false
         }
     }
@@ -126,6 +129,8 @@ public enum Effect: Sendable, Hashable {
             let steps = Double(min(max(levels, 2), 32) - 1)
             let table = (0..<256).map { UInt8(((Double($0) / 255 * steps).rounded() / steps * 255).rounded()) }
             return { Pixel(r: table[Int($0.r)], g: table[Int($0.g)], b: table[Int($0.b)], a: $0.a) }
+        case .look(let look):
+            return look.transform
         case .gaussianBlur, .pixelate, .sharpen, .addNoise, .motionBlur, .emboss, .vignette, .photo:
             return nil
         }
@@ -184,7 +189,7 @@ public enum Effects {
             (result, origin) = vignetted(layer.buffer, region: region, amount: amount, size: size)
         case .photo(let edit):
             (result, origin) = photoAdjusted(layer.buffer, region: region, edit: edit, selection: selection)
-        case .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation, .levels, .curves, .sepia, .posterize:
+        case .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation, .levels, .curves, .sepia, .posterize, .look:
             return .zero
         }
         edit.willModify(region, in: layer)

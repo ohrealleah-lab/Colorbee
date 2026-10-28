@@ -27,7 +27,8 @@ public final class Layer {
         switch effect {
         case .invert, .desaturate, .brightnessContrast, .hueSaturation, .gaussianBlur, .sharpen,
              .levels, .curves, .sepia, .posterize, .photo: true
-        case .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette: false
+        // A look is a layer as an Adjust Photo layer with that look as its filter.
+        case .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette, .look: false
         }
     }
     /// An adjustment layer, or a layer never painted on: its buffer is all clear and takes no memory,

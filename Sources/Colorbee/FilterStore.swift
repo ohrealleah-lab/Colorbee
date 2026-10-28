@@ -5,6 +5,9 @@ import UniformTypeIdentifiers
 
 extension UTType {
     static let colorbeeFilter = UTType(exportedAs: "com.leah.colorbee.colorbeefilter")
+    /// A color look (FR-9.7 item 4). Colorbee doesn't claim .cube files, so they're imported only from the filter
+    /// menu (Q11.1).
+    static let cubeLook = UTType(filenameExtension: "cube") ?? .data
 }
 
 /// The photo filters (FR-9.5): the nine built in, then yours, kept in Application Support and shared by every window.
@@ -87,9 +90,13 @@ final class FilterStore {
         try filter.exported().write(to: url, options: .atomic)
     }
 
+    /// Adds the filter in a .colorbeefilter, or a .cube look as a filter of its own. Returns the name it was saved under.
     @discardableResult
     func importFilter(from url: URL) throws -> String {
-        add(try PhotoFilter.imported(from: Data(contentsOf: url)))
+        let data = try Data(contentsOf: url)
+        guard url.pathExtension.lowercased() == "cube" else { return add(try PhotoFilter.imported(from: data)) }
+        let (name, look) = try CubeFile.read(data, fallbackName: url.deletingPathExtension().lastPathComponent)
+        return add(PhotoFilter(name: name, steps: [.look(look)]))
     }
 
     private func persist() {

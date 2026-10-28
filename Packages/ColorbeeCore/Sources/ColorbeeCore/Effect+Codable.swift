@@ -4,7 +4,7 @@ import Foundation
 /// that aren't plain numbers. Projects from before stage 9 used the same shape.
 extension Effect: Codable {
     private enum CodingKeys: String, CodingKey {
-        case kind, values, levels, curves, photo, color
+        case kind, values, levels, curves, photo, color, look
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -15,6 +15,7 @@ extension Effect: Codable {
         case .levels(let levels): try container.encode(levels, forKey: .levels)
         case .curves(let curves): try container.encode(curves, forKey: .curves)
         case .photo(let edit): try container.encode(edit, forKey: .photo)
+        case .look(let look): try container.encode(look, forKey: .look)
         case .solidFill(let color): try container.encode([color.r, color.g, color.b, color.a], forKey: .color)
         default: break
         }
@@ -47,6 +48,7 @@ extension Effect: Codable {
         case "emboss": self = .emboss(angle: value(0), depth: value(1))
         case "vignette": self = .vignette(amount: value(0), size: value(1))
         case "photo": self = .photo(try container.decode(PhotoEdit.self, forKey: .photo))
+        case "look": self = .look(try container.decode(ColorLook.self, forKey: .look))
         case "solidFill":
             let c = try container.decode([UInt8].self, forKey: .color)
             guard c.count == 4 else { throw DecodingError.dataCorruptedError(forKey: .color, in: container, debugDescription: "Needs RGBA") }
@@ -75,6 +77,7 @@ extension Effect: Codable {
         case .emboss: "emboss"
         case .vignette: "vignette"
         case .photo: "photo"
+        case .look: "look"
         }
     }
 
@@ -91,7 +94,7 @@ extension Effect: Codable {
         case .motionBlur(let angle, let distance): [angle, distance]
         case .emboss(let angle, let depth): [angle, depth]
         case .vignette(let amount, let size): [amount, size]
-        case .solidFill, .invert, .desaturate, .levels, .curves, .photo: []
+        case .solidFill, .invert, .desaturate, .levels, .curves, .photo, .look: []
         }
     }
 }

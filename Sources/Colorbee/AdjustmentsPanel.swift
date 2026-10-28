@@ -92,7 +92,7 @@ enum AdjustmentChoice: CaseIterable {
         case .sharpen: self = .sharpen
         case .photo: self = .adjustPhoto
         // Brightness/Contrast was replaced by Adjust Photo's sliders (Leah); old layers of it have no settings here.
-        case .brightnessContrast, .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette: return nil
+        case .brightnessContrast, .pixelate, .solidFill, .addNoise, .motionBlur, .emboss, .vignette, .look: return nil
         }
     }
 }
@@ -113,7 +113,7 @@ extension Effect {
         case .motionBlur(let angle, let distance): [angle, distance]
         case .emboss(let angle, let depth): [angle, depth]
         case .vignette(let amount, let size): [amount, size]
-        case .invert, .desaturate, .solidFill, .curves, .photo: []
+        case .invert, .desaturate, .solidFill, .curves, .photo, .look: []
         }
     }
 }

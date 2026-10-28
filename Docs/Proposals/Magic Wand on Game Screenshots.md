@@ -1,15 +1,15 @@
 # Proposal: Selecting things in game screenshots
 
-Status: **idea, first example tested** (2026-10-27). Planning only; nothing is built. This is separate from the
-Lightroom-style development plan.
+Status: **idea, tested on one screenshot** (2026-10-27). Planning only; nothing is built. This is separate from
+the Lightroom-style development plan.
 
 ## The problem
 
 Leah finds the Magic Wand (FR-3.1) doesn't work well on screenshots of video games and other rich computer
 graphics. Flat app screenshots are fine; game images aren't.
 
-First example: `~/Pictures/Final Fantasy/nin.png` (3266 × 2144, Display P3), trying to select the genie lamp
-at the bottom right.
+Test picture: `~/Pictures/Final Fantasy/nin.png` (3266 × 2144, Display P3). Leah was trying to select the genie
+lamp at the bottom right.
 
 ## Why it happens today
 
@@ -25,11 +25,14 @@ The wand (and Fill, which shares the same code in `FloodFill.swift`) works like 
 4. **Only side-by-side neighbors count** (4-connected), so thin diagonal lines and textures with many small gaps
    break the area into pieces.
 
-## What the lamp test showed
+## What the tests showed
 
-Claude simulated the wand outside the app, clicking the middle of the lamp's body (pixel 2830, 1760).
+Claude simulated each method outside the app, on the test picture.
+
+### The lamp (an object)
+
 [Magic Wand lamp test.png](Magic%20Wand%20lamp%20test.png) shows, left to right: today's wand at 10%, 20% and 30%,
-then Select Subject.
+then Vision's closer look around the click.
 
 | Method | Result |
 |---|---|
@@ -38,38 +41,48 @@ then Select Subject.
 | Today's wand, 30% and up | The whole picture (about 4 million pixels). |
 | Ideas 1–3 below (average, perceptual matching, pinholes) | Almost the same as today at every setting. |
 | Matching color more than brightness | Leaks from 5–6%, before it reaches the knob. |
-| **Select Subject, clicking the lamp** | **The whole lamp, knob, spout and base, with no leaks.** Its outline is rounded and blobby, though: it softens the spout's tip and the narrow stem. |
+| **Vision's closer look around the click** | **The whole lamp, knob, spout and base, with no leaks.** The outline is rounded and blobby, softening the spout's tip and the narrow stem. |
 
-**The lesson:** the lamp is a shaded 3D object. Its own colors range from deep shadow to bright highlight, a
-bigger difference than the one between its shadow side and the blue-grey ground. No color rule can separate
-them, so no tolerance works: low misses parts, high leaks. That's typical of objects in games, and it's the
-wrong job for any color-matching wand. Select Subject's first look at the whole picture sees only the character,
-but its closer look around the click (added 2026-10-27) finds the lamp.
+The lamp is a shaded 3D object. Its own colors range from deep shadow to bright highlight, a bigger difference
+than the one between its shadow side and the blue-grey ground. No color rule can separate them, so no tolerance
+works: low misses parts, high leaks.
 
-So the problem splits in two:
+**But Select Subject can't reach the lamp today.** Leah tried it, and it took the lalafell. When Vision's first
+look finds exactly one subject, Select Subject (and Lift Subject, and Remove Background) takes it at once without
+waiting for a click (`Editor.findSubject`). The closer look around a click only happens when the first look finds
+no subject or several. Claude's first test skipped straight to the closer look, so it got this wrong at first.
 
-- **Objects** (characters, items, props): Select Subject is the right tool, and the improvement it needs is a
-  **crisper outline**.
-- **Flat or gently shaded areas** (sky, walls, UI panels, text boxes): the wand is the right tool, and ideas 1–5
-  below still apply. We need an example of this kind before deciding.
+### The sky and the stone steps (areas)
+
+[Magic Wand sky test.png](Magic%20Wand%20sky%20test.png), clicking the sky (green dot): top row today's wand at
+10% and 20%, bottom row ideas 1–3 at a low and a medium setting.
+
+- **Sky:** today at 10% leaves the pink sunset near the horizon unselected, and 20% leaks into the mountains and
+  trees. Ideas 1–3 at the medium setting take the whole sky, sunset included, and stop cleanly at the mountains.
+  **A clear win for ideas 1–3.**
+- **Stone steps:** every method leaks into the blurred grey trees, and even onto the lalafell's leg, since
+  they're the same grey. Like the lamp, this needs something that understands shapes, not colors.
 
 ## Ideas
 
-### For objects: a crisper Select Subject (recommended first)
+### A way to point at the object you want (recommended first)
 
-A. **Refine Edge:** after Vision finds the subject, snap its soft, blobby outline to the real edges in the image
-   (an edge-aware filter that uses the picture itself as a guide, such as a guided filter). Keeps Vision's "this
-   is one object" understanding and adds the image's own detail: spout tips, the stem, gaps between parts. This
-   would also improve Remove Background, which uses the same masks.
+A. **Object mode for the Magic Wand.** The wand gets a Color / Object choice in its toolbar. In Object mode, a
+   click selects the object under the click: the subject Vision already found there, or, if none, the closer
+   look around the click. The lamp would be one click, with Shift and Option adding and subtracting as now. The
+   wand is where Leah reached naturally, so it's where this belongs. (Open question 1.)
 
-B. **Point it out from the wand:** when the wand is used on something Vision would call an object, nothing tells
-   you that Select Subject would do better. Possibly a gentle hint, or a "Smart" option on the wand that runs
-   Select Subject on the clicked object. (Open question 4.)
+B. **Refine Edge:** Vision's outline has the right shape but soft, rounded edges, like tracing with a thick
+   marker. Refine Edge would look at the actual picture along that outline and move it to where the object
+   really ends: the spout's tip comes back to a point, the stem gets its waist, and no strip of grey ground
+   stays stuck to the edge. It would sharpen Select Subject, Lift Subject and Remove Background too. Best judged
+   by eye, so it starts with a before-and-after for Leah.
 
 C. **Quick Selection brush** (later, larger): paint roughly over the thing you want, and the selection grows to
-   the nearest strong edges, like Photoshop's Quick Selection. For things Vision doesn't see as objects.
+   the nearest strong edges, like Photoshop's Quick Selection. For things Vision doesn't see as objects, like
+   the steps.
 
-### For flat areas: a better wand
+### For areas: a better color wand
 
 1. **Sample Size:** match against the average color of a small square around the click (Point, 3×3, 5×5),
    not one pixel. Makes noisy textures behave and the result less sensitive to the exact click.
@@ -79,31 +92,28 @@ C. **Quick Selection brush** (later, larger): paint roughly over the thing you w
 4. **Soft Edge:** pixels just outside the tolerance get partly selected, fading to none, so anti-aliased edges
    leave no halo. Colorbee already supports soft selections (FR-3.4).
 5. **Follow Gradients** (a separate mode): compare each pixel to its neighbor instead of to the click, so a
-   shaded sky is selected as one area. Leaks through soft boundaries easily; on the lamp picture it selected
-   everything. Only if needed after 1–4.
+   shaded area is selected as one. On the lamp picture it selected everything. Not recommended.
+
+## Decided (Leah, 2026-10-27; FRD §23)
+
+- **Fill changes with the wand**, so tolerance means one thing in both.
+- **New wand settings:** Sample Size as a small menu; Fill Pinholes and Soft Edge as toggles, on by default.
+  Perceptual matching may change what a given tolerance selects, and that's accepted.
 
 ## Open questions for Leah
 
-1. **Had you tried Select Subject on the lamp?** (Edit ▸ Select Subject, then click the lamp.) If it worked
-   but the edge looked rough, Refine Edge is the fix. If it didn't work, Claude needs to look at why.
-2. **Another example, please:** a game screenshot where you wanted a flat or gently shaded *area* (sky, a wall,
-   a menu panel), not an object. That decides whether ideas 1–5 are worth doing.
-3. **Fill too?** Fill uses the same matching as the wand. If the wand changes, change both (recommended: they'd
-   behave alike, and tolerance means one thing), or the wand only?
-4. **Steering to Select Subject:** do nothing, show a hint, or add a "Smart" option to the wand? Recommended:
-   wait until Refine Edge is in, then decide; a hint pointing to a blobby result wouldn't help.
-5. **New wand settings** (only if ideas 1–5 go ahead): Sample Size as a small menu; Fill Pinholes and Soft Edge
-   as toggles, on by default. Perceptual matching means 10% won't select exactly what it does today; recommended
-   to accept that.
+1. **Object mode.** A Color / Object choice on the Magic Wand (recommended), or a separate "Select Object" tool
+   with its own key, or change Select Subject to always wait for a click?
+2. **Refine Edge.** Try it as a before-and-after on the lamp first (recommended), then decide?
 
 ## Plan
 
-- **Done:** the lamp test (above).
-- **Next:** Leah answers questions 1 and 2.
-- **Refine Edge spike (recommended first):** try an edge-aware refinement on the lamp's Vision mask, outside the
-  app, and show Leah the before and after. If it looks right, build it into `SubjectScan` with tests, the help
-  page update and hand-test steps.
-- **Wand ideas:** only after a flat-area example shows they help. Same approach: compare outside the app first,
-  then build in `SelectionMask.magicWand` and `FloodFill`, with exact-value tests on small images and a speed
-  check on a large screenshot (the wand must stay instant).
+- **Done:** lamp, sky and steps tests (above).
+- **Next:** Leah answers the two open questions.
+- **Then, in this order:**
+  1. Object mode on the wand (small: it reuses Select Subject's search).
+  2. Refine Edge: a before-and-after on the lamp outside the app, then build into `SubjectScan` if Leah likes it.
+  3. Wand ideas 1–4 for Fill and the wand, in `SelectionMask.magicWand` and `FloodFill`, with exact-value tests
+     on small images and a speed check on a large screenshot (the wand must stay instant).
+  Each with tests, the help page update and hand-test steps.
 - Recommended model and effort: **Opus, high** (careful image work).

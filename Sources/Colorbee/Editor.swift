@@ -3483,6 +3483,18 @@ final class Editor {
         case whiteBalance
         /// The clicked color added to Point Color.
         case pointColor
+        /// The hand (FR-9.7 item 6): dragging up or down changes the Tone Curve region under the pointer.
+        case toneCurve
+        /// The hand in the Color Mixer: dragging changes this setting for the color under the pointer.
+        case colorMixer(ColorMixer.Setting)
+
+        /// The hand stays on, and drags; an eyedropper takes one click.
+        var drags: Bool {
+            switch self {
+            case .toneCurve, .colorMixer: true
+            case .whiteBalance, .pointColor: false
+            }
+        }
     }
 
     struct PicturePick: Equatable {
@@ -3525,6 +3537,112 @@ final class Editor {
 
     func cancelPicturePick() {
         picturePick = nil
+        pictureDrag = nil
+    }
+
+    /// The Color Mixer's hand follows its tab: switching to Saturation, say, makes drags change saturation.
+    func followMixerTab(_ setting: ColorMixer.Setting) {
+        guard case .colorMixer(let old) = picturePick?.purpose, old != setting else { return }
+        picturePick?.purpose = .colorMixer(setting)
+    }
+
+    /// The 5 × 5 pixels around `center`, averaged: in the panel, the active layer as it was before Adjust Photo; for an
+    /// Adjust Photo layer, the layers below it as shown. Nil where there's nothing to read.
+    private func pictureSample(at center: IntPoint, for target: PicturePick.Target) -> Pixel? {
+        let area = IntRect(x: center.x - 2, y: center.y - 2, width: 5, height: 5).intersection(canvas.bounds)
+        guard canvas.bounds.contains(center), !area.isEmpty else { return nil }
+        switch target {
+        case .panel:
+            return effectSource?.averageColor(in: area)
+        case .layer:
+            return canvas.patchAsShown(area, through: canvas.activeLayerIndex - 1)
+                .averageColor(in: IntRect(x: 0, y: 0, width: area.width, height: area.height))
+        }
+    }
+
+    // MARK: Dragging on the picture to adjust (FR-9.7 item 6)
+
+    /// A drag with the hand: what it changes, and where it started.
+    private struct PictureDrag {
+        let target: PicturePick.Target
+        /// The Tone Curve region, or the Color Mixer setting and range, under the pointer when the drag began.
+        let region: ToneCurve.Region?
+        let mixer: (setting: ColorMixer.Setting, range: ColorMixer.Range)?
+        let startY: Double
+        let startValue: Double
+    }
+
+    @ObservationIgnored private var pictureDrag: PictureDrag?
+
+    /// How many slider steps a drag of one view point makes: 200 points is the whole of one side.
+    static let pictureDragRate = 0.5
+
+    /// Starts a hand drag at `point` (image) and `viewY`. It reads the picture as it was before Adjust Photo, so the
+    /// target doesn't move while dragging. A press where there's nothing to read, or on a gray in the Color Mixer,
+    /// beeps. False if the hand isn't on, so the press does what it usually does.
+    func beginPictureDrag(at point: Point2D, viewY: Double) -> Bool {
+        guard let purpose = picturePickPurpose, purpose.drags, let pick = picturePick, let edit = currentPhotoEdit(for: pick.target) else {
+            return false
+        }
+        let center = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        guard let sample = pictureSample(at: center, for: pick.target) else {
+            onRefused()
+            return true
+        }
+        switch purpose {
+        case .toneCurve:
+            let curve = edit.toneCurve ?? ToneCurve()
+            let region = curve.region(for: sample)
+            pictureDrag = PictureDrag(target: pick.target, region: region, mixer: nil, startY: viewY, startValue: curve[region])
+        case .colorMixer(let tab):
+            let mixer = edit.mixer ?? ColorMixer()
+            let setting = mixer.blackAndWhite > 0 ? ColorMixer.Setting.gray : tab
+            guard let range = ColorMixer.range(for: sample) else {
+                onRefused()
+                return true
+            }
+            pictureDrag = PictureDrag(target: pick.target, region: nil, mixer: (setting, range), startY: viewY, startValue: mixer[setting, range])
+        case .whiteBalance, .pointColor:
+            return false
+        }
+        return true
+    }
+
+    /// Up is more (Q16.2).
+    func continuePictureDrag(viewY: Double) {
+        guard let drag = pictureDrag, var edit = currentPhotoEdit(for: drag.target) else { return }
+        let value = min(max((drag.startValue + (drag.startY - viewY) * Self.pictureDragRate).rounded(), -100), 100)
+        if let region = drag.region {
+            var curve = edit.toneCurve ?? ToneCurve()
+            guard curve[region] != value else { return }
+            curve[region] = value
+            edit.toneCurve = curve
+        } else if let (setting, range) = drag.mixer {
+            var mixer = edit.mixer ?? ColorMixer()
+            guard mixer[setting, range] != value else { return }
+            mixer[setting, range] = value
+            edit.mixer = mixer
+        }
+        switch drag.target {
+        case .panel: setPhotoEdit(edit)
+        case .layer: previewAdjustment(.photo(edit))
+        }
+    }
+
+    /// An Adjust Photo layer's drag is one step; in the panel, Apply makes the step.
+    func endPictureDrag() {
+        guard let drag = pictureDrag else { return }
+        pictureDrag = nil
+        if case .layer = drag.target { finishLayerSettings() }
+    }
+
+    var isDraggingOnPicture: Bool { pictureDrag != nil }
+
+    private func currentPhotoEdit(for target: PicturePick.Target) -> PhotoEdit? {
+        switch target {
+        case .panel: activeEffect == .adjustPhoto ? photoEdit : nil
+        case .layer: activePhotoLayerEdit
+        }
     }
 
     /// A click on the picture while an eyedropper is on. It reads the 5 × 5 pixels around the click: in the panel, the
@@ -3536,24 +3654,10 @@ final class Editor {
             picturePick = nil
             return false
         }
+        // The hand takes drags (`beginPictureDrag`), not clicks.
+        guard !purpose.drags else { return false }
         let center = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-        let area = IntRect(x: center.x - 2, y: center.y - 2, width: 5, height: 5).intersection(canvas.bounds)
-        guard canvas.bounds.contains(center), !area.isEmpty else {
-            onRefused()
-            return true
-        }
-        let sample: Pixel?
-        let current: PhotoEdit?
-        switch pick.target {
-        case .panel:
-            sample = effectSource?.averageColor(in: area)
-            current = photoEdit
-        case .layer:
-            sample = canvas.patchAsShown(area, through: canvas.activeLayerIndex - 1)
-                .averageColor(in: IntRect(x: 0, y: 0, width: area.width, height: area.height))
-            current = activePhotoLayerEdit
-        }
-        guard let sample, var changed = current else {
+        guard let sample = pictureSample(at: center, for: pick.target), var changed = currentPhotoEdit(for: pick.target) else {
             onRefused()
             return true
         }
@@ -3568,6 +3672,8 @@ final class Editor {
             }
             colors.add(sample)
             changed.pointColors = colors
+        case .toneCurve, .colorMixer:
+            return false
         }
         picturePick = nil
         switch pick.target {

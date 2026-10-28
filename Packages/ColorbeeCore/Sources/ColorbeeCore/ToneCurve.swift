@@ -38,6 +38,13 @@ public struct ToneCurve: Sendable, Hashable {
     /// Neutral with the splits where they start: nothing worth keeping.
     public var isDefault: Bool { isNeutral && splits == Self.defaultSplits }
 
+    /// The region a pixel's brightness falls in, between the splits, for dragging on the picture (FR-9.7 item 6).
+    public func region(for pixel: Pixel) -> Region {
+        let brightness = PhotoAdjustments.luma(SIMD3(Double(pixel.r), Double(pixel.g), Double(pixel.b))) / 255 * 100
+        let index = splits.firstIndex { brightness < $0 } ?? 3
+        return Region(rawValue: index)!
+    }
+
     /// Moves split `index`, keeping the three in order and `splitGap` apart.
     public mutating func setSplit(_ index: Int, to value: Double) {
         let low = index == 0 ? Self.splitGap : splits[index - 1] + Self.splitGap

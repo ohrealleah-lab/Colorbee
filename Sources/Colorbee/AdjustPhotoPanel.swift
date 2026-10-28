@@ -126,7 +126,9 @@ struct PhotoControls: View {
                 photo.toneCurve = changed
                 onChange(photo)
             }
-            ToneCurveGraph(curve: curve).frame(height: 110)
+            ToneCurveGraph(curve: curve)
+                .frame(height: 110)
+                .overlay(alignment: .topLeading) { handButton(.toneCurve, help: "Drag up or down on the picture to change the part of the curve under the pointer") }
             SplitSlider(splits: curve.splits) { index, value in
                 var changed = curve
                 changed.setSplit(index, to: value.rounded())
@@ -141,6 +143,24 @@ struct PhotoControls: View {
                 }
             }
         }
+    }
+
+    /// The hand (FR-9.7 item 6): while it's on, dragging up or down on the picture changes the slider for what's under
+    /// the pointer. Space-drag still pans; Esc or another click on the hand turns it off.
+    func handButton(_ purpose: Editor.PicturePickPurpose, help: String) -> some View {
+        let isOn = editor.isPicking(purpose)
+        return Button { editor.togglePicturePick(purpose) } label: {
+            Image(systemName: "hand.draw")
+                .font(.system(size: 12))
+                .frame(width: 22, height: 20)
+                .background(isOn ? Color.accentColor.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 4))
+                .foregroundStyle(isOn ? Color.accentColor : Theme.secondaryInk)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(isOn ? "Turn off dragging on the picture (or press Esc)" : help)
+        .accessibilityLabel("Drag on the picture")
+        .accessibilityValue(isOn ? "On" : "Off")
     }
 
     // MARK: Sharpness's and Noise Reduction's finer settings (FR-9.7 item 5)

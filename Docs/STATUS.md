@@ -14,6 +14,7 @@ _Last updated: 2026-10-28 · 695 core tests and 218 app tests passing; the full 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Stage 15: Tone curve and clipping warnings](#test-stage-15-tone-curve-and-clipping-warnings) (2026-10-28; stages 15 to 18b are built in a row, then tested together)
+- [Stage 16: Drag on the picture to adjust](#test-stage-16-drag-on-the-picture-to-adjust) (2026-10-28)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -73,6 +74,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 13. Sharpening and Noise Reduction in detail | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 14. Vignette and Grain | ✅ Done; passed Leah's test 2026-10-28 | Medium |
 | 14 · 15. Tone curve and clipping warnings | Built 2026-10-28; waiting for Leah's test (with stages 16 to 18b) | High |
+| 14 · 16. Drag on the picture to adjust | Built 2026-10-28; waiting for Leah's test (with stages 15, 17 to 18b) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -133,6 +135,9 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   `Editor.refreshPhotoHistogram`, `composite_fragment`) and the parametric Tone Curve (`ToneCurve.swift`, a monotone
   curve through four region points; `ToneCurveGraph`, `SplitSlider`). `Canvas.thumbnail` now includes Adjust Photo
   layers' color.
+- Stage 16 (2026-10-28): Adjust Photo's hand: `PicturePickPurpose.toneCurve` and `.colorMixer`, which stay on and
+  take drags (`Editor.beginPictureDrag` and on; `CanvasView`'s `.pictureAdjust` drag). `ToneCurve.region(for:)` and
+  `ColorMixer.range(for:)` say what's under the pointer.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -300,6 +305,18 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 16: Drag on the picture to adjust
+
+Test file: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first.
+1. Open the photo and choose Adjustments ▸ **Adjust Photo…**. In **Tone Curve**, click the **hand** in the graph's
+   top-left corner: it turns blue, and the pointer shows up-and-down arrows over the picture.
+2. Drag up on a dark part of the hills: the Shadows or Darks slider rises, and the curve lifts there. Drag down on
+   the bright sky: Highlights or Lights falls.
+3. Hold **Space** and drag: the picture pans instead.
+4. In **Color Mixer**, click **Saturation**, then the hand beside the tabs. Drag down on the sky: Blue (and maybe
+   Aqua) saturation drops. Drag on a gray part: a beep, and nothing changes.
+5. Press **Esc**: the hand turns off. Apply, then ⌘Z: it all comes off in one step.
 
 ### Test: Stage 15: Tone curve and clipping warnings
 

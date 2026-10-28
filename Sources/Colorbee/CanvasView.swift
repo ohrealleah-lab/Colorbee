@@ -23,6 +23,8 @@ final class CanvasView: NSView {
         case canvasResize(CanvasHandle, original: IntSize, grab: Point2D)
         /// Straighten's line, a perspective corner, or the crop box.
         case canvasTool
+        /// Adjust Photo's hand: up or down changes the slider under the pointer (FR-9.7 item 6).
+        case pictureAdjust
         case pan(last: NSPoint)
     }
 
@@ -501,6 +503,7 @@ final class CanvasView: NSView {
 
     private func currentCursor(at point: Point2D?) -> NSCursor {
         if spaceHeld { return .openHand }
+        if editor.picturePickPurpose?.drags == true { return .resizeUpDown }
         if editor.isPickingFromPicture { return .crosshair }
         if let point, let handle = canvasHandle(atView: editor.viewport.viewPoint(fromImage: point)) {
             return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
@@ -546,7 +549,11 @@ final class CanvasView: NSView {
             moveDivider(event)
             return
         }
-        // An Adjust Photo eyedropper takes one click, whatever the tool (FR-9.7).
+        // Adjust Photo's hand takes drags, and its eyedroppers one click, whatever the tool (FR-9.7). Space-drag pans.
+        if !spaceHeld, !secondary, editor.beginPictureDrag(at: imagePoint(event), viewY: viewPoint(event).y) {
+            drag = .pictureAdjust
+            return
+        }
         if !spaceHeld, !secondary, editor.pickFromPicture(at: imagePoint(event)) { return }
         if !spaceHeld, editor.activeEffect == nil, !secondary, let handle = canvasHandle(atView: viewPoint(event)) {
             drag = .canvasResize(handle, original: editor.canvasSize, grab: imagePoint(event))
@@ -635,6 +642,8 @@ final class CanvasView: NSView {
             moveDivider(event)
         case .canvasTool:
             editor.continueCanvasToolDrag(to: imagePoint(event), constrain: event.modifierFlags.contains(.shift))
+        case .pictureAdjust:
+            editor.continuePictureDrag(viewY: viewPoint(event).y)
         case .measure(let start):
             editor.measure(from: start, to: imagePoint(event))
             updatePointer(event)
@@ -685,6 +694,8 @@ final class CanvasView: NSView {
             break
         case .canvasTool:
             editor.endCanvasToolDrag()
+        case .pictureAdjust:
+            editor.endPictureDrag()
         case .divider, .measure:
             break
         case .gradient:

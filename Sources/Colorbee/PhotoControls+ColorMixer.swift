@@ -22,17 +22,23 @@ extension PhotoControls {
                 .controlSize(.mini)
                 .font(.system(size: 12))
                 .help("Make the picture black and white; the sliders then set how light each color becomes")
-                if !isBlackAndWhite {
-                    Picker("Color Mixer", selection: $mixerSetting) {
-                        Text("Hue").tag(ColorMixer.Setting.hue)
-                        Text("Saturation").tag(ColorMixer.Setting.saturation)
-                        Text("Luminance").tag(ColorMixer.Setting.luminance)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .controlSize(.small)
-                }
                 let setting = isBlackAndWhite ? ColorMixer.Setting.gray : mixerSetting
+                HStack(spacing: 6) {
+                    if !isBlackAndWhite {
+                        Picker("Color Mixer", selection: $mixerSetting) {
+                            Text("Hue").tag(ColorMixer.Setting.hue)
+                            Text("Saturation").tag(ColorMixer.Setting.saturation)
+                            Text("Luminance").tag(ColorMixer.Setting.luminance)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .controlSize(.small)
+                    } else {
+                        Spacer()
+                    }
+                    handButton(.colorMixer(setting), help: "Drag up or down on the picture to change the color under the pointer")
+                }
+                .onChange(of: setting) { editor.followMixerTab(setting) }
                 ForEach(ColorMixer.Range.allCases, id: \.self) { range in
                     row(range.title, value: mixer[setting, range], range: -100...100, unit: "", swatch: Self.swatch(range)) { value in
                         var changed = mixer

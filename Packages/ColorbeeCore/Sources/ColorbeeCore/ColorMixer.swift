@@ -55,6 +55,15 @@ public struct ColorMixer: Sendable, Hashable {
         return scaled
     }
 
+    /// The range that owns most of `pixel`'s hue, for dragging on the picture (FR-9.7 item 6); nil for a color too
+    /// close to gray to have one.
+    public static func range(for pixel: Pixel) -> Range? {
+        let high = max(pixel.r, pixel.g, pixel.b), low = min(pixel.r, pixel.g, pixel.b)
+        guard Int(high) - Int(low) >= 8 else { return nil }
+        let weights = weights(hue: HSL(pixel).hue)
+        return Range(rawValue: weights.indices.max { weights[$0] < weights[$1] }!)
+    }
+
     /// How much each range owns `hue` (degrees): two neighbors share it, with a soft (cosine) handover.
     static func weights(hue: Double) -> [Double] {
         let weights = weightVector(hue: hue)

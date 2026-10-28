@@ -1210,7 +1210,9 @@ Each has my recommendation and why. "Before stage N" means I need the answer bef
   in your Applications folder stays old. *Recommend* cutting a beta right after stage 1a and using it as your
   everyday copy. Until then, don't save or delete filters in beta 7.
   Another beta after stages 6, 16, 21, 26, 28b and 31. **Answer: yes.** (The beta moved from after stage 1 to after
-  stage 1a when stage 1 was split, Q0.10.)
+  stage 1a when stage 1 was split, Q0.10.) **Changed (Leah, 2026-10-28):** no betas along the way. The next beta is
+  cut only when every stage is built and Leah has tested it all ("fully done and buttoned up"); internal testing
+  always comes before external.
 - **Q0.4 What filters hold.** Should these be saved in filters? *Recommend:*
   - **Dehaze: in.** It changes the tone. (The review found it also looks at neighboring pixels, so in a filter it
     goes through stage 1a's path for settings that aren't colors. That doesn't change the answer.)

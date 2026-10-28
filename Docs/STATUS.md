@@ -29,6 +29,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - **Full scope.** Never propose cutting features to save time. Colorbee is a paint program first; no mind-mapping or structured-diagram features.
 - **Say the recommended model and effort before each stage** (Opus throughout; high for design-heavy work, medium for routine UI).
 - Log any behavior choices Claude makes on its own in FRD §23, phrased "veto any".
+- **Waterfall, internal testing first** (Leah, 2026-10-28): no betas along the way. The next beta is cut only when every stage is built and Leah has tested all of it ("fully done and buttoned up"). Don't suggest a beta before then.
 - Prefer plain explanations. Leah tests features by hand and reports back; give her a short "please try" list after each stage.
 - **Keep "Waiting for Leah's tests" at the top current:** add each new test there with a link to its steps (a `### Test: …` heading), and remove it when it passes. Also give Leah the steps in chat; the file is long.
 - Work locally (no cloud sessions: the build needs macOS and Xcode). The repo is public on GitHub at github.com/ohrealleah-lab/Colorbee so employers can see it: keep commits and docs presentable, never commit secrets or personal data, and push after each commit.

@@ -1,6 +1,6 @@
 # Proposal: Selecting things in game screenshots
 
-Status: **idea, tested on one screenshot** (2026-10-27). Planning only; nothing is built. This is separate from
+Status: **planned, waiting to be scheduled** (2026-10-27). All questions answered. Planning only; nothing is built. This is separate from
 the Lightroom-style development plan.
 
 ## The problem
@@ -107,15 +107,16 @@ C. **Quick Selection brush** (later, larger): paint roughly over the thing you w
 - **New wand settings:** Sample Size as a small menu; Fill Pinholes and Soft Edge as toggles, on by default.
   Perceptual matching may change what a given tolerance selects, and that's accepted.
 
+- **Refine Edge:** try it first as a before-and-after on the lamp, outside the app, then decide whether to build it.
+
 ## Open questions for Leah
 
-1. **Refine Edge.** Try it as a before-and-after on the lamp first (recommended), then decide?
+None for now.
 
 ## Plan
 
 - **Done:** lamp, sky and steps tests (above).
-- **Next:** Leah answers the open question about Refine Edge.
-- **Then, in this order:**
+- **When Leah says go, in this order:**
   1. Object mode on the wand (small: it reuses Select Subject's search).
   2. Refine Edge: a before-and-after on the lamp outside the app, then build into `SubjectScan` if Leah likes it.
   3. Wand ideas 1–4 for Fill and the wand, in `SelectionMask.magicWand` and `FloodFill`, with exact-value tests

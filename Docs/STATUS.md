@@ -13,13 +13,7 @@ _Last updated: 2026-10-28 · 636 core tests and 187 app tests passing; `make per
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Faster Color Grading, Color Mixer and Point Color](#test-faster-color-grading-color-mixer-and-point-color) (2026-10-28)
-- [Stage 1b: Whites and the white-balance eyedropper](#test-stage-1b-whites-and-the-white-balance-eyedropper) (2026-10-27)
-- [Stage 2: Same as Last, and copy and paste settings](#test-stage-2-same-as-last-and-copy-and-paste-settings) (2026-10-27)
-- [Stage 3: Texture and Dehaze](#test-stage-3-texture-and-dehaze) (2026-10-27)
-- [Stage 4: Color Mixer and Black & White](#test-stage-4-color-mixer-and-black-white) (2026-10-27)
-- [Stage 5: Color Grading](#test-stage-5-color-grading) (2026-10-27)
-- [Stage 6: Point Color](#test-stage-6-point-color) (2026-10-27)
+Nothing waiting: stages 1b to 6 and the faster Color Grading passed (Leah, 2026-10-28).
 
 ---
 
@@ -62,12 +56,12 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
 | 14 · 1a. Adjust Photo groundwork (FR-9.7 rule) | ✅ Done; passed Leah's test 2026-10-27 | High |
-| 14 · 1b. Whites and the white-balance eyedropper (FR-9.7 item 1) | Built 2026-10-27; waiting for Leah's test. Stage 2 not started | High |
-| 14 · 2. Same as Last, and copy and paste settings | Built 2026-10-27; waiting for Leah's test | High |
-| 14 · 3. Texture and Dehaze | Built 2026-10-27; waiting for Leah's test | High |
-| 14 · 4. Color Mixer and Black & White | Built 2026-10-27; waiting for Leah's test | High |
-| 14 · 5. Color Grading | Built 2026-10-27; waiting for Leah's test | High |
-| 14 · 6. Point Color | Built 2026-10-27; waiting for Leah's test | High |
+| 14 · 1b. Whites and the white-balance eyedropper (FR-9.7 item 1) | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 2. Same as Last, and copy and paste settings | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 3. Texture and Dehaze | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 4. Color Mixer and Black & White | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 5. Color Grading | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 6. Point Color | ✅ Done; passed Leah's test 2026-10-28 | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -266,7 +260,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Faster Color Grading, Color Mixer and Point Color
+### Test: Faster Color Grading, Color Mixer and Point Color (passed 2026-10-28)
 
 Leah found that dragging a Color Grading wheel lagged badly (2026-10-28). Each drag step redoes the whole picture in
 the background, and every core was counting the same shared references up and down for every pixel. With Color
@@ -285,7 +279,7 @@ Use `make run`, then open `TestImages/Photo Editing/Texture Practice.png` and ma
 6. Choose Layer ▸ New Adjustment Layer ▸ Adjust Photo, then set Color Mixer ▸ Hue Green +60 and drag the Shadows
    wheel: the canvas follows the drag smoothly.
 
-### Test: Stage 6: Point Color
+### Test: Stage 6: Point Color (passed 2026-10-28)
 
 Test files: `TestImages/Photo Editing/Color Chart.png`. Run `make run` first for a fresh Release copy.
 1. Open `Color Chart.png` and choose Adjust Photo. In **Point Color** (under the Color Mixer), click its eyedropper,
@@ -301,7 +295,7 @@ Test files: `TestImages/Photo Editing/Color Chart.png`. Run `make run` first for
    then the **Blue** patch, and drag Hue to +60: only the Blue patch shifts. ⌘Z undoes the shift, and ⌘Z again the
    picked color.
 
-### Test: Stage 5: Color Grading
+### Test: Stage 5: Color Grading (passed 2026-10-28)
 
 Test files: `TestImages/Photo Editing/Color Chart.png`, `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy.
 1. Open `Color Chart.png` and choose Adjust Photo. Under the Color Mixer there's **Color Grading**. On the **Shadows**
@@ -316,7 +310,7 @@ Test files: `TestImages/Photo Editing/Color Chart.png`, `TestImages/Stage 9 Prac
 6. Open Adjust Photo again, turn on **Black & White** (in the Color Mixer), then set the Shadows wheel toward blue and
    the Highlights wheel toward yellow: a split-toned black and white. Apply, then ⌘Z.
 
-### Test: Stage 4: Color Mixer and Black & White
+### Test: Stage 4: Color Mixer and Black & White (passed 2026-10-28)
 
 Test files: `TestImages/Photo Editing/Color Chart.png` (its colors are listed in `Color Chart.txt`), `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy.
 1. Open `Color Chart.png` and choose Adjust Photo. Under Color there's a **Color Mixer** section. Choose its
@@ -334,14 +328,15 @@ Test files: `TestImages/Photo Editing/Color Chart.png` (its colors are listed in
 6. On `Color Chart.png`, Adjust Photo, Hue tab, Green +100, then **As Adjustment Layer**. File ▸ Export… as a PNG and
    open it in Preview: the patches look the same as in Colorbee.
 
-### Test: Stage 3: Texture and Dehaze
+### Test: Stage 3: Texture and Dehaze (passed 2026-10-28)
 
 Test files: `TestImages/Photo Editing/Hazy.png`, `TestImages/Photo Editing/Texture Practice.png`. Run `make run` first for a fresh Release copy.
 1. Open `Hazy.png` and choose Adjust Photo. Drag **Dehaze** (in Light, after Brilliance) to +50: the haze lifts, the
    hills turn green again and the sky deepens. Drag it on to +100 and look at the sky at 100%: a smooth gradient with
    fine grain, no stripes. Apply, then ⌘Z.
    (Remade 2026-10-28: the first `Hazy.png` had no grain, so its sky held only a few shades and Dehaze stretched them
-   into stripes. Real photos have grain that hides those steps; the new picture does too.)
+   into stripes. Real photos have grain that hides those steps; the new picture does too. Leah confirmed real photos
+   don't stripe.)
 2. Open Adjust Photo again and drag Dehaze to −50: the picture gets hazier. Cancel.
 3. Open Adjust Photo again, Dehaze +50, then ⋯ ▸ Save as Filter… named "Clear". Open `Texture Practice.png` and
    choose Clear: it gets clearer and more contrasty too (filters keep Dehaze). Cancel.
@@ -353,7 +348,7 @@ Test files: `TestImages/Photo Editing/Hazy.png`, `TestImages/Photo Editing/Textu
    strokes across the hills: drawing stays smooth, and the strokes get the crisper look too.
 7. File ▸ Export… as a PNG and open it in Preview. Zoom both to 100%: the grass looks the same.
 
-### Test: Stage 2: Same as Last, and copy and paste settings
+### Test: Stage 2: Same as Last, and copy and paste settings (passed 2026-10-28)
 
 Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/Color Cast.png`. Run `make run` first for a fresh Release copy.
 1. Open `TestImages/Stage 9 Practice Photo.png` and choose Adjustments ▸ Adjust Photo…. Choose **Vivid**, set
@@ -373,7 +368,7 @@ Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/C
 8. In Preview, copy a picture (⌘C). In Colorbee, open Adjust Photo on any picture, click Copy Settings, Cancel, then press ⌘V:
    the picture from Preview pastes, so copying settings didn't replace it.
 
-### Test: Stage 1b: Whites and the white-balance eyedropper
+### Test: Stage 1b: Whites and the white-balance eyedropper (passed 2026-10-28)
 
 Test files: in `TestImages/Photo Editing/`, `Color Cast.png`, `Dull Photo.png` and `Bright Photo.png`; also
 `TestImages/Stage 9 Practice Cutout.png`. Run `make run` first for a fresh Release copy.

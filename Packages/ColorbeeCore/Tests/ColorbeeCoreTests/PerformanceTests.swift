@@ -141,6 +141,19 @@ struct PerformanceTests {
         #expect(table < .milliseconds(50), "the screen's color table took \(table)")
     }
 
+    /// History Snapshots (stage 12): taking one copies every layer to disk, compressed; going to it reads them back.
+    @Test func takeAndGoToASnapshot() throws {
+        let canvas = PerformanceFixture.photo(side: Self.side)
+        let history = History(byteBudget: 512 << 20)
+        var snapshot: HistorySnapshot?
+        let take = ContinuousClock().measure { snapshot = try? history.takeSnapshot(named: "Start", of: canvas) }
+        #expect(take < .milliseconds(300), "taking took \(take)")
+        let id = try #require(snapshot).id
+        let go = ContinuousClock().measure { try? history.goToSnapshot(id, on: canvas) }
+        #expect(go < .milliseconds(300), "going to it took \(go)")
+        print("Snapshot at 8000 × 8000: take \(take), go \(go)")
+    }
+
     /// Edit ▸ Modify Selection at its largest radius on a selection nearly the size of the image. Hard edges use a
     /// distance map and take about as long at any radius; soft edges take longer, worked out in the background.
     @Test func modifyALargeSelection() throws {

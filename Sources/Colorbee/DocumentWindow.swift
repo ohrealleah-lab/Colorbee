@@ -235,6 +235,12 @@ final class DocumentWindow: NSWindow {
     @objc func toggleAdjustmentsPanel(_ sender: Any?) { editor?.toggleAdjustmentsPanel() }
     @objc func applyAdjustment(_ sender: Any?) { editor?.applyAdjustmentLayer() }
     @objc func undoOnActiveLayer(_ sender: Any?) { editor?.undoOnActiveLayer() }
+
+    /// Edit ▸ New Snapshot… and the History panel's button (FR-9.7 item 4).
+    @objc func newSnapshot(_ sender: Any?) {
+        guard let editor else { return }
+        SnapshotPrompt.newSnapshot(editor: editor)
+    }
     @objc func revertLayer(_ sender: Any?) { editor?.revertLayer() }
 
     @objc func newAdjustmentLayer(_ sender: Any?) {
@@ -465,6 +471,8 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(applyAdjustment(_:)):
             return LayerActions.canApplyAdjustment(editor.canvas)
+        case #selector(newSnapshot(_:)):
+            return true
         case #selector(undoOnActiveLayer(_:)):
             let name = editor.undoOnActiveLayerName
             menuItem.title = name.map { "Undo \($0) on Active Layer" } ?? "Undo on Active Layer"

@@ -865,6 +865,52 @@ final class Editor {
         while history.undoCount < count, history.canRedo, stepShownPage(undoing: false) {}
     }
 
+    // MARK: History Snapshots (FR-9.7 item 4)
+
+    /// The page's snapshots, oldest first.
+    var historySnapshots: [HistorySnapshot] {
+        _ = layersRevision
+        return history.snapshots
+    }
+
+    /// What New Snapshot… suggests: "Snapshot 1", "Snapshot 2" and so on, skipping names in use.
+    var nextSnapshotName: String {
+        let names = Set(history.snapshots.map(\.name))
+        return (1...).lazy.map { "Snapshot \($0)" }.first { !names.contains($0) }!
+    }
+
+    /// Copies the image as it is now. A floating selection is placed first, keeping its outline, since a snapshot
+    /// holds only layers and a marquee.
+    func takeSnapshot(named name: String) throws(HistorySnapshot.Failure) {
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        try history.takeSnapshot(named: name, of: canvas)
+        layersRevision += 1
+    }
+
+    /// Puts the image back as the snapshot has it, as one step that ⌘Z takes back (Q12.5).
+    func goToSnapshot(_ id: HistorySnapshot.ID) {
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        stopFillForChange()
+        otherChosenLayerIDs = []
+        var failed = false
+        performSelectionCommand {
+            do { try history.goToSnapshot(id, on: canvas) } catch { failed = true }
+        }
+        if failed { onRefused() }
+    }
+
+    func renameSnapshot(_ id: HistorySnapshot.ID, to name: String) {
+        history.renameSnapshot(id, to: name)
+        layersRevision += 1
+    }
+
+    func deleteSnapshot(_ id: HistorySnapshot.ID) {
+        history.deleteSnapshot(id)
+        layersRevision += 1
+    }
+
     // MARK: Canvas (FR-1.4)
 
     var isCanvasPropertiesOpen = false

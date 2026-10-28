@@ -205,6 +205,10 @@ public final class History {
     private var undoStack: [HistoryEntry] = []
     private var redoStack: [HistoryEntry] = []
     private var spillStore: SpillStore?
+    /// Named copies of the image (History Snapshots), oldest first. See `History+Snapshots.swift`.
+    public internal(set) var snapshots: [HistorySnapshot] = []
+    /// Where the snapshots' pixels are, compressed; nil while there are none.
+    var snapshotStore: SpillStore?
 
     /// When on, a layer moved out of memory to keep within the budget is compressed on another thread, so the
     /// step that made room (a Flatten or Merge, say) doesn't wait for it (AC-27). Finished work is filed at
@@ -217,7 +221,8 @@ public final class History {
 
     /// Forgets every step, so nothing can be undone or redone, and lets go of everything kept for them,
     /// the spill file included (Leah, 2026-10-04: after a redacted file's earlier versions are removed).
-    /// The canvas stays as it is.
+    /// Snapshots go too, since one from before a redaction would bring the secret back (Q12.3). The canvas stays as
+    /// it is.
     public func removeAll() {
         evictionQueue.sync {}
         _ = finishedEvictions.take()
@@ -227,6 +232,8 @@ public final class History {
         evicted = [:]
         diskCopies = [:]
         spillStore = nil
+        snapshots = []
+        snapshotStore = nil
         tileBytes = 0
         layerBytes = 0
         revision += 1

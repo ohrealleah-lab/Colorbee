@@ -226,7 +226,8 @@ public final class Canvas {
                                        clipsToLayerBelow: $0.clipsToLayerBelow, buffer: $0.buffer)
             },
             activeIndex: activeLayerIndex,
-            hasTransparentBackground: hasTransparentBackground
+            hasTransparentBackground: hasTransparentBackground,
+            size: size
         )
     }
 
@@ -245,6 +246,7 @@ public final class Canvas {
         }
         activeLayerIndex = min(max(0, state.activeIndex), layers.count - 1)
         hasTransparentBackground = state.hasTransparentBackground
+        size = state.size
     }
 
     func removeLayer(at index: Int) {
@@ -435,9 +437,11 @@ struct LayerStackState {
     let records: [Record]
     let activeIndex: Int
     let hasTransparentBackground: Bool
+    /// The canvas size the buffers have. Only going to a History Snapshot changes it in a layer step.
+    let size: IntSize
 
     func isSame(as other: LayerStackState) -> Bool {
-        records.count == other.records.count && activeIndex == other.activeIndex
+        records.count == other.records.count && activeIndex == other.activeIndex && size == other.size
             && hasTransparentBackground == other.hasTransparentBackground
             && zip(records, other.records).allSatisfy { a, b in a.layer === b.layer && a.matches(b) }
     }

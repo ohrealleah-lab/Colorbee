@@ -36,6 +36,18 @@ enum Snapshot {
             editor.showsAdjustmentsPanel = false
             editor.togglePanel(\.showsInfoPanel)
         }
+        // `-ColorbeeSnapshotHistorySnapshots 2` takes that many History Snapshots, with a step between, and shows the
+        // History panel.
+        let historySnapshots = defaults.integer(forKey: "ColorbeeSnapshotHistorySnapshots")
+        if historySnapshots > 0 {
+            for index in 0..<historySnapshots {
+                try? editor.takeSnapshot(named: ["Start", "Before dramatic", "Warmer"][index % 3])
+                editor.applyAdjustment(.invert)
+            }
+            editor.showsLayersPanel = false
+            editor.showsAdjustmentsPanel = false
+            editor.togglePanel(\.showsHistoryPanel)
+        }
         if let name = defaults.string(forKey: "ColorbeeSnapshotTool"), let tool = Tool.allCases.first(where: { "\($0)" == name }) {
             editor.selectTool(tool)
         }

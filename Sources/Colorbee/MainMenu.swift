@@ -107,6 +107,7 @@ enum MainMenu {
         "showGraduatedSelection:": "Drag a line: fully selected where it starts, fading to nothing where it ends.",
         "showLuminanceRange:": "Select by brightness: the shadows, midtones or highlights.",
         "pasteInPlace:": "Paste exactly where the copied pixels came from, in this image or another one.",
+        "newSnapshot:": "Name the image as it is now, so you can go back to it from the History panel.",
         "showFeather:": "Soften the selection's edge, so changes fade out across it.",
         "showExpandSelection:": "Grow the selection outward by a number of pixels.",
         "showContractSelection:": "Shrink the selection inward by a number of pixels.",
@@ -232,6 +233,7 @@ enum MainMenu {
         menu.addItem(item("Undo", "undo:", "z"))
         menu.addItem(item("Redo", "redo:", "z", [.command, .shift]))
         menu.addItem(item("Undo on Active Layer", "undoOnActiveLayer:", "z", [.command, .option]))
+        menu.addItem(item("New Snapshot…", "newSnapshot:", ""))
         menu.addItem(.separator())
         menu.addItem(item("Cut", "cut:", "x"))
         menu.addItem(item("Copy", "copy:", "c"))

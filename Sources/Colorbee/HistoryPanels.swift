@@ -3,7 +3,7 @@ import ColorbeeCore
 import SwiftUI
 
 /// The History panel (FR-13.2): every step with a small picture. Clicking one jumps there; steps after
-/// it are dimmed and can be redone until the next change.
+/// it are dimmed and can be redone until the next change. Snapshots (FR-9.7 item 4) are listed first.
 struct HistoryPanel: View {
     @Bindable var editor: Editor
 
@@ -13,10 +13,15 @@ struct HistoryPanel: View {
         ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: 2) {
-                    row(name: "Opened", thumbnail: nil, isCurrent: done == 0, isUndone: false) { editor.jump(toStep: 0) }
+                    snapshots
+                    Divider().padding(.vertical, 4)
+                    row(name: "Opened", thumbnail: nil, isCurrent: done == 0, isUndone: false, help: "Click to go back to this point") {
+                        editor.jump(toStep: 0)
+                    }
                         .id(0)
                     ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
-                        row(name: step.name, thumbnail: step.thumbnail, isCurrent: index + 1 == done, isUndone: step.isUndone) {
+                        row(name: step.name, thumbnail: step.thumbnail, isCurrent: index + 1 == done, isUndone: step.isUndone,
+                            help: step.isUndone ? "Undone: click to redo up to here" : "Click to go back to this point") {
                             editor.jump(toStep: index + 1)
                         }
                         .id(index + 1)
@@ -29,7 +34,41 @@ struct HistoryPanel: View {
         .frame(minHeight: 100, maxHeight: .infinity)
     }
 
-    private func row(name: String, thumbnail: Thumbnail?, isCurrent: Bool, isUndone: Bool, action: @escaping () -> Void) -> some View {
+    /// The Snapshots heading with its New Snapshot button, then each snapshot. A click goes to it, as a step.
+    @ViewBuilder private var snapshots: some View {
+        HStack {
+            Text("Snapshots").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryInk)
+            Spacer()
+            Button { SnapshotPrompt.newSnapshot(editor: editor) } label: {
+                Image(systemName: "camera").font(.system(size: 12))
+            }
+            .buttonStyle(.borderless)
+            .help("New Snapshot: name the image as it is now, to come back to later")
+            .accessibilityLabel("New Snapshot")
+        }
+        .padding(.horizontal, 6)
+        .padding(.top, 4)
+        ForEach(editor.historySnapshots) { snapshot in
+            row(name: snapshot.name, thumbnail: snapshot.thumbnail, isCurrent: false, isUndone: false,
+                help: "Click to go back to “\(snapshot.name)”. ⌘Z comes back here.") {
+                editor.goToSnapshot(snapshot.id)
+            }
+            .contextMenu {
+                Button("Rename…") { rename(snapshot) }
+                Button("Delete") { editor.deleteSnapshot(snapshot.id) }
+            }
+            .accessibilityAction(named: "Rename") { rename(snapshot) }
+            .accessibilityAction(named: "Delete") { editor.deleteSnapshot(snapshot.id) }
+        }
+    }
+
+    private func rename(_ snapshot: HistorySnapshot) {
+        guard let name = askForName("Rename Snapshot", defaultName: snapshot.name, confirm: "Rename") else { return }
+        editor.renameSnapshot(snapshot.id, to: name)
+    }
+
+    private func row(name: String, thumbnail: Thumbnail?, isCurrent: Bool, isUndone: Bool, help: String,
+                     action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Group {
@@ -53,7 +92,7 @@ struct HistoryPanel: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(isUndone ? "Undone: click to redo up to here" : "Click to go back to this point")
+        .help(help)
         .accessibilityLabel(name)
         .accessibilityValue(isCurrent ? "Current step" : isUndone ? "Undone" : "")
     }
@@ -63,6 +102,35 @@ struct HistoryPanel: View {
         buffer.setPixels(thumbnail.pixels, in: buffer.bounds)
         guard let cgImage = try? ImageCodec.makeCGImage(buffer, colorSpace: editor.canvas.colorSpace) else { return nil }
         return NSImage(cgImage: cgImage, size: NSSize(width: thumbnail.width, height: thumbnail.height))
+    }
+}
+
+/// New Snapshot… (FR-9.7 item 4): asks for a name, takes the snapshot and shows it in the History panel, or says why
+/// it can't.
+@MainActor
+enum SnapshotPrompt {
+    static func newSnapshot(editor: Editor) {
+        guard editor.historySnapshots.count < History.snapshotLimit else { return tellFull() }
+        guard let name = askForName("New Snapshot", message: "Name the image as it is now. Click the name in the History panel to come back to it.",
+                                    defaultName: editor.nextSnapshotName, confirm: "Take Snapshot") else { return }
+        do {
+            try editor.takeSnapshot(named: name)
+            if !(editor.isSidebarOpen && editor.showsHistoryPanel) { editor.togglePanel(\.showsHistoryPanel) }
+        } catch .full {
+            tellFull()
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Colorbee couldn't keep this snapshot."
+            alert.informativeText = "There may not be enough disk space. Your picture hasn't changed."
+            alert.runModal()
+        }
+    }
+
+    private static func tellFull() {
+        let alert = NSAlert()
+        alert.messageText = "This page has \(History.snapshotLimit) snapshots, the most it can keep."
+        alert.informativeText = "Delete one first: in the History panel, Control-click a snapshot and choose Delete."
+        alert.runModal()
     }
 }
 

@@ -9,7 +9,7 @@ let isOptimizedBuild = false
 let isOptimizedBuild = true
 #endif
 
-/// AC-27 at 8000 × 8000: random drawing, effects and layer changes, then undo everything. No step may
+/// AC-27 at 8000 × 8000: random drawing, effects, layer changes and History Snapshots, then undo everything. No step may
 /// take a second, and undoing all of it must bring back the exact original image (NFR-7). Run with `make perf`.
 @Suite(.enabled(if: isOptimizedBuild, "Run with make perf (Release)"), .serialized)
 struct SoakTests {
@@ -58,7 +58,7 @@ struct SoakTests {
 
         for step in 0..<60 {
             let color = Pixel(r: random.byte(), g: random.byte(), b: random.byte())
-            switch random.int(0..<10) {
+            switch random.int(0..<11) {
             case 0:
                 timed("Fill") {
                     let edit = history.beginEdit("Fill", on: canvas)
@@ -109,6 +109,12 @@ struct SoakTests {
                     LayerActions.addAdjustment(.brightnessContrast(brightness: 10, contrast: 20), named: "B/C", canvas: canvas, history: history, context: context)
                 }
             case 4, 5: continue
+            case 10 where history.snapshots.count < History.snapshotLimit && random.int(0..<2) == 0:
+                timed("New Snapshot") { _ = try? history.takeSnapshot(named: "Snapshot \(step)", of: canvas) }
+            case 10 where !history.snapshots.isEmpty:
+                let id = history.snapshots[random.int(0..<history.snapshots.count)].id
+                timed("Go to Snapshot") { _ = try? history.goToSnapshot(id, on: canvas) }
+            case 10: continue
             case 6: timed("Merge Down") { LayerActions.mergeDown(canvas: canvas, history: history, context: context) }
             case 7: timed("Flatten") { LayerActions.flatten(canvas: canvas, history: history, context: context) }
             case 8:

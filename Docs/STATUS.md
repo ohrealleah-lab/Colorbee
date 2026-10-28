@@ -7,13 +7,14 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-28 · 670 core tests and 208 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
+_Last updated: 2026-10-28 · 678 core tests and 214 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Stage 11: .cube looks](#test-stage-11-cube-looks) (2026-10-28; stages 11 to 14 are built in a row, then tested together)
+- [Stage 12: History Snapshots](#test-stage-12-history-snapshots) (2026-10-28)
 
 ---
 
@@ -67,6 +68,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 9. Color Range and Luminance Range | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 10. Graduated selection | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 11. .cube looks | Built 2026-10-28; waiting for Leah's test (with stages 12 to 14) | High |
+| 14 · 12. History Snapshots | Built 2026-10-28; waiting for Leah's test (with stages 11, 13 and 14) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -112,6 +114,10 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - Stage 11 (2026-10-28): .cube looks. `CubeFile.swift` reads them; `ColorLook.swift` holds the table (stored as
   binary) and blends between its points (tetrahedral). A look is `Effect.look`, a step of a filter, so it gets
   Intensity, adjustment layers and .colorbeefilter export from the filter code. Import Filter… takes .cube files.
+- Stage 12 (2026-10-28): History Snapshots (`HistorySnapshot.swift`, `History+Snapshots.swift`). A snapshot
+  compresses every layer to its own scratch file at once; going to one is a layer step whose `LayerStackState` now
+  carries the canvas size, so it can bring back a different size. `History.removeAll` clears snapshots. The soak
+  test takes and goes to snapshots.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -279,6 +285,23 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 12: History Snapshots
+
+Test files: `TestImages/Photo Editing/Dull Photo.png` and `TestImages/Auto-Redact Practice.png`. Run `make run` first.
+1. Open `Dull Photo.png` and choose **Edit ▸ New Snapshot…**. It suggests "Snapshot 1"; type **Start** and click
+   Take Snapshot. The History panel opens with **Start** under a "Snapshots" heading.
+2. Paint a stroke, choose Adjust Photo ▸ **Noir** ▸ Apply, then draw a selection and choose Image ▸ **Crop to
+   Selection**. Click **Start**: the whole photo is back as it began, full size. The newest step is "Go to Snapshot".
+3. ⌘Z: you're back at the cropped Noir version.
+4. Click **Start**, paint a stroke, then click **Start** again: the stroke is gone. It still works.
+5. Control-click **Start** and choose **Rename…**: rename it. Then Control-click it and choose **Delete**: it's gone.
+6. Click the panel's **camera** button 11 times, pressing Return each time: the 11th time, a message says the page
+   has 10 snapshots, the most it can keep, and to delete one first.
+7. In Finder, duplicate `Auto-Redact Practice.png` and open the copy. Make any small change and ⌘S, so the file has
+   an earlier version. Take a snapshot. Choose Auto-Redact, Solid Fill, Apply, then ⌘S, and when asked, choose
+   **Remove Earlier Versions and Undo History**. The snapshot is gone from the History panel. Delete the copy when
+   you're done.
 
 ### Test: Stage 11: .cube looks
 

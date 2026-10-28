@@ -67,10 +67,16 @@ no subject or several. Claude's first test skipped straight to the closer look, 
 
 ### A way to point at the object you want (recommended first)
 
-A. **Object mode for the Magic Wand.** The wand gets a Color / Object choice in its toolbar. In Object mode, a
-   click selects the object under the click: the subject Vision already found there, or, if none, the closer
-   look around the click. The lamp would be one click, with Shift and Option adding and subtracting as now. The
-   wand is where Leah reached naturally, so it's where this belongs. (Open question 1.)
+A. **Object mode for the Magic Wand** (decided). The wand gets a Color / Object choice in its toolbar. In Object
+   mode, a click selects the object under the click: the subject Vision's first look found there, or, if none,
+   the closer look around the click. The lamp would be one click. The wand is where Leah reached naturally, so
+   it's where this belongs. Claude's choices (veto any):
+   - Shift and Option add and subtract, as in Color mode.
+   - Tolerance and Contiguous are greyed out in Object mode; Sample All Layers still applies.
+   - While Vision looks, the status bar says "Looking closer…" and Esc stops it, as in Select Subject.
+   - A click where nothing is found beeps and leaves the selection as it was.
+   - The wand remembers the last mode, like its other settings. Color stays the default.
+   - The first look's results are kept until the image changes, so further clicks on the same picture are quick.
 
 B. **Refine Edge:** Vision's outline has the right shape but soft, rounded edges, like tracing with a thick
    marker. Refine Edge would look at the actual picture along that outline and move it to where the object
@@ -96,20 +102,19 @@ C. **Quick Selection brush** (later, larger): paint roughly over the thing you w
 
 ## Decided (Leah, 2026-10-27; FRD §23)
 
+- **Object mode:** a Color / Object choice on the Magic Wand (idea A).
 - **Fill changes with the wand**, so tolerance means one thing in both.
 - **New wand settings:** Sample Size as a small menu; Fill Pinholes and Soft Edge as toggles, on by default.
   Perceptual matching may change what a given tolerance selects, and that's accepted.
 
 ## Open questions for Leah
 
-1. **Object mode.** A Color / Object choice on the Magic Wand (recommended), or a separate "Select Object" tool
-   with its own key, or change Select Subject to always wait for a click?
-2. **Refine Edge.** Try it as a before-and-after on the lamp first (recommended), then decide?
+1. **Refine Edge.** Try it as a before-and-after on the lamp first (recommended), then decide?
 
 ## Plan
 
 - **Done:** lamp, sky and steps tests (above).
-- **Next:** Leah answers the two open questions.
+- **Next:** Leah answers the open question about Refine Edge.
 - **Then, in this order:**
   1. Object mode on the wand (small: it reuses Select Subject's search).
   2. Refine Edge: a before-and-after on the lamp outside the app, then build into `SubjectScan` if Leah likes it.

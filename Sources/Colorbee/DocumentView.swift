@@ -402,8 +402,11 @@ private struct EffectBar: View {
                     .foregroundStyle(.secondary)
             }
             if kind == .perspective {
-                Text("Drag the four corners onto the corners of what should be a rectangle.")
+                Text(editor.isFindingCorners ? "Finding corners…" : "Drag the four corners onto the corners of what should be a rectangle.")
                     .foregroundStyle(.secondary)
+                Button("Reset") { editor.resetPerspectiveCorners() }
+                    .disabled(editor.isFindingCorners || editor.perspectiveCorners == editor.perspectiveStartCorners)
+                    .help("Put the corners back where they started")
             }
             if kind == .straighten {
                 Text("Or drag along something that should be level.")

@@ -15,6 +15,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 - [Stage 15: Tone curve and clipping warnings](#test-stage-15-tone-curve-and-clipping-warnings) (2026-10-28; stages 15 to 18b are built in a row, then tested together)
 - [Stage 16: Drag on the picture to adjust](#test-stage-16-drag-on-the-picture-to-adjust) (2026-10-28)
+- [Stage 17: Photo geometry](#test-stage-17-photo-geometry) (2026-10-28)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -75,6 +76,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 14. Vignette and Grain | ✅ Done; passed Leah's test 2026-10-28 | Medium |
 | 14 · 15. Tone curve and clipping warnings | Built 2026-10-28; waiting for Leah's test (with stages 16 to 18b) | High |
 | 14 · 16. Drag on the picture to adjust | Built 2026-10-28; waiting for Leah's test (with stages 15, 17 to 18b) | High |
+| 14 · 17. Photo geometry | Built 2026-10-28; waiting for Leah's test (with stages 15, 16, 18a and 18b) | Medium |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -138,6 +140,8 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - Stage 16 (2026-10-28): Adjust Photo's hand: `PicturePickPurpose.toneCurve` and `.colorMixer`, which stay on and
   take drags (`Editor.beginPictureDrag` and on; `CanvasView`'s `.pictureAdjust` drag). `ToneCurve.region(for:)` and
   `ColorMixer.range(for:)` say what's under the pointer.
+- Stage 17 (2026-10-28): Perspective Correction's corners from Vision (`RectangleFinder.swift`, which also checks
+  each side follows an edge) with Reset; Crop…'s guides (`CropOverlay.swift`) switched with O.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -305,6 +309,20 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 17: Photo geometry
+
+Test files: `TestImages/Stage 9 Practice Perspective.png` and `TestImages/Photo Editing/Dull Photo.png`. Run
+`make run` first.
+1. Open the perspective photo and choose Image ▸ **Perspective Correction…**. "Finding corners…" shows briefly, then
+   the corners sit on the whiteboard's corners (the bottom-left one may need a nudge). Nudge one, then press
+   **Reset**: it goes back. Press Return: the whiteboard is a straight-sided rectangle and its grid lines are
+   straight. ⌘Z.
+2. Open `Dull Photo.png` and choose Perspective Correction…: after a moment the corners are just inside the edges,
+   as before (there's no rectangle to find). Esc.
+3. Choose Image ▸ **Crop…** and drag a corner of the box: thirds show while you drag. Let go and press **O**: the
+   name "Grid" shows at the bottom and a grid shows for a moment. Keep pressing O: Diagonal, Triangle, Golden Ratio,
+   Golden Spiral, then Thirds again. Drag the box: the guides you chose show while you drag. Esc.
 
 ### Test: Stage 16: Drag on the picture to adjust
 

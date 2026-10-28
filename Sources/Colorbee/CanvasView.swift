@@ -896,6 +896,7 @@ final class CanvasView: NSView {
             case (.carriageReturn?, _), (.enter?, _): editor.applyEffect()
             case (_, "\u{1b}"?): editor.cancelEffect()
             case (_, " "?): spaceHeld = true
+            case (_, "o"?) where plain && editor.activeEffect == .crop: editor.nextCropOverlay()
             default: super.keyDown(with: event)
             }
             return

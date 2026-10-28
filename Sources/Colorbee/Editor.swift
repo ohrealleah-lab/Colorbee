@@ -2890,10 +2890,12 @@ final class Editor {
             if cropRect.isEmpty { cropRect = canvas.bounds }
         }
         if kind == .perspective {
-            // Inset a little, so the corners are easy to find and grab.
+            // Inset a little, so the corners are easy to find and grab, until Vision finds better ones.
             let w = Double(canvas.size.width), h = Double(canvas.size.height), inset = 0.06
             perspectiveCorners = [Point2D(x: w * inset, y: h * inset), Point2D(x: w * (1 - inset), y: h * inset),
                                   Point2D(x: w * (1 - inset), y: h * (1 - inset)), Point2D(x: w * inset, y: h * (1 - inset))]
+            perspectiveStartCorners = perspectiveCorners
+            findPerspectiveCorners()
         }
         if coveringAllLayers {
             let (layers, locked) = AutoRedact.layersWithPixels(in: canvas.selection.marquee, canvas: canvas)
@@ -2939,11 +2941,69 @@ final class Editor {
     private(set) var straightenLine: (start: Point2D, end: Point2D)?
     /// Perspective Correction: top left, top right, bottom right, bottom left, in image coordinates.
     private(set) var perspectiveCorners: [Point2D] = []
+    /// Where the corners started: on the rectangle Vision found, or inset from the edges. Reset puts them back.
+    private(set) var perspectiveStartCorners: [Point2D] = []
+    private(set) var isFindingCorners = false
+    /// Counts searches, so one from a Perspective Correction that was closed can't move a later one's corners.
+    @ObservationIgnored private var cornerSearch = 0
+
+    /// Looks for a rectangle in the picture as shown, on this Mac (FR-9.7 item 7, Q17.1), and moves the corners onto
+    /// it, unless they've been moved meanwhile. With none found, they stay where they are.
+    private func findPerspectiveCorners() {
+        cornerSearch += 1
+        guard let image = try? ImageCodec.makeCGImage(canvas.flattened(), colorSpace: canvas.colorSpace) else { return }
+        let search = cornerSearch
+        isFindingCorners = true
+        Task { @MainActor [weak self] in
+            let found = try? await RectangleFinder.find(in: image)
+            guard let self, search == self.cornerSearch else { return }
+            self.isFindingCorners = false
+            guard self.activeEffect == .perspective, self.perspectiveCorners == self.perspectiveStartCorners, let found else { return }
+            let width = Double(self.canvas.size.width), height = Double(self.canvas.size.height)
+            self.perspectiveCorners = found.map { Point2D(x: min(max($0.x, 0), width), y: min(max($0.y, 0), height)) }
+            self.perspectiveStartCorners = self.perspectiveCorners
+            self.onRender()
+        }
+    }
+
+    /// Perspective Correction's Reset: the corners go back to where they started.
+    func resetPerspectiveCorners() {
+        guard activeEffect == .perspective else { return }
+        perspectiveCorners = perspectiveStartCorners
+        onRender()
+    }
     /// Crop: the box, its shape and an exact output size from a pixel-size preset.
     var cropRect = IntRect.zero
     var cropShape = CropShape.free { didSet { renderSoon() } }
     var cropPixelSize: IntSize? { didSet { renderSoon() } }
     private(set) var isDraggingCrop = false
+    /// Crop…'s guides (FR-9.7 item 7): the last chosen, in every window, while Colorbee is open.
+    var cropOverlay = Editor.lastCropOverlay {
+        didSet {
+            Editor.lastCropOverlay = cropOverlay
+            renderSoon()
+        }
+    }
+    @ObservationIgnored private static var lastCropOverlay = CropOverlay.thirds
+    /// After O, the guides show for a moment though the box isn't being dragged, so you see what you chose.
+    @ObservationIgnored private var cropOverlayShownUntil: ContinuousClock.Instant?
+
+    /// Crop…'s O key (Q17.2): the next guides, named at the bottom of the canvas.
+    func nextCropOverlay() {
+        guard activeEffect == .crop else { return }
+        cropOverlay = cropOverlay.next
+        showNotice(cropOverlay.title)
+        let until = ContinuousClock.now + .seconds(2)
+        cropOverlayShownUntil = until
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(until: until)
+            self?.renderSoon()
+        }
+    }
+
+    private var showsCropOverlay: Bool {
+        isDraggingCrop || cropOverlayShownUntil.map { ContinuousClock.now < $0 } ?? false
+    }
     @ObservationIgnored private var toolDrag: (start: Point2D, handle: SelectionHandle?, rect: IntRect, corner: Int?)?
 
     /// Width ÷ height the crop box keeps, or nil for any shape.
@@ -2972,7 +3032,7 @@ final class Editor {
         }
     }
 
-    /// Guide lines for the open canvas tool: the crop frame and its thirds while dragging, the perspective
+    /// Guide lines for the open canvas tool: the crop frame and its guides while dragging, the perspective
     /// outline, Straighten's grid and the line being drawn.
     var canvasToolLines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)] {
         var lines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)] = []
@@ -2983,12 +3043,8 @@ final class Editor {
             let corners = [Point2D(x: Double(r.minX), y: Double(r.minY)), Point2D(x: Double(r.maxX), y: Double(r.minY)),
                            Point2D(x: Double(r.maxX), y: Double(r.maxY)), Point2D(x: Double(r.minX), y: Double(r.maxY))]
             for index in 0..<4 { lines.append((corners[index], corners[(index + 1) % 4], white)) }
-            if isDraggingCrop {
-                for third in [1.0, 2.0] {
-                    let x = Double(r.minX) + Double(r.width) * third / 3, y = Double(r.minY) + Double(r.height) * third / 3
-                    lines.append((Point2D(x: x, y: Double(r.minY)), Point2D(x: x, y: Double(r.maxY)), faint))
-                    lines.append((Point2D(x: Double(r.minX), y: y), Point2D(x: Double(r.maxX), y: y), faint))
-                }
+            if showsCropOverlay {
+                lines += cropOverlay.lines(in: r).map { ($0.0, $0.1, faint) }
             }
         case .graduatedSelection:
             // The line, and guides across the canvas where the fade starts and ends, as in Lightroom.

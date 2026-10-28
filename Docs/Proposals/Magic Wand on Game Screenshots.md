@@ -31,8 +31,8 @@ Claude simulated each method outside the app, on the test picture.
 
 ### The lamp (an object)
 
-[Magic Wand lamp test.png](Magic%20Wand%20lamp%20test.png) shows, left to right: today's wand at 10%, 20% and 30%,
-then Vision's closer look around the click.
+A comparison picture (kept out of the repo: it's a personal screenshot) showed, left to right: today's wand at 10%,
+20% and 30%, then Vision's closer look around the click.
 
 | Method | Result |
 |---|---|
@@ -54,8 +54,8 @@ no subject or several. Claude's first test skipped straight to the closer look, 
 
 ### The sky and the stone steps (areas)
 
-[Magic Wand sky test.png](Magic%20Wand%20sky%20test.png), clicking the sky (green dot): top row today's wand at
-10% and 20%, bottom row ideas 1–3 at a low and a medium setting.
+A second comparison picture (also kept out of the repo), clicking the sky: top row today's wand at 10% and 20%,
+bottom row ideas 1–3 at a low and a medium setting.
 
 - **Sky:** today at 10% leaves the pink sunset near the horizon unselected, and 20% leaks into the mountains and
   trees. Ideas 1–3 at the medium setting take the whole sky, sunset included, and stop cleanly at the mountains.

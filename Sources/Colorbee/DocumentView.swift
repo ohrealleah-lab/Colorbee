@@ -373,7 +373,8 @@ private struct EffectBar: View {
                 CropOptions(editor: editor)
             }
             if kind == .pickSubject {
-                Text(editor.pickHasSubjects ? "There's more than one subject. Click the one you want, even a small one, or press Return for all of them."
+                Text(editor.pickSubjectCount > 1 ? "There's more than one subject. Click the one you want, even a small one, or press Return for all of them."
+                     : editor.pickSubjectCount == 1 ? "Click the subject you want, even a small one, or press Return for the one Colorbee found."
                      : "Colorbee didn't find a subject by itself. Click the one you want, and it looks closer.")
                     .foregroundStyle(.secondary)
             }

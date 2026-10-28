@@ -2851,13 +2851,14 @@ final class Editor {
     var subjectMessage: String?
     /// With several subjects, or none: what was found, the image it was found in and what to do with the one you click.
     @ObservationIgnored private var subjectPick: (scan: SubjectScan, image: CGImage, action: SubjectAction, layer: LayerID)?
-    /// Whether the pick has any subjects of its own to take with Return. With none, a click looks closer.
-    private(set) var pickHasSubjects = true
+    /// How many subjects the pick found, for Return to take. With none, a click looks closer.
+    private(set) var pickSubjectCount = 0
+    var pickHasSubjects: Bool { pickSubjectCount > 0 }
     /// Counts closer looks, so one that was cancelled can't touch a later search when it finishes.
     @ObservationIgnored private var closerLook = 0
 
-    /// Finds the subject in the active layer with Vision, on this Mac, then acts on it. With several
-    /// subjects it waits for a click on one (Return takes them all); with none, for a click to look closer at.
+    /// Finds the subject in the active layer with Vision, on this Mac, then waits for a click on the one to act on
+    /// (Return takes all it found). A click away from them looks closer.
     func findSubject(_ action: SubjectAction) {
         guard !isFindingSubject, activeEffect == nil else { return }
         if action != .select, refusedBecauseLocked() { return }
@@ -2879,14 +2880,11 @@ final class Editor {
                 return
             }
             let found = scan ?? SubjectScan(size: layer.buffer.size, masks: [])
-            if found.masks.count == 1 {
-                self.perform(action, mask: found.mask())
-            } else {
-                // None found: a small subject can still be clicked, and is looked for closer (Leah, 2026-10-27).
-                self.subjectPick = (found, image, action, layer.id)
-                self.pickHasSubjects = !found.isEmpty
-                self.beginEffect(.pickSubject)
-            }
+            // Even one subject waits for a click: Vision's first look can miss what's wanted, or merge it with its
+            // neighbors, and a click elsewhere looks closer (Leah, 2026-10-27 and 2026-10-28).
+            self.subjectPick = (found, image, action, layer.id)
+            self.pickSubjectCount = found.masks.count
+            self.beginEffect(.pickSubject)
         }
     }
 

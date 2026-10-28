@@ -499,6 +499,7 @@ final class CanvasView: NSView {
 
     private func currentCursor(at point: Point2D?) -> NSCursor {
         if spaceHeld { return .openHand }
+        if editor.isPickingWhiteBalance { return .crosshair }
         if let point, let handle = canvasHandle(atView: editor.viewport.viewPoint(fromImage: point)) {
             return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
         }
@@ -543,6 +544,8 @@ final class CanvasView: NSView {
             moveDivider(event)
             return
         }
+        // The white-balance eyedropper takes one click, whatever the tool (FR-9.7).
+        if !spaceHeld, !secondary, editor.pickWhiteBalance(at: imagePoint(event)) { return }
         if !spaceHeld, editor.activeEffect == nil, !secondary, let handle = canvasHandle(atView: viewPoint(event)) {
             drag = .canvasResize(handle, original: editor.canvasSize, grab: imagePoint(event))
             return
@@ -871,6 +874,10 @@ final class CanvasView: NSView {
     private func handleKey(_ event: NSEvent) {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
         let plain = modifiers.isEmpty
+        // Esc turns the white-balance eyedropper off before it closes anything else (FR-9.7).
+        if editor.isPickingWhiteBalance, event.charactersIgnoringModifiers == "\u{1b}" {
+            return editor.cancelWhiteBalancePick()
+        }
         if editor.activeEffect != nil {
             switch (event.specialKey, event.charactersIgnoringModifiers) {
             case (.carriageReturn?, _), (.enter?, _): editor.applyEffect()

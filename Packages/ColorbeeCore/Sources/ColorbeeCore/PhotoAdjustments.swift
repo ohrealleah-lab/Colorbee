@@ -1,11 +1,11 @@
 import Foundation
 import simd
 
-/// The Adjust Photo panel's sliders (FR-9.5), modeled on the iPhone Photos editor. Each is -100...100 with 0
+/// The Adjust Photo panel's sliders (FR-9.5, FR-9.7), modeled on the iPhone Photos editor. Each is -100...100 with 0
 /// meaning no change, except Sharpness, Definition and Noise Reduction, which are 0...100.
 public struct PhotoAdjustments: Sendable, Hashable, Codable {
     public enum Slider: String, CaseIterable, Sendable, Codable {
-        case exposure, brilliance, highlights, shadows, contrast, brightness, blackPoint
+        case exposure, brilliance, highlights, shadows, contrast, brightness, whites, blackPoint
         case saturation, vibrance, warmth, tint
         case sharpness, definition, noiseReduction, vignette
 
@@ -17,6 +17,7 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
             case .shadows: "Shadows"
             case .contrast: "Contrast"
             case .brightness: "Brightness"
+            case .whites: "Whites"
             case .blackPoint: "Black Point"
             case .saturation: "Saturation"
             case .vibrance: "Vibrance"
@@ -91,6 +92,8 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
         let highlights = self[.highlights] / 100, shadows = self[.shadows] / 100
         let contrast = 1 + self[.contrast] / 100
         let brightness = pow(2, -self[.brightness] / 100)
+        // Whites moves the white point, like Black Point mirrored: +100 stretches 0.75 up to white.
+        let whitePoint = 1 - self[.whites] / 100 * 0.25
         let blackPoint = self[.blackPoint] / 100 * 0.25
         let saturation = 1 + self[.saturation] / 100
         let vibrance = self[.vibrance] / 100
@@ -117,6 +120,11 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
             if contrast != 1 { c = 0.5 + (c - 0.5) * contrast }
             c = Self.clamped(c)
             if brightness != 1 { c = Self.power(c, brightness) }
+            if whitePoint != 1 {
+                // Weighted by brightness, so only the brightest parts move much (FR-9.7).
+                let weight = Self.smoothstep(0.3, 1, Self.luma(c))
+                c = Self.clamped(c + (c / whitePoint - c) * weight)
+            }
             if blackPoint > 0 {
                 c = (c - blackPoint) / (1 - blackPoint)
             } else if blackPoint < 0 {

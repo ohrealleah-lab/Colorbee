@@ -1,8 +1,12 @@
 import Foundation
 
 extension PhotoAdjustments {
+    /// The sliders Auto sets; the others keep their values. The panel and an Adjust Photo layer both use this list.
+    public static let autoSliders: [Slider] = [.exposure, .brilliance, .highlights, .shadows, .contrast, .whites, .warmth, .tint, .vibrance]
+
     /// Adjust Photo's Auto button (FR-9.5): looks at the photo and sets Exposure, Brilliance, Highlights,
-    /// Shadows, Contrast, White Balance (Warmth and Tint) and Vibrance. Sliders it leaves at zero aren't moved.
+    /// Shadows, Contrast, Whites (FR-9.7), White Balance (Warmth and Tint) and Vibrance. Sliders it leaves at zero
+    /// aren't moved.
     public static func auto(for buffer: PixelBuffer, selection: SelectionMask? = nil) -> PhotoAdjustments {
         let stats = PhotoStatistics(buffer, selection: selection)
         guard stats.count > 0 else { return PhotoAdjustments() }
@@ -20,6 +24,15 @@ extension PhotoAdjustments {
         // Contrast: a flat photo (narrow middle 90 percent) gets more.
         let spread = stats.percentile(0.95) - stats.percentile(0.05)
         if spread < 0.7 { result[.contrast] = round(min((0.7 - spread) * 60, 30)) }
+
+        // Whites: only a photo whose brightest parts fall short of white gets them raised, toward just under white.
+        // Clipped brights are Highlights' job (Leah, 2026-10-27).
+        let brightest = stats.percentile(0.998)
+        if brightest > 0.05, brightest < 0.9 {
+            let weight = smoothstep(0.3, 1, brightest)
+            let whitePoint = 1 / (1 + (0.96 / brightest - 1) / weight)
+            result[.whites] = round(min(max((1 - whitePoint) / 0.25 * 100, 0), 50))
+        }
 
         // Brilliance: a gentle lift for photos without much tonal range.
         if spread < 0.85 { result[.brilliance] = round(min((0.85 - spread) * 50, 20)) }

@@ -341,10 +341,23 @@ public final class Canvas {
     /// need the neighbors, see just this pixel.
     public func pixelAsShown(at point: IntPoint) -> Pixel? {
         guard bounds.contains(point) else { return nil }
+        // `row` points into the buffer, so it's kept alive until the pixel is read.
+        let shown = patchAsShown(IntRect(x: point.x, y: point.y, width: 1, height: 1), through: layers.count - 1)
+        return withExtendedLifetime(shown) { shown.row(0)[0] }
+    }
+
+    /// `rect` (inside the canvas) as the visible layers from the bottom up to `index` show it: what an adjustment
+    /// above `index` sees there, for the white-balance eyedropper on an Adjust Photo layer. Like `pixelAsShown`, it
+    /// works on the patch alone, so adjustments that look at neighbors or at the whole picture aren't exact.
+    public func patchAsShown(_ rect: IntRect, through index: Int) -> PixelBuffer {
         // Every layer, hidden ones too, so an adjustment set to "Only the layer below" finds the same layer below.
-        let one = layers.map { layer -> Layer in
-            let buffer = PixelBuffer(width: 1, height: 1)
-            if layer.adjustment == nil { buffer.row(0)[0] = layer.buffer.row(point.y)[point.x] }
+        let patch = layers.prefix(max(0, index + 1)).map { layer -> Layer in
+            let buffer = PixelBuffer(width: rect.width, height: rect.height)
+            if layer.adjustment == nil {
+                for y in 0..<rect.height {
+                    (buffer.row(y)).update(from: layer.buffer.row(rect.minY + y) + rect.minX, count: rect.width)
+                }
+            }
             let copy = Layer(name: layer.name, buffer: buffer, id: layer.id)
             copy.isVisible = layer.isVisible
             copy.opacity = layer.opacity
@@ -353,9 +366,8 @@ public final class Canvas {
             copy.clipsToLayerBelow = layer.clipsToLayerBelow
             return copy
         }
-        let shown = Canvas(colorSpace: colorSpace, layers: one.isEmpty ? [Layer(name: "Empty", buffer: PixelBuffer(width: 1, height: 1))] : one,
-                           hasTransparentBackground: true).flattened()
-        return shown.row(0)[0]
+        return Canvas(colorSpace: colorSpace, layers: patch.isEmpty ? [Layer(name: "Empty", buffer: PixelBuffer(width: rect.width, height: rect.height))] : Array(patch),
+                      hasTransparentBackground: true).flattened()
     }
 
     /// Each pixel layer's buffer as a save writes it: a floating selection is drawn into a copy of its layer, so

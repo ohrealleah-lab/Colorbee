@@ -158,7 +158,7 @@ struct AdjustmentsPanel: View {
         VStack(alignment: .leading, spacing: 12) {
             if let adjustment, let choice {
                 if case .photo(let photo) = adjustment {
-                    // Fifteen sliders and the filters don't fit under the Layers panel, so they scroll.
+                    // The sliders and the filters don't fit under the Layers panel, so they scroll.
                     ScrollView {
                     PhotoControls(edit: photo, editor: editor) { editor.previewAdjustment(.photo($0)) } onFinish: {
                         editor.finishLayerSettings()
@@ -166,7 +166,7 @@ struct AdjustmentsPanel: View {
                         let below = editor.canvas.composited(through: max(0, editor.activeLayerIndex - 1))
                         var changed = photo
                         let auto = PhotoAdjustments.auto(for: below)
-                        for slider in [PhotoAdjustments.Slider.exposure, .brilliance, .highlights, .shadows, .contrast, .warmth, .tint, .vibrance] {
+                        for slider in PhotoAdjustments.autoSliders {
                             changed.adjustments[slider] = auto[slider]
                         }
                         editor.setAdjustment(.photo(changed))

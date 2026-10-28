@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-27 · 601 core tests and 174 app tests passing, plus `make perf`_
+_Last updated: 2026-10-27 · 609 core tests and 179 app tests passing, plus `make perf`_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Stage 1b: Whites and the white-balance eyedropper](#test-stage-1b-whites-and-the-white-balance-eyedropper) (2026-10-27)
 
 ---
 
@@ -55,7 +55,8 @@ Nothing waiting right now.
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| 14 · 1a. Adjust Photo groundwork (FR-9.7 rule) | ✅ Done; passed Leah's test 2026-10-27. Stage 1b next | High |
+| 14 · 1a. Adjust Photo groundwork (FR-9.7 rule) | ✅ Done; passed Leah's test 2026-10-27 | High |
+| 14 · 1b. Whites and the white-balance eyedropper (FR-9.7 item 1) | Built 2026-10-27; waiting for Leah's test. Stage 2 not started | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -68,6 +69,11 @@ Nothing waiting right now.
   the list beta 7 reads. Filters hold the vignette (applied after all the colors, in exports and in the shader) and
   keep the rest of an Adjust Photo step with Sharpness instead of dropping it. Adjust Photo's Light, Color and Detail
   sections fold, remembered app-wide. Fixtures from before the change: `TestImages/Photo Editing/`.
+- Stage 1b (2026-10-27): a Whites slider (saved under `added`; a brightness-weighted white point), set by Auto when the
+  brightest parts fall short of white. The white-balance eyedropper beside Warmth (`Editor.whiteBalancePick`,
+  `PhotoEdit.neutralizing`) takes one click: in the panel it reads the active layer before Adjust Photo; for an Adjust
+  Photo layer, the layers below (`Canvas.patchAsShown`). Auto's slider list is one shared list
+  (`PhotoAdjustments.autoSliders`).
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -235,6 +241,29 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 1b: Whites and the white-balance eyedropper
+
+Test files: in `TestImages/Photo Editing/`, `Color Cast.png`, `Dull Photo.png` and `Bright Photo.png`; also
+`TestImages/Stage 9 Practice Cutout.png`. Run `make run` first for a fresh Release copy.
+1. Open `Color Cast.png` and choose Adjustments ▸ Adjust Photo…. A **Whites** slider sits just above Black
+   Point, and a small **eyedropper** button sits beside Warmth's number.
+2. Click the eyedropper (it turns blue), then click the gray card at the top left. The card turns gray and the
+   blue cast goes; Warmth is about +74 and Tint about −12, and the eyedropper is off again. Apply, then ⌘Z: it's all
+   undone in one step.
+3. Open Adjust Photo again, choose Vivid Warm, then use the eyedropper on the gray card: the card still comes out
+   gray (Warmth about +96). Cancel.
+4. Open Adjust Photo again and click the eyedropper, then press **Esc**: the eyedropper turns off and Adjust Photo
+   stays open. Press Esc again: Adjust Photo closes.
+5. Open Adjust Photo again and drag Whites to +60: the moon and the bright sky get brighter, and the dark hills
+   barely change. Drag it to −60: the brights dim. Cancel.
+6. Open `Dull Photo.png`, Adjust Photo ▸ Auto: Whites moves up and shows "Set by Auto". Cancel. Open
+   `Bright Photo.png` (it has a pure white cloud), Adjust Photo ▸ Auto: Whites stays at 0. Cancel.
+7. Open `TestImages/Stage 9 Practice Cutout.png` and choose Image ▸ Remove Background. Open Adjust Photo, click the
+   eyedropper, then click an empty (checkered) area: a beep, and the eyedropper stays on. Press Esc, then Cancel.
+8. On `Color Cast.png`, choose Layer ▸ New Adjustment Layer ▸ Adjust Photo. In the Adjustments panel, click the
+   eyedropper, then the gray card: the card turns gray. ⌘Z undoes it in one step; ⇧⌘Z brings it back. Save as a
+   project, close and reopen: still gray, and Warmth and Tint show the same numbers.
 
 ### Test: Stage 1a: Adjust Photo groundwork (passed 2026-10-27)
 

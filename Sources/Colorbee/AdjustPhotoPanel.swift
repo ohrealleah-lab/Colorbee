@@ -26,7 +26,7 @@ struct AdjustPhotoPanel: View {
     }
 }
 
-/// Filters, Auto and the fifteen sliders, for the Adjust Photo panel and for an Adjust Photo layer.
+/// Filters, Auto and the sliders, for the Adjust Photo panel and for an Adjust Photo layer.
 struct PhotoControls: View {
     let edit: PhotoEdit
     var autoMoved: Set<PhotoAdjustments.Slider> = []
@@ -39,7 +39,7 @@ struct PhotoControls: View {
     /// The titles of the folded sections, one per line, the same in every window (Leah, 2026-10-27).
     @AppStorage("adjustPhotoFoldedSections") private var folded = ""
     private static let groups: [(String, [Slider])] = [
-        ("Light", [.exposure, .brilliance, .highlights, .shadows, .contrast, .brightness, .blackPoint]),
+        ("Light", [.exposure, .brilliance, .highlights, .shadows, .contrast, .brightness, .whites, .blackPoint]),
         ("Color", [.saturation, .vibrance, .warmth, .tint]),
         ("Detail", [.sharpness, .definition, .noiseReduction, .vignette]),
     ]
@@ -56,7 +56,7 @@ struct PhotoControls: View {
             }
             HStack {
                 Button("Auto", systemImage: "wand.and.stars") { onAuto() }
-                    .help("Balance exposure, brilliance, highlights, shadows, contrast, white balance and vibrance for this photo")
+                    .help("Balance exposure, brilliance, highlights, shadows, contrast, whites, white balance and vibrance for this photo")
                 Spacer()
                 Button("Reset") {
                     onChange(PhotoEdit())
@@ -88,7 +88,8 @@ struct PhotoControls: View {
                 .accessibilityLabel(title)
                 .accessibilityValue(isFolded ? "Folded" : "Open")
                 ForEach(isFolded ? [] : sliders, id: \.self) { slider in
-                    row(slider.title, value: edit.adjustments[slider], range: slider.range, unit: "", moved: autoMoved.contains(slider)) { value in
+                    row(slider.title, value: edit.adjustments[slider], range: slider.range, unit: "", moved: autoMoved.contains(slider),
+                        dropper: slider == .warmth) { value in
                         var changed = edit
                         changed.adjustments[slider] = value
                         onChange(changed)
@@ -98,31 +99,53 @@ struct PhotoControls: View {
         }
     }
 
+    /// Click something in the picture that should be gray, and Warmth and Tint are set (FR-9.7).
+    private var whiteBalanceDropper: some View {
+        let isOn = editor.isPickingWhiteBalance
+        return Button { editor.toggleWhiteBalancePick() } label: {
+            Image(systemName: "eyedropper")
+                .font(.system(size: 11))
+                .frame(width: 18, height: 18)
+                .background(isOn ? Color.accentColor.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 4))
+                .foregroundStyle(isOn ? Color.accentColor : Theme.secondaryInk)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("White balance: click something in the picture that should be gray. Esc cancels.")
+        .accessibilityLabel("White balance eyedropper")
+        .accessibilityValue(isOn ? "On" : "Off")
+    }
+
     private var foldedTitles: Set<String> {
         Set(folded.split(separator: "\n").map(String.init))
     }
 
-    private func row(_ title: String, value: Double, range: ClosedRange<Double>, unit: String, moved: Bool = false, set: @escaping (Double) -> Void) -> some View {
+    private func row(_ title: String, value: Double, range: ClosedRange<Double>, unit: String, moved: Bool = false, dropper: Bool = false,
+                     set: @escaping (Double) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 4) {
-                Text(title).font(.system(size: 12))
-                if moved {
-                    Image(systemName: "wand.and.stars")
-                        .font(.system(size: 9))
-                        .foregroundStyle(Color.accentColor)
-                        .help("Set by Auto")
-                        .accessibilityLabel("Set by Auto")
+            HStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    Text(title).font(.system(size: 12))
+                    if moved {
+                        Image(systemName: "wand.and.stars")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Color.accentColor)
+                            .help("Set by Auto")
+                            .accessibilityLabel("Set by Auto")
+                    }
+                    Spacer()
+                    Text(range.lowerBound < 0 && value > 0 ? "+\(Int(value.rounded()))\(unit)" : "\(Int(value.rounded()))\(unit)")
+                        .font(.system(size: 11))
+                        .monospacedDigit()
+                        .padding(.horizontal, 6)
+                        .frame(height: 18)
+                        .background(Theme.field, in: RoundedRectangle(cornerRadius: 5))
                 }
-                Spacer()
-                Text(range.lowerBound < 0 && value > 0 ? "+\(Int(value.rounded()))\(unit)" : "\(Int(value.rounded()))\(unit)")
-                    .font(.system(size: 11))
-                    .monospacedDigit()
-                    .padding(.horizontal, 6)
-                    .frame(height: 18)
-                    .background(Theme.field, in: RoundedRectangle(cornerRadius: 5))
+                // The wand's own tooltip is under the grab area, so the line carries it (review T, finding 6).
+                .slides(Binding(get: { value }, set: { set($0.rounded()) }), in: range, help: moved ? "Set by Auto" : nil, onEnd: onFinish)
+                // Beside the line, not on it: the grab area would take its clicks.
+                if dropper { whiteBalanceDropper }
             }
-            // The wand's own tooltip is under the grab area, so the line carries it (review T, finding 6).
-            .slides(Binding(get: { value }, set: { set($0.rounded()) }), in: range, help: moved ? "Set by Auto" : nil, onEnd: onFinish)
             SwiftUI.Slider(value: Binding(get: { value }, set: { set($0.rounded()) }), in: range) { editing in
                 if !editing { onFinish() }
             }

@@ -93,8 +93,9 @@ struct AdjustPhotoTests {
         #expect(auto[.exposure] > 0)
         #expect(auto[.warmth] > 0)
         #expect(auto[.vibrance] > 0)
-        let allowed: Set<S> = [.exposure, .brilliance, .highlights, .shadows, .contrast, .warmth, .tint, .vibrance]
-        #expect(Set(auto.values.keys).isSubset(of: allowed))
+        // AC-35: only the sliders Auto lists, Whites among them since FR-9.7.
+        #expect(Set(auto.values.keys).isSubset(of: Set(PhotoAdjustments.autoSliders)))
+        #expect(auto[.whites] > 0)
         #expect(PhotoAdjustments.auto(for: PixelBuffer(width: 4, height: 4)).isNeutral)
     }
 

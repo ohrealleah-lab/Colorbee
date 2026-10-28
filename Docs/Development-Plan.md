@@ -237,17 +237,26 @@ since both use the same eight color ranges.
    - **Performance:** none. Whites is color-only, so it goes in the color table.
    - Questions: Q1.2 to Q1.7.
 4. **Size:** S–M. **Opus, high** (a new kind of canvas click).
-5. **Hand test** (`Color Cast.png`, `Dull Photo.png`, `Bright Photo.png`)
-   1. Open `Color Cast.png` and choose Adjustments ▸ Adjust Photo….
-   2. Click the dropper by Warmth, then click the gray card. The blue cast goes, and Warmth and Tint have moved.
-      Apply, then ⌘Z: it's all undone in one step.
-   3. Open Adjust Photo again, choose Vivid Warm, then use the dropper on the gray card: the card still comes out
-      gray. Cancel.
-   4. Open Adjust Photo again and drag Whites to the right. Only the brightest parts get brighter. Cancel.
-   5. Open `Dull Photo.png`, Adjust Photo ▸ Auto: Whites moves up and shows "Set by Auto". On `Bright Photo.png`,
-      whose brights already reach white, Auto leaves Whites at 0.
-   6. On `Color Cast.png`, choose As Adjustment Layer, then use the dropper in the Adjustments panel. Save as a
-      project, close and reopen: the same.
+5. **Hand test** (in `TestImages/Photo Editing/`: `Color Cast.png`, `Dull Photo.png`, `Bright Photo.png`; and
+   `TestImages/Stage 9 Practice Cutout.png`)
+   1. Open `Color Cast.png` and choose Adjustments ▸ Adjust Photo…. A **Whites** slider sits just above Black
+      Point, and a small **eyedropper** button sits beside Warmth's number.
+   2. Click the eyedropper (it turns blue), then click the gray card at the top left. The card turns gray and the
+      blue cast goes; Warmth is about +74 and Tint about −12, and the eyedropper is off again. Apply, then ⌘Z: it's all
+      undone in one step.
+   3. Open Adjust Photo again, choose Vivid Warm, then use the eyedropper on the gray card: the card still comes out
+      gray (Warmth about +96). Cancel.
+   4. Open Adjust Photo again and click the eyedropper, then press **Esc**: the eyedropper turns off and Adjust Photo
+      stays open. Press Esc again: Adjust Photo closes.
+   5. Open Adjust Photo again and drag Whites to +60: the moon and the bright sky get brighter, and the dark hills
+      barely change. Drag it to −60: the brights dim. Cancel.
+   6. Open `Dull Photo.png`, Adjust Photo ▸ Auto: Whites moves up and shows "Set by Auto". Cancel. Open
+      `Bright Photo.png` (it has a pure white cloud), Adjust Photo ▸ Auto: Whites stays at 0. Cancel.
+   7. Open `TestImages/Stage 9 Practice Cutout.png` and choose Image ▸ Remove Background. Open Adjust Photo, click the
+      eyedropper, then click an empty (checkered) area: a beep, and the eyedropper stays on. Press Esc, then Cancel.
+   8. On `Color Cast.png`, choose Layer ▸ New Adjustment Layer ▸ Adjust Photo. In the Adjustments panel, click the
+      eyedropper, then the gray card: the card turns gray. ⌘Z undoes it in one step; ⇧⌘Z brings it back. Save as a
+      project, close and reopen: still gray, and Warmth and Tint show the same numbers.
 6. **Done when:** tests cover an eyedropper click on a made-up gray patch coming out neutral within one level (also
    under a filter), Auto's Whites on a dull and a bright image, and Whites in filters at 50%. Help and STATUS are
    updated.

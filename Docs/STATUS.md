@@ -13,10 +13,8 @@ _Last updated: 2026-10-28 · 695 core tests and 218 app tests passing; the full 
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Stage 11: .cube looks](#test-stage-11-cube-looks) (2026-10-28; stages 11 to 14 are built in a row, then tested together)
-- [Stage 12: History Snapshots](#test-stage-12-history-snapshots) (2026-10-28)
-- [Stage 13: Sharpening and Noise Reduction in detail](#test-stage-13-sharpening-and-noise-reduction-in-detail) (2026-10-28)
-- [Stage 14: Vignette and Grain](#test-stage-14-vignette-and-grain) (2026-10-28)
+- Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
+  Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
 ---
 
@@ -69,10 +67,10 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 8. Paste in Place | ✅ Done; passed Leah's test 2026-10-28 | Medium |
 | 14 · 9. Color Range and Luminance Range | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 10. Graduated selection | ✅ Done; passed Leah's test 2026-10-28 | High |
-| 14 · 11. .cube looks | Built 2026-10-28; waiting for Leah's test (with stages 12 to 14) | High |
-| 14 · 12. History Snapshots | Built 2026-10-28; waiting for Leah's test (with stages 11, 13 and 14) | High |
-| 14 · 13. Sharpening and Noise Reduction in detail | Built 2026-10-28; waiting for Leah's test (with stages 11, 12 and 14) | High |
-| 14 · 14. Vignette and Grain | Built 2026-10-28; waiting for Leah's test (with stages 11 to 13) | Medium |
+| 14 · 11. .cube looks | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 12. History Snapshots | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 13. Sharpening and Noise Reduction in detail | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 14. Vignette and Grain | ✅ Done; passed Leah's test 2026-10-28 | Medium |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -297,7 +295,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Stage 14: Vignette and Grain
+### Test: Stage 14: Vignette and Grain (passed 2026-10-28)
 
 Test files: `TestImages/Photo Editing/Dull Photo.png` and `TestImages/Photo Editing/Old Adjust Photo.colorproj`. Run
 `make run` first.
@@ -315,7 +313,7 @@ Test files: `TestImages/Photo Editing/Dull Photo.png` and `TestImages/Photo Edit
 7. Choose Film again and **As Adjustment Layer**: the screen shows the same vignette and grain. Delete the Film
    filter when you're done.
 
-### Test: Stage 13: Sharpening and Noise Reduction in detail
+### Test: Stage 13: Sharpening and Noise Reduction in detail (passed 2026-10-28)
 
 Test files: `TestImages/Photo Editing/Old Adjust Photo.colorproj`, `TestImages/Photo Editing/Hazy.png` (it has
 grain) and a real photo of yours taken in low light, if you have one. Run `make run` first.
@@ -332,7 +330,7 @@ grain) and a real photo of yours taken in low light, if you have one. Run `make 
 7. Choose **As Adjustment Layer** with these settings instead: the screen shows the same sharpening and smoothing,
    and Option-dragging Masking in the Adjustments panel shows the mask there too.
 
-### Test: Stage 12: History Snapshots
+### Test: Stage 12: History Snapshots (passed 2026-10-28)
 
 Test files: `TestImages/Photo Editing/Dull Photo.png` and `TestImages/Auto-Redact Practice.png`. Run `make run` first.
 1. Open `Dull Photo.png` and choose **Edit ▸ New Snapshot…**. It suggests "Snapshot 1"; type **Start** and click
@@ -349,7 +347,7 @@ Test files: `TestImages/Photo Editing/Dull Photo.png` and `TestImages/Auto-Redac
    **Remove Earlier Versions and Undo History**. The snapshot is gone from the History panel. Delete the copy when
    you're done.
 
-### Test: Stage 11: .cube looks
+### Test: Stage 11: .cube looks (passed 2026-10-28)
 
 Test files: `TestImages/Photo Editing/Dull Photo.png` and the three looks in `TestImages/Photo Editing/Looks`. Run
 `make run` first.

@@ -410,12 +410,19 @@ since both use the same eight color ranges.
    - Narrow ranges have the same color-table precision issue as stage 4.
    - Questions: Q6.1 to Q6.3.
 4. **Size:** M. **Opus, high.**
-5. **Hand test** (`Color Chart.png`, `Stage 9 Practice Photo.png`)
-   1. Adjust Photo ▸ Point Color ▸ dropper, then click the orange patch. A swatch appears.
-   2. Hue +50: only the orange patch (and close oranges) shifts.
-   3. Widen Range: the yellow patch starts to shift too.
-   4. Pick a second color (a skin patch) and lower its saturation. Both changes show.
-   5. Apply, then ⌘Z.
+5. **Hand test** (`TestImages/Photo Editing/Color Chart.png`)
+   1. Open `Color Chart.png` and choose Adjust Photo. In **Point Color** (under the Color Mixer), click its eyedropper,
+      then click the **Orange** patch: a swatch appears, with Hue, Saturation, Luminance and Range sliders.
+   2. Drag **Hue** to +50: the Orange patch leans toward yellow; Red, Yellow and the skin patches don't change.
+   3. Press and hold the **Range** slider's knob: everything Orange doesn't touch turns gray. Still holding, drag it to
+      100: the Yellow patch now shows in color too. Let go: the colors come back, and Yellow has shifted a little. Set
+      Range back to 50 (Control-click it).
+   4. Click the eyedropper again, then the **Skin medium** patch, and drag its Saturation to −80: that patch dulls, and
+      Orange keeps its change. Click the first swatch: its sliders show again.
+   5. With the skin swatch chosen, click the minus button: it's removed. Apply, then ⌘Z.
+   6. Choose Layer ▸ New Adjustment Layer ▸ Adjust Photo. In the Adjustments panel's Point Color, click the eyedropper,
+      then the **Blue** patch, and drag Hue to +60: only the Blue patch shifts. ⌘Z undoes the shift, and ⌘Z again the
+      picked color.
 6. **Done when:** exact-value tests pass. Help is updated.
 
 ### Stage 7. Expand, Contract and Smooth

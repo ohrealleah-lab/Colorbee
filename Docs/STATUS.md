@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-27 · 609 core tests and 184 app tests passing, plus `make perf`_
+_Last updated: 2026-10-27 · 635 core tests and 187 app tests passing; `make perf` not yet run for stages 3 to 6_
 
 ## Waiting for Leah's tests
 
@@ -18,6 +18,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 3: Texture and Dehaze](#test-stage-3-texture-and-dehaze) (2026-10-27)
 - [Stage 4: Color Mixer and Black & White](#test-stage-4-color-mixer-and-black-white) (2026-10-27)
 - [Stage 5: Color Grading](#test-stage-5-color-grading) (2026-10-27)
+- [Stage 6: Point Color](#test-stage-6-point-color) (2026-10-27)
 
 ---
 
@@ -65,6 +66,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 3. Texture and Dehaze | Built 2026-10-27; waiting for Leah's test | High |
 | 14 · 4. Color Mixer and Black & White | Built 2026-10-27; waiting for Leah's test | High |
 | 14 · 5. Color Grading | Built 2026-10-27; waiting for Leah's test | High |
+| 14 · 6. Point Color | Built 2026-10-27; waiting for Leah's test | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -93,6 +95,8 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - Stage 5 (2026-10-27): Color Grading (`ColorGrading.swift`: Shadows, Midtones, Highlights and Global wheels with
   Luminance, Blending and Balance), saved as `grading`, in filters (strength scaled, hue kept); the `ColorWheel`
   control.
+- Stage 6 (2026-10-27): Point Color (`PointColors.swift`: up to eight picked colors, each with hue, saturation,
+  luminance and Range), saved as `pointColors`; one pick mode for both eyedroppers (`Editor.picturePick`).
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -260,6 +264,22 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 6: Point Color
+
+Test files: `TestImages/Photo Editing/Color Chart.png`. Run `make run` first for a fresh Release copy.
+1. Open `Color Chart.png` and choose Adjust Photo. In **Point Color** (under the Color Mixer), click its eyedropper,
+   then click the **Orange** patch: a swatch appears, with Hue, Saturation, Luminance and Range sliders.
+2. Drag **Hue** to +50: the Orange patch leans toward yellow; Red, Yellow and the skin patches don't change.
+3. Press and hold the **Range** slider's knob: everything Orange doesn't touch turns gray. Still holding, drag it to
+   100: the Yellow patch now shows in color too. Let go: the colors come back, and Yellow has shifted a little. Set
+   Range back to 50 (Control-click it).
+4. Click the eyedropper again, then the **Skin medium** patch, and drag its Saturation to −80: that patch dulls, and
+   Orange keeps its change. Click the first swatch: its sliders show again.
+5. With the skin swatch chosen, click the minus button: it's removed. Apply, then ⌘Z.
+6. Choose Layer ▸ New Adjustment Layer ▸ Adjust Photo. In the Adjustments panel's Point Color, click the eyedropper,
+   then the **Blue** patch, and drag Hue to +60: only the Blue patch shifts. ⌘Z undoes the shift, and ⌘Z again the
+   picked color.
 
 ### Test: Stage 5: Color Grading
 

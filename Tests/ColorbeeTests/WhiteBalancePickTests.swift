@@ -19,10 +19,10 @@ struct WhiteBalancePickTests {
         let editor = makeEditor(width: 32, height: 24, background: card)
         let before = editor.imageHash
         editor.beginEffect(.adjustPhoto)
-        editor.toggleWhiteBalancePick()
-        #expect(editor.isPickingWhiteBalance)
-        #expect(editor.pickWhiteBalance(at: pt(10.5, 10.5)))
-        #expect(!editor.isPickingWhiteBalance)
+        editor.togglePicturePick(.whiteBalance)
+        #expect(editor.isPicking(.whiteBalance))
+        #expect(editor.pickFromPicture(at: pt(10.5, 10.5)))
+        #expect(!editor.isPicking(.whiteBalance))
         #expect(editor.photoEdit.adjustments[.warmth] > 0)
         #expect(isGray(editor.photoEdit.colorTransform(card)))
         editor.applyEffect()
@@ -35,8 +35,8 @@ struct WhiteBalancePickTests {
         let editor = makeEditor(width: 32, height: 24, background: card)
         editor.beginEffect(.adjustPhoto)
         editor.setPhotoEdit(PhotoEdit(filter: PhotoFilter.builtIn[1]))
-        editor.toggleWhiteBalancePick()
-        _ = editor.pickWhiteBalance(at: pt(5, 5))
+        editor.togglePicturePick(.whiteBalance)
+        _ = editor.pickFromPicture(at: pt(5, 5))
         #expect(isGray(editor.photoEdit.colorTransform(card)))
         #expect(editor.photoEdit.filter?.name == "Vivid Warm")
         editor.cancelEffect()
@@ -47,13 +47,13 @@ struct WhiteBalancePickTests {
         var refusals = 0
         editor.onRefused = { refusals += 1 }
         editor.beginEffect(.adjustPhoto)
-        editor.toggleWhiteBalancePick()
-        #expect(editor.pickWhiteBalance(at: pt(10, 10)))
+        editor.togglePicturePick(.whiteBalance)
+        #expect(editor.pickFromPicture(at: pt(10, 10)))
         #expect(refusals == 1)
-        #expect(editor.isPickingWhiteBalance)
+        #expect(editor.isPicking(.whiteBalance))
         #expect(editor.photoEdit.isNeutral)
-        editor.cancelWhiteBalancePick()
-        #expect(!editor.isPickingWhiteBalance)
+        editor.cancelPicturePick()
+        #expect(!editor.isPicking(.whiteBalance))
         #expect(editor.activeEffect == .adjustPhoto)
         editor.cancelEffect()
     }
@@ -61,11 +61,39 @@ struct WhiteBalancePickTests {
     @Test func closingAdjustPhotoTurnsTheDropperOff() {
         let editor = makeEditor(width: 16, height: 16, background: card)
         editor.beginEffect(.adjustPhoto)
-        editor.toggleWhiteBalancePick()
+        editor.togglePicturePick(.whiteBalance)
         editor.cancelEffect()
-        #expect(!editor.isPickingWhiteBalance)
+        #expect(!editor.isPicking(.whiteBalance))
         // A click is then an ordinary click again.
-        #expect(!editor.pickWhiteBalance(at: pt(4, 4)))
+        #expect(!editor.pickFromPicture(at: pt(4, 4)))
+    }
+
+    @Test func pointColorsEyedropperAddsTheClickedColor() {
+        let editor = makeEditor(width: 32, height: 24, background: card)
+        editor.beginEffect(.adjustPhoto)
+        editor.togglePicturePick(.pointColor)
+        #expect(editor.isPicking(.pointColor) && !editor.isPicking(.whiteBalance))
+        #expect(editor.pickFromPicture(at: pt(8, 8)))
+        #expect(editor.photoEdit.pointColors?.swatches.map(\.color) == [card])
+        #expect(!editor.isPickingFromPicture)
+        // The white balance is untouched.
+        #expect(editor.photoEdit.adjustments.isNeutral)
+        editor.cancelEffect()
+    }
+
+    @Test func pointColorOnALayerIsOneStepAndStopsAtEight() {
+        let editor = makeEditor(width: 32, height: 24, background: card)
+        editor.addAdjustmentLayer(.photo(PhotoEdit()), named: "Adjust Photo")
+        var refusals = 0
+        editor.onRefused = { refusals += 1 }
+        for _ in 0..<9 {
+            editor.togglePicturePick(.pointColor)
+            _ = editor.pickFromPicture(at: pt(8, 8))
+        }
+        #expect(editor.activePhotoLayerEdit?.pointColors?.swatches.count == 8)
+        #expect(refusals == 1)
+        editor.undo()
+        #expect(editor.activePhotoLayerEdit?.pointColors?.swatches.count == 7)
     }
 
     @Test func onAnAdjustPhotoLayerItReadsTheLayersBelowAsOneStep() {
@@ -73,9 +101,9 @@ struct WhiteBalancePickTests {
         editor.addAdjustmentLayer(.photo(PhotoEdit(adjustments: PhotoAdjustments([.exposure: 10]))), named: "Adjust Photo")
         let steps = editor.stepNames.count
         let pixels = editor.canvas.layers[0].buffer.contentHash()
-        editor.toggleWhiteBalancePick()
-        #expect(editor.isPickingWhiteBalance)
-        #expect(editor.pickWhiteBalance(at: pt(12, 12)))
+        editor.togglePicturePick(.whiteBalance)
+        #expect(editor.isPicking(.whiteBalance))
+        #expect(editor.pickFromPicture(at: pt(12, 12)))
         guard case .photo(let edit) = editor.canvas.activeLayer.adjustment else {
             Issue.record("Not an Adjust Photo layer")
             return
@@ -85,8 +113,8 @@ struct WhiteBalancePickTests {
         #expect(editor.stepNames.count == steps + 1)
         #expect(editor.canvas.layers[0].buffer.contentHash() == pixels)
         // Choosing another layer leaves the dropper behind.
-        editor.toggleWhiteBalancePick()
+        editor.togglePicturePick(.whiteBalance)
         editor.selectLayer(at: 0)
-        #expect(!editor.isPickingWhiteBalance)
+        #expect(!editor.isPicking(.whiteBalance))
     }
 }

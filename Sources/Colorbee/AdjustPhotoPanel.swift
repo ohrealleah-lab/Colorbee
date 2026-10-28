@@ -42,6 +42,8 @@ struct PhotoControls: View {
     @State var mixerSetting = ColorMixer.Setting.hue
     /// Which Color Grading wheel shows.
     @State var gradingRegion = ColorGrading.Region.shadows
+    /// Which picked color's sliders Point Color shows.
+    @State var chosenSwatch = 0
     private static let groups: [(String, [Slider])] = [
         ("Light", [.exposure, .brilliance, .dehaze, .highlights, .shadows, .contrast, .brightness, .whites, .blackPoint]),
         ("Color", [.saturation, .vibrance, .warmth, .tint]),
@@ -90,6 +92,7 @@ struct PhotoControls: View {
                 }
                 if title == "Color" {
                     colorMixerSection
+                    pointColorSection
                     colorGradingSection
                 }
             }
@@ -139,8 +142,8 @@ struct PhotoControls: View {
 
     /// Click something in the picture that should be gray, and Warmth and Tint are set (FR-9.7).
     private var whiteBalanceDropper: some View {
-        let isOn = editor.isPickingWhiteBalance
-        return Button { editor.toggleWhiteBalancePick() } label: {
+        let isOn = editor.isPicking(.whiteBalance)
+        return Button { editor.togglePicturePick(.whiteBalance) } label: {
             Image(systemName: "eyedropper")
                 .font(.system(size: 11))
                 .frame(width: 18, height: 18)
@@ -159,7 +162,7 @@ struct PhotoControls: View {
     }
 
     func row(_ title: String, value: Double, range: ClosedRange<Double>, unit: String, moved: Bool = false, dropper: Bool = false,
-             swatch: Color? = nil, resetValue: Double = 0, set: @escaping (Double) -> Void) -> some View {
+             swatch: Color? = nil, resetValue: Double = 0, end: (() -> Void)? = nil, set: @escaping (Double) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 HStack(spacing: 4) {
@@ -183,12 +186,12 @@ struct PhotoControls: View {
                         .background(Theme.field, in: RoundedRectangle(cornerRadius: 5))
                 }
                 // The wand's own tooltip is under the grab area, so the line carries it (review T, finding 6).
-                .slides(Binding(get: { value }, set: { set($0.rounded()) }), in: range, help: moved ? "Set by Auto" : nil, onEnd: onFinish)
+                .slides(Binding(get: { value }, set: { set($0.rounded()) }), in: range, help: moved ? "Set by Auto" : nil, onEnd: end ?? onFinish)
                 // Beside the line, not on it: the grab area would take its clicks.
                 if dropper { whiteBalanceDropper }
             }
             SwiftUI.Slider(value: Binding(get: { value }, set: { set($0.rounded()) }), in: range) { editing in
-                if !editing { onFinish() }
+                if !editing { (end ?? onFinish)() }
             }
             // The size the Adjustments panel uses, easier to grab than mini (Leah, 2026-10-27).
             .controlSize(.small)

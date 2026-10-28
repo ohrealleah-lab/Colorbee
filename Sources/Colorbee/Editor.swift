@@ -596,8 +596,8 @@ final class Editor {
     /// The Adjust Photo panel's settings while it's open, and which sliders Auto last set.
     private(set) var photoEdit = PhotoEdit()
     private(set) var photoAutoMoved: Set<PhotoAdjustments.Slider> = []
-    /// The white-balance eyedropper waiting for a click on the picture (FR-9.7). See `isPickingWhiteBalance`.
-    private(set) var whiteBalancePick: WhiteBalancePick?
+    /// An eyedropper waiting for a click on the picture (FR-9.7). See `picturePickPurpose`.
+    private(set) var picturePick: PicturePick?
     /// What Levels shows behind its sliders: the pixels it applies to, before any change.
     private(set) var effectHistogram: Histogram?
     /// The selection's separate regions, worked out once per dialog; nil applies to the whole layer.
@@ -3125,49 +3125,64 @@ final class Editor {
         previewEffect()
     }
 
-    // MARK: White-balance eyedropper (FR-9.7)
+    // MARK: Picking from the picture (FR-9.7): the white-balance eyedropper and Point Color
 
-    enum WhiteBalancePick: Equatable {
-        /// For the Adjust Photo panel.
-        case panel
-        /// For this Adjust Photo layer, from the Adjustments panel.
-        case layer(LayerID)
+    enum PicturePickPurpose: Equatable {
+        /// Warmth and Tint set so the clicked spot comes out gray.
+        case whiteBalance
+        /// The clicked color added to Point Color.
+        case pointColor
     }
 
-    /// Whether the next click on the picture sets Warmth and Tint. It applies only while what it was turned on for is
-    /// still being edited.
-    var isPickingWhiteBalance: Bool {
+    struct PicturePick: Equatable {
+        enum Target: Equatable {
+            /// For the Adjust Photo panel.
+            case panel
+            /// For this Adjust Photo layer, from the Adjustments panel.
+            case layer(LayerID)
+        }
+
+        var purpose: PicturePickPurpose
+        var target: Target
+    }
+
+    /// What the next click on the picture is for, while what it was turned on for is still being edited.
+    var picturePickPurpose: PicturePickPurpose? {
         _ = layersRevision
-        switch whiteBalancePick {
-        case .panel?: return activeEffect == .adjustPhoto
-        case .layer(let id)?:
-            guard activeEffect == nil, canvas.activeLayer.id == id, case .photo = canvas.activeLayer.adjustment else { return false }
-            return true
-        case nil: return false
+        guard let picturePick else { return nil }
+        switch picturePick.target {
+        case .panel: return activeEffect == .adjustPhoto ? picturePick.purpose : nil
+        case .layer(let id):
+            guard activeEffect == nil, canvas.activeLayer.id == id, case .photo = canvas.activeLayer.adjustment else { return nil }
+            return picturePick.purpose
         }
     }
 
-    /// The dropper button by Warmth: on for one click, or off again.
-    func toggleWhiteBalancePick() {
-        if isPickingWhiteBalance { return cancelWhiteBalancePick() }
+    var isPickingFromPicture: Bool { picturePickPurpose != nil }
+
+    func isPicking(_ purpose: PicturePickPurpose) -> Bool { picturePickPurpose == purpose }
+
+    /// An eyedropper button: on for one click, or off again.
+    func togglePicturePick(_ purpose: PicturePickPurpose) {
+        if isPicking(purpose) { return cancelPicturePick() }
         if activeEffect == .adjustPhoto {
-            whiteBalancePick = .panel
+            picturePick = PicturePick(purpose: purpose, target: .panel)
         } else if activeEffect == nil, case .photo = canvas.activeLayer.adjustment {
-            whiteBalancePick = .layer(canvas.activeLayer.id)
+            picturePick = PicturePick(purpose: purpose, target: .layer(canvas.activeLayer.id))
         }
     }
 
-    func cancelWhiteBalancePick() {
-        whiteBalancePick = nil
+    func cancelPicturePick() {
+        picturePick = nil
     }
 
-    /// A click on the picture while the dropper is on: Warmth and Tint are set so the 5 × 5 pixels around it come out
-    /// gray. In the panel it reads the active layer as it was before Adjust Photo; for an Adjust Photo layer, the
-    /// layers below it as shown. A click where there's nothing to read beeps and leaves the dropper on (Leah,
-    /// 2026-10-27). False if the dropper wasn't on, so the click does what it usually does.
-    func pickWhiteBalance(at point: Point2D) -> Bool {
-        guard isPickingWhiteBalance, let pick = whiteBalancePick else {
-            whiteBalancePick = nil
+    /// A click on the picture while an eyedropper is on. It reads the 5 × 5 pixels around the click: in the panel, the
+    /// active layer as it was before Adjust Photo; for an Adjust Photo layer, the layers below it as shown. A click
+    /// where there's nothing to read beeps and leaves the eyedropper on (Leah, 2026-10-27). False if no eyedropper
+    /// was on, so the click does what it usually does.
+    func pickFromPicture(at point: Point2D) -> Bool {
+        guard let purpose = picturePickPurpose, let pick = picturePick else {
+            picturePick = nil
             return false
         }
         let center = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
@@ -3176,23 +3191,40 @@ final class Editor {
             onRefused()
             return true
         }
-        switch pick {
+        let sample: Pixel?
+        let current: PhotoEdit?
+        switch pick.target {
         case .panel:
-            guard let sample = effectSource?.averageColor(in: area) else {
-                onRefused()
-                return true
-            }
-            whiteBalancePick = nil
-            setPhotoEdit(photoEdit.neutralizing(sample))
-            photoAutoMoved.subtract([.warmth, .tint])
+            sample = effectSource?.averageColor(in: area)
+            current = photoEdit
         case .layer:
-            guard case .photo(let edit) = canvas.activeLayer.adjustment,
-                  let sample = canvas.patchAsShown(area, through: canvas.activeLayerIndex - 1).averageColor(in: IntRect(x: 0, y: 0, width: area.width, height: area.height)) else {
+            sample = canvas.patchAsShown(area, through: canvas.activeLayerIndex - 1)
+                .averageColor(in: IntRect(x: 0, y: 0, width: area.width, height: area.height))
+            current = activePhotoLayerEdit
+        }
+        guard let sample, var changed = current else {
+            onRefused()
+            return true
+        }
+        switch purpose {
+        case .whiteBalance:
+            changed = changed.neutralizing(sample)
+        case .pointColor:
+            var colors = changed.pointColors ?? PointColors()
+            guard !colors.isFull else {
                 onRefused()
                 return true
             }
-            whiteBalancePick = nil
-            setAdjustment(.photo(edit.neutralizing(sample)))
+            colors.add(sample)
+            changed.pointColors = colors
+        }
+        picturePick = nil
+        switch pick.target {
+        case .panel:
+            setPhotoEdit(changed)
+            if purpose == .whiteBalance { photoAutoMoved.subtract([.warmth, .tint]) }
+        case .layer:
+            setAdjustment(.photo(changed))
         }
         return true
     }
@@ -3505,7 +3537,7 @@ final class Editor {
 
     /// Drops the background preview state; a render still running finds a newer generation and is ignored.
     private func endEffectSession() {
-        whiteBalancePick = nil
+        picturePick = nil
         effectCoversAllLayers = false
         effectLayers = []
         effectEdit = nil

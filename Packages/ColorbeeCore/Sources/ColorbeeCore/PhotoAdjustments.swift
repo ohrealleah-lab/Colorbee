@@ -223,37 +223,45 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     public var grading: ColorGrading? {
         didSet { if grading?.isUntouched == true { grading = nil } }
     }
+    /// Point Color (FR-9.7); nil when no color has been picked.
+    public var pointColors: PointColors? {
+        didSet { if pointColors?.isEmpty == true { pointColors = nil } }
+    }
 
     public init(adjustments: PhotoAdjustments = PhotoAdjustments(), filter: PhotoFilter? = nil, filterIntensity: Double = 100,
-                mixer: ColorMixer? = nil, grading: ColorGrading? = nil) {
+                mixer: ColorMixer? = nil, grading: ColorGrading? = nil, pointColors: PointColors? = nil) {
         self.adjustments = adjustments
         self.filter = filter
         self.filterIntensity = filterIntensity
         self.mixer = mixer?.isNeutral == true ? nil : mixer
         self.grading = grading?.isUntouched == true ? nil : grading
+        self.pointColors = pointColors?.isEmpty == true ? nil : pointColors
     }
 
     public var isNeutral: Bool {
         adjustments.isNeutral && (filter == nil || filterIntensity == 0) && mixer == nil && grading?.isNeutral ?? true
+            && pointColors?.isNeutral ?? true
     }
 
     /// The color and tone part: the filter's steps at its intensity, then the sliders' color and tone, then the
-    /// Color Mixer (and Black & White), then Color Grading, so grading can tint a black-and-white picture.
+    /// Color Mixer (and Black & White), Point Color, and Color Grading last, so it can tint a black-and-white picture.
     public var colorTransform: (Pixel) -> Pixel {
         let steps = (filter?.steps(atIntensity: filterIntensity / 100) ?? []).compactMap(\.colorTransform)
         let own = adjustments.colorTransform
-        let mixed = mixer?.transform, graded = grading?.transform
+        let mixed = mixer?.transform, pointed = pointColors?.transform, graded = grading?.transform
         return { pixel in
             var result = own(steps.reduce(pixel) { $1($0) })
             if let mixed { result = mixed(result) }
+            if let pointed { result = pointed(result) }
             if let graded { result = graded(result) }
             return result
         }
     }
 
-    /// Whether the display needs `ColorLookup.fineSize` to show this closely: a Color Mixer here or in the filter.
+    /// Whether the display needs `ColorLookup.fineSize` to show this closely: a Color Mixer or Point Color, here or in
+    /// the filter.
     public var needsFineColorTable: Bool {
-        mixer != nil || (filter?.steps ?? []).contains { step in
+        mixer != nil || pointColors != nil || (filter?.steps ?? []).contains { step in
             if case .photo(let edit) = step { return edit.needsFineColorTable }
             return false
         }
@@ -329,7 +337,7 @@ extension PhotoAdjustments {
 
 extension PhotoEdit {
     private enum CodingKeys: String, CodingKey {
-        case adjustments, filter, filterIntensity, mixer, grading
+        case adjustments, filter, filterIntensity, mixer, grading, pointColors
     }
 
     /// A control this version can't read is left at neutral rather than losing the whole adjustment.
@@ -340,6 +348,7 @@ extension PhotoEdit {
                   filter: try container.decodeIfPresent(PhotoFilter.self, forKey: .filter),
                   filterIntensity: intensity.isFinite ? min(max(intensity, 0), 100) : 100,
                   mixer: try? container.decodeIfPresent(ColorMixer.self, forKey: .mixer),
-                  grading: try? container.decodeIfPresent(ColorGrading.self, forKey: .grading))
+                  grading: try? container.decodeIfPresent(ColorGrading.self, forKey: .grading),
+                  pointColors: try? container.decodeIfPresent(PointColors.self, forKey: .pointColors))
     }
 }

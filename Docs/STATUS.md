@@ -350,8 +350,6 @@ Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/C
 8. In Preview, copy a picture (⌘C). In Colorbee, open Adjust Photo on any picture, click Copy Settings, Cancel, then press ⌘V:
    the picture from Preview pastes, so copying settings didn't replace it.
 
-### Test: …
-
 ### Test: Stage 1b: Whites and the white-balance eyedropper
 
 Test files: in `TestImages/Photo Editing/`, `Color Cast.png`, `Dull Photo.png` and `Bright Photo.png`; also

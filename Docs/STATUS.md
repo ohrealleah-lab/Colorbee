@@ -15,6 +15,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 - [Stage 1b: Whites and the white-balance eyedropper](#test-stage-1b-whites-and-the-white-balance-eyedropper) (2026-10-27)
 - [Stage 2: Same as Last, and copy and paste settings](#test-stage-2-same-as-last-and-copy-and-paste-settings) (2026-10-27)
+- [Stage 3: Texture and Dehaze](#test-stage-3-texture-and-dehaze) (2026-10-27)
 
 ---
 
@@ -25,7 +26,23 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - **Say the recommended model and effort before each stage** (Opus throughout; high for design-heavy work, medium for routine UI).
 - Log any behavior choices Claude makes on its own in FRD §23, phrased "veto any".
 - Prefer plain explanations. Leah tests features by hand and reports back; give her a short "please try" list after each stage.
-- **Keep "Waiting for Leah's tests" at the top current:** add each new test there with a link to its steps (a `### Test: Stage 2: Same as Last, and copy and paste settings
+- **Keep "Waiting for Leah's tests" at the top current:** add each new test there with a link to its steps (a `### Test: Stage 3: Texture and Dehaze
+
+Test files: `TestImages/Photo Editing/Hazy.png`, `TestImages/Photo Editing/Texture Practice.png`. Run `make run` first for a fresh Release copy.
+1. Open `Hazy.png` and choose Adjust Photo. Drag **Dehaze** (in Light, after Brilliance) to +50: the haze lifts, the
+   hills turn green again and the sky deepens. Apply, then ⌘Z.
+2. Open Adjust Photo again and drag Dehaze to −50: the picture gets hazier. Cancel.
+3. Open Adjust Photo again, Dehaze +50, then ⋯ ▸ Save as Filter… named "Clear". Open `Texture Practice.png` and
+   choose Clear: it gets clearer and more contrasty too (filters keep Dehaze). Cancel.
+4. On `Texture Practice.png`, zoom to 200% on the hills. Adjust Photo, **Texture** (in Detail, after Definition)
+   +60: the grass grain gets crisper, with no glow along the hills' edges. Try −60: it smooths.
+5. Set Texture back to 0 and Definition to +60: now a wider glow runs along the hills' edges. That's the difference
+   between them. Cancel.
+6. Open Adjust Photo, Texture +60, then **As Adjustment Layer**. Choose the Background layer and paint a few Brush
+   strokes across the hills: drawing stays smooth, and the strokes get the crisper look too.
+7. File ▸ Export… as a PNG and open it in Preview. Zoom both to 100%: the grass looks the same.
+
+### Test: Stage 2: Same as Last, and copy and paste settings
 
 Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/Color Cast.png`. Run `make run` first for a fresh Release copy.
 1. Open `TestImages/Stage 9 Practice Photo.png` and choose Adjustments ▸ Adjust Photo…. Choose **Vivid**, set
@@ -79,6 +96,7 @@ Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/C
 | 14 · 1a. Adjust Photo groundwork (FR-9.7 rule) | ✅ Done; passed Leah's test 2026-10-27 | High |
 | 14 · 1b. Whites and the white-balance eyedropper (FR-9.7 item 1) | Built 2026-10-27; waiting for Leah's test. Stage 2 not started | High |
 | 14 · 2. Same as Last, and copy and paste settings | Built 2026-10-27; waiting for Leah's test | High |
+| 14 · 3. Texture and Dehaze | Built 2026-10-27; waiting for Leah's test | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -99,6 +117,8 @@ Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/C
 - Stage 2 (2026-10-27): Adjustments ▸ Adjust Photo: Same as Last, Copy Photo Settings, Paste Photo Settings and Paste
   Photo Settings as Adjustment Layer, plus Copy and Paste in the panel (`PhotoSettingsStore`: the last settings kept
   in the settings folder, the copied ones in memory; never the Mac clipboard).
+- Stage 3 (2026-10-27): Dehaze (an even veil of light gray taken off or laid on, per pixel, in the color table and
+  in filters) and Texture (detail against a 3 px blur; one more blurred copy in `Renderer`). Both saved under `added`.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.

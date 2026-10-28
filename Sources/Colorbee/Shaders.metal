@@ -15,7 +15,7 @@ struct QuadUniforms {
     float blendMode;      // BlendMode.rawValue
     float4 adjustParams;  // the adjustment's settings (see Renderer.adjustmentUniforms)
     float adjustKind;     // 0 none, 1 invert, 2 desaturate, 3 brightness/contrast, 4 hue/saturation, 5 blur, 6 sharpen
-    float4 photoParams;   // Adjust Photo: how many vignettes (x), their amounts in buffer 1
+    float4 photoParams;   // Adjust Photo: how many vignettes (x), their amounts in buffer 1; Texture (y, -1...1)
     float smooth;         // 1 when layers are sampled smoothly (zoomed out, or a stretched selection)
 };
 
@@ -345,6 +345,8 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
                                       texture2d<float> fineCoverage [[texture(2)]],
                                       texture2d<float> wide [[texture(3)]],
                                       texture2d<float> wideCoverage [[texture(4)]],
+                                      texture2d<float> medium [[texture(5)]],
+                                      texture2d<float> mediumCoverage [[texture(6)]],
                                       constant QuadUniforms &u [[buffer(0)]],
                                       constant float *vignettes [[buffer(1)]],
                                       float4 backdrop [[color(0)]]) {
@@ -352,7 +354,8 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
     if (backdrop.a <= 0) return backdrop;
     float3 c = clamp(backdrop.rgb / backdrop.a, 0.0, 1.0);
     float sharpness = u.adjustParams.y, definition = u.adjustParams.z, noiseReduction = u.adjustParams.w;
-    if (sharpness > 0 || definition > 0 || noiseReduction > 0) {
+    float textureAmount = u.photoParams.y;
+    if (sharpness > 0 || definition > 0 || noiseReduction > 0 || textureAmount != 0) {
         uint2 pixel = uint2(in.position.xy);
         float3 original = c;
         float3 soft = (sharpness > 0 || noiseReduction > 0) ? unblurred(fine, fineCoverage, pixel, original) : original;
@@ -364,6 +367,7 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
         }
         if (sharpness > 0) c += (original - soft) * sharpness * 1.5;
         if (definition > 0) c += (original - wider) * definition * 0.6;
+        if (textureAmount != 0) c += (original - unblurred(medium, mediumCoverage, pixel, original)) * textureAmount * 0.8;
         c = clamp(c, 0.0, 1.0);
     }
     float size = u.adjustParams.x;

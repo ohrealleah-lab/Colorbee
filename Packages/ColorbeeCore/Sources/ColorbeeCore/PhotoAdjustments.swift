@@ -5,14 +5,15 @@ import simd
 /// meaning no change, except Sharpness, Definition and Noise Reduction, which are 0...100.
 public struct PhotoAdjustments: Sendable, Hashable, Codable {
     public enum Slider: String, CaseIterable, Sendable, Codable {
-        case exposure, brilliance, highlights, shadows, contrast, brightness, whites, blackPoint
+        case exposure, brilliance, dehaze, highlights, shadows, contrast, brightness, whites, blackPoint
         case saturation, vibrance, warmth, tint
-        case sharpness, definition, noiseReduction, vignette
+        case sharpness, definition, texture, noiseReduction, vignette
 
         public var title: String {
             switch self {
             case .exposure: "Exposure"
             case .brilliance: "Brilliance"
+            case .dehaze: "Dehaze"
             case .highlights: "Highlights"
             case .shadows: "Shadows"
             case .contrast: "Contrast"
@@ -25,6 +26,7 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
             case .tint: "Tint"
             case .sharpness: "Sharpness"
             case .definition: "Definition"
+            case .texture: "Texture"
             case .noiseReduction: "Noise Reduction"
             case .vignette: "Vignette"
             }
@@ -37,11 +39,11 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
             }
         }
 
-        /// What filters may hold (FR-9.7): color and tone, and Vignette (Leah, 2026-10-27). Sharpness, Definition
-        /// and Noise Reduction depend on each photo's own detail, so they stay out.
+        /// What filters may hold (FR-9.7): color and tone, Dehaze and Vignette (Leah, 2026-10-27). Sharpness,
+        /// Definition, Texture and Noise Reduction depend on each photo's own detail, so they stay out.
         public var inFilters: Bool {
             switch self {
-            case .sharpness, .definition, .noiseReduction: false
+            case .sharpness, .definition, .texture, .noiseReduction: false
             default: true
             }
         }
@@ -81,13 +83,14 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
         PhotoAdjustments(values.filter { $0.key.inFilters })
     }
 
-    var hasDetail: Bool { self[.sharpness] != 0 || self[.definition] != 0 || self[.noiseReduction] != 0 }
+    var hasDetail: Bool { self[.sharpness] != 0 || self[.definition] != 0 || self[.texture] != 0 || self[.noiseReduction] != 0 }
 
     // MARK: The math (mirrored in Shaders.metal through ColorLookup, plus photo_fragment for the rest)
 
     /// The per-pixel color and tone part, in slider order: light, then color.
     public var colorTransform: (Pixel) -> Pixel {
         let exposure = pow(2, self[.exposure] / 50)
+        let dehaze = self[.dehaze] / 100
         let brilliance = self[.brilliance] / 100
         let highlights = self[.highlights] / 100, shadows = self[.shadows] / 100
         let contrast = 1 + self[.contrast] / 100
@@ -103,6 +106,7 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
             if exposure != 1 {
                 c = Self.power(Self.power(c, 2.2) * exposure, 1 / 2.2)
             }
+            if dehaze != 0 { c = Self.dehazed(Self.clamped(c), dehaze) }
             // Brilliance lifts shadows and holds back highlights, then adds a little midtone contrast.
             let shadowLift = shadows + brilliance * 0.5, highlightPull = highlights - brilliance * 0.5
             if shadowLift != 0 || highlightPull != 0 || brilliance != 0 {
@@ -153,6 +157,18 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
         }
     }
 
+    /// Dehaze (FR-9.7) on one pixel, so it goes through the color table like the color sliders. Haze is an even veil
+    /// of light gray over the picture: a pixel is its true color mixed with `hazeGray`. +100 takes a 60% veil off
+    /// (bringing back contrast and color, darks most), and −100 lays one on; −n exactly undoes +n. White stays white.
+    static func dehazed(_ c: SIMD3<Double>, _ amount: Double) -> SIMD3<Double> {
+        let veil = 0.6 * abs(amount)
+        let gray = SIMD3(repeating: hazeGray)
+        if amount > 0 { return clamped((c - gray * veil) / (1 - veil)) }
+        return c * (1 - veil) + gray * veil
+    }
+
+    static let hazeGray = 0.88
+
     static func luma(_ c: SIMD3<Double>) -> Double { 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z }
 
     static func smoothstep(_ edge0: Double, _ edge1: Double, _ x: Double) -> Double {
@@ -170,12 +186,14 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
 
     /// Blur radii for the detail sliders, in image pixels. The display scales them with the zoom.
     public static let fineRadius = 1.2
+    public static let textureRadius = 3.0
     public static let definitionRadius = 12.0
 
-    /// Sharpness, Definition and Noise Reduction for one pixel, from its own color and two blurred copies
-    /// (straight colors, 0...1). Returns the new color.
-    static func detail(_ original: SIMD3<Double>, fine: SIMD3<Double>, wide: SIMD3<Double>,
-                       sharpness: Double, definition: Double, noiseReduction: Double) -> SIMD3<Double> {
+    /// Sharpness, Definition, Texture and Noise Reduction for one pixel, from its own color and three blurred copies
+    /// (straight colors, 0...1). Returns the new color. Texture works on detail up to a few pixels across, against
+    /// a blur a quarter of Definition's, so it brings out (or, negative, smooths) texture without wide halos.
+    static func detail(_ original: SIMD3<Double>, fine: SIMD3<Double>, medium: SIMD3<Double>, wide: SIMD3<Double>,
+                       sharpness: Double, definition: Double, texture: Double, noiseReduction: Double) -> SIMD3<Double> {
         var c = original
         if noiseReduction > 0 {
             // Smooth only where the pixel is close to its surroundings, so edges stay crisp.
@@ -185,6 +203,7 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
         }
         if sharpness > 0 { c += (original - fine) * sharpness * 1.5 }
         if definition > 0 { c += (original - wide) * definition * 0.6 }
+        if texture != 0 { c += (original - medium) * texture * 0.8 }
         return clamped(c)
     }
 }

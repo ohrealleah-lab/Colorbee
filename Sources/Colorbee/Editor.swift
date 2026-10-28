@@ -3252,7 +3252,7 @@ final class Editor {
 
     /// Save as Filter…: the filter at its intensity, then the sliders a filter may hold, as one filter.
     /// Returns the settings that now look the same: the new filter at 100%, with the sliders it absorbed
-    /// back at zero (only Sharpness, Definition and Noise Reduction stay). Nil if there was nothing to save.
+    /// back at zero (only Sharpness, Definition, Texture and Noise Reduction stay). Nil if there was nothing to save.
     func saveFilter(from edit: PhotoEdit, named name: String) -> PhotoEdit? {
         var steps = edit.filter?.steps(atIntensity: edit.filterIntensity / 100) ?? []
         let own = edit.adjustments.forFilters

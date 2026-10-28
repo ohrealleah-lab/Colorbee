@@ -90,6 +90,18 @@ struct PerformanceTests {
         #expect(time < .milliseconds(1000), "took \(time)")
     }
 
+    /// Adjust Photo's slowest settings: three blurred copies (Sharpness, Texture, Definition) and Dehaze. The limit
+    /// is a first guess, to be set to about twice the measured time on the next `make perf` (stage 3, 2026-10-27).
+    @Test func adjustPhotoWithEveryDetailSlider() {
+        let canvas = PerformanceFixture.photo(side: Self.side)
+        let edit = PhotoEdit(adjustments: PhotoAdjustments([.sharpness: 40, .texture: 50, .definition: 30, .noiseReduction: 20, .dehaze: 40]))
+        let time = fastest {
+            let step = Edit(name: "Adjust Photo", canvas: canvas)
+            Effects.apply(.photo(edit), to: canvas.activeLayer, selection: nil, edit: step)
+        }
+        #expect(time < .milliseconds(8000), "took \(time)")
+    }
+
     @Test func pointwiseAdjustmentOnTheWholeImage() {
         let canvas = PerformanceFixture.photo(side: Self.side)
         let time = fastest {

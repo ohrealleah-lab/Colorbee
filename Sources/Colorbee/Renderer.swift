@@ -17,7 +17,7 @@ struct QuadUniforms {
     var blendMode: Float = 0
     var adjustParams: SIMD4<Float> = .zero
     var adjustKind: Float = 0
-    /// Adjust Photo: how many vignettes (x), whose amounts are in fragment buffer 1; the rest is spare.
+    /// Adjust Photo: how many vignettes (x), whose amounts are in fragment buffer 1, and Texture (y, -1...1).
     var photoParams: SIMD4<Float> = .zero
     /// 1 when layers are sampled smoothly, which the shaders do in premultiplied color.
     var smooth: Float = 0
@@ -268,12 +268,14 @@ final class Renderer {
                 // Detail sliders need blurred copies of what's below: pause the layer pass, blur, resume.
                 let a = edit.adjustments
                 let fine = a[.sharpness] > 0 || a[.noiseReduction] > 0, wide = a[.definition] > 0
+                let medium = a[.texture] != 0
                 let canvasRect = uniforms.rect
                 let source = target
-                if fine || wide {
+                if fine || medium || wide {
                     encoder.endEncoding()
                     if fine { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.fineRadius * zoom * scale), slot: 0, commandBuffer: commandBuffer) }
                     if wide { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.definitionRadius * zoom * scale), slot: 1, commandBuffer: commandBuffer) }
+                    if medium { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.textureRadius * zoom * scale), slot: 2, commandBuffer: commandBuffer) }
                     let resume = MTLRenderPassDescriptor()
                     resume.colorAttachments[0].texture = source
                     resume.colorAttachments[0].loadAction = .load
@@ -289,13 +291,15 @@ final class Renderer {
                 encoder.setFragmentTexture(targets[0].coverageBlurred, index: 2)
                 encoder.setFragmentTexture(targets[1].blurred, index: 3)
                 encoder.setFragmentTexture(targets[1].coverageBlurred, index: 4)
+                encoder.setFragmentTexture(targets[2].blurred, index: 5)
+                encoder.setFragmentTexture(targets[2].coverageBlurred, index: 6)
                 uniforms.rect = canvasRect
                 uniforms.adjustParams = SIMD4(Float(lookup.width), fine ? Float(a[.sharpness] / 100) : 0,
                                               wide ? Float(a[.definition] / 100) : 0, fine ? Float(a[.noiseReduction] / 100) : 0)
                 // The filter's vignettes, then the panel's own, as Effects.photoAdjusted applies them. A buffer can't
                 // be empty, and setFragmentBytes takes at most 4 KB.
                 var vignettes = edit.vignetteAmounts.prefix(1024).map(Float.init)
-                uniforms.photoParams = SIMD4(Float(vignettes.count), 0, 0, 0)
+                uniforms.photoParams = SIMD4(Float(vignettes.count), medium ? Float(a[.texture] / 100) : 0, 0, 0)
                 if vignettes.isEmpty { vignettes = [0] }
                 encoder.setFragmentBytes(vignettes, length: vignettes.count * MemoryLayout<Float>.stride, index: 1)
                 draw(adjustPhotoPipeline)
@@ -616,7 +620,7 @@ final class Renderer {
 
     /// Both blur target sets at the drawable's size, made when needed.
     private func preparedBlurTargets(width: Int, height: Int) -> [BlurTarget] {
-        if blurTargets.count == 2, blurTargets[0].blurred.width == width, blurTargets[0].blurred.height == height { return blurTargets }
+        if blurTargets.count == 3, blurTargets[0].blurred.width == width, blurTargets[0].blurred.height == height { return blurTargets }
         func make(_ format: MTLPixelFormat, renderTarget: Bool) -> MTLTexture {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
             descriptor.usage = renderTarget ? [.renderTarget, .shaderRead] : [.shaderRead, .shaderWrite]
@@ -624,7 +628,7 @@ final class Renderer {
             guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create a blur texture") }
             return texture
         }
-        blurTargets = (0..<2).map { _ in (make(Self.layerTargetFormat, renderTarget: false), make(.r16Float, renderTarget: true), make(.r16Float, renderTarget: false)) }
+        blurTargets = (0..<3).map { _ in (make(Self.layerTargetFormat, renderTarget: false), make(.r16Float, renderTarget: true), make(.r16Float, renderTarget: false)) }
         return blurTargets
     }
 

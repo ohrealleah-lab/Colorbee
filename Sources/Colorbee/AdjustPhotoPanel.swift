@@ -39,9 +39,9 @@ struct PhotoControls: View {
     /// The titles of the folded sections, one per line, the same in every window (Leah, 2026-10-27).
     @AppStorage("adjustPhotoFoldedSections") private var folded = ""
     private static let groups: [(String, [Slider])] = [
-        ("Light", [.exposure, .brilliance, .highlights, .shadows, .contrast, .brightness, .whites, .blackPoint]),
+        ("Light", [.exposure, .brilliance, .dehaze, .highlights, .shadows, .contrast, .brightness, .whites, .blackPoint]),
         ("Color", [.saturation, .vibrance, .warmth, .tint]),
-        ("Detail", [.sharpness, .definition, .noiseReduction, .vignette]),
+        ("Detail", [.sharpness, .definition, .texture, .noiseReduction, .vignette]),
     ]
 
     var body: some View {
@@ -220,14 +220,14 @@ private struct FilterMenu: View {
     var body: some View {
         Menu {
             Button("Save as Filter…") {
-                if let name = askForName("Save as Filter", message: "Saves the filter, the light and color sliders, and the vignette as they are now. Sharpness, Definition and Noise Reduction stay on the panel.", defaultName: "My Filter") {
+                if let name = askForName("Save as Filter", message: "Saves the filter, the light and color sliders, and the vignette as they are now. Sharpness, Definition, Texture and Noise Reduction stay on the panel.", defaultName: "My Filter") {
                     // The new filter replaces what it was made from, so the image looks just the same.
                     if let saved = editor.saveFilter(from: edit, named: name) { onChange(saved) }
                 }
             }
             .disabled(edit.isNeutral)
             Button("Save Filter from Layers…") {
-                if let name = askForName("Save Filter from Layers", message: "Saves the image's visible color and tone adjustment layers, bottom to top, as one filter. Adjust Photo layers keep everything but Sharpness, Definition and Noise Reduction.", defaultName: "My Filter"),
+                if let name = askForName("Save Filter from Layers", message: "Saves the image's visible color and tone adjustment layers, bottom to top, as one filter. Adjust Photo layers keep everything but Sharpness, Definition, Texture and Noise Reduction.", defaultName: "My Filter"),
                    !editor.saveFilterFromLayers(named: name) {
                     let alert = NSAlert()
                     alert.messageText = "No color or tone adjustment layers"

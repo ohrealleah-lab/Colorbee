@@ -318,18 +318,19 @@ since both use the same eight color ranges.
      to make sure they feel different.
    - Questions: Q3.1, Q3.2.
 4. **Size:** M–L. **Opus, high.**
-5. **Hand test** (`Hazy.png`, `Texture Practice.png`)
-   1. Open `Hazy.png`, Adjust Photo, Dehaze +50: the haze lifts and colors return. Apply. ⌘Z.
-   2. Dehaze −50: haze is added. Cancel.
-   3. Dehaze +50, then Save as Filter… named "Clear". Open `Texture Practice.png` and choose Clear: haze is
-      removed there too. Cancel.
-   4. On `Texture Practice.png`, zoom to 200%, Texture +60: the grass and bark sharpen, with no glow around the
-      hills' edges. Try −60: they soften.
-   5. Texture back to 0, Definition +60: the hills' edges get a wider glow. That's the difference between the two.
-      Cancel.
-   6. As Adjustment Layer with Texture +60, then paint with the Brush on the layer below: it stays smooth, and the
-      look follows.
-   7. Export a PNG and compare it with the screen: the same.
+5. **Hand test** (`TestImages/Photo Editing/Hazy.png`, `TestImages/Photo Editing/Texture Practice.png`)
+   1. Open `Hazy.png` and choose Adjust Photo. Drag **Dehaze** (in Light, after Brilliance) to +50: the haze lifts, the
+      hills turn green again and the sky deepens. Apply, then ⌘Z.
+   2. Open Adjust Photo again and drag Dehaze to −50: the picture gets hazier. Cancel.
+   3. Open Adjust Photo again, Dehaze +50, then ⋯ ▸ Save as Filter… named "Clear". Open `Texture Practice.png` and
+      choose Clear: it gets clearer and more contrasty too (filters keep Dehaze). Cancel.
+   4. On `Texture Practice.png`, zoom to 200% on the hills. Adjust Photo, **Texture** (in Detail, after Definition)
+      +60: the grass grain gets crisper, with no glow along the hills' edges. Try −60: it smooths.
+   5. Set Texture back to 0 and Definition to +60: now a wider glow runs along the hills' edges. That's the difference
+      between them. Cancel.
+   6. Open Adjust Photo, Texture +60, then **As Adjustment Layer**. Choose the Background layer and paint a few Brush
+      strokes across the hills: drawing stays smooth, and the strokes get the crisper look too.
+   7. File ▸ Export… as a PNG and open it in Preview. Zoom both to 100%: the grass looks the same.
 6. **Done when:** exact-value tests, a screen-versus-export test, and a time limit at 8000 × 8000 all pass. Help is
    updated.
 

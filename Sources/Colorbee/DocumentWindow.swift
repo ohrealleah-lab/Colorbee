@@ -182,6 +182,7 @@ final class DocumentWindow: NSWindow {
     @objc func selectSubject(_ sender: Any?) { editor?.findSubject(.select) }
     @objc func showColorRange(_ sender: Any?) { editor?.beginEffect(.colorRange) }
     @objc func showLuminanceRange(_ sender: Any?) { editor?.beginEffect(.luminanceRange) }
+    @objc func showGraduatedSelection(_ sender: Any?) { editor?.beginEffect(.graduatedSelection) }
     @objc func removeBackground(_ sender: Any?) { editor?.findSubject(.removeBackground) }
     @objc func liftSubject(_ sender: Any?) { editor?.findSubject(.liftToNewLayer) }
     @objc func showStraighten(_ sender: Any?) { editor?.beginEffect(.straighten) }
@@ -401,7 +402,7 @@ final class DocumentWindow: NSWindow {
         case #selector(showSpotlight(_:)):
             // Spotlight changes what's around a selection, so it waits for one.
             return editor.hasSelection
-        case #selector(showColorRange(_:)), #selector(showLuminanceRange(_:)):
+        case #selector(showColorRange(_:)), #selector(showLuminanceRange(_:)), #selector(showGraduatedSelection(_:)):
             return true
         case #selector(showFeather(_:)), #selector(showExpandSelection(_:)), #selector(showContractSelection(_:)),
              #selector(showSmoothSelection(_:)):

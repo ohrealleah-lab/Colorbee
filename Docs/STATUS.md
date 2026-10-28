@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-28 · 655 core tests and 201 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
+_Last updated: 2026-10-28 · 659 core tests and 204 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
 
 ## Waiting for Leah's tests
 
@@ -16,6 +16,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 7: Expand, Contract and Smooth](#test-stage-7-expand-contract-and-smooth) (2026-10-28; stages 7 to 10 are built in a row, then tested together)
 - [Stage 8: Paste in Place](#test-stage-8-paste-in-place) (2026-10-28)
 - [Stage 9: Color Range and Luminance Range](#test-stage-9-color-range-and-luminance-range) (2026-10-28)
+- [Stage 10: Graduated selection](#test-stage-10-graduated-selection) (2026-10-28)
 - [Lifting one subject after another](#test-lifting-one-subject-after-another)
 - [Subjects always wait for a click](#test-subjects-always-wait-for-a-click)
 
@@ -69,6 +70,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 7. Expand, Contract and Smooth | Built 2026-10-28; waiting for Leah's test (with stages 8 to 10) | High |
 | 14 · 8. Paste in Place | Built 2026-10-28; waiting for Leah's test (with stages 7, 9 and 10) | Medium |
 | 14 · 9. Color Range and Luminance Range | Built 2026-10-28; waiting for Leah's test (with stages 7, 8 and 10) | High |
+| 14 · 10. Graduated selection | Built 2026-10-28; waiting for Leah's test (with stages 7 to 9) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -109,6 +111,8 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   effect bars that make a selection (`EffectKind.choosesSelection`), worked out in the background and tinted like
   Feather. Luminance Range's two-handle slider is `RangeSlider.swift`. Bar labels no longer wrap when a bar is short
   of room (a squeezed label wrapped letter by letter and made the bar 140 pt tall).
+- Stage 10 (2026-10-28): Edit ▸ Graduated Selection (`GraduatedSelection.swift`), a third `choosesSelection` bar: drag
+  a line, drag its ends, Shift snaps to 45°; guides across the canvas at both ends.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -276,6 +280,19 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 10: Graduated selection
+
+Test file: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first.
+1. Choose Edit ▸ **Graduated Selection**. The bar says "Drag from where it's fully selected to where it fades out",
+   and Apply is greyed out.
+2. Drag from the top of the sky down to the hills. A line appears with a handle at each end and a white guide across
+   the picture at each end; the red tint is clear at the top and grows toward the hills. Press Return.
+3. Choose Adjustments ▸ Adjust Photo… and set Exposure −40: the top of the sky darkens most, fading smoothly to no
+   change at the hills. Apply, then ⌘Z.
+4. Choose **Graduated Selection** again and drag a line. Drag its bottom handle further down: the fade stretches.
+   Drag somewhere away from the handles: a new line starts there.
+5. Hold Shift while dragging: the line snaps to straight down, straight across or 45°. Esc cancels.
 
 ### Test: Stage 9: Color Range and Luminance Range
 

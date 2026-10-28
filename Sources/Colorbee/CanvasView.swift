@@ -632,7 +632,7 @@ final class CanvasView: NSView {
         case .divider:
             moveDivider(event)
         case .canvasTool:
-            editor.continueCanvasToolDrag(to: imagePoint(event))
+            editor.continueCanvasToolDrag(to: imagePoint(event), constrain: event.modifierFlags.contains(.shift))
         case .measure(let start):
             editor.measure(from: start, to: imagePoint(event))
             updatePointer(event)

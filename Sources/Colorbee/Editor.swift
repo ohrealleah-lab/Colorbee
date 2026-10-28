@@ -113,6 +113,8 @@ enum EffectKind: CaseIterable {
     /// Edit ▸ Color Range… and Luminance Range… (FR-9.7 item 3): a selection chosen in the bar, previewed with a tint.
     case colorRange
     case luminanceRange
+    /// Edit ▸ Graduated Selection (FR-9.7 item 3): a dragged line, fully selected at its start and fading to its end.
+    case graduatedSelection
 
     /// Drop Shadow, Border and Straighten change the canvas's size, so their preview is a real step, redone as
     /// settings change.
@@ -124,7 +126,7 @@ enum EffectKind: CaseIterable {
     }
 
     /// Color Range and Luminance Range: they make a selection rather than change pixels.
-    var choosesSelection: Bool { self == .colorRange || self == .luminanceRange }
+    var choosesSelection: Bool { self == .colorRange || self == .luminanceRange || self == .graduatedSelection }
 
     /// Changes every layer, not just the active one.
     var appliesToWholeImage: Bool { self == .straighten || self == .perspective || self == .crop }
@@ -164,6 +166,7 @@ enum EffectKind: CaseIterable {
         case .pickSubject: "Pick a Subject"
         case .colorRange: "Color Range"
         case .luminanceRange: "Luminance Range"
+        case .graduatedSelection: "Graduated Selection"
         }
     }
 
@@ -195,6 +198,9 @@ enum EffectKind: CaseIterable {
             Parameter(label: "From", range: 0...100, defaultValue: LuminanceRange.shadows.lower, unit: ""),
             Parameter(label: "To", range: 0...100, defaultValue: LuminanceRange.shadows.upper, unit: ""),
             Parameter(label: "Smoothness", range: 0...100, defaultValue: 50, unit: ""),
+            Parameter(label: "Selection", range: 0...3, defaultValue: 0, unit: "", options: Self.combineOptions),
+        ]
+        case .graduatedSelection: [
             Parameter(label: "Selection", range: 0...3, defaultValue: 0, unit: "", options: Self.combineOptions),
         ]
         case .straighten: [
@@ -260,7 +266,7 @@ enum EffectKind: CaseIterable {
             default: .brightnessContrast(brightness: -value(1) * 0.8, contrast: 0)
             }
         // Done by Decorations and ImageActions, not as an effect (see Editor.renderEffectPreview).
-        case .dropShadow, .border, .straighten, .perspective, .crop, .pickSubject, .colorRange, .luminanceRange: .invert
+        case .dropShadow, .border, .straighten, .perspective, .crop, .pickSubject, .colorRange, .luminanceRange, .graduatedSelection: .invert
         }
     }
 }
@@ -2515,6 +2521,15 @@ final class Editor {
     private enum RangeSettings: Equatable {
         case color(ColorRange)
         case luminance(LuminanceRange)
+        case graduated(GraduatedSelection)
+
+        func selection(in source: PixelBuffer) -> SelectionMask? {
+            switch self {
+            case .color(let range): range.selection(in: source)
+            case .luminance(let range): range.selection(in: source)
+            case .graduated(let line): line.selection(in: source.bounds)
+            }
+        }
     }
 
     private var rangeSettings: RangeSettings? {
@@ -2522,12 +2537,14 @@ final class Editor {
         switch activeEffect {
         case .colorRange: return .color(ColorRange(colors: rangeColors, fuzziness: value(0)))
         case .luminanceRange: return .luminance(LuminanceRange(lower: value(0), upper: value(1), smoothness: value(2)))
+        case .graduatedSelection: return graduatedLine.map { .graduated($0) }
         default: return nil
         }
     }
 
     private var rangeCombineMode: SelectionCombineMode {
-        let index = Int((effectValues[safe: activeEffect == .colorRange ? 1 : 3] ?? 0).rounded())
+        let position = activeEffect?.parameters.firstIndex { $0.options == EffectKind.combineOptions } ?? 0
+        let index = Int((effectValues[safe: position] ?? 0).rounded())
         return [.replace, .add, .subtract, .intersect][min(max(index, 0), 3)]
     }
 
@@ -2546,6 +2563,8 @@ final class Editor {
 
     private func beginRange() {
         rangeColors = []
+        graduatedLine = nil
+        graduatedMoving = nil
         rangeShown = nil
         rangeMask = nil
         rangeSource = nil
@@ -2554,6 +2573,8 @@ final class Editor {
     private func endRange() {
         if activeEffect?.choosesSelection == true { marqueePreview = nil }
         rangeColors = []
+        graduatedLine = nil
+        graduatedMoving = nil
         rangeShown = nil
         rangeRunning = false
         rangeMask = nil
@@ -2563,6 +2584,8 @@ final class Editor {
 
     private func rangeSampled() -> PixelBuffer {
         if let rangeSource { return rangeSource }
+        // A graduated selection reads no pixels, only the canvas's size.
+        if activeEffect == .graduatedSelection { return canvas.activeLayer.buffer }
         let source = rangeSamplesAllLayers ? canvas.flattened() : canvas.activeLayer.buffer
         rangeSource = source
         return source
@@ -2581,15 +2604,12 @@ final class Editor {
     /// The range's selection is worked out in the background, with changes made meanwhile merged, then combined with
     /// the selection there already for the tint.
     private func refreshRangePreview() {
-        guard !rangeRunning, let settings = rangeSettings else { return onRender() }
+        guard !rangeRunning, let settings = rangeSettings else { return showRangePreview() }
         guard settings != rangeShown else { return showRangePreview() }
         rangeRunning = true
         let session = rangeSession, source = UnsafeTransfer(rangeSampled())
         Task.detached(priority: .userInitiated) { [weak self] in
-            let mask: SelectionMask? = switch settings {
-            case .color(let range): range.selection(in: source.value)
-            case .luminance(let range): range.selection(in: source.value)
-            }
+            let mask = settings.selection(in: source.value)
             let result = UnsafeTransfer(mask)
             await MainActor.run { [weak self] in
                 guard let self, session == self.rangeSession else { return }
@@ -2602,8 +2622,8 @@ final class Editor {
     }
 
     private func showRangePreview() {
-        // Nothing clicked yet: the selection as it is, untinted.
-        if activeEffect == .colorRange, rangeColors.isEmpty {
+        // Nothing clicked or drawn yet: the selection as it is, untinted.
+        if rangeSettings == nil || activeEffect == .colorRange && rangeColors.isEmpty {
             marqueePreview = nil
         } else {
             marqueePreview = SelectionMask.combine(canvas.selection.marquee, with: rangeMask, mode: rangeCombineMode)
@@ -2614,18 +2634,14 @@ final class Editor {
     /// Return makes the range the selection, combined as the bar says; with no color clicked yet there's nothing to
     /// take. It's no more an undo step than any other selection.
     private func applyRange() {
-        guard let settings = rangeSettings else { return }
+        guard let settings = rangeSettings else { return onRefused() }
         if activeEffect == .colorRange, rangeColors.isEmpty { return onRefused() }
         let mask: SelectionMask?
         if settings == rangeShown {
             mask = rangeMask
         } else {
             // The newest settings aren't worked out yet: OK keeps exactly what's in the bar.
-            let source = rangeSampled()
-            mask = switch settings {
-            case .color(let range): range.selection(in: source)
-            case .luminance(let range): range.selection(in: source)
-            }
+            mask = settings.selection(in: rangeSampled())
         }
         let mode = rangeCombineMode
         endEffectSession()
@@ -2633,6 +2649,60 @@ final class Editor {
         recordingChanges { SelectionActions.select(mask, mode: mode, canvas: canvas, history: history, context: selectionContext) }
         if !tool.isSelectionTool { tool = .rectangleSelect }
         selectionDidChange()
+    }
+
+    /// Graduated Selection's line, once one is drawn; its ends can be dragged until Return.
+    private(set) var graduatedLine: GraduatedSelection?
+    /// Which end a drag is moving, or nil when it draws a new line.
+    @ObservationIgnored private var graduatedMoving: GraduatedEnd?
+
+    private enum GraduatedEnd { case start, end }
+
+    /// Near an end of the line, a drag moves that end; anywhere else, it draws a new line from there.
+    private func beginGraduatedDrag(at point: Point2D, viewPoint: Point2D) {
+        if let line = graduatedLine {
+            let ends: [(GraduatedEnd, Point2D)] = [(.end, line.end), (.start, line.start)]
+            if let near = ends.first(where: { distance(viewport.viewPoint(fromImage: $0.1), viewPoint) <= 12 }) {
+                graduatedMoving = near.0
+                return
+            }
+        }
+        graduatedMoving = .end
+        graduatedLine = GraduatedSelection(start: point, end: point)
+        refreshRangePreview()
+    }
+
+    /// Shift keeps the line across, down or at 45°, measured from the end that isn't moving.
+    private func continueGraduatedDrag(to point: Point2D, constrain: Bool) {
+        guard var line = graduatedLine, let moving = graduatedMoving else { return }
+        switch moving {
+        case .end: line.end = constrain ? GraduatedSelection.constrained(point, from: line.start) : point
+        case .start: line.start = constrain ? GraduatedSelection.constrained(point, from: line.end) : point
+        }
+        graduatedLine = line
+        refreshRangePreview()
+    }
+
+    /// A guide at right angles to `line` through `point`, reaching across the canvas and stopping at its edges.
+    private func guideAcross(_ line: GraduatedSelection, through point: Point2D) -> (Point2D, Point2D)? {
+        let dx = line.end.x - line.start.x, dy = line.end.y - line.start.y
+        let length = hypot(dx, dy)
+        guard length > 0 else { return nil }
+        let across = Point2D(x: -dy / length, y: dx / length)
+        // Along the guide, the part inside the canvas (Liang–Barsky clipping).
+        var low = -Double.infinity, high = Double.infinity
+        for (origin, direction, size) in [(point.x, across.x, Double(canvas.size.width)), (point.y, across.y, Double(canvas.size.height))] {
+            if direction == 0 {
+                guard origin >= 0 && origin <= size else { return nil }
+            } else {
+                let a = (0 - origin) / direction, b = (size - origin) / direction
+                low = max(low, min(a, b))
+                high = min(high, max(a, b))
+            }
+        }
+        guard low < high else { return nil }
+        return (Point2D(x: point.x + across.x * low, y: point.y + across.y * low),
+                Point2D(x: point.x + across.x * high, y: point.y + across.y * high))
     }
 
     /// Luminance Range's Shadows, Midtones and Highlights buttons.
@@ -2841,6 +2911,7 @@ final class Editor {
         switch activeEffect {
         case .crop: SelectionHandle.allCases.map { $0.point(on: cropRect) }
         case .perspective: perspectiveCorners
+        case .graduatedSelection: graduatedLine.map { [$0.start, $0.end] } ?? []
         default: []
         }
     }
@@ -2862,6 +2933,13 @@ final class Editor {
                     lines.append((Point2D(x: x, y: Double(r.minY)), Point2D(x: x, y: Double(r.maxY)), faint))
                     lines.append((Point2D(x: Double(r.minX), y: y), Point2D(x: Double(r.maxX), y: y), faint))
                 }
+            }
+        case .graduatedSelection:
+            // The line, and guides across the canvas where the fade starts and ends, as in Lightroom.
+            guard let line = graduatedLine else { break }
+            lines.append((line.start, line.end, accent))
+            for point in [line.start, line.end] {
+                if let guide = guideAcross(line, through: point) { lines.append((guide.0, guide.1, white)) }
             }
         case .perspective where perspectiveCorners.count == 4:
             for index in 0..<4 { lines.append((perspectiveCorners[index], perspectiveCorners[(index + 1) % 4], accent)) }
@@ -2888,6 +2966,8 @@ final class Editor {
         case .colorRange:
             pickRangeColor(at: point, adding: adding)
             return
+        case .graduatedSelection:
+            beginGraduatedDrag(at: point, viewPoint: viewPoint)
         case .straighten:
             straightenLine = (point, point)
         case .perspective:
@@ -2914,8 +2994,10 @@ final class Editor {
         renderSoon()
     }
 
-    func continueCanvasToolDrag(to point: Point2D) {
+    func continueCanvasToolDrag(to point: Point2D, constrain: Bool = false) {
         switch activeEffect {
+        case .graduatedSelection:
+            continueGraduatedDrag(to: point, constrain: constrain)
         case .straighten:
             if let line = straightenLine { straightenLine = (line.start, point) }
         case .perspective:
@@ -2953,6 +3035,7 @@ final class Editor {
         }
         toolDrag = nil
         isDraggingCrop = false
+        graduatedMoving = nil
         renderSoon()
     }
 

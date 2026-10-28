@@ -82,3 +82,43 @@ struct SelectionRangeTests {
         #expect(amounts(LuminanceRange(lower: 70, upper: 30, smoothness: 0).selection(in: buffer), width: 1) == [255])
     }
 }
+
+/// Edit ▸ Graduated Selection (FR-9.7 item 3).
+struct GraduatedSelectionTests {
+    @Test func fullAtTheStartFadingToNothingAtTheEnd() throws {
+        let bounds = IntRect(x: 0, y: 0, width: 4, height: 20)
+        // Down the canvas from y = 5 to y = 15.
+        let mask = try #require(GraduatedSelection(start: Point2D(x: 2, y: 5), end: Point2D(x: 2, y: 15)).selection(in: bounds))
+        let column = (0..<20).map { mask[1, $0] }
+        #expect(column[0...4].allSatisfy { $0 == 255 })
+        #expect(column[15...].allSatisfy { $0 == 0 })
+        // Smoothly down from full to nothing, half way at y = 10, between rows 9 and 10.
+        #expect(zip(column, column.dropFirst()).allSatisfy { $0 >= $1 })
+        #expect(column[9] > 128 && column[10] < 128)
+        // The fade runs across the line, so every column is the same.
+        #expect((0..<20).allSatisfy { mask[0, $0] == mask[3, $0] })
+        #expect(mask.isSoft)
+    }
+
+    @Test func aDiagonalLineFadesAcrossIt() throws {
+        let bounds = IntRect(x: 0, y: 0, width: 10, height: 10)
+        let mask = try #require(GraduatedSelection(start: Point2D(x: 0, y: 0), end: Point2D(x: 10, y: 10)).selection(in: bounds))
+        #expect(mask[0, 0] > mask[5, 5] && mask[5, 5] > mask[9, 9])
+        // Points the same distance along the line match.
+        #expect(mask[2, 7] == mask[7, 2])
+    }
+
+    @Test func aLineWithNoLengthSelectsNothing() {
+        let point = Point2D(x: 3, y: 3)
+        #expect(GraduatedSelection(start: point, end: point).selection(in: IntRect(x: 0, y: 0, width: 8, height: 8)) == nil)
+    }
+
+    @Test func shiftKeepsTheLineAcrossDownOrAt45Degrees() {
+        let anchor = Point2D(x: 10, y: 10)
+        #expect(GraduatedSelection.constrained(Point2D(x: 30, y: 12), from: anchor) == Point2D(x: 30, y: 10))
+        let down = GraduatedSelection.constrained(Point2D(x: 11, y: 40), from: anchor)
+        #expect(abs(down.x - 10) < 1e-9 && abs(down.y - 40) < 1e-9)
+        let diagonal = GraduatedSelection.constrained(Point2D(x: 20, y: 22), from: anchor)
+        #expect(abs((diagonal.x - 10) - (diagonal.y - 10)) < 1e-9)
+    }
+}

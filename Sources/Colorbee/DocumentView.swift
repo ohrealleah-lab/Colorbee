@@ -376,12 +376,18 @@ private struct EffectBar: View {
             if kind == .crop {
                 CropOptions(editor: editor)
             }
-            if kind.choosesSelection {
+            if kind == .colorRange || kind == .luminanceRange {
                 Toggle(isOn: Binding(get: { editor.rangeSamplesAllLayers }, set: { editor.rangeSamplesAllLayers = $0 })) {
                     Text("Sample All Layers").fixedSize()
                 }
                     .disabled(editor.canvas.activeLayer.adjustment != nil)
                     .help("Read every visible layer together, as the Magic Wand's Sample All Layers does")
+                    .fixedSize()
+            }
+            if kind == .graduatedSelection {
+                Text(editor.graduatedLine == nil ? "Drag from where it's fully selected to where it fades out."
+                     : "Drag an end to move it, or drag again elsewhere. Shift keeps the line straight or at 45°.")
+                    .foregroundStyle(.secondary)
                     .fixedSize()
             }
             if kind == .colorRange {
@@ -420,7 +426,8 @@ private struct EffectBar: View {
                 .keyboardShortcut(.cancelAction)
             Button("Apply") { editor.applyEffect() }
                 .keyboardShortcut(.defaultAction)
-                .disabled(kind == .pickSubject && !editor.pickHasSubjects || kind == .colorRange && editor.rangeColors.isEmpty)
+                .disabled(kind == .pickSubject && !editor.pickHasSubjects || kind == .colorRange && editor.rangeColors.isEmpty
+                          || kind == .graduatedSelection && editor.graduatedLine == nil)
         }
         .controlSize(.small)
         .padding(.horizontal, 12)

@@ -104,6 +104,7 @@ enum MainMenu {
         "deselect:": "Remove the selection, placing any moved pixels.",
         "invertSelection:": "Select everything that isn't selected, and nothing that is.",
         "showColorRange:": "Select the colors you click in the picture, and colors near them.",
+        "showGraduatedSelection:": "Drag a line: fully selected where it starts, fading to nothing where it ends.",
         "showLuminanceRange:": "Select by brightness: the shadows, midtones or highlights.",
         "pasteInPlace:": "Paste exactly where the copied pixels came from, in this image or another one.",
         "showFeather:": "Soften the selection's edge, so changes fade out across it.",
@@ -253,6 +254,7 @@ enum MainMenu {
         menu.addItem(item("Select Subject", "selectSubject:"))
         menu.addItem(item("Color Range…", "showColorRange:"))
         menu.addItem(item("Luminance Range…", "showLuminanceRange:"))
+        menu.addItem(item("Graduated Selection", "showGraduatedSelection:"))
         return menu
     }
 

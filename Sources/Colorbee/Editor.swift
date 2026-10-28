@@ -3419,6 +3419,7 @@ final class Editor {
         preview?.write(into: canvas.activeLayer, edit: edit)
         shownEffect = effect
         onRender()
+        if activeEffect == .adjustPhoto { refreshPhotoHistogram() }
         if previewWanted {
             previewWanted = false
             startBackgroundPreview()
@@ -3443,6 +3444,7 @@ final class Editor {
         }
         shownEffect = effect
         onRender()
+        if kind == .adjustPhoto { refreshPhotoHistogram() }
     }
 
     /// Levels' Auto button: black and white points at the darkest and lightest values (FR-9.5).
@@ -3601,6 +3603,36 @@ final class Editor {
     var activePhotoLayerEdit: PhotoEdit? {
         guard case .photo(let edit) = activeAdjustment else { return nil }
         return edit
+    }
+
+    // MARK: Adjust Photo's histogram and clipping warnings (FR-9.7 item 6)
+
+    /// The picture as it looks now, for Adjust Photo's histogram: worked out from a small copy after each change.
+    private(set) var photoHistogram: Histogram?
+    @ObservationIgnored private var photoHistogramScheduled = false
+    /// Blown highlights shown red, and crushed shadows blue, on the picture only (Q15.2).
+    var clipsHighlights = false {
+        didSet { renderSoon() }
+    }
+    var clipsShadows = false {
+        didSet { renderSoon() }
+    }
+
+    /// Adjust Photo's controls are showing: its panel, or the Adjustments panel on an Adjust Photo layer.
+    var showsPhotoControls: Bool {
+        activeEffect == .adjustPhoto || (isSidebarOpen && showsAdjustmentsPanel && activePhotoLayerEdit != nil)
+    }
+
+    /// Works out the histogram again once the current change has been drawn; several changes in a row make one.
+    func refreshPhotoHistogram() {
+        guard !photoHistogramScheduled else { return }
+        photoHistogramScheduled = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            photoHistogramScheduled = false
+            guard showsPhotoControls else { return }
+            photoHistogram = Histogram(canvas.thumbnail(maxSide: 320))
+        }
     }
 
     /// Copy Photo Settings: from the Adjust Photo panel while it's open, otherwise from the active Adjust Photo layer.
@@ -4229,6 +4261,7 @@ final class Editor {
         }
         layersRevision += 1
         onRender()
+        if activePhotoLayerEdit != nil { refreshPhotoHistogram() }
     }
 
     /// Adds an adjustment layer above the active layer and shows its settings.

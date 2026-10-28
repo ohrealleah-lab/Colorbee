@@ -25,6 +25,9 @@ struct QuadUniforms {
     var detailParams: SIMD4<Float> = .zero
     /// Fine boost, Masking's threshold, and 1 to show the Masking mask.
     var detailParams2: SIMD4<Float> = .zero
+    /// Adjust Photo's clipping warnings, for the final composite: 1 shows blown highlights red, 2 crushed shadows
+    /// blue, 3 both.
+    var clipWarnings: Float = 0
 }
 
 /// Everything needed to draw one frame of a document.
@@ -55,6 +58,9 @@ struct RenderScene {
     var dimmedOutside: IntRect? = nil
     /// Edit ▸ Feather…'s preview: a tint over what isn't selected, fading in across a soft edge.
     var tintsOutsideSelection = false
+    /// Adjust Photo's clipping warnings (FR-9.7 item 6), on screen only: blown highlights red, crushed shadows blue.
+    var clipsHighlights = false
+    var clipsShadows = false
     /// Before/After: the earlier image and how to show it.
     let comparison: (before: PixelBuffer, layout: Comparison.Layout, dividerX: Double)?
 }
@@ -460,7 +466,9 @@ final class Renderer {
         uniforms.rect = SIMD4(0, 0, uniforms.viewportSize.x, uniforms.viewportSize.y)
         sampling(false)
         encoder.setFragmentTexture(layerPass.colorAttachments[0].texture, index: 0)
+        uniforms.clipWarnings = (scene.clipsHighlights ? 1 : 0) + (scene.clipsShadows ? 2 : 0)
         draw(compositePipeline)
+        uniforms.clipWarnings = 0
         uniforms.rect = deviceRect(canvas.bounds)
 
         if let comparison = scene.comparison, comparison.layout == .split {

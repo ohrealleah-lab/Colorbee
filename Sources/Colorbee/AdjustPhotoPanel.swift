@@ -57,6 +57,7 @@ struct PhotoControls: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            PhotoHistogram(editor: editor)
             FilterStrip(edit: edit, editor: editor, onChange: { onChange($0); onFinish() })
             if edit.filter != nil {
                 row("Intensity", value: edit.filterIntensity, range: 0...100, unit: "%") { value in
@@ -97,6 +98,9 @@ struct PhotoControls: View {
                     }
                     if hasMore && isOpen(slider) { finerSettings(for: slider) }
                 }
+                if title == "Light" {
+                    toneCurveSection
+                }
                 if title == "Color" {
                     colorMixerSection
                     pointColorSection
@@ -108,6 +112,35 @@ struct PhotoControls: View {
 
     func isFolded(_ title: String) -> Bool {
         foldedTitles.contains(title)
+    }
+
+    // MARK: Tone Curve (FR-9.7 item 6)
+
+    /// Its own heading, so its Highlights and Shadows aren't mistaken for the Light section's (Q15.3).
+    @ViewBuilder private var toneCurveSection: some View {
+        sectionHeading("Tone Curve")
+        if !isFolded("Tone Curve") {
+            let curve = edit.toneCurve ?? ToneCurve()
+            let change = { (changed: ToneCurve) in
+                var photo = edit
+                photo.toneCurve = changed
+                onChange(photo)
+            }
+            ToneCurveGraph(curve: curve).frame(height: 110)
+            SplitSlider(splits: curve.splits) { index, value in
+                var changed = curve
+                changed.setSplit(index, to: value.rounded())
+                change(changed)
+            } onEnd: { onFinish() }
+            // Lightest first, as the curve runs from top right down.
+            ForEach(ToneCurve.Region.allCases.reversed(), id: \.self) { region in
+                row(region.title, value: curve[region], range: ToneCurve.amountRange, unit: "") { value in
+                    var changed = curve
+                    changed[region] = value
+                    change(changed)
+                }
+            }
+        }
     }
 
     // MARK: Sharpness's and Noise Reduction's finer settings (FR-9.7 item 5)

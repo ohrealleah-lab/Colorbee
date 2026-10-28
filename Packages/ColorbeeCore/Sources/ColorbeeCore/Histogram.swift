@@ -7,6 +7,13 @@ public struct Histogram: Sendable, Equatable {
     public private(set) var lowestValue: UInt8?
     public private(set) var highestValue: UInt8?
 
+    /// A small picture's pixels, such as `Canvas.thumbnail`'s: a quick histogram of a big image.
+    public init(_ thumbnail: Thumbnail) {
+        let buffer = PixelBuffer(width: thumbnail.width, height: thumbnail.height)
+        buffer.setPixels(thumbnail.pixels, in: buffer.bounds)
+        self.init(buffer)
+    }
+
     /// The pixels of `buffer` inside `selection` (or all of them).
     public init(_ buffer: PixelBuffer, selection: SelectionMask? = nil) {
         let region = (selection?.bounds ?? buffer.bounds).intersection(buffer.bounds)

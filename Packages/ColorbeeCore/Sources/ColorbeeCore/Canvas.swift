@@ -185,14 +185,19 @@ public final class Canvas {
         let clips = Dictionary(uniqueKeysWithValues: visible.map { layer in
             (ObjectIdentifier(layer), layers.firstIndex { $0 === layer }.map { clippedAdjustments(onLayerAt: $0).filter { clip in visible.contains { $0 === clip } } } ?? [])
         })
+        // Each adjustment's color change, worked out once: Adjust Photo's color and tone count too, though not its
+        // detail or vignette, so the Adjust Photo histogram follows its sliders (stage 15).
+        let transforms = Dictionary(uniqueKeysWithValues: visible.compactMap { layer in
+            layer.adjustment?.colorTransform.map { (ObjectIdentifier(layer), $0) }
+        })
         for ty in 0..<height {
             let y = min(size.height - 1, Int((Double(ty) + 0.5) / scale))
             for tx in 0..<width {
                 let x = min(size.width - 1, Int((Double(tx) + 0.5) / scale))
                 var color = SIMD4<Float>.zero
                 for layer in visible {
-                    if let adjustment = layer.adjustment {
-                        guard !layer.clipsToLayerBelow, let transform = adjustment.pointwise else { continue }
+                    if layer.adjustment != nil {
+                        guard !layer.clipsToLayerBelow, let transform = transforms[ObjectIdentifier(layer)] else { continue }
                         let below = Compositing.pixel(color)
                         var adjusted = transform(below)
                         adjusted.a = below.a
@@ -201,7 +206,7 @@ public final class Canvas {
                     } else {
                         var pixel = layer.buffer[x, y]
                         for clip in clips[ObjectIdentifier(layer)] ?? [] {
-                            guard let transform = clip.adjustment?.pointwise else { continue }
+                            guard let transform = transforms[ObjectIdentifier(clip)] else { continue }
                             var adjusted = transform(pixel)
                             adjusted.a = pixel.a
                             pixel = Compositing.lerp(pixel, adjusted, Float(clip.opacity))

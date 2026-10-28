@@ -13,6 +13,7 @@ _Last updated: 2026-10-28 · 695 core tests and 218 app tests passing; the full 
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Stage 15: Tone curve and clipping warnings](#test-stage-15-tone-curve-and-clipping-warnings) (2026-10-28; stages 15 to 18b are built in a row, then tested together)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -71,6 +72,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 12. History Snapshots | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 13. Sharpening and Noise Reduction in detail | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 14. Vignette and Grain | ✅ Done; passed Leah's test 2026-10-28 | Medium |
+| 14 · 15. Tone curve and clipping warnings | Built 2026-10-28; waiting for Leah's test (with stages 16 to 18b) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -127,6 +129,10 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - Stage 14 (2026-10-28): Adjust Photo's Effects section, Vignette (moved from Detail) and Grain, with the vignette's
   Midpoint, Roundness and Feather and the grain's Size and Roughness (`PhotoEffects.swift`: `PhotoEffects`,
   `Vignette.Shape`, `Grain`; mirrored in `adjust_photo_fragment`). Grain uses a 32-bit hash so the GPU matches.
+- Stage 15 (2026-10-28): Adjust Photo's histogram with clipping warnings (`PhotoHistogram` in `ToneViews.swift`,
+  `Editor.refreshPhotoHistogram`, `composite_fragment`) and the parametric Tone Curve (`ToneCurve.swift`, a monotone
+  curve through four region points; `ToneCurveGraph`, `SplitSlider`). `Canvas.thumbnail` now includes Adjust Photo
+  layers' color.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -294,6 +300,20 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 15: Tone curve and clipping warnings
+
+Test files: `TestImages/Stage 9 Practice Photo.png` and `TestImages/Photo Editing/Color Chart.png`. Run `make run`
+first.
+1. Open the practice photo and choose Adjustments ▸ **Adjust Photo…**. A histogram is at the top. Set Exposure +80:
+   the histogram moves right.
+2. Click the small triangle at the histogram's **right** corner: the moon and bright sky turn red where they've
+   blown out. Lower Exposure: the red shrinks. Click the triangle again: the red goes.
+3. Click the **left** triangle and set Exposure −100: the darkest parts turn blue. Turn it off again.
+4. Press Cancel. Open `Color Chart.png`, choose Adjust Photo, and open the new **Tone Curve** section under Light.
+   Set **Darks** −40: the gray ramp's lower middle darkens, the ends stay black and white, and the curve dips.
+5. Drag the middle triangle under the graph to the right: the dip moves right with it.
+6. Turn on the highlight warning, then press Apply: the result has no red in it. ⌘Z.
 
 ### Test: Stage 14: Vignette and Grain (passed 2026-10-28)
 

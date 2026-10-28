@@ -126,6 +126,7 @@ extension Effect {
             edit.mixer = edit.mixer?.scaled(by: f)
             edit.grading = edit.grading?.scaled(by: f)
             edit.pointColors = edit.pointColors?.scaled(by: f)
+            edit.toneCurve = edit.toneCurve?.scaled(by: f)
             return .photo(edit)
         default: return self
         }

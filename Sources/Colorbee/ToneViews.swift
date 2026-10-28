@@ -173,3 +173,129 @@ struct CurvesEditor: View {
         onFinish()
     }
 }
+
+/// Adjust Photo's live histogram (FR-9.7 item 6), with the clipping warning buttons in its top corners: shadows at the
+/// left, highlights at the right, off to start (Q15.2).
+struct PhotoHistogram: View {
+    let editor: Editor
+
+    var body: some View {
+        HistogramView(histogram: editor.photoHistogram)
+            .frame(height: 54)
+            .overlay(alignment: .topLeading) {
+                warning("arrowtriangle.left.fill", isOn: editor.clipsShadows, color: .blue, name: "Shadow clipping") {
+                    editor.clipsShadows.toggle()
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                warning("arrowtriangle.right.fill", isOn: editor.clipsHighlights, color: .red, name: "Highlight clipping") {
+                    editor.clipsHighlights.toggle()
+                }
+            }
+            .onAppear { editor.refreshPhotoHistogram() }
+    }
+
+    private func warning(_ symbol: String, isOn: Bool, color: Color, name: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 9))
+                .frame(width: 18, height: 16)
+                .foregroundStyle(isOn ? color : Theme.secondaryInk.opacity(0.6))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(isOn ? "\(name) is on: click to hide it" : color == .red
+              ? "Show blown highlights in red on the picture (only on screen)"
+              : "Show crushed shadows in blue on the picture (only on screen)")
+        .accessibilityLabel(name)
+        .accessibilityValue(isOn ? "On" : "Off")
+    }
+}
+
+/// The Tone Curve's graph (FR-9.7 item 6): the curve, the straight line it started as, and the split points between
+/// its regions. Display only: the regions are changed with their sliders.
+struct ToneCurveGraph: View {
+    let curve: ToneCurve
+
+    var body: some View {
+        let table = curve.table
+        Canvas { context, size in
+            var grid = Path()
+            for quarter in 1..<4 {
+                let x = size.width * Double(quarter) / 4, y = size.height * Double(quarter) / 4
+                grid.move(to: CGPoint(x: x, y: 0))
+                grid.addLine(to: CGPoint(x: x, y: size.height))
+                grid.move(to: CGPoint(x: 0, y: y))
+                grid.addLine(to: CGPoint(x: size.width, y: y))
+            }
+            context.stroke(grid, with: .color(Theme.separator), lineWidth: 0.5)
+            var diagonal = Path()
+            diagonal.move(to: CGPoint(x: 0, y: size.height))
+            diagonal.addLine(to: CGPoint(x: size.width, y: 0))
+            context.stroke(diagonal, with: .color(Theme.secondaryInk.opacity(0.35)), style: StrokeStyle(lineWidth: 0.75, dash: [3, 3]))
+            for split in curve.splits {
+                var line = Path()
+                let x = size.width * split / 100
+                line.move(to: CGPoint(x: x, y: 0))
+                line.addLine(to: CGPoint(x: x, y: size.height))
+                context.stroke(line, with: .color(Theme.secondaryInk.opacity(0.4)), lineWidth: 1)
+            }
+            var path = Path()
+            for (value, output) in table.enumerated() {
+                let point = CGPoint(x: size.width * Double(value) / 255, y: size.height * (1 - Double(output) / 255))
+                if value == 0 { path.move(to: point) } else { path.addLine(to: point) }
+            }
+            context.stroke(path, with: .color(Color.primary), lineWidth: 1.5)
+        }
+        .background(Theme.field, in: RoundedRectangle(cornerRadius: 4))
+        .accessibilityElement()
+        .accessibilityLabel("Tone curve")
+        .accessibilityValue(ToneCurve.Region.allCases.map { "\($0.title) \(Int(curve[$0]))" }.joined(separator: ", "))
+    }
+}
+
+/// The Tone Curve's three split points on one line, under the graph. Dragging moves whichever handle is nearest where
+/// the drag starts; they stay in order.
+struct SplitSlider: View {
+    let splits: [Double]
+    let onChange: (Int, Double) -> Void
+    let onEnd: () -> Void
+
+    @State private var moving: Int?
+    private let thumb: CGFloat = 12
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            // Exactly under the graph's lines; splits never reach the ends, so the handles stay inside.
+            let x = { (value: Double) in CGFloat(value / 100) * width }
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.secondary.opacity(0.25)).frame(height: 3)
+                ForEach(0..<3, id: \.self) { index in
+                    Image(systemName: "triangle.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.secondaryInk)
+                        .frame(width: thumb, height: thumb)
+                        .offset(x: x(splits[index]) - thumb / 2)
+                }
+            }
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { drag in
+                    let index = moving ?? (0..<3).min { abs(x(splits[$0]) - drag.startLocation.x) < abs(x(splits[$1]) - drag.startLocation.x) }!
+                    moving = index
+                    onChange(index, Double(drag.location.x / max(width, 1)) * 100)
+                }
+                .onEnded { _ in
+                    moving = nil
+                    onEnd()
+                })
+        }
+        .frame(height: 16)
+        .help("Drag a split point to move where the regions meet")
+        .accessibilityElement()
+        .accessibilityLabel("Split points")
+        .accessibilityValue(splits.map { "\(Int($0))" }.joined(separator: ", "))
+    }
+}

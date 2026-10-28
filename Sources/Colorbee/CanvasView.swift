@@ -265,6 +265,8 @@ final class CanvasView: NSView {
             highlights: redactionHighlights,
             dimmedOutside: editor.activeEffect == .crop ? editor.cropRect : nil,
             tintsOutsideSelection: editor.selectionChange != nil || (editor.activeEffect?.choosesSelection == true && editor.marqueePreview != nil),
+            clipsHighlights: !comparing && editor.showsPhotoControls && editor.clipsHighlights,
+            clipsShadows: !comparing && editor.showsPhotoControls && editor.clipsShadows,
             comparison: comparisonScene
         )
     }

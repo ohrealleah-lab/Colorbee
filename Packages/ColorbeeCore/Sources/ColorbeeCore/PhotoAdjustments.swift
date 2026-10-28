@@ -208,6 +208,10 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     public var pointColors: PointColors? {
         didSet { if pointColors?.isEmpty == true { pointColors = nil } }
     }
+    /// The parametric Tone Curve (FR-9.7 item 6); nil while untouched. Split points moved with no amounts are kept.
+    public var toneCurve: ToneCurve? {
+        didSet { if toneCurve?.isDefault == true { toneCurve = nil } }
+    }
     /// Sharpness's and Noise Reduction's finer settings (FR-9.7 item 5); nil while all are at their start.
     public var detail: PhotoDetail? {
         didSet { if detail?.isDefault == true { detail = nil } }
@@ -221,7 +225,7 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
 
     public init(adjustments: PhotoAdjustments = PhotoAdjustments(), filter: PhotoFilter? = nil, filterIntensity: Double = 100,
                 mixer: ColorMixer? = nil, grading: ColorGrading? = nil, pointColors: PointColors? = nil, detail: PhotoDetail? = nil,
-                effects: PhotoEffects? = nil) {
+                effects: PhotoEffects? = nil, toneCurve: ToneCurve? = nil) {
         self.adjustments = adjustments
         self.filter = filter
         self.filterIntensity = filterIntensity
@@ -230,18 +234,21 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
         self.pointColors = pointColors?.isEmpty == true ? nil : pointColors
         self.detail = detail?.isDefault == true ? nil : detail
         self.effects = effects?.isDefault == true ? nil : effects
+        self.toneCurve = toneCurve?.isDefault == true ? nil : toneCurve
     }
 
     public var isNeutral: Bool {
         adjustments.isNeutral && (filter == nil || filterIntensity == 0) && mixer == nil && grading?.isNeutral ?? true
-            && pointColors?.isNeutral ?? true && (detail?.color ?? 0) == 0
+            && pointColors?.isNeutral ?? true && (detail?.color ?? 0) == 0 && toneCurve?.isNeutral ?? true
     }
 
-    /// The color and tone part: the filter's steps at its intensity, then the sliders' color and tone, then the
-    /// Color Mixer (and Black & White), Point Color, and Color Grading last, so it can tint a black-and-white picture.
+    /// The color and tone part: the filter's steps at its intensity, then the sliders' color and tone, the Tone Curve,
+    /// then the Color Mixer (and Black & White), Point Color, and Color Grading last, so it can tint a black-and-white
+    /// picture.
     public var colorTransform: (Pixel) -> Pixel {
         let steps = (filter?.steps(atIntensity: filterIntensity / 100) ?? []).compactMap(\.colorTransform)
-        let parts = steps + [adjustments.colorTransform] + [mixer?.transform, pointColors?.transform, grading?.transform].compactMap { $0 }
+        let curve = toneCurve?.isNeutral == false ? toneCurve?.transform : nil
+        let parts = steps + [adjustments.colorTransform] + [curve, mixer?.transform, pointColors?.transform, grading?.transform].compactMap { $0 }
         // Chained once here rather than looked up for each pixel: unwrapping a stored function or walking a list per
         // pixel counts a reference up and down each time, and with every core doing that to the same count, Color
         // Grading's previews ran about 40 times slower (2026-10-28).
@@ -347,7 +354,7 @@ extension PhotoAdjustments {
 
 extension PhotoEdit {
     private enum CodingKeys: String, CodingKey {
-        case adjustments, filter, filterIntensity, mixer, grading, pointColors, detail, effects
+        case adjustments, filter, filterIntensity, mixer, grading, pointColors, detail, effects, toneCurve
     }
 
     /// A control this version can't read is left at neutral rather than losing the whole adjustment.
@@ -361,6 +368,7 @@ extension PhotoEdit {
                   grading: try? container.decodeIfPresent(ColorGrading.self, forKey: .grading),
                   pointColors: try? container.decodeIfPresent(PointColors.self, forKey: .pointColors),
                   detail: try? container.decodeIfPresent(PhotoDetail.self, forKey: .detail),
-                  effects: try? container.decodeIfPresent(PhotoEffects.self, forKey: .effects))
+                  effects: try? container.decodeIfPresent(PhotoEffects.self, forKey: .effects),
+                  toneCurve: try? container.decodeIfPresent(ToneCurve.self, forKey: .toneCurve))
     }
 }

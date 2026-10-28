@@ -19,6 +19,7 @@ struct QuadUniforms {
     float smooth;         // 1 when layers are sampled smoothly (zoomed out, or a stretched selection)
     float4 detailParams;  // Adjust Photo (DetailAmounts): color noise, luminance and color detail scales, halo damping
     float4 detailParams2; // fine boost, Masking's threshold, 1 to show the Masking mask
+    float clipWarnings;   // the composite's clipping warnings: 1 highlights, 2 shadows, 3 both
 };
 
 struct QuadOut {
@@ -243,8 +244,18 @@ fragment float4 blend_isolated_fragment(QuadOut in [[stage_in]],
 // The composited layers, already premultiplied, drawn 1:1 over the checkerboard.
 fragment float4 composite_fragment(QuadOut in [[stage_in]],
                                    texture2d<float> layers [[texture(0)]],
-                                   sampler layerSampler [[sampler(0)]]) {
-    return layers.sample(layerSampler, in.uv);
+                                   sampler layerSampler [[sampler(0)]],
+                                   constant QuadUniforms &u [[buffer(0)]]) {
+    float4 c = layers.sample(layerSampler, in.uv);
+    // Adjust Photo's clipping warnings, on screen only: blown highlights (any channel at white) red, crushed
+    // shadows (every channel at black) blue.
+    int warnings = int(u.clipWarnings + 0.5);
+    if (warnings > 0 && c.a > 0.004) {
+        float3 straight = c.rgb / c.a;
+        if ((warnings & 1) && max(straight.r, max(straight.g, straight.b)) >= 254.5 / 255) return float4(1, 0.1, 0.1, 1) * c.a;
+        if ((warnings & 2) && max(straight.r, max(straight.g, straight.b)) <= 0.5 / 255) return float4(0.1, 0.35, 1, 1) * c.a;
+    }
+    return c;
 }
 
 // MARK: Adjustment layers. Must match Effect.pointwise and Compositing.adjust in ColorbeeCore.

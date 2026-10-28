@@ -117,3 +117,32 @@ struct AutoRedactEditorTests {
         #expect(pageHashes() == before)
     }
 }
+
+/// Auto-Redact's faces (FR-9.7 item 10), on the made-up faces picture.
+@MainActor
+@Suite(.serialized)
+struct AutoRedactFacesTests {
+    @Test func facesAreListedWithTheTextAndRedactedInOneStep() async throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "../../TestImages/Auto-Redact Faces.png").standardized
+        let decoded = try ImageCodec.decode(Data(contentsOf: url))
+        let editor = Editor(canvas: Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer.copy())],
+                                           hasTransparentBackground: false))
+        guard editor.redactionPatterns.contains(where: { $0.isFaces && $0.isEnabled }) else { return }
+        editor.beginAutoRedact()
+        for _ in 0..<2000 where editor.autoRedact?.isReading == true { try await Task.sleep(for: .milliseconds(5)) }
+        let session = try #require(editor.autoRedact)
+        #expect(session.matches.filter { $0.patternName == "Faces" }.map(\.text) == ["Face 1", "Face 2", "Face 3"])
+        #expect(session.matches.contains { $0.patternName == "Email" })
+        let kept = try #require(session.matches.first { $0.text == "Face 2" })
+        editor.setRedactionMatch(kept.id, included: false)
+        let before = editor.imageHash
+        editor.applyAutoRedact()
+        for _ in 0..<2000 where editor.autoRedact?.applying != nil { try await Task.sleep(for: .milliseconds(5)) }
+        #expect(editor.stepNames.count == 1 && editor.imageHash != before)
+        // The face kept visible is untouched; the others' cheeks are filled.
+        #expect(editor.canvas.activeLayer.buffer[390, 320] == decoded.buffer[390, 320])
+        #expect(editor.canvas.activeLayer.buffer[110, 320] != decoded.buffer[110, 320])
+        editor.undo()
+        #expect(editor.imageHash == before)
+    }
+}

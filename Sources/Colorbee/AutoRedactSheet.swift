@@ -16,6 +16,14 @@ struct AutoRedactSheet: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            // A missed face is a privacy miss, so the sheet says what Vision can miss (FR-9.7 item 10).
+            if editor.redactionPatterns.contains(where: { $0.isFaces && $0.isEnabled }) {
+                Label("Faces turned away, half hidden, very small or drawn can be missed. Check the picture too.",
+                      systemImage: "person.crop.square")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let session = editor.autoRedact {
                 content(session)
                 treatment(session)
@@ -62,7 +70,7 @@ struct AutoRedactSheet: View {
         }
         // Says how much was read, so finding items on fewer pages doesn't look like pages were skipped (Leah).
         let read = session.isMultiPage ? "Read \(session.pages.count) pages. " : ""
-        if session.matches.isEmpty { return read + "No sensitive text found." }
+        if session.matches.isEmpty { return read + "No sensitive text or faces found." }
         let count = session.matches.count
         let items = "\(count) item\(count == 1 ? "" : "s")"
         guard session.isMultiPage else { return "Found \(items). Uncheck anything you want to keep visible." }

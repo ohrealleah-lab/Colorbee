@@ -25,6 +25,10 @@ public struct RedactionPattern: Codable, Hashable, Identifiable, Sendable {
     }
 
     static let creditCardID = UUID(uuidString: "C0B1EE00-0000-4000-8000-000000000003")!
+    public static let facesID = UUID(uuidString: "C0B1EE00-0000-4000-8000-000000000007")!
+
+    /// The Faces row (FR-9.7 item 10): found by Vision in the picture, not by matching text, so it has no expression.
+    public var isFaces: Bool { id == Self.facesID }
 
     public static let builtIns: [RedactionPattern] = [
         RedactionPattern(
@@ -74,6 +78,8 @@ public struct RedactionPattern: Codable, Hashable, Identifiable, Sendable {
             expression: #"\bhttps?://\S+|\bwww\.\S+"#,
             isBuiltIn: true
         ),
+        // On to start: a missed face is the risk (Q21.2).
+        RedactionPattern(id: facesID, name: "Faces", expression: "", isBuiltIn: true),
     ]
 }
 
@@ -358,7 +364,7 @@ public enum AutoRedact {
     /// Matches of the enabled patterns in one line of text. Overlapping matches keep the earliest pattern.
     public static func matches(in text: String, patterns: [RedactionPattern]) -> [(name: String, range: Range<String.Index>)] {
         var found: [(name: String, range: Range<String.Index>)] = []
-        for pattern in patterns where pattern.isEnabled {
+        for pattern in patterns where pattern.isEnabled && !pattern.isFaces {
             guard let regex = try? NSRegularExpression(pattern: pattern.expression, options: [.caseInsensitive]) else { continue }
             for result in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
                 guard let range = Range(result.range, in: text), !range.isEmpty else { continue }

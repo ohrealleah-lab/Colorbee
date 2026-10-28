@@ -290,6 +290,8 @@ struct AutoRedactSession {
         let revision: Int
         let canvasSize: IntSize
         var scan: TextScan?
+        /// The faces Vision found (FR-9.7 item 10), each with an id kept while the review is open.
+        var faces: [(id: UUID, rect: IntRect)]?
         var matches: [RedactionMatch] = []
     }
 
@@ -312,8 +314,8 @@ struct AutoRedactSession {
     /// While Apply works through the pages: how many are done, of how many.
     var applying: (done: Int, total: Int)?
 
-    var isReading: Bool { failure == nil && pages.contains { $0.scan == nil } }
-    var pagesRead: Int { pages.count { $0.scan != nil } }
+    var isReading: Bool { failure == nil && pages.contains { $0.scan == nil || $0.faces == nil } }
+    var pagesRead: Int { pages.count { $0.scan != nil && $0.faces != nil } }
     var isMultiPage: Bool { pages.count > 1 }
     var matches: [RedactionMatch] { pages.flatMap(\.matches) }
     var selectedMatches: [RedactionMatch] { matches.filter { !keptVisible.contains($0.id) } }
@@ -4752,9 +4754,11 @@ final class Editor {
                         return UnsafeTransfer(try ImageCodec.makeCGImage(canvas.flattened(), colorSpace: canvas.colorSpace))
                     }.value
                     let scan = try await TextScan.read(image.value)
+                    let faces = try await FaceFinder.find(in: image.value)
                     // A scan from a run that was cancelled mustn't fill in a newer one (review E, finding 2).
                     guard let self, self.autoRedact?.id == session.id else { return }
                     self.autoRedact?.pages[index].scan = scan
+                    self.autoRedact?.pages[index].faces = faces.map { (UUID(), $0) }
                     self.refreshAutoRedactMatches()
                 } catch {
                     guard self?.autoRedact?.id == session.id else { return }
@@ -4781,9 +4785,14 @@ final class Editor {
 
     private func refreshAutoRedactMatches() {
         guard let session = autoRedact else { return }
+        // Faces are numbered through the whole document, after each page's text.
+        let findsFaces = redactionPatterns.contains { $0.isFaces && $0.isEnabled }
+        var faceNumber = 1
         for (index, result) in session.pages.enumerated() {
             guard let scan = result.scan else { continue }
-            autoRedact?.pages[index].matches = scan.matches(for: redactionPatterns)
+            let faces = findsFaces ? FaceFinder.matches(result.faces ?? [], numberedFrom: faceNumber) : []
+            faceNumber += faces.count
+            autoRedact?.pages[index].matches = scan.matches(for: redactionPatterns) + faces
         }
         let found = autoRedact?.matches.map(\.id) ?? []
         autoRedact?.keptVisible.formIntersection(found)

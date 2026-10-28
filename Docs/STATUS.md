@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-28 · 719 core tests and 232 app tests passing; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
+_Last updated: 2026-10-28 · 739 core tests and 241 app tests passing; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
 
 ## Waiting for Leah's tests
 
@@ -20,6 +20,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 18b: Canvas Size anchor](#test-stage-18b-canvas-size-anchor) (2026-10-28)
 - [Stage 19: Export: color space and Limit file size](#test-stage-19-export-color-space-and-limit-file-size) (2026-10-28; stages 19 to 21 are built in a row, then tested together)
 - [Stage 20: Color readout and Eyedropper sample size](#test-stage-20-color-readout-and-eyedropper-sample-size) (2026-10-28)
+- [Stage 21: Auto-redact faces](#test-stage-21-auto-redact-faces) (2026-10-28)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -86,6 +87,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 18b. Canvas Size anchor | Built 2026-10-28; waiting for Leah's test (with stages 15 to 18a) | Medium |
 | 14 · 19. Export: color space and Limit file size | Built 2026-10-28; waiting for Leah's test (with stages 20 and 21) | High |
 | 14 · 20. Color readout and Eyedropper sample size | Built 2026-10-28; waiting for Leah's test (with stages 19 and 21) | Medium |
+| 14 · 21. Auto-redact faces | Built 2026-10-28; waiting for Leah's test (with stages 19 and 20) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -159,6 +161,8 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - Stage 20 (2026-10-28): the status bar's color readout (`ColorReadout`, `Editor.pointerColor`) and the Eyedropper's
   Sample Size; `Canvas.patchAsShown` now pads by each adjustment's `reach` and places the patch
   (`Effects.Placement`), so readings match an export.
+- Stage 21 (2026-10-28): Auto-Redact's Faces row (`FaceFinder.swift`; `RedactionPattern.facesID`), read with the text
+  on every page and listed after it.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -326,6 +330,17 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 21: Auto-redact faces
+
+Test files: `TestImages/Auto-Redact Faces.png` (three made-up faces and an email) and
+`TestImages/Stage 10/Three Page Test.pdf`. Run `make run` first.
+1. Open the faces picture and choose Redact ▸ **Auto-Redact…**. The email and **Face 1**, **Face 2** and **Face 3**
+   are listed, each boxed on the canvas, the boxes covering hair and chin. A note says faces can be missed.
+2. Untick **Face 2**, choose **Pixelate**, and Apply: the email and the other two faces are pixelated, and the middle
+   face isn't. ⌘Z: all back in one step.
+3. Open the PDF and choose Auto-Redact: no faces are listed, and its text matches are as before.
+4. If you have a photo of your own with people in it, try it too (it stays on your Mac): each face should be found.
 
 ### Test: Stage 20: Color readout and Eyedropper sample size
 

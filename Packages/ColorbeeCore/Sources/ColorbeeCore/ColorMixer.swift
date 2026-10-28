@@ -21,9 +21,7 @@ public struct ColorMixer: Sendable, Hashable {
             }
         }
 
-        public var centerHue: Double {
-            [0, 30, 60, 120, 180, 225, 270, 315][rawValue]
-        }
+        public var centerHue: Double { ColorMixer.centers[rawValue] }
     }
 
     public enum Setting: String, CaseIterable, Sendable {
@@ -59,30 +57,53 @@ public struct ColorMixer: Sendable, Hashable {
 
     /// How much each range owns `hue` (degrees): two neighbors share it, with a soft (cosine) handover.
     static func weights(hue: Double) -> [Double] {
-        let centers = Range.allCases.map(\.centerHue)
-        var weights = Array(repeating: 0.0, count: centers.count)
+        let weights = weightVector(hue: hue)
+        return Range.allCases.map { weights[$0.rawValue] }
+    }
+
+    private static let centers = SIMD8<Double>(0, 30, 60, 120, 180, 225, 270, 315)
+
+    /// `weights(hue:)` without making a list, for the per-pixel function.
+    static func weightVector(hue: Double) -> SIMD8<Double> {
+        var weights = SIMD8<Double>(repeating: 0)
         let h = (hue.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
-        for i in centers.indices {
-            let start = centers[i], end = i + 1 < centers.count ? centers[i + 1] : 360
+        for i in 0..<8 {
+            let start = centers[i], end = i + 1 < 8 ? centers[i + 1] : 360
             guard h >= start, h < end else { continue }
             let t = (h - start) / (end - start)
             let handover = (1 - cos(Double.pi * t)) / 2
             weights[i] += 1 - handover
-            weights[(i + 1) % centers.count] += handover
+            weights[(i + 1) % 8] += handover
         }
         return weights
     }
 
-    private func blended(_ setting: Setting, _ weights: [Double]) -> Double {
-        guard let row = values[setting] else { return 0 }
-        return zip(row, weights).reduce(0) { $0 + $1.0 * $1.1 }
+    /// One setting's values for `weights`, added up in range order.
+    private static func blended(_ row: SIMD8<Double>, _ weights: SIMD8<Double>) -> Double {
+        var sum = 0.0
+        for i in 0..<8 { sum += row[i] * weights[i] }
+        return sum
     }
 
-    /// The per-pixel function, or nil when it changes nothing.
+    /// The per-pixel function, or nil when it changes nothing. The values are copied out of their lists first: reading
+    /// a list for each pixel counts a reference up and down, and with every core doing that the mixer ran about 40
+    /// times slower (2026-10-28).
     public var transform: ((Pixel) -> Pixel)? {
         guard !isNeutral else { return nil }
-        let mixer = self
-        return { pixel in mixer.apply(pixel) }
+        func row(_ setting: Setting) -> SIMD8<Double> {
+            guard let values = values[setting] else { return SIMD8(repeating: 0) }
+            return SIMD8(values)
+        }
+        let rows = Rows(hue: row(.hue), saturation: row(.saturation), luminance: row(.luminance), gray: row(.gray),
+                        shifts: values[.hue] != nil || values[.saturation] != nil || values[.luminance] != nil,
+                        blackAndWhite: blackAndWhite)
+        return { pixel in Self.apply(pixel, rows) }
+    }
+
+    private struct Rows {
+        let hue, saturation, luminance, gray: SIMD8<Double>
+        let shifts: Bool
+        let blackAndWhite: Double
     }
 
     /// One color's hue, saturation and luminance changed, each −100...100; shared with Point Color.
@@ -105,26 +126,26 @@ public struct ColorMixer: Sendable, Hashable {
         return result
     }
 
-    func apply(_ pixel: Pixel) -> Pixel {
+    private static func apply(_ pixel: Pixel, _ rows: Rows) -> Pixel {
         let c = SIMD3(Double(pixel.r), Double(pixel.g), Double(pixel.b)) / 255
         let chroma = c.max() - c.min()
         let hsl = HSL(pixel)
-        let weights = Self.weights(hue: hsl.hue)
+        let weights = weightVector(hue: hsl.hue)
         // Gray (and nearly gray) pixels have no hue to speak of, so they're left as they are.
         let colorful = PhotoAdjustments.smoothstep(0, 0.12, chroma)
         var result = pixel
-        if blackAndWhite < 1, colorful > 0, values[.hue] != nil || values[.saturation] != nil || values[.luminance] != nil {
-            result = Self.shifted(pixel, hue: blended(.hue, weights) * colorful, saturation: blended(.saturation, weights) * colorful,
-                                  luminance: blended(.luminance, weights) * colorful)
+        if rows.blackAndWhite < 1, colorful > 0, rows.shifts {
+            result = shifted(pixel, hue: blended(rows.hue, weights) * colorful, saturation: blended(rows.saturation, weights) * colorful,
+                             luminance: blended(rows.luminance, weights) * colorful)
         }
-        guard blackAndWhite > 0 else { return result }
+        guard rows.blackAndWhite > 0 else { return result }
         // Black & White: the brightness of each color, made lighter or darker by its range's mix, most in the
         // middle tones.
         let base = PhotoAdjustments.luma(c)
-        let mix = blended(.gray, weights) / 100 * PhotoAdjustments.smoothstep(0, 0.3, chroma)
+        let mix = blended(rows.gray, weights) / 100 * PhotoAdjustments.smoothstep(0, 0.3, chroma)
         let gray = min(max(base + mix * 1.2 * base * (1 - base), 0), 1)
         let color = SIMD3(Double(result.r), Double(result.g), Double(result.b))
-        let out = color + (SIMD3(repeating: gray * 255) - color) * blackAndWhite
+        let out = color + (SIMD3(repeating: gray * 255) - color) * rows.blackAndWhite
         return Pixel(r: UInt8(min(255, max(0, out.x.rounded()))), g: UInt8(min(255, max(0, out.y.rounded()))),
                      b: UInt8(min(255, max(0, out.z.rounded()))), a: pixel.a)
     }

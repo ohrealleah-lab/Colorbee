@@ -7,12 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-27 · 635 core tests and 187 app tests passing; `make perf` not yet run for stages 3 to 6_
+_Last updated: 2026-10-28 · 636 core tests and 187 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Faster Color Grading, Color Mixer and Point Color](#test-faster-color-grading-color-mixer-and-point-color) (2026-10-28)
 - [Stage 1b: Whites and the white-balance eyedropper](#test-stage-1b-whites-and-the-white-balance-eyedropper) (2026-10-27)
 - [Stage 2: Same as Last, and copy and paste settings](#test-stage-2-same-as-last-and-copy-and-paste-settings) (2026-10-27)
 - [Stage 3: Texture and Dehaze](#test-stage-3-texture-and-dehaze) (2026-10-27)
@@ -264,6 +265,25 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Faster Color Grading, Color Mixer and Point Color
+
+Leah found that dragging a Color Grading wheel lagged badly (2026-10-28). Each drag step redoes the whole picture in
+the background, and every core was counting the same shared references up and down for every pixel. With Color
+Grading, Point Color or the Color Mixer, that made each step 15 to 50 times slower than the plain sliders. The math
+now runs about as fast as the sliders, and every one of the 16.7 million colors comes out exactly as before.
+
+Use `make run`, then open `TestImages/Photo Editing/Texture Practice.png` and make it big: Image ▸ Resize and Skew… to
+375% (6000 pixels wide).
+
+1. Open Adjust Photo and open **Color Grading**. Drag the Shadows wheel's point around in circles: the picture keeps
+   up with the wheel, with no long pauses.
+2. Switch to Highlights and do the same, then drag Balance and Blending back and forth: no lag.
+3. In **Color Mixer** ▸ Hue, drag Green back and forth: it keeps up too. Turn on Black & White and drag Blue: it keeps up.
+4. In **Point Color**, pick a green from the grass and drag its Hue: it keeps up.
+5. Press Return to apply, then ⌘Z: it's all undone in one step.
+6. Choose Layer ▸ New Adjustment Layer ▸ Adjust Photo, then set Color Mixer ▸ Hue Green +60 and drag the Shadows
+   wheel: the canvas follows the drag smoothly.
 
 ### Test: Stage 6: Point Color
 

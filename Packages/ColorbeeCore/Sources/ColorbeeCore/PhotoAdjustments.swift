@@ -247,15 +247,11 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     /// Color Mixer (and Black & White), Point Color, and Color Grading last, so it can tint a black-and-white picture.
     public var colorTransform: (Pixel) -> Pixel {
         let steps = (filter?.steps(atIntensity: filterIntensity / 100) ?? []).compactMap(\.colorTransform)
-        let own = adjustments.colorTransform
-        let mixed = mixer?.transform, pointed = pointColors?.transform, graded = grading?.transform
-        return { pixel in
-            var result = own(steps.reduce(pixel) { $1($0) })
-            if let mixed { result = mixed(result) }
-            if let pointed { result = pointed(result) }
-            if let graded { result = graded(result) }
-            return result
-        }
+        let parts = steps + [adjustments.colorTransform] + [mixer?.transform, pointColors?.transform, grading?.transform].compactMap { $0 }
+        // Chained once here rather than looked up for each pixel: unwrapping a stored function or walking a list per
+        // pixel counts a reference up and down each time, and with every core doing that to the same count, Color
+        // Grading's previews ran about 40 times slower (2026-10-28).
+        return parts.dropFirst().reduce(parts[0]) { first, next in { next(first($0)) } }
     }
 
     /// Whether the display needs `ColorLookup.fineSize` to show this closely: a Color Mixer or Point Color, here or in

@@ -102,6 +102,29 @@ struct PerformanceTests {
         #expect(time < .milliseconds(8000), "took \(time)")
     }
 
+    /// Each step of a dragged wheel or slider redoes the panel's preview, so these must keep up like the plain sliders.
+    /// They once ran 15 to 50 times slower, from every core counting the same reference up and down (2026-10-28).
+    @Test func adjustPhotoWithColorGradingMixerAndPointColor() {
+        let canvas = PerformanceFixture.photo(side: Self.side)
+        var edit = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 10]))
+        var grading = ColorGrading()
+        grading[.shadows] = .init(hue: 190, strength: 60)
+        grading[.highlights] = .init(hue: 35, strength: 50, luminance: 20)
+        edit.grading = grading
+        var mixer = ColorMixer()
+        mixer[.hue, .green] = 50
+        mixer[.luminance, .blue] = -40
+        edit.mixer = mixer
+        edit.pointColors = PointColors([.init(color: Pixel(r: 230, g: 130, b: 40), hue: 50, saturation: -20)])
+        let time = fastest {
+            let step = Edit(name: "Adjust Photo", canvas: canvas)
+            Effects.apply(.photo(edit), to: canvas.activeLayer, selection: nil, edit: step)
+        }
+        #expect(time < .milliseconds(400), "took \(time)")
+        let table = fastest { _ = ColorLookup(.photo(edit)) }
+        #expect(table < .milliseconds(50), "the screen's color table took \(table)")
+    }
+
     @Test func pointwiseAdjustmentOnTheWholeImage() {
         let canvas = PerformanceFixture.photo(side: Self.side)
         let time = fastest {

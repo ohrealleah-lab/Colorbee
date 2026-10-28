@@ -1124,7 +1124,7 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
 
 ## 7. What can be built together, and what must not
 
-**You chose one stage at a time (Q0.5),** so this section is for reference only.
+**You chose one stage at a time (Q0.5),** so this section is for reference only. Building means one session, one stage after another; since stage 2, related stages are built in a row and hand tested together (Leah, 2026-10-28: "batching changes for testing instead of every round, where it's sensible").
 
 **Least overlap** (no stage is completely free of shared files):
 - **Stage 19 (Export):** the export panel, `SaveSnapshot` and `ImageCodec`. No other stage touches those.
@@ -1312,36 +1312,36 @@ _Added after the review (2026-10-27):_
 
 - **Q7.1** Colorbee has no Select menu. *Recommend* Edit ▸ Modify Selection ▸ Expand…, Contract…, Smooth…, next to
   Feather…, so the menus stay as they are. The other way is a new Select menu holding every selection command,
-  like Photoshop's, which is a bigger change.
-- **Q7.2** Not an undo step, like Feather? *Recommend yes,* for consistency.
-- **Q7.3** 1 to 100 px, starting at 2 px? *Recommend yes.*
-- **Q7.4** Expand and Contract keep soft edges soft? *Recommend yes,* per FR-3.4.
+  like Photoshop's, which is a bigger change. **Answer: the Modify Selection submenu, as recommended.**
+- **Q7.2** Not an undo step, like Feather? *Recommend yes,* for consistency. **Answer: yes, as recommended.**
+- **Q7.3** 1 to 100 px, starting at 2 px? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q7.4** Expand and Contract keep soft edges soft? *Recommend yes,* per FR-3.4. **Answer: yes, as recommended.**
 
 ### Before stage 8
 
-- **Q8.1** Key: ⇧⌘V is Paste into New Image here. *Recommend ⌥⇧⌘V,* which is free in Colorbee today.
-- **Q8.2** A picture copied in another app has no place: paste it as ⌘V would, with no beep? *Recommend yes.*
+- **Q8.1** Key: ⇧⌘V is Paste into New Image here. *Recommend ⌥⇧⌘V,* which is free in Colorbee today. **Answer: yes, as recommended.**
+- **Q8.2** A picture copied in another app has no place: paste it as ⌘V would, with no beep? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q8.3** Into a different-sized document: the same position if it lands on the canvas, otherwise as ⌘V?
-  *Recommend yes.*
-- **Q8.4** Should Clipboard History items remember their place too? *Recommend no;* keep it simple.
+  *Recommend yes.* **Answer: yes, as recommended.**
+- **Q8.4** Should Clipboard History items remember their place too? *Recommend no;* keep it simple. **Answer: no, as recommended.**
 
 ### Before stage 9
 
-- **Q9.1** Edit ▸ Color Range… and Luminance Range…, next to Select Subject? *Recommend yes.*
+- **Q9.1** Edit ▸ Color Range… and Luminance Range…, next to Select Subject? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q9.2** It reads the active layer, with the Magic Wand's Sample All Layers switch to read everything shown?
-  *Recommend yes:* that matches the Magic Wand and Select Subject.
-- **Q9.3** Combining: Replace, Add, Subtract and Intersect in the bar, with Replace first? *Recommend yes.*
-- **Q9.4** Fuzziness 0–100%, starting at 25%? *Recommend yes.*
+  *Recommend yes:* that matches the Magic Wand and Select Subject. **Answer: yes, as recommended.**
+- **Q9.3** Combining: Replace, Add, Subtract and Intersect in the bar, with Replace first? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q9.4** Fuzziness 0–100%, starting at 25%? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q9.5** Luminance Range: a two-handle range with Smoothness, plus Shadows, Midtones and Highlights buttons?
-  *Recommend yes.*
+  *Recommend yes.* **Answer: yes, as recommended.**
 
 ### Before stage 10
 
 - **Q10.1** Edit ▸ Graduated Selection, which opens a canvas tool like Straighten's line, rather than a toolbar
-  tool? *Recommend the menu:* the toolbar is full, and it's an occasional tool.
-- **Q10.2** Fully selected where the drag starts, fading to nothing where it ends? *Recommend yes,* as in Lightroom.
-- **Q10.3** The same combining choices as Q9.3? *Recommend yes.*
-- **Q10.4** Shift keeps the line at 0°, 45° or 90°? *Recommend yes.*
+  tool? *Recommend the menu:* the toolbar is full, and it's an occasional tool. **Answer: the menu, as recommended.**
+- **Q10.2** Fully selected where the drag starts, fading to nothing where it ends? *Recommend yes,* as in Lightroom. **Answer: yes, as recommended.**
+- **Q10.3** The same combining choices as Q9.3? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q10.4** Shift keeps the line at 0°, 45° or 90°? *Recommend yes.* **Answer: yes, as recommended.**
 
 ### Before stage 11
 

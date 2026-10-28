@@ -2365,11 +2365,17 @@ final class Editor {
         performSelectionCommand { SelectionActions.deselect(canvas: canvas, history: history, context: selectionContext) }
     }
 
-    // MARK: Edit ▸ Feather… (FR-3.4)
+    // MARK: Edit ▸ Feather… and Modify Selection (FR-3.4, FR-9.7 item 3)
 
-    /// The radius being tried while the Feather sheet is open; the canvas tints what isn't selected meanwhile.
-    private(set) var featherRadius: Double?
-    @ObservationIgnored private var featherOriginal: SelectionMask?
+    /// Which change the selection sheet is trying, if it's open; the canvas tints what isn't selected meanwhile.
+    private(set) var selectionChange: SelectionModification?
+    /// The radius being tried, in whole pixels.
+    private(set) var selectionChangeRadius = 10.0
+    /// Whether the radius being tried would leave nothing selected, so OK can't be chosen.
+    private(set) var selectionChangeLeavesNothing = false
+    /// Whether the preview for the radius being tried is still being worked out.
+    private(set) var isWorkingOnSelectionChange = false
+    @ObservationIgnored private var selectionChangeOriginal: SelectionMask?
     /// Whether the last Clone Stamp stroke's Match Tone is still being worked out.
     private(set) var isMatchingTone = false
     @ObservationIgnored private var pendingTone: PendingTone?
@@ -2388,69 +2394,85 @@ final class Editor {
             self.page = page
         }
     }
-    /// The radius the preview shows, whether one is being worked out, and a count that drops a stale one.
-    @ObservationIgnored private var featherShown: Double?
-    @ObservationIgnored private var featherRunning = false
-    @ObservationIgnored private var featherSession = 0
+    /// The radius the preview shows, whether one is being worked out, a count that drops a stale one, and whether
+    /// OK is waiting for it.
+    @ObservationIgnored private var selectionChangeShown: Double?
+    @ObservationIgnored private var selectionChangeRunning = false
+    @ObservationIgnored private var selectionChangeSession = 0
+    @ObservationIgnored private var appliesSelectionChangeWhenShown = false
 
-    func beginFeather() {
+    func beginSelectionChange(_ change: SelectionModification) {
         finishInteractions()
         placeFloatingKeepingOutline()
         guard let mask = canvas.selection.marquee else { return onRefused() }
-        featherOriginal = mask
-        setFeatherRadius(featherRadius ?? 10)
+        selectionChangeOriginal = mask
+        selectionChange = change
+        setSelectionChangeRadius(Double(change.startingRadius))
     }
 
-    /// The slider's radius shows at once; the feathered preview is worked out in the background, with moves made
+    /// The slider's radius shows at once; the changed selection is worked out in the background, with moves made
     /// meanwhile merged, so a big selection doesn't stall the slider (review O, finding 12; review P, finding 5).
-    func setFeatherRadius(_ radius: Double) {
-        guard featherOriginal != nil else { return }
-        featherRadius = min(100, max(1, radius.rounded()))
-        refreshFeatherPreview()
+    func setSelectionChangeRadius(_ radius: Double) {
+        guard selectionChangeOriginal != nil else { return }
+        selectionChangeRadius = min(100, max(1, radius.rounded()))
+        isWorkingOnSelectionChange = selectionChangeRadius != selectionChangeShown
+        refreshSelectionChangePreview()
     }
 
-    private func refreshFeatherPreview() {
-        guard !featherRunning, let original = featherOriginal, let radius = featherRadius, radius != featherShown else { return }
-        featherRunning = true
-        let session = featherSession, bounds = canvas.bounds
+    private func refreshSelectionChangePreview() {
+        guard !selectionChangeRunning, let original = selectionChangeOriginal, let change = selectionChange,
+              selectionChangeRadius != selectionChangeShown else { return }
+        selectionChangeRunning = true
+        let session = selectionChangeSession, bounds = canvas.bounds, radius = selectionChangeRadius
         Task.detached(priority: .userInitiated) { [weak self] in
-            let mask = UnsafeTransfer(original.feathered(radius: radius, clippedTo: bounds))
-            await MainActor.run { [weak self] in self?.showFeatherPreview(mask.value, radius: radius, session: session) }
+            let mask = UnsafeTransfer(change.applied(to: original, radius: Int(radius), clippedTo: bounds))
+            await MainActor.run { [weak self] in self?.showSelectionChangePreview(mask.value, radius: radius, session: session) }
         }
     }
 
-    private func showFeatherPreview(_ mask: SelectionMask?, radius: Double, session: Int) {
-        guard session == featherSession else { return }
-        featherRunning = false
+    private func showSelectionChangePreview(_ mask: SelectionMask?, radius: Double, session: Int) {
+        guard session == selectionChangeSession else { return }
+        selectionChangeRunning = false
+        // With nothing left, the selection as it was stays on show, and the sheet says why OK is off.
         marqueePreview = mask
-        featherShown = radius
+        selectionChangeLeavesNothing = mask == nil
+        selectionChangeShown = radius
+        isWorkingOnSelectionChange = radius != selectionChangeRadius
         onRender()
-        refreshFeatherPreview()
+        if !isWorkingOnSelectionChange, appliesSelectionChangeWhenShown { return applySelectionChange() }
+        refreshSelectionChangePreview()
     }
 
-    func applyFeather() {
-        // OK keeps exactly the radius in the box: if its preview is still being worked out, do it now.
-        if let original = featherOriginal, let radius = featherRadius, radius != featherShown {
-            marqueePreview = original.feathered(radius: radius, clippedTo: canvas.bounds)
+    /// OK keeps exactly the radius in the box: if its selection is still being worked out, it's applied when ready,
+    /// rather than worked out here and holding up the window.
+    func applySelectionChange() {
+        guard selectionChange != nil else { return }
+        if selectionChangeRadius != selectionChangeShown {
+            appliesSelectionChangeWhenShown = true
+            return
         }
-        let feathered = marqueePreview
-        endFeather()
-        recordingChanges { SelectionActions.select(feathered, mode: .replace, canvas: canvas, history: history, context: selectionContext) }
+        guard !selectionChangeLeavesNothing else { return onRefused() }
+        let changed = marqueePreview
+        endSelectionChange()
+        recordingChanges { SelectionActions.select(changed, mode: .replace, canvas: canvas, history: history, context: selectionContext) }
         selectionDidChange()
     }
 
-    func cancelFeather() {
-        endFeather()
+    func cancelSelectionChange() {
+        endSelectionChange()
         onRender()
     }
 
-    private func endFeather() {
-        featherOriginal = nil
-        featherRadius = nil
+    private func endSelectionChange() {
+        selectionChangeOriginal = nil
+        selectionChange = nil
         marqueePreview = nil
-        featherShown = nil
-        featherRunning = false
-        featherSession += 1
+        selectionChangeShown = nil
+        selectionChangeRunning = false
+        selectionChangeLeavesNothing = false
+        isWorkingOnSelectionChange = false
+        appliesSelectionChangeWhenShown = false
+        selectionChangeSession += 1
     }
 
     func invertSelection() {
@@ -4448,8 +4470,8 @@ final class Editor {
     /// While a sheet or an effect's bar is open, the document's own commands (Save, Export, Share, Print, Revert) wait
     /// too, as the Edit commands do (review L, finding 2).
     var blocksDocumentCommands: Bool {
-        // The Feather sheet too: OK puts back the selection as it was when the sheet opened (review P, finding 1).
-        activeEffect != nil || autoRedact != nil || isResizeSkewOpen || isCanvasPropertiesOpen || featherRadius != nil
+        // The selection sheet (Feather, Expand and the rest) too: OK puts back the selection as it was when the sheet opened (review P, finding 1).
+        activeEffect != nil || autoRedact != nil || isResizeSkewOpen || isCanvasPropertiesOpen || selectionChange != nil
     }
 
     /// Auto-Redact is redacting page after page; a save now would hold only part of it.

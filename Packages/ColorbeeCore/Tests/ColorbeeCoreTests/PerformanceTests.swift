@@ -125,6 +125,22 @@ struct PerformanceTests {
         #expect(table < .milliseconds(50), "the screen's color table took \(table)")
     }
 
+    /// Edit ▸ Modify Selection at its largest radius on a selection nearly the size of the image. Hard edges use a
+    /// distance map and take about as long at any radius; soft edges take longer, worked out in the background.
+    @Test func modifyALargeSelection() throws {
+        let bounds = IntRect(x: 0, y: 0, width: Self.side, height: Self.side)
+        let oval = try #require(SelectionMask.ellipse(in: bounds.insetBy(500), clippedTo: bounds))
+        let soft = try #require(oval.feathered(radius: 20, clippedTo: bounds))
+        let expand = fastest { _ = oval.expanded(by: 100, clippedTo: bounds) }
+        #expect(expand < .milliseconds(500), "expand took \(expand)")
+        let contract = fastest { _ = oval.contracted(by: 100, clippedTo: bounds) }
+        #expect(contract < .milliseconds(500), "contract took \(contract)")
+        let smooth = fastest { _ = oval.smoothed(radius: 100, clippedTo: bounds) }
+        #expect(smooth < .milliseconds(1200), "smooth took \(smooth)")
+        let softExpand = ContinuousClock().measure { _ = soft.expanded(by: 100, clippedTo: bounds) }
+        #expect(softExpand < .milliseconds(8000), "soft expand took \(softExpand)")
+    }
+
     @Test func pointwiseAdjustmentOnTheWholeImage() {
         let canvas = PerformanceFixture.photo(side: Self.side)
         let time = fastest {

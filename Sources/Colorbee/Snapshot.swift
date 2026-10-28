@@ -60,6 +60,17 @@ enum Snapshot {
             editor.addAdjustmentLayer(choice)
             editor.showsLayersPanel = true
         }
+        // `-ColorbeeSnapshotSelectionChange contract` selects a box and opens that selection sheet (feather, expand,
+        // contract or smooth); `-ColorbeeSnapshotSelectionRadius 60` sets its radius.
+        if let name = defaults.string(forKey: "ColorbeeSnapshotSelectionChange"),
+           let change = SelectionModification.allCases.first(where: { "\($0)" == name }) {
+            editor.beginSelectionDrag(at: Point2D(x: 20, y: 20), modifiers: DragModifiers(shift: false, option: false))
+            editor.continueSelectionDrag(to: Point2D(x: 120, y: 100), shiftDown: false)
+            editor.endSelectionDrag(at: Point2D(x: 120, y: 100))
+            editor.beginSelectionChange(change)
+            let radius = defaults.double(forKey: "ColorbeeSnapshotSelectionRadius")
+            if radius > 0 { editor.setSelectionChangeRadius(radius) }
+        }
         // `-ColorbeeSnapshotClip YES`: that adjustment changes only the layer below.
         if defaults.bool(forKey: "ColorbeeSnapshotClip") { editor.setClipsToLayerBelow(true) }
         // `-ColorbeeSnapshotExportPNG /path/to.png` also exports the page shown as a PNG with its camera details (stage 12).

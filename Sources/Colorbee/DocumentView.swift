@@ -96,8 +96,8 @@ struct DocumentView: View {
         .sheet(isPresented: $editor.isCanvasPropertiesOpen) {
             CanvasPropertiesSheet(editor: editor)
         }
-        .sheet(isPresented: Binding(get: { editor.featherRadius != nil }, set: { if !$0 { editor.cancelFeather() } })) {
-            FeatherSheet(editor: editor)
+        .sheet(isPresented: Binding(get: { editor.selectionChange != nil }, set: { if !$0 { editor.cancelSelectionChange() } })) {
+            SelectionChangeSheet(editor: editor)
         }
         .sheet(isPresented: $editor.isResizeSkewOpen) {
             ResizeSkewSheet(editor: editor, base: editor.resizeSkewBaseSize, appliesToSelection: editor.hasSelection)
@@ -526,45 +526,68 @@ private func wholeNumber(_ value: Binding<Double>) -> Binding<Double> {
     Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0.rounded() })
 }
 
-/// Edit ▸ Feather… (FR-3.4): how soft the selection's edge is, previewed with a tint over what isn't selected.
-private struct FeatherSheet: View {
+/// Edit ▸ Feather… and Modify Selection ▸ Expand…, Contract… and Smooth… (FR-3.4, FR-9.7 item 3): by how many pixels,
+/// previewed with a tint over what isn't selected.
+private struct SelectionChangeSheet: View {
     @Bindable var editor: Editor
     /// The number box's text. It sets the radius on every keystroke, since Return is OK's shortcut and would otherwise
     /// apply before the box hands on its value (review P, finding 13).
     @State private var typed = ""
 
     var body: some View {
-        let radius = editor.featherRadius ?? 10
+        let change = editor.selectionChange ?? .feather
+        let radius = editor.selectionChangeRadius
         VStack(alignment: .leading, spacing: 14) {
-            Text("Feather Selection").font(.headline)
+            Text(change.title).font(.headline)
             HStack(spacing: 10) {
-                Slider(value: Binding(get: { radius }, set: { editor.setFeatherRadius($0) }), in: 1...100)
+                Slider(value: Binding(get: { radius }, set: { editor.setSelectionChangeRadius($0) }), in: 1...100)
                     .frame(width: 220)
-                    .accessibilityLabel("Feather radius")
+                    .accessibilityLabel("Radius")
                 TextField("Radius", text: $typed)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 50)
                     .labelsHidden()
                     .onAppear { typed = "\(Int(radius))" }
                     .onChange(of: typed) {
-                        if let value = Int(typed), value >= 1, value != Int(radius) { editor.setFeatherRadius(Double(min(value, 100))) }
+                        if let value = Int(typed), value >= 1, value != Int(radius) { editor.setSelectionChangeRadius(Double(min(value, 100))) }
                     }
                     .onChange(of: radius) {
                         if Int(typed) != Int(radius) { typed = "\(Int(radius))" }
                     }
                 Text("px")
             }
-            Text("The red tint shows what isn't selected; across the soft edge it fades.")
+            Text(Self.explanation(change))
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if editor.selectionChangeLeavesNothing && !editor.isWorkingOnSelectionChange {
+                Label("Nothing would be left selected.", systemImage: "exclamationmark.triangle")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            }
             HStack {
+                if editor.isWorkingOnSelectionChange {
+                    ProgressView().controlSize(.small)
+                    Text("Working…").font(.callout).foregroundStyle(.secondary)
+                }
                 Spacer()
-                Button("Cancel", role: .cancel) { editor.cancelFeather() }
+                Button("Cancel", role: .cancel) { editor.cancelSelectionChange() }
                     .keyboardShortcut(.cancelAction)
-                Button("OK") { editor.applyFeather() }
+                Button("OK") { editor.applySelectionChange() }
                     .keyboardShortcut(.defaultAction)
+                    .disabled(editor.selectionChangeLeavesNothing && !editor.isWorkingOnSelectionChange)
             }
         }
         .padding(20)
+        .frame(width: 360)
+    }
+
+    private static func explanation(_ change: SelectionModification) -> String {
+        switch change {
+        case .feather: "The red tint shows what isn't selected; across the soft edge it fades."
+        case .expand: "The selection grows outward on every side. The red tint shows what isn't selected."
+        case .contract: "The selection shrinks inward from every edge. The red tint shows what isn't selected."
+        case .smooth: "Ragged edges round off, small gaps fill in and stray specks go. The red tint shows what isn't selected."
+        }
     }
 }

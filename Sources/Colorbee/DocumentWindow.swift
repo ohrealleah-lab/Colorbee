@@ -165,7 +165,10 @@ final class DocumentWindow: NSWindow {
     @objc func showSepia(_ sender: Any?) { editor?.beginEffect(.sepia) }
     @objc func showPosterize(_ sender: Any?) { editor?.beginEffect(.posterize) }
     @objc func removeRedEye(_ sender: Any?) { editor?.removeRedEye() }
-    @objc func showFeather(_ sender: Any?) { editor?.beginFeather() }
+    @objc func showFeather(_ sender: Any?) { editor?.beginSelectionChange(.feather) }
+    @objc func showExpandSelection(_ sender: Any?) { editor?.beginSelectionChange(.expand) }
+    @objc func showContractSelection(_ sender: Any?) { editor?.beginSelectionChange(.contract) }
+    @objc func showSmoothSelection(_ sender: Any?) { editor?.beginSelectionChange(.smooth) }
     @objc func autoContrast(_ sender: Any?) { editor?.autoContrast() }
     @objc func showAddNoise(_ sender: Any?) { editor?.beginEffect(.addNoise) }
     @objc func showMotionBlur(_ sender: Any?) { editor?.beginEffect(.motionBlur) }
@@ -387,7 +390,8 @@ final class DocumentWindow: NSWindow {
         case #selector(showSpotlight(_:)):
             // Spotlight changes what's around a selection, so it waits for one.
             return editor.hasSelection
-        case #selector(showFeather(_:)):
+        case #selector(showFeather(_:)), #selector(showExpandSelection(_:)), #selector(showContractSelection(_:)),
+             #selector(showSmoothSelection(_:)):
             return editor.hasSelection
         case #selector(removeRedEye(_:)):
             return !editor.isFindingEyes && editor.activeLayerTakesEdits

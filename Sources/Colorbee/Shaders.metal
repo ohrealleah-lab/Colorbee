@@ -17,6 +17,8 @@ struct QuadUniforms {
     float adjustKind;     // 0 none, 1 invert, 2 desaturate, 3 brightness/contrast, 4 hue/saturation, 5 blur, 6 sharpen
     float4 photoParams;   // Adjust Photo: how many vignettes (x), their amounts in buffer 1; Texture (y, -1...1)
     float smooth;         // 1 when layers are sampled smoothly (zoomed out, or a stretched selection)
+    float4 detailParams;  // Adjust Photo (DetailAmounts): color noise, luminance and color detail scales, halo damping
+    float4 detailParams2; // fine boost, Masking's threshold, 1 to show the Masking mask
 };
 
 struct QuadOut {
@@ -331,7 +333,8 @@ fragment float4 adjust_channel_fragment(QuadOut in [[stage_in]],
 
 // Adjust Photo (PhotoAdjustments in ColorbeeCore): detail from blurred copies of what's below, then the color
 // table, then the vignettes (the filter's, then the panel's own). adjustParams: table size, sharpness, definition,
-// noise reduction (0...1).
+// noise reduction (0...1); detailParams and detailParams2 the rest of DetailAmounts. PhotoAdjustments.detail does the
+// same on the CPU.
 static float3 unblurred(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel, float3 fallback) {
     float4 soft = blurred.read(pixel);
     float weight = coverage.read(pixel).r;
@@ -347,6 +350,8 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
                                       texture2d<float> wideCoverage [[texture(4)]],
                                       texture2d<float> medium [[texture(5)]],
                                       texture2d<float> mediumCoverage [[texture(6)]],
+                                      texture2d<float> sharp [[texture(7)]],
+                                      texture2d<float> sharpCoverage [[texture(8)]],
                                       constant QuadUniforms &u [[buffer(0)]],
                                       constant float *vignettes [[buffer(1)]],
                                       float4 backdrop [[color(0)]]) {
@@ -354,20 +359,45 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
     if (backdrop.a <= 0) return backdrop;
     float3 c = clamp(backdrop.rgb / backdrop.a, 0.0, 1.0);
     float sharpness = u.adjustParams.y, definition = u.adjustParams.z, noiseReduction = u.adjustParams.w;
-    float textureAmount = u.photoParams.y;
-    if (sharpness > 0 || definition > 0 || noiseReduction > 0 || textureAmount != 0) {
+    float textureAmount = u.photoParams.y, colorNoise = u.detailParams.x;
+    float haloDamping = u.detailParams.w, fineBoost = u.detailParams2.x, maskThreshold = u.detailParams2.y;
+    bool showsMask = u.detailParams2.z > 0.5;
+    if (sharpness > 0 || definition > 0 || noiseReduction > 0 || textureAmount != 0 || colorNoise > 0 || showsMask) {
         uint2 pixel = uint2(in.position.xy);
         float3 original = c;
-        float3 soft = (sharpness > 0 || noiseReduction > 0) ? unblurred(fine, fineCoverage, pixel, original) : original;
+        float3 soft = noiseReduction > 0 ? unblurred(fine, fineCoverage, pixel, original) : original;
+        float3 sharpBlur = sharpness > 0 ? unblurred(sharp, sharpCoverage, pixel, original) : original;
         float3 wider = definition > 0 ? unblurred(wide, wideCoverage, pixel, original) : original;
+        bool needsMedium = textureAmount != 0 || colorNoise > 0 || maskThreshold > 0;
+        float3 middle = needsMedium ? unblurred(medium, mediumCoverage, pixel, original) : original;
+        float3 fromMiddle = abs(original - middle);
+        float mask = maskThreshold > 0 ? smoothstep(maskThreshold * 0.5, maskThreshold * 1.5, max(fromMiddle.r, max(fromMiddle.g, fromMiddle.b))) : 1;
+        if (showsMask) return fadeIn(backdrop, float3(mask), backdrop.a, u);
         if (noiseReduction > 0) {
             float3 difference = abs(original - soft);
-            float weight = noiseReduction * (1 - smoothstep(0.04, 0.2, max(difference.r, max(difference.g, difference.b))));
+            float s = u.detailParams.y;
+            float weight = noiseReduction * (1 - smoothstep(0.04 * s, 0.2 * s, max(difference.r, max(difference.g, difference.b))));
             c += (soft - c) * weight;
         }
-        if (sharpness > 0) c += (original - soft) * sharpness * 1.5;
+        if (colorNoise > 0) {
+            const float3 lumaWeights = float3(0.2126, 0.7152, 0.0722);
+            float3 chroma = c - dot(c, lumaWeights), around = middle - dot(middle, lumaWeights);
+            float3 difference = abs(chroma - around);
+            float s = u.detailParams.z;
+            float weight = colorNoise * (1 - smoothstep(0.08 * s, 0.3 * s, max(difference.r, max(difference.g, difference.b))));
+            c += (around - chroma) * weight;
+        }
+        if (sharpness > 0) {
+            float3 difference = original - sharpBlur;
+            float size = max(abs(difference.r), max(abs(difference.g), abs(difference.b)));
+            float gain = 1;
+            if (haloDamping > 0) gain = 1 / (1 + size * haloDamping);
+            if (fineBoost > 0) gain = 1 + fineBoost * (1 - smoothstep(0.0, 0.1, size));
+            gain *= mask;
+            c += difference * sharpness * 1.5 * gain;
+        }
         if (definition > 0) c += (original - wider) * definition * 0.6;
-        if (textureAmount != 0) c += (original - unblurred(medium, mediumCoverage, pixel, original)) * textureAmount * 0.8;
+        if (textureAmount != 0) c += (original - middle) * textureAmount * 0.8;
         c = clamp(c, 0.0, 1.0);
     }
     float size = u.adjustParams.x;

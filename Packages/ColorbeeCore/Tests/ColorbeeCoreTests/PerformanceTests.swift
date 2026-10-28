@@ -94,12 +94,20 @@ struct PerformanceTests {
     /// is a first guess, to be set to about twice the measured time on the next `make perf` (stage 3, 2026-10-27).
     @Test func adjustPhotoWithEveryDetailSlider() {
         let canvas = PerformanceFixture.photo(side: Self.side)
-        let edit = PhotoEdit(adjustments: PhotoAdjustments([.sharpness: 40, .texture: 50, .definition: 30, .noiseReduction: 20, .dehaze: 40]))
+        // With every finer setting too (stage 13): a blur at Sharpness's own radius, Masking and color noise.
+        var detail = PhotoDetail()
+        detail.radius = 2
+        detail.sharpnessDetail = 30
+        detail.masking = 50
+        detail.color = 40
+        let edit = PhotoEdit(adjustments: PhotoAdjustments([.sharpness: 40, .texture: 50, .definition: 30, .noiseReduction: 20, .dehaze: 40]),
+                             detail: detail)
         let time = fastest {
             let step = Edit(name: "Adjust Photo", canvas: canvas)
             Effects.apply(.photo(edit), to: canvas.activeLayer, selection: nil, edit: step)
         }
         #expect(time < .milliseconds(8000), "took \(time)")
+        print("Adjust Photo with every detail setting at 8000 × 8000: \(time)")
     }
 
     /// Each step of a dragged wheel or slider redoes the panel's preview, so these must keep up like the plain sliders.

@@ -3581,7 +3581,8 @@ final class Editor {
     /// Adjust Photo's "As Adjustment Layer": the settings become an adjustment layer instead of pixels.
     func photoAsAdjustmentLayer() {
         guard activeEffect == .adjustPhoto else { return }
-        let settings = photoEdit
+        var settings = photoEdit
+        settings.showsSharpeningMask = false
         cancelEffect()
         addAdjustmentLayer(.photo(settings), named: settings.filter?.name ?? "Adjust Photo")
         PhotoSettingsStore.shared.last = settings
@@ -3605,8 +3606,11 @@ final class Editor {
     /// Copy Photo Settings: from the Adjust Photo panel while it's open, otherwise from the active Adjust Photo layer.
     func copyPhotoSettings() {
         if activeEffect == .adjustPhoto {
-            PhotoSettingsStore.shared.copied = photoEdit
-        } else if let edit = activePhotoLayerEdit {
+            var settings = photoEdit
+            settings.showsSharpeningMask = false
+            PhotoSettingsStore.shared.copied = settings
+        } else if var edit = activePhotoLayerEdit {
+            edit.showsSharpeningMask = false
             PhotoSettingsStore.shared.copied = edit
         } else {
             onRefused()
@@ -3746,6 +3750,8 @@ final class Editor {
 
     func applyEffect() {
         if activeEffect?.choosesSelection == true { return applyRange() }
+        // Masking's edge mask is only ever a view (Q13.2): what's applied is the photo, re-rendered below if need be.
+        photoEdit.showsSharpeningMask = false
         if effectPreviewScheduled { renderEffectPreview() }
         if activeEffect == .pickSubject {
             // With no subjects of its own there's nothing for Return to take; waiting on a closer look, it waits.

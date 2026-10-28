@@ -21,6 +21,10 @@ struct QuadUniforms {
     var photoParams: SIMD4<Float> = .zero
     /// 1 when layers are sampled smoothly, which the shaders do in premultiplied color.
     var smooth: Float = 0
+    /// Adjust Photo's `DetailAmounts`: color noise, luminance and color detail scales, halo damping.
+    var detailParams: SIMD4<Float> = .zero
+    /// Fine boost, Masking's threshold, and 1 to show the Masking mask.
+    var detailParams2: SIMD4<Float> = .zero
 }
 
 /// Everything needed to draw one frame of a document.
@@ -266,16 +270,20 @@ final class Renderer {
             uniforms.blendMode = Float(layer.blendMode.rawValue)
             if case .photo(let edit) = adjustment, let lookup = lookupTexture(for: adjustment) {
                 // Detail sliders need blurred copies of what's below: pause the layer pass, blur, resume.
-                let a = edit.adjustments
-                let fine = a[.sharpness] > 0 || a[.noiseReduction] > 0, wide = a[.definition] > 0
-                let medium = a[.texture] != 0
+                let amounts = DetailAmounts(edit)
+                let fine = amounts.needsFine, wide = amounts.needsWide, medium = amounts.needsMedium
+                // Sharpness at its own radius gets slot 3, made only when needed; otherwise it reads the fine blur.
+                let sharpSlot = amounts.needsSharpenBlur ? 3 : 0
                 let canvasRect = uniforms.rect
                 let source = target
-                if fine || medium || wide {
+                if fine || medium || wide || amounts.needsSharpenBlur {
                     encoder.endEncoding()
                     if fine { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.fineRadius * zoom * scale), slot: 0, commandBuffer: commandBuffer) }
                     if wide { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.definitionRadius * zoom * scale), slot: 1, commandBuffer: commandBuffer) }
                     if medium { blur(source, canvasRect: canvasRect, sigma: Float(PhotoAdjustments.textureRadius * zoom * scale), slot: 2, commandBuffer: commandBuffer) }
+                    if amounts.needsSharpenBlur {
+                        blur(source, canvasRect: canvasRect, sigma: Float(amounts.radius * zoom * scale), slot: 3, commandBuffer: commandBuffer)
+                    }
                     let resume = MTLRenderPassDescriptor()
                     resume.colorAttachments[0].texture = source
                     resume.colorAttachments[0].loadAction = .load
@@ -285,7 +293,7 @@ final class Renderer {
                     encoder.setScissorRect(canvasScissor)
                     sampling(zoom < 1)
                 }
-                let targets = preparedBlurTargets(width: source.width, height: source.height)
+                let targets = preparedBlurTargets(width: source.width, height: source.height, count: sharpSlot + 1)
                 encoder.setFragmentTexture(lookup, index: 0)
                 encoder.setFragmentTexture(targets[0].blurred, index: 1)
                 encoder.setFragmentTexture(targets[0].coverageBlurred, index: 2)
@@ -293,13 +301,16 @@ final class Renderer {
                 encoder.setFragmentTexture(targets[1].coverageBlurred, index: 4)
                 encoder.setFragmentTexture(targets[2].blurred, index: 5)
                 encoder.setFragmentTexture(targets[2].coverageBlurred, index: 6)
+                encoder.setFragmentTexture(targets[sharpSlot].blurred, index: 7)
+                encoder.setFragmentTexture(targets[sharpSlot].coverageBlurred, index: 8)
                 uniforms.rect = canvasRect
-                uniforms.adjustParams = SIMD4(Float(lookup.width), fine ? Float(a[.sharpness] / 100) : 0,
-                                              wide ? Float(a[.definition] / 100) : 0, fine ? Float(a[.noiseReduction] / 100) : 0)
+                uniforms.adjustParams = SIMD4(Float(lookup.width), Float(amounts.sharpness), Float(amounts.definition), Float(amounts.noiseReduction))
+                uniforms.detailParams = SIMD4(Float(amounts.color), Float(amounts.luminanceScale), Float(amounts.colorScale), Float(amounts.haloDamping))
+                uniforms.detailParams2 = SIMD4(Float(amounts.fineBoost), Float(amounts.maskThreshold), amounts.showsMask ? 1 : 0, 0)
                 // The filter's vignettes, then the panel's own, as Effects.photoAdjusted applies them. A buffer can't
                 // be empty, and setFragmentBytes takes at most 4 KB.
                 var vignettes = edit.vignetteAmounts.prefix(1024).map(Float.init)
-                uniforms.photoParams = SIMD4(Float(vignettes.count), medium ? Float(a[.texture] / 100) : 0, 0, 0)
+                uniforms.photoParams = SIMD4(Float(vignettes.count), Float(amounts.texture), 0, 0)
                 if vignettes.isEmpty { vignettes = [0] }
                 encoder.setFragmentBytes(vignettes, length: vignettes.count * MemoryLayout<Float>.stride, index: 1)
                 draw(adjustPhotoPipeline)
@@ -618,9 +629,11 @@ final class Renderer {
         return texture
     }
 
-    /// Both blur target sets at the drawable's size, made when needed.
-    private func preparedBlurTargets(width: Int, height: Int) -> [BlurTarget] {
-        if blurTargets.count == 3, blurTargets[0].blurred.width == width, blurTargets[0].blurred.height == height { return blurTargets }
+    /// At least `count` blur target sets at the drawable's size (three, or four for Sharpness at its own radius), made
+    /// when needed.
+    private func preparedBlurTargets(width: Int, height: Int, count: Int = 3) -> [BlurTarget] {
+        let count = max(count, 3)
+        if blurTargets.count >= count, blurTargets[0].blurred.width == width, blurTargets[0].blurred.height == height { return blurTargets }
         func make(_ format: MTLPixelFormat, renderTarget: Bool) -> MTLTexture {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
             descriptor.usage = renderTarget ? [.renderTarget, .shaderRead] : [.shaderRead, .shaderWrite]
@@ -628,14 +641,14 @@ final class Renderer {
             guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create a blur texture") }
             return texture
         }
-        blurTargets = (0..<3).map { _ in (make(Self.layerTargetFormat, renderTarget: false), make(.r16Float, renderTarget: true), make(.r16Float, renderTarget: false)) }
+        blurTargets = (0..<count).map { _ in (make(Self.layerTargetFormat, renderTarget: false), make(.r16Float, renderTarget: true), make(.r16Float, renderTarget: false)) }
         return blurTargets
     }
 
     /// Blurs the layers composited so far into one blur target set, and the canvas's coverage alongside.
     private func blur(_ source: MTLTexture, canvasRect: SIMD4<Float>, sigma: Float, slot: Int, commandBuffer: MTLCommandBuffer) {
         let width = source.width, height = source.height
-        let targets = preparedBlurTargets(width: width, height: height)[slot]
+        let targets = preparedBlurTargets(width: width, height: height, count: slot + 1)[slot]
 
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = targets.coverage

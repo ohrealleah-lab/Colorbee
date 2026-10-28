@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-28 · 678 core tests and 214 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
+_Last updated: 2026-10-28 · 686 core tests and 217 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
 
 ## Waiting for Leah's tests
 
@@ -15,6 +15,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 - [Stage 11: .cube looks](#test-stage-11-cube-looks) (2026-10-28; stages 11 to 14 are built in a row, then tested together)
 - [Stage 12: History Snapshots](#test-stage-12-history-snapshots) (2026-10-28)
+- [Stage 13: Sharpening and Noise Reduction in detail](#test-stage-13-sharpening-and-noise-reduction-in-detail) (2026-10-28)
 
 ---
 
@@ -69,6 +70,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 10. Graduated selection | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 11. .cube looks | Built 2026-10-28; waiting for Leah's test (with stages 12 to 14) | High |
 | 14 · 12. History Snapshots | Built 2026-10-28; waiting for Leah's test (with stages 11, 13 and 14) | High |
+| 14 · 13. Sharpening and Noise Reduction in detail | Built 2026-10-28; waiting for Leah's test (with stages 11, 12 and 14) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -118,6 +120,10 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   compresses every layer to its own scratch file at once; going to one is a layer step whose `LayerStackState` now
   carries the canvas size, so it can bring back a different size. `History.removeAll` clears snapshots. The soak
   test takes and goes to snapshots.
+- Stage 13 (2026-10-28): Sharpness's Radius, Detail and Masking; Noise Reduction's Detail, Color and Color Detail
+  (`PhotoDetail.swift`: the settings, `DetailAmounts`, and `PhotoAdjustments.detail`, mirrored in
+  `adjust_photo_fragment`). Sharpness at its own radius gets a fourth GPU blur slot. Option-drag on Masking sets
+  `PhotoEdit.showsSharpeningMask`, never saved or applied.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -285,6 +291,23 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 13: Sharpening and Noise Reduction in detail
+
+Test files: `TestImages/Photo Editing/Old Adjust Photo.colorproj`, `TestImages/Photo Editing/Hazy.png` (it has
+grain) and a real photo of yours taken in low light, if you have one. Run `make run` first.
+1. Open `Old Adjust Photo.colorproj`: it looks just as before, sharpening and noise reduction included.
+2. Open `Hazy.png`, choose Adjustments ▸ **Adjust Photo…**, and zoom to 200%. In Detail, click the **arrow** beside
+   Noise Reduction: Detail, Color and Color Detail appear. Set Noise Reduction to 60: the grain smooths. Drag its
+   Detail to 100: more grain comes back; to 0: smoother still.
+3. On your low-light photo, set **Color** to 60: colored speckles fade, and the brightness grain stays.
+4. Back on `Hazy.png`, click the arrow beside **Sharpness** and set Sharpness to 60. Drag **Radius** from 0.5 to
+   3 px: the sharpening grows coarser.
+5. Hold **Option** and drag **Masking**: the picture turns black and white, white where it would sharpen. Let go: the
+   photo is back. Set Masking to 80: the smooth sky stays smooth, and edges are still sharpened.
+6. Press Apply, then Export as PNG, and open the export: it looks like the screen did. Then ⌘Z.
+7. Choose **As Adjustment Layer** with these settings instead: the screen shows the same sharpening and smoothing,
+   and Option-dragging Masking in the Adjustments panel shows the mask there too.
 
 ### Test: Stage 12: History Snapshots
 

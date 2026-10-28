@@ -38,6 +38,8 @@ struct PhotoControls: View {
     private typealias Slider = PhotoAdjustments.Slider
     /// The titles of the folded sections, one per line, the same in every window (Leah, 2026-10-27).
     @AppStorage("adjustPhotoFoldedSections") private var folded = ""
+    /// The sliders whose finer settings are open (Sharpness, Noise Reduction), one per line; closed to start (Q13.3).
+    @AppStorage("adjustPhotoOpenDetails") private var openDetails = ""
     /// Which of the Color Mixer's settings its eight sliders show.
     @State var mixerSetting = ColorMixer.Setting.hue
     /// Which Color Grading wheel shows.
@@ -83,12 +85,14 @@ struct PhotoControls: View {
             ForEach(Self.groups, id: \.0) { title, sliders in
                 sectionHeading(title)
                 ForEach(isFolded(title) ? [] : sliders, id: \.self) { slider in
+                    let hasMore = slider == .sharpness || slider == .noiseReduction
                     row(slider.title, value: edit.adjustments[slider], range: slider.range, unit: "", moved: autoMoved.contains(slider),
-                        dropper: slider == .warmth) { value in
+                        dropper: slider == .warmth, disclosure: hasMore ? detailDisclosure(slider) : nil) { value in
                         var changed = edit
                         changed.adjustments[slider] = value
                         onChange(changed)
                     }
+                    if hasMore && isOpen(slider) { finerSettings(for: slider) }
                 }
                 if title == "Color" {
                     colorMixerSection
@@ -101,6 +105,60 @@ struct PhotoControls: View {
 
     func isFolded(_ title: String) -> Bool {
         foldedTitles.contains(title)
+    }
+
+    // MARK: Sharpness's and Noise Reduction's finer settings (FR-9.7 item 5)
+
+    private func isOpen(_ slider: Slider) -> Bool {
+        openDetails.split(separator: "\n").contains { $0 == slider.rawValue }
+    }
+
+    private func detailDisclosure(_ slider: Slider) -> Binding<Bool> {
+        Binding(get: { isOpen(slider) }, set: { open in
+            var names = Set(openDetails.split(separator: "\n").map(String.init))
+            if open { names.insert(slider.rawValue) } else { names.remove(slider.rawValue) }
+            openDetails = names.sorted().joined(separator: "\n")
+        })
+    }
+
+    private func detailRow(_ title: String, _ key: WritableKeyPath<PhotoDetail, Double>, range: ClosedRange<Double>, unit: String = "",
+                           step: Double = 1, help: String, onEditing: ((Bool) -> Void)? = nil) -> some View {
+        let detail = edit.detail ?? PhotoDetail()
+        return row(title, value: detail[keyPath: key], range: range, unit: unit, step: step, resetValue: PhotoDetail()[keyPath: key],
+                   onEditing: onEditing) { value in
+            var changed = edit
+            var settings = changed.detail ?? PhotoDetail()
+            settings[keyPath: key] = value
+            changed.detail = settings
+            onChange(changed)
+        }
+        .help(help)
+        .padding(.leading, 14)
+    }
+
+    @ViewBuilder private func finerSettings(for slider: Slider) -> some View {
+        if slider == .sharpness {
+            detailRow("Radius", \.radius, range: PhotoDetail.radiusRange, unit: " px", step: 0.1,
+                      help: "The size of the detail Sharpness brings out")
+            detailRow("Detail", \.sharpnessDetail, range: PhotoDetail.range,
+                      help: "Lower holds back halos along strong edges; higher brings out the finest detail")
+            detailRow("Masking", \.masking, range: PhotoDetail.range,
+                      help: "Sharpen only edges, leaving smooth areas such as sky alone. Hold Option while dragging to see where it sharpens (white).") { editing in
+                // Option-drag shows the edge mask on the picture while the slider is held (Q13.2).
+                let showsMask = editing && NSEvent.modifierFlags.contains(.option)
+                guard showsMask != edit.showsSharpeningMask else { return }
+                var changed = edit
+                changed.showsSharpeningMask = showsMask
+                onChange(changed)
+            }
+        } else {
+            detailRow("Detail", \.luminanceDetail, range: PhotoDetail.range,
+                      help: "Higher keeps more fine detail; lower smooths more")
+            detailRow("Color", \.color, range: PhotoDetail.range,
+                      help: "Smooth colored speckles, keeping the brightness")
+            detailRow("Color Detail", \.colorDetail, range: PhotoDetail.range,
+                      help: "Higher keeps more small color detail")
+        }
     }
 
     /// A section's name, which folds it away or opens it again.
@@ -161,11 +219,30 @@ struct PhotoControls: View {
         Set(folded.split(separator: "\n").map(String.init))
     }
 
-    func row(_ title: String, value: Double, range: ClosedRange<Double>, unit: String, moved: Bool = false, dropper: Bool = false,
-             swatch: Color? = nil, resetValue: Double = 0, end: (() -> Void)? = nil, set: @escaping (Double) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+    /// A slider with its name and value above it. `step` below 1 shows one decimal; `disclosure` adds an arrow that
+    /// shows finer settings; `onEditing` hears when the slider is pressed and let go.
+    func row(_ title: String, value: Double, range: ClosedRange<Double>, unit: String, step: Double = 1, moved: Bool = false,
+             dropper: Bool = false, swatch: Color? = nil, resetValue: Double = 0, disclosure: Binding<Bool>? = nil,
+             onEditing: ((Bool) -> Void)? = nil, end: (() -> Void)? = nil, set: @escaping (Double) -> Void) -> some View {
+        let snapped = { (value: Double) in step == 1 ? value.rounded() : (value / step).rounded() * step }
+        let shown = step == 1 ? "\(Int(value.rounded()))" : value.formatted(.number.precision(.fractionLength(1)))
+        return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 HStack(spacing: 4) {
+                    if let disclosure {
+                        Button { disclosure.wrappedValue.toggle() } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .semibold))
+                                .rotationEffect(.degrees(disclosure.wrappedValue ? 90 : 0))
+                                .frame(width: 12, height: 16)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.secondaryInk)
+                        .help(disclosure.wrappedValue ? "Hide the finer \(title) settings" : "Show the finer \(title) settings")
+                        .accessibilityLabel("\(title) settings")
+                        .accessibilityValue(disclosure.wrappedValue ? "Open" : "Closed")
+                    }
                     if let swatch {
                         Circle().fill(swatch).frame(width: 8, height: 8).accessibilityHidden(true)
                     }
@@ -178,7 +255,7 @@ struct PhotoControls: View {
                             .accessibilityLabel("Set by Auto")
                     }
                     Spacer()
-                    Text(range.lowerBound < 0 && value > 0 ? "+\(Int(value.rounded()))\(unit)" : "\(Int(value.rounded()))\(unit)")
+                    Text(range.lowerBound < 0 && value > 0 ? "+\(shown)\(unit)" : "\(shown)\(unit)")
                         .font(.system(size: 11))
                         .monospacedDigit()
                         .padding(.horizontal, 6)
@@ -186,11 +263,12 @@ struct PhotoControls: View {
                         .background(Theme.field, in: RoundedRectangle(cornerRadius: 5))
                 }
                 // The wand's own tooltip is under the grab area, so the line carries it (review T, finding 6).
-                .slides(Binding(get: { value }, set: { set($0.rounded()) }), in: range, help: moved ? "Set by Auto" : nil, onEnd: end ?? onFinish)
+                .slides(Binding(get: { value }, set: { set(snapped($0)) }), in: range, help: moved ? "Set by Auto" : nil, onEnd: end ?? onFinish)
                 // Beside the line, not on it: the grab area would take its clicks.
                 if dropper { whiteBalanceDropper }
             }
-            SwiftUI.Slider(value: Binding(get: { value }, set: { set($0.rounded()) }), in: range) { editing in
+            SwiftUI.Slider(value: Binding(get: { value }, set: { set(snapped($0)) }), in: range) { editing in
+                onEditing?(editing)
                 if !editing { (end ?? onFinish)() }
             }
             // The size the Adjustments panel uses, easier to grab than mini (Leah, 2026-10-27).

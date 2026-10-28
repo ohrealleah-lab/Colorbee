@@ -83,8 +83,6 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
         PhotoAdjustments(values.filter { $0.key.inFilters })
     }
 
-    var hasDetail: Bool { self[.sharpness] != 0 || self[.definition] != 0 || self[.texture] != 0 || self[.noiseReduction] != 0 }
-
     // MARK: The math (mirrored in Shaders.metal through ColorLookup, plus photo_fragment for the rest)
 
     /// The per-pixel color and tone part, in slider order: light, then color.
@@ -188,24 +186,6 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
     public static let fineRadius = 1.2
     public static let textureRadius = 3.0
     public static let definitionRadius = 12.0
-
-    /// Sharpness, Definition, Texture and Noise Reduction for one pixel, from its own color and three blurred copies
-    /// (straight colors, 0...1). Returns the new color. Texture works on detail up to a few pixels across, against
-    /// a blur a quarter of Definition's, so it brings out (or, negative, smooths) texture without wide halos.
-    static func detail(_ original: SIMD3<Double>, fine: SIMD3<Double>, medium: SIMD3<Double>, wide: SIMD3<Double>,
-                       sharpness: Double, definition: Double, texture: Double, noiseReduction: Double) -> SIMD3<Double> {
-        var c = original
-        if noiseReduction > 0 {
-            // Smooth only where the pixel is close to its surroundings, so edges stay crisp.
-            let difference = simd_abs(original - fine).max()
-            let weight = noiseReduction * (1 - smoothstep(0.04, 0.2, difference))
-            c += (fine - c) * weight
-        }
-        if sharpness > 0 { c += (original - fine) * sharpness * 1.5 }
-        if definition > 0 { c += (original - wide) * definition * 0.6 }
-        if texture != 0 { c += (original - medium) * texture * 0.8 }
-        return clamped(c)
-    }
 }
 
 /// What the Adjust Photo panel holds (FR-9.5): a filter at an intensity, then the sliders on top.
@@ -227,20 +207,27 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     public var pointColors: PointColors? {
         didSet { if pointColors?.isEmpty == true { pointColors = nil } }
     }
+    /// Sharpness's and Noise Reduction's finer settings (FR-9.7 item 5); nil while all are at their start.
+    public var detail: PhotoDetail? {
+        didSet { if detail?.isDefault == true { detail = nil } }
+    }
+    /// Shows Masking's edge mask instead of the photo while Masking is Option-dragged (Q13.2). Never saved.
+    public var showsSharpeningMask = false
 
     public init(adjustments: PhotoAdjustments = PhotoAdjustments(), filter: PhotoFilter? = nil, filterIntensity: Double = 100,
-                mixer: ColorMixer? = nil, grading: ColorGrading? = nil, pointColors: PointColors? = nil) {
+                mixer: ColorMixer? = nil, grading: ColorGrading? = nil, pointColors: PointColors? = nil, detail: PhotoDetail? = nil) {
         self.adjustments = adjustments
         self.filter = filter
         self.filterIntensity = filterIntensity
         self.mixer = mixer?.isNeutral == true ? nil : mixer
         self.grading = grading?.isUntouched == true ? nil : grading
         self.pointColors = pointColors?.isEmpty == true ? nil : pointColors
+        self.detail = detail?.isDefault == true ? nil : detail
     }
 
     public var isNeutral: Bool {
         adjustments.isNeutral && (filter == nil || filterIntensity == 0) && mixer == nil && grading?.isNeutral ?? true
-            && pointColors?.isNeutral ?? true
+            && pointColors?.isNeutral ?? true && (detail?.color ?? 0) == 0
     }
 
     /// The color and tone part: the filter's steps at its intensity, then the sliders' color and tone, then the
@@ -272,12 +259,13 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
         part.adjustments = adjustments.forFilters
         part.filter = nil
         part.filterIntensity = 100
+        part.detail = nil
         return part
     }
 
     /// What stays on the panel after Save as Filter: the settings filters leave out.
     public var partFiltersLeaveOut: PhotoEdit {
-        PhotoEdit(adjustments: PhotoAdjustments(adjustments.values.filter { !$0.key.inFilters }))
+        PhotoEdit(adjustments: PhotoAdjustments(adjustments.values.filter { !$0.key.inFilters }), detail: detail)
     }
 
     /// The vignettes, in the order they apply after all the color: the filter's at its intensity, then the
@@ -336,7 +324,7 @@ extension PhotoAdjustments {
 
 extension PhotoEdit {
     private enum CodingKeys: String, CodingKey {
-        case adjustments, filter, filterIntensity, mixer, grading, pointColors
+        case adjustments, filter, filterIntensity, mixer, grading, pointColors, detail
     }
 
     /// A control this version can't read is left at neutral rather than losing the whole adjustment.
@@ -348,6 +336,7 @@ extension PhotoEdit {
                   filterIntensity: intensity.isFinite ? min(max(intensity, 0), 100) : 100,
                   mixer: try? container.decodeIfPresent(ColorMixer.self, forKey: .mixer),
                   grading: try? container.decodeIfPresent(ColorGrading.self, forKey: .grading),
-                  pointColors: try? container.decodeIfPresent(PointColors.self, forKey: .pointColors))
+                  pointColors: try? container.decodeIfPresent(PointColors.self, forKey: .pointColors),
+                  detail: try? container.decodeIfPresent(PhotoDetail.self, forKey: .detail))
     }
 }

@@ -382,12 +382,18 @@ since both use the same eight color ranges.
    - Color-only, so it goes in the color table.
    - Questions: Q5.1 to Q5.4.
 4. **Size:** M. **Opus, high** (design-heavy control).
-5. **Hand test** (`Stage 9 Practice Photo.png`, the gray ramp in `Color Chart.png`)
-   1. Adjust Photo ▸ Color Grading: drag Shadows toward teal and Highlights toward orange. The ramp's dark end turns
-      teal and its light end orange.
-   2. Drag Balance right: more of the ramp goes orange.
-   3. Double-click a wheel: it resets.
-   4. Save as Filter, then use it at 50%: the same hues, half as strong.
+5. **Hand test** (`TestImages/Photo Editing/Color Chart.png`, `TestImages/Stage 9 Practice Photo.png`)
+   1. Open `Color Chart.png` and choose Adjust Photo. Under the Color Mixer there's **Color Grading**. On the **Shadows**
+      tab, drag the point on the wheel about halfway out toward aqua (the left). On the **Highlights** tab, drag it
+      halfway out toward orange (the right, a little up). The gray ramp's dark end turns teal and its light end orange.
+      The small dot on the wheel shows where the other wheel is.
+   2. Drag **Balance** to the right: more of the ramp turns orange.
+   3. Double-click the wheel: its point goes back to the middle. Click Reset.
+   4. Drag a point while holding **Option**: it moves slowly, for fine changes. Cancel.
+   5. Open `TestImages/Stage 9 Practice Photo.png`, Adjust Photo, set teal shadows and orange highlights as in step 1,
+      then ⋯ ▸ Save as Filter… named "Teal and Orange". Set its Intensity to 50%: the same colors, half as strong. Cancel.
+   6. Open Adjust Photo again, turn on **Black & White** (in the Color Mixer), then set the Shadows wheel toward blue and
+      the Highlights wheel toward yellow: a split-toned black and white. Apply, then ⌘Z.
 6. **Done when:** exact-value tests on the ramp pass. Help is updated.
 
 ### Stage 6. Point Color

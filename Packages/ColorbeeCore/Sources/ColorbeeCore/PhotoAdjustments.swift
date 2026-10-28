@@ -219,26 +219,35 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     public var mixer: ColorMixer? {
         didSet { if mixer?.isNeutral == true { mixer = nil } }
     }
+    /// Color Grading (FR-9.7); nil when untouched.
+    public var grading: ColorGrading? {
+        didSet { if grading?.isUntouched == true { grading = nil } }
+    }
 
     public init(adjustments: PhotoAdjustments = PhotoAdjustments(), filter: PhotoFilter? = nil, filterIntensity: Double = 100,
-                mixer: ColorMixer? = nil) {
+                mixer: ColorMixer? = nil, grading: ColorGrading? = nil) {
         self.adjustments = adjustments
         self.filter = filter
         self.filterIntensity = filterIntensity
         self.mixer = mixer?.isNeutral == true ? nil : mixer
+        self.grading = grading?.isUntouched == true ? nil : grading
     }
 
-    public var isNeutral: Bool { adjustments.isNeutral && (filter == nil || filterIntensity == 0) && mixer == nil }
+    public var isNeutral: Bool {
+        adjustments.isNeutral && (filter == nil || filterIntensity == 0) && mixer == nil && grading?.isNeutral ?? true
+    }
 
     /// The color and tone part: the filter's steps at its intensity, then the sliders' color and tone, then the
-    /// Color Mixer.
+    /// Color Mixer (and Black & White), then Color Grading, so grading can tint a black-and-white picture.
     public var colorTransform: (Pixel) -> Pixel {
         let steps = (filter?.steps(atIntensity: filterIntensity / 100) ?? []).compactMap(\.colorTransform)
         let own = adjustments.colorTransform
-        let mixed = mixer?.transform
+        let mixed = mixer?.transform, graded = grading?.transform
         return { pixel in
-            let adjusted = own(steps.reduce(pixel) { $1($0) })
-            return mixed?(adjusted) ?? adjusted
+            var result = own(steps.reduce(pixel) { $1($0) })
+            if let mixed { result = mixed(result) }
+            if let graded { result = graded(result) }
+            return result
         }
     }
 
@@ -320,7 +329,7 @@ extension PhotoAdjustments {
 
 extension PhotoEdit {
     private enum CodingKeys: String, CodingKey {
-        case adjustments, filter, filterIntensity, mixer
+        case adjustments, filter, filterIntensity, mixer, grading
     }
 
     /// A control this version can't read is left at neutral rather than losing the whole adjustment.
@@ -330,6 +339,7 @@ extension PhotoEdit {
         self.init(adjustments: try container.decode(PhotoAdjustments.self, forKey: .adjustments),
                   filter: try container.decodeIfPresent(PhotoFilter.self, forKey: .filter),
                   filterIntensity: intensity.isFinite ? min(max(intensity, 0), 100) : 100,
-                  mixer: try? container.decodeIfPresent(ColorMixer.self, forKey: .mixer))
+                  mixer: try? container.decodeIfPresent(ColorMixer.self, forKey: .mixer),
+                  grading: try? container.decodeIfPresent(ColorGrading.self, forKey: .grading))
     }
 }

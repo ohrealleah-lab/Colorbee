@@ -17,6 +17,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 2: Same as Last, and copy and paste settings](#test-stage-2-same-as-last-and-copy-and-paste-settings) (2026-10-27)
 - [Stage 3: Texture and Dehaze](#test-stage-3-texture-and-dehaze) (2026-10-27)
 - [Stage 4: Color Mixer and Black & White](#test-stage-4-color-mixer-and-black-white) (2026-10-27)
+- [Stage 5: Color Grading](#test-stage-5-color-grading) (2026-10-27)
 
 ---
 
@@ -63,6 +64,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 2. Same as Last, and copy and paste settings | Built 2026-10-27; waiting for Leah's test | High |
 | 14 · 3. Texture and Dehaze | Built 2026-10-27; waiting for Leah's test | High |
 | 14 · 4. Color Mixer and Black & White | Built 2026-10-27; waiting for Leah's test | High |
+| 14 · 5. Color Grading | Built 2026-10-27; waiting for Leah's test | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -88,6 +90,9 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - Stage 4 (2026-10-27): the Color Mixer (`ColorMixer.swift`: hue, saturation and luminance for eight ranges, and
   Black & White with its mix), saved as `mixer` beside the sliders, in filters, scaled by Intensity. Adjust Photo
   layers with one use a 65-point color table (`ColorLookup.fineSize`), built on all cores.
+- Stage 5 (2026-10-27): Color Grading (`ColorGrading.swift`: Shadows, Midtones, Highlights and Global wheels with
+  Luminance, Blending and Balance), saved as `grading`, in filters (strength scaled, hue kept); the `ColorWheel`
+  control.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -255,6 +260,21 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 5: Color Grading
+
+Test files: `TestImages/Photo Editing/Color Chart.png`, `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy.
+1. Open `Color Chart.png` and choose Adjust Photo. Under the Color Mixer there's **Color Grading**. On the **Shadows**
+   tab, drag the point on the wheel about halfway out toward aqua (the left). On the **Highlights** tab, drag it
+   halfway out toward orange (the right, a little up). The gray ramp's dark end turns teal and its light end orange.
+   The small dot on the wheel shows where the other wheel is.
+2. Drag **Balance** to the right: more of the ramp turns orange.
+3. Double-click the wheel: its point goes back to the middle. Click Reset.
+4. Drag a point while holding **Option**: it moves slowly, for fine changes. Cancel.
+5. Open `TestImages/Stage 9 Practice Photo.png`, Adjust Photo, set teal shadows and orange highlights as in step 1,
+   then ⋯ ▸ Save as Filter… named "Teal and Orange". Set its Intensity to 50%: the same colors, half as strong. Cancel.
+6. Open Adjust Photo again, turn on **Black & White** (in the Color Mixer), then set the Shadows wheel toward blue and
+   the Highlights wheel toward yellow: a split-toned black and white. Apply, then ⌘Z.
 
 ### Test: Stage 4: Color Mixer and Black & White
 

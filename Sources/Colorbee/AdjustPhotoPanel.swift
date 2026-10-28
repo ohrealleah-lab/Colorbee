@@ -40,6 +40,8 @@ struct PhotoControls: View {
     @AppStorage("adjustPhotoFoldedSections") private var folded = ""
     /// Which of the Color Mixer's settings its eight sliders show.
     @State var mixerSetting = ColorMixer.Setting.hue
+    /// Which Color Grading wheel shows.
+    @State var gradingRegion = ColorGrading.Region.shadows
     private static let groups: [(String, [Slider])] = [
         ("Light", [.exposure, .brilliance, .dehaze, .highlights, .shadows, .contrast, .brightness, .whites, .blackPoint]),
         ("Color", [.saturation, .vibrance, .warmth, .tint]),
@@ -86,7 +88,10 @@ struct PhotoControls: View {
                         onChange(changed)
                     }
                 }
-                if title == "Color" { colorMixerSection }
+                if title == "Color" {
+                    colorMixerSection
+                    colorGradingSection
+                }
             }
         }
     }
@@ -154,7 +159,7 @@ struct PhotoControls: View {
     }
 
     func row(_ title: String, value: Double, range: ClosedRange<Double>, unit: String, moved: Bool = false, dropper: Bool = false,
-             swatch: Color? = nil, set: @escaping (Double) -> Void) -> some View {
+             swatch: Color? = nil, resetValue: Double = 0, set: @escaping (Double) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 HStack(spacing: 4) {
@@ -189,7 +194,7 @@ struct PhotoControls: View {
             .controlSize(.small)
             .accessibilityLabel(title)
             // Control-click a slider to put it back to zero.
-            .contextMenu { Button("Reset \(title)") { set(0); onFinish() } }
+            .contextMenu { Button("Reset \(title)") { set(resetValue); onFinish() } }
         }
     }
 }

@@ -1300,18 +1300,39 @@ final class Editor {
         onRender()
     }
 
-    /// Picks a color. With `allLayers`, samples what's visible rather than only the active layer.
+    /// The Eyedropper's Sample Size (FR-9.7 item 9): 1 (one pixel), 3 or 5 pixels square, averaged.
+    var eyedropperSampleSize = 1
+
+    /// The square `size` pixels across centered on `pixel`.
+    private func sample(around pixel: IntPoint, size: Int) -> IntRect {
+        IntRect(x: pixel.x - size / 2, y: pixel.y - size / 2, width: size, height: size)
+    }
+
+    /// Picks a color, averaging the Eyedropper's Sample Size. With `allLayers`, samples what's visible rather than
+    /// only the active layer.
     func pickColor(at point: Point2D, secondary: Bool, allLayers: Bool) {
         let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         guard canvas.bounds.contains(pixel) else { return }
-        var picked: Pixel
+        let area = sample(around: pixel, size: eyedropperSampleSize)
+        let picked: Pixel
         if allLayers {
             // As shown: blend modes and adjustment layers included (review I, finding 8).
-            picked = canvas.pixelAsShown(at: pixel) ?? .clear
+            picked = canvas.colorAsShown(in: area) ?? .clear
         } else {
-            picked = canvas.activeLayer.buffer[pixel.x, pixel.y]
+            picked = canvas.activeLayer.buffer.averagedPixel(in: area)
         }
         if secondary { color2 = picked } else { color1 = picked }
+    }
+
+    /// The color under the pointer as shown, every layer included, in sRGB (FR-9.7 item 9, Q20.1 and Q20.2), for the
+    /// status bar; averaged over the Sample Size while the Eyedropper is chosen (Q20.4). Nil off the picture.
+    var pointerColor: Pixel? {
+        _ = layersRevision
+        guard let pointer else { return nil }
+        let size = tool == .eyedropper ? eyedropperSampleSize : 1
+        guard let shown = canvas.colorAsShown(in: sample(around: pointer, size: size)) else { return nil }
+        let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
+        return (try? ImageCodec.converted(PixelBuffer(width: 1, height: 1, fill: shown), from: canvas.colorSpace, to: srgb))?[0, 0] ?? shown
     }
 
     // MARK: Gradient

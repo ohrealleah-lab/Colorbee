@@ -42,3 +42,19 @@ extension PixelBuffer {
         return Pixel(r: UInt8(mean.x), g: UInt8(mean.y), b: UInt8(mean.z))
     }
 }
+
+extension PixelBuffer {
+    /// The average of `rect` (clipped to the buffer): its colors weighted by opacity, and its opacity averaged, as the
+    /// Eyedropper's Sample Size picks (FR-9.7 item 9). Fully clear where every pixel is.
+    public func averagedPixel(in rect: IntRect) -> Pixel {
+        let area = rect.intersection(bounds)
+        guard !area.isEmpty else { return .clear }
+        let alpha = (0..<area.height).reduce(0) { sum, y in
+            let row = row(area.minY + y)
+            return sum + (area.minX..<area.maxX).reduce(0) { $0 + Int(row[$1].a) }
+        }
+        guard let color = averageColor(in: area) else { return .clear }
+        let opacity = (Double(alpha) / Double(area.width * area.height)).rounded()
+        return Pixel(r: color.r, g: color.g, b: color.b, a: UInt8(opacity))
+    }
+}

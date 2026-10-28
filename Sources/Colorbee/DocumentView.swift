@@ -182,6 +182,13 @@ private struct ToolOptions: View {
             Toggle("Sample All Layers", isOn: $editor.fillSamplesAllLayers)
                 .help("Find the area to fill in all visible layers together, and fill it on this layer")
         case .eyedropper:
+            Picker("Sample Size", selection: $editor.eyedropperSampleSize) {
+                Text("1 px").tag(1)
+                Text("3 × 3").tag(3)
+                Text("5 × 5").tag(5)
+            }
+            .fixedSize()
+            .help("Pick one pixel, or the average of the pixels around it, which smooths out noise and blended edges")
             hint("Click: Color 1 · Right-click: Color 2 · Option: all layers")
             Button("Add Color 1 to Custom Colors") { CustomColors.shared.add(editor.color1) }
                 .help("Keep Color 1 in the next custom-color slot")

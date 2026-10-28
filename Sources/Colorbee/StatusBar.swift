@@ -10,6 +10,10 @@ struct StatusBar: View {
         HStack(spacing: 10) {
             item("cursorarrow", pointerText).frame(minWidth: 92, alignment: .leading)
             divider
+            ColorReadout(color: editor.pointerColor)
+                .frame(minWidth: 150, alignment: .leading)
+                .layoutPriority(-1)
+            divider
             item("rectangle.dashed", selectionText).frame(minWidth: 100, alignment: .leading)
             divider
             item("ruler", measureText).frame(minWidth: 80, alignment: .leading)
@@ -64,6 +68,45 @@ struct StatusBar: View {
     private var measureText: String {
         guard let measurement = editor.measurement else { return "—" }
         return String(format: "%.1f px · ΔX %d · ΔY %d · %.1f°", measurement.distance, measurement.dx, measurement.dy, measurement.angle)
+    }
+}
+
+/// The color under the pointer (FR-9.7 item 9): a swatch, its sRGB values and hex. A click on the hex copies it.
+private struct ColorReadout: View {
+    let color: Pixel?
+    @State private var copied = false
+
+    var body: some View {
+        if let color {
+            let hex = String(format: "#%02X%02X%02X", color.r, color.g, color.b)
+            HStack(spacing: 5) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color(.sRGB, red: Double(color.r) / 255, green: Double(color.g) / 255, blue: Double(color.b) / 255, opacity: Double(color.a) / 255))
+                    .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Theme.separator))
+                    .frame(width: 10, height: 10)
+                    .accessibilityHidden(true)
+                Text("sRGB \(color.r) \(color.g) \(color.b)" + (color.a < 255 ? " · \(Int((Double(color.a) / 255 * 100).rounded()))%" : ""))
+                Button(copied ? "Copied" : hex) {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(hex, forType: .string)
+                    copied = true
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(1.2))
+                        copied = false
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+                .help("Copy \(hex)")
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Color under the pointer, sRGB \(color.r), \(color.g), \(color.b), \(hex)")
+        } else {
+            HStack(spacing: 5) {
+                Image(systemName: "eyedropper").font(.system(size: 11)).accessibilityHidden(true)
+                Text("—")
+            }
+        }
     }
 }
 

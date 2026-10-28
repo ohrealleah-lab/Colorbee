@@ -84,6 +84,10 @@ enum Snapshot {
             let radius = defaults.double(forKey: "ColorbeeSnapshotSelectionRadius")
             if radius > 0 { editor.setSelectionChangeRadius(radius) }
         }
+        // `-ColorbeeSnapshotPointer 120,80` puts the pointer there, for the status bar's position and color readout.
+        if let place = defaults.string(forKey: "ColorbeeSnapshotPointer")?.split(separator: ",").compactMap({ Int($0) }), place.count == 2 {
+            editor.pointer = IntPoint(x: place[0], y: place[1])
+        }
         // `-ColorbeeSnapshotCanvasProperties YES` opens Canvas Properties; the sheet is saved as "-sheet.png".
         if defaults.bool(forKey: "ColorbeeSnapshotCanvasProperties") { editor.isCanvasPropertiesOpen = true }
         // `-ColorbeeSnapshotClip YES`: that adjustment changes only the layer below.

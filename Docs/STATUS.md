@@ -19,6 +19,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 18a: Trim](#test-stage-18a-trim) (2026-10-28)
 - [Stage 18b: Canvas Size anchor](#test-stage-18b-canvas-size-anchor) (2026-10-28)
 - [Stage 19: Export: color space and Limit file size](#test-stage-19-export-color-space-and-limit-file-size) (2026-10-28; stages 19 to 21 are built in a row, then tested together)
+- [Stage 20: Color readout and Eyedropper sample size](#test-stage-20-color-readout-and-eyedropper-sample-size) (2026-10-28)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -84,6 +85,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 18a. Trim | Built 2026-10-28; waiting for Leah's test (with stages 15 to 17 and 18b) | Medium |
 | 14 · 18b. Canvas Size anchor | Built 2026-10-28; waiting for Leah's test (with stages 15 to 18a) | Medium |
 | 14 · 19. Export: color space and Limit file size | Built 2026-10-28; waiting for Leah's test (with stages 20 and 21) | High |
+| 14 · 20. Color readout and Eyedropper sample size | Built 2026-10-28; waiting for Leah's test (with stages 19 and 21) | Medium |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -154,6 +156,9 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   `AnchorGrid` in `CanvasPropertiesSheet.swift`).
 - Stage 19 (2026-10-28): Export's Color and Limit file size (`ExportColor.swift`, `ImageCodec.converted`,
   `ImageCodec.encode(…limit:)`, `SaveSnapshot.encoded(…color:limit:)`), and each Export As preset's Color.
+- Stage 20 (2026-10-28): the status bar's color readout (`ColorReadout`, `Editor.pointerColor`) and the Eyedropper's
+  Sample Size; `Canvas.patchAsShown` now pads by each adjustment's `reach` and places the patch
+  (`Effects.Placement`), so readings match an export.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -321,6 +326,19 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 20: Color readout and Eyedropper sample size
+
+Test files: `TestImages/Photo Editing/Color Chart.png` (its colors are listed in `Color Chart.txt`),
+`TestImages/Help/Sample Screenshot.png` and `TestImages/Photo Editing/Old Adjust Photo.colorproj`. Run `make run`
+first.
+1. Open the chart and move over a patch: the status bar shows a swatch, "sRGB" and its numbers, and the hex. Click
+   the hex: it says "Copied"; paste it in Notes to check.
+2. Point at the gray around the picture: the readout shows a dash.
+3. Open the screenshot, choose the **Eyedropper**, and set **Sample Size** 5 × 5. Point at the soft edge of a
+   letter: the readout shows an in-between color; click, and Color 1 is that color. At **1 px**, one exact pixel.
+4. Open `Old Adjust Photo.colorproj` and point at a corner, where the vignette darkens it. Hide the Adjust Photo
+   layers: the readout changes, so it was reading what you see.
 
 ### Test: Stage 19: Export: color space and Limit file size
 

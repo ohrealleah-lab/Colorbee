@@ -4,7 +4,9 @@ extension Effects {
     /// Adjust Photo on a region: detail (from the original pixels), then color and tone, then the vignettes and then
     /// the grain (the filter's, then the panel's own).
     /// Shaders.metal's photo_fragment does the same for adjustment layers on screen.
-    static func photoAdjusted(_ buffer: PixelBuffer, region: IntRect, edit: PhotoEdit, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
+    /// With `placement`, `buffer` is a patch of a bigger canvas, and the vignette and grain are placed by the whole.
+    static func photoAdjusted(_ buffer: PixelBuffer, region: IntRect, edit: PhotoEdit, selection: SelectionMask?,
+                              placement: Placement? = nil) -> (PixelBuffer, IntPoint) {
         let amounts = DetailAmounts(edit), vignettes = edit.vignettes, grains = edit.grains
         func blur(_ needed: Bool, _ sigma: Double) -> (PixelBuffer, IntPoint)? {
             needed ? blurred(buffer, region: region, sigma: sigma, selection: selection) : nil
@@ -42,10 +44,12 @@ extension Effects {
                         }
                     }
                     pixel = color(pixel)
+                    let (px, py) = (x + (placement?.origin.x ?? 0), y + (placement?.origin.y ?? 0))
                     for vignette in vignettes {
-                        pixel = Vignette.apply(Vignette.strength(x: x, y: y, in: region, shape: vignette) * vignette.amount / 100, to: pixel)
+                        let strength = Vignette.strength(x: px, y: py, in: placement?.canvas ?? region, shape: vignette)
+                        pixel = Vignette.apply(strength * vignette.amount / 100, to: pixel)
                     }
-                    for grain in grains { pixel = grain.apply(to: pixel, x: x, y: y) }
+                    for grain in grains { pixel = grain.apply(to: pixel, x: px, y: py) }
                     target[x - region.minX] = pixel
                 }
             }

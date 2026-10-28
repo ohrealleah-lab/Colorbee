@@ -67,6 +67,21 @@ public enum Effect: Sendable, Hashable {
         }
     }
 
+    /// How far, in pixels, an adjustment layer looks at the pixels around each one, so a patch worked out on its own
+    /// matches the whole picture (`Canvas.patchAsShown`).
+    var reach: Int {
+        switch self {
+        case .gaussianBlur(let radius): return Effects.blurReach(sigma: radius)
+        case .sharpen: return Effects.blurReach(sigma: 1)
+        case .photo(let edit):
+            let amounts = DetailAmounts(edit)
+            let blurs = [(amounts.needsFine, PhotoAdjustments.fineRadius), (amounts.needsSharpenBlur, amounts.radius),
+                         (amounts.needsMedium, PhotoAdjustments.textureRadius), (amounts.needsWide, PhotoAdjustments.definitionRadius)]
+            return blurs.filter(\.0).map { Effects.blurReach(sigma: $0.1) }.max() ?? 0
+        default: return 0
+        }
+    }
+
     /// Color adjustments that change each channel on its own, which the display shows through a `ChannelTable`.
     public var usesChannelTable: Bool {
         switch self {
@@ -211,6 +226,12 @@ public enum Effects {
 
     /// Blurs `region` plus a margin. Unselected pixels are left out of the sampling, so the blur of
     /// one region never picks up color from outside the selection.
+    /// How far `blurred` reads beyond a pixel, for a blur of `sigma`.
+    static func blurReach(sigma: Double) -> Int {
+        let boxWidth = max(1, Int((12 * sigma * sigma / 3 + 1).squareRoot().rounded()) | 1)
+        return 3 * (boxWidth / 2) + 1
+    }
+
     static func blurred(_ buffer: PixelBuffer, region: IntRect, sigma: Double, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
         // Three box blurs approximate a Gaussian; each box is about 2σ wide.
         let boxWidth = max(1, Int((12 * sigma * sigma / 3 + 1).squareRoot().rounded()) | 1)

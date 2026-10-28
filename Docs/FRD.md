@@ -113,6 +113,7 @@ with ⇧S, View ▸ Sidebar (⌃⌘S) or the toolbar's Sidebar button, which bri
 
 ### FR-1.5 Status bar
 - Pointer position as `X, Y px`, always whole pixels.
+- **Color readout** (FR-9.7 item 9): the color under the pointer as shown (every visible layer, adjustments included), as a swatch, `sRGB R G B` (with its opacity when it isn't solid) and hex; a click on the hex copies it. With the Eyedropper chosen it reads the Sample Size's average. Off the picture it shows a dash. Status bar only.
 - Selection size as `W × H px`.
 - Distance from the Measure tool (FR-7.1).
 - Canvas size as `W × H px`.
@@ -232,6 +233,7 @@ These let you build several separate regions for batch redaction (FR-9.4).
 ### FR-4.5 Eyedropper
 - Left-click sets Color 1, right-click sets Color 2. Alpha is included.
 - Option-click samples the combined image of all visible layers instead of only the active layer.
+- **Sample Size** (FR-9.7 item 9): 1 px (to start), 3 × 3 or 5 × 5, the average of the pixels around the click, colors weighted by opacity.
 
 ### FR-4.6 Retouching (stage 13)
 Retouching works only from the real pixels in the image. **No AI model ships in Colorbee**, to keep it small (§23, 2026-10-10, 2026-10-19).
@@ -895,6 +897,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-28 | **Stage 20 built** (my choices, veto any): the readout sits after the pointer position, with a small swatch, and says "Copied" for a moment after a click on the hex. A sample's opacity is the average of its pixels', and its color is weighted by their opacity, so a half-transparent edge doesn't darken it. Sample Size isn't remembered between launches. Reading what's shown now works out a patch around the pointer wide enough for blurs, sharpening and Adjust Photo's detail to reach in, placed where it sits so the vignette and grain match: the Eyedropper's Option-click and the white-balance eyedropper on an Adjust Photo layer match an export too. |
 | 2026-10-28 | **Stage 19 built** (my choices, veto any): converting to sRGB keeps colors just inside sRGB (the system's relative conversion). The size limit tries full quality first, then the lowest, then halves the range eight times, keeping the best that fits; while it works, the canvas shows "Fitting the file into 200 KB…". While the limit is on, the Quality slider is greyed out, since Colorbee picks the quality. Color 2 behind a JPEG's transparent areas is converted with the picture. In Settings, each preset's Color is a small menu at the end of its row ("Keep", "sRGB", "Display P3"); presets saved before keep the document's. |
 | 2026-10-28 | **Stages 19 to 21 answers** (Leah: "use your recommendations", Q19.1 to Q21.5 in `Docs/Development-Plan.md`; built one after another, then hand tested together). **Stage 19:** Export… and each Export As preset get Color (Keep, sRGB, Display P3; no Adobe RGB), while Copy, Share and PDF keep the document's profile; "Limit file size to [ ] KB/MB" is a checkbox in Export… for JPEG and HEIC; if even the lowest quality is too big, a message gives the smallest size possible and nothing is written; both are remembered between launches; 1 KB is 1,000 bytes. **Stage 20:** the status bar's color readout reads what you see (all layers), in sRGB, labeled "sRGB"; the Eyedropper's Sample Size is 1 px (to start), 3 × 3 or 5 × 5; the readout follows the sample size while the Eyedropper is chosen, and a click on the hex copies it; status bar only. **Stage 21:** test with made-up faces first, asking Leah for a photo of her own, kept outside the repo, only if Vision misses them; a Faces row in the pattern list, on to start; boxes 30% bigger than Vision's; the same treatment as the text matches; even tiny faces are listed, to untick. |
 | 2026-10-28 | **No betas until it's all done** (Leah): the betas planned after stages 16, 21, 26, 28b and 31 are dropped. The next beta comes only when every stage is built and Leah has tested all of it; internal testing always comes before external. **Also:** Adjust Photo's histogram follows a dragged slider about ten times a second, from a copy 160 pixels across, since working it out on every step made Exposure stutter (Leah's report). |

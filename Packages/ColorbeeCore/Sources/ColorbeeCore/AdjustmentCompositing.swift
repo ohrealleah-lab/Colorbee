@@ -3,8 +3,9 @@ import simd
 extension Compositing {
     /// What an adjustment layer does to the image beneath it (FR-8.4): the adjusted image, mixed by the
     /// layer's blend mode, then faded in by its opacity. `Shaders.metal` does the same for the display.
-    static func adjust(_ below: PixelBuffer, by adjustment: Effect, opacity: Double, mode: BlendMode) -> PixelBuffer {
-        let adjusted = Effects.adjusted(below, by: adjustment)
+    static func adjust(_ below: PixelBuffer, by adjustment: Effect, opacity: Double, mode: BlendMode,
+                       placement: Effects.Placement? = nil) -> PixelBuffer {
+        let adjusted = Effects.adjusted(below, by: adjustment, placement: placement)
         let result = PixelBuffer(width: below.width, height: below.height)
         let fade = Float(min(1, max(0, opacity)))
         ParallelRows.forEach(0..<below.height) { rows in
@@ -28,8 +29,18 @@ extension Compositing {
 }
 
 extension Effects {
+    /// Where a patch of the canvas sits in the whole, so Adjust Photo's vignette and grain land on it as they do on
+    /// the whole picture (`Canvas.patchAsShown`).
+    struct Placement {
+        let origin: IntPoint
+        let canvas: IntRect
+    }
+
     /// A whole image with an effect applied, leaving the original untouched. Used by adjustment layers.
-    static func adjusted(_ buffer: PixelBuffer, by effect: Effect) -> PixelBuffer {
+    static func adjusted(_ buffer: PixelBuffer, by effect: Effect, placement: Placement? = nil) -> PixelBuffer {
+        if let placement, case .photo(let edit) = effect {
+            return photoAdjusted(buffer, region: buffer.bounds, edit: edit, selection: nil, placement: placement).0
+        }
         let canvas = Canvas(colorSpace: Canvas.defaultColorSpace, layers: [Layer(name: "Adjust", buffer: buffer.copy())], hasTransparentBackground: true)
         // Nothing to undo here, so the edit keeps no before-images.
         let edit = Edit(name: "Adjust", canvas: canvas, recordsPixels: false)

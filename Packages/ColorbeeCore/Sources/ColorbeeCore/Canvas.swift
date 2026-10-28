@@ -16,6 +16,8 @@ public final class Canvas {
     public var cameraDetails: CameraDetails?
     /// The file it came from had a GPS location, which Colorbee doesn't keep (FR-1.3, Info panel).
     public var locationRemoved = false
+    /// For a patch worked out on its own (`patchAsShown`): where it sits in the whole canvas.
+    var placement: Effects.Placement?
 
     public static var defaultColorSpace: CGColorSpace {
         CGColorSpace(name: CGColorSpace.displayP3)!
@@ -162,7 +164,7 @@ public final class Canvas {
             guard !clips.isEmpty else { return layer }
             var buffer = layer.buffer
             for clip in clips {
-                buffer = Compositing.adjust(buffer, by: clip.adjustment!, opacity: clip.opacity, mode: clip.blendMode)
+                buffer = Compositing.adjust(buffer, by: clip.adjustment!, opacity: clip.opacity, mode: clip.blendMode, placement: placement)
             }
             let standIn = Layer(name: layer.name, buffer: buffer, id: layer.id)
             standIn.opacity = layer.opacity
@@ -275,7 +277,7 @@ public final class Canvas {
         for layer in clipped(stack) {
             if let adjustment = layer.adjustment {
                 let below = segment.isEmpty && current != nil ? current! : compositePixels(segment, onto: current, transparentKey: transparentKey, resampling: resampling)
-                current = Compositing.adjust(below, by: adjustment, opacity: layer.opacity, mode: layer.blendMode)
+                current = Compositing.adjust(below, by: adjustment, opacity: layer.opacity, mode: layer.blendMode, placement: placement)
                 segment = []
             } else {
                 segment.append(layer)
@@ -353,16 +355,29 @@ public final class Canvas {
         return withExtendedLifetime(shown) { shown.row(0)[0] }
     }
 
+    /// The average of `rect` as shown, opacity included, for the color readout and the Eyedropper's Sample Size
+    /// (FR-9.7 item 9). Nil off the canvas.
+    public func colorAsShown(in rect: IntRect) -> Pixel? {
+        let area = rect.intersection(bounds)
+        guard !area.isEmpty else { return nil }
+        let shown = patchAsShown(area, through: layers.count - 1)
+        return withExtendedLifetime(shown) { shown.averagedPixel(in: shown.bounds) }
+    }
+
     /// `rect` (inside the canvas) as the visible layers from the bottom up to `index` show it: what an adjustment
-    /// above `index` sees there, for the white-balance eyedropper on an Adjust Photo layer. Like `pixelAsShown`, it
-    /// works on the patch alone, so adjustments that look at neighbors or at the whole picture aren't exact.
+    /// above `index` sees there, for the eyedroppers and the color readout. It's worked out on a patch around `rect`
+    /// wide enough for blurs to reach in, and placed where it sits on the canvas, so vignettes and grain land as they
+    /// do on the whole picture: it matches an export (FR-9.7 item 9).
     public func patchAsShown(_ rect: IntRect, through index: Int) -> PixelBuffer {
+        let stack = layers.prefix(max(0, index + 1))
+        let reach = min(stack.filter(\.isVisible).compactMap { $0.adjustment?.reach }.max() ?? 0, 400)
+        let padded = rect.insetBy(-reach).intersection(bounds)
         // Every layer, hidden ones too, so an adjustment set to "Only the layer below" finds the same layer below.
-        let patch = layers.prefix(max(0, index + 1)).map { layer -> Layer in
-            let buffer = PixelBuffer(width: rect.width, height: rect.height)
+        let patch = stack.map { layer -> Layer in
+            let buffer = PixelBuffer(width: padded.width, height: padded.height)
             if layer.adjustment == nil {
-                for y in 0..<rect.height {
-                    (buffer.row(y)).update(from: layer.buffer.row(rect.minY + y) + rect.minX, count: rect.width)
+                for y in 0..<padded.height {
+                    (buffer.row(y)).update(from: layer.buffer.row(padded.minY + y) + padded.minX, count: padded.width)
                 }
             }
             let copy = Layer(name: layer.name, buffer: buffer, id: layer.id)
@@ -373,8 +388,14 @@ public final class Canvas {
             copy.clipsToLayerBelow = layer.clipsToLayerBelow
             return copy
         }
-        return Canvas(colorSpace: colorSpace, layers: patch.isEmpty ? [Layer(name: "Empty", buffer: PixelBuffer(width: rect.width, height: rect.height))] : Array(patch),
-                      hasTransparentBackground: true).flattened()
+        let canvas = Canvas(colorSpace: colorSpace, layers: patch.isEmpty ? [Layer(name: "Empty", buffer: PixelBuffer(width: padded.width, height: padded.height))] : Array(patch),
+                            hasTransparentBackground: true)
+        canvas.placement = Effects.Placement(origin: IntPoint(x: padded.minX, y: padded.minY), canvas: bounds)
+        let shown = canvas.flattened()
+        guard padded != rect else { return shown }
+        let inner = PixelBuffer(width: rect.width, height: rect.height)
+        inner.setPixels(shown.pixels(in: rect.offsetBy(dx: -padded.minX, dy: -padded.minY)), in: inner.bounds)
+        return inner
     }
 
     /// Each pixel layer's buffer as a save writes it: a floating selection is drawn into a copy of its layer, so

@@ -13,7 +13,7 @@ _Last updated: 2026-10-27 · 601 core tests and 174 app tests passing, plus `mak
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Stage 1a: Adjust Photo groundwork](#test-stage-1a-adjust-photo-groundwork) (2026-10-27)
+Nothing waiting right now.
 
 ---
 
@@ -55,7 +55,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 13c. Clone Stamp, local brushes, Remove Red-Eye | ✅ Done; passed Leah's tests 2026-10-10 | Medium |
 | 13d. Soft selections (feather) | ✅ Done; passed Leah's test 2026-10-10 | **High** |
 | Only the layer below (adjustment clipping) | ✅ Done; passed Leah's test 2026-10-10 | High |
-| 14 · 1a. Adjust Photo groundwork (FR-9.7 rule) | Built 2026-10-27; waiting for Leah's test. Stage 1b not started | High |
+| 14 · 1a. Adjust Photo groundwork (FR-9.7 rule) | ✅ Done; passed Leah's test 2026-10-27. Stage 1b next | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -236,7 +236,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Stage 1a: Adjust Photo groundwork
+### Test: Stage 1a: Adjust Photo groundwork (passed 2026-10-27)
 
 Test files: in `TestImages/Photo Editing/`, `Old Adjust Photo.colorproj`, `Old Adjust Photo (as shown before stage 1a).png`
 and `Old Filter.colorbeefilter` (all saved by the code before stage 1a); also `TestImages/Stage 9 Practice Photo.png`

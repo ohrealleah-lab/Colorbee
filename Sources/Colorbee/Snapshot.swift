@@ -84,6 +84,8 @@ enum Snapshot {
             let radius = defaults.double(forKey: "ColorbeeSnapshotSelectionRadius")
             if radius > 0 { editor.setSelectionChangeRadius(radius) }
         }
+        // `-ColorbeeSnapshotCanvasProperties YES` opens Canvas Properties; the sheet is saved as "-sheet.png".
+        if defaults.bool(forKey: "ColorbeeSnapshotCanvasProperties") { editor.isCanvasPropertiesOpen = true }
         // `-ColorbeeSnapshotClip YES`: that adjustment changes only the layer below.
         if defaults.bool(forKey: "ColorbeeSnapshotClip") { editor.setClipsToLayerBelow(true) }
         // `-ColorbeeSnapshotExportPNG /path/to.png` also exports the page shown as a PNG with its camera details (stage 12).

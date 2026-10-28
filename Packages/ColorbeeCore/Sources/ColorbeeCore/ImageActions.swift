@@ -67,25 +67,32 @@ public enum ImageActions {
     /// Changes the canvas size (FR-1.4), keeping the image at the top-left. New area on a solid background
     /// gets Color 2; on other layers, or a transparent background, it's transparent. The selection is cleared.
     @discardableResult
-    public static func resizeCanvas(to size: IntSize, canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+    public static func resizeCanvas(to size: IntSize, anchor: CanvasAnchor = .topLeft, canvas: Canvas, history: History,
+                                    context: SelectionContext) -> Bool {
         guard size.width > 0, size.height > 0, size != canvas.size,
               size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return false }
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let edit = history.beginEdit("Resize Canvas", on: canvas)
         edit.willChangeGeometry()
         var buffers: [LayerID: PixelBuffer] = [:]
-        let kept = IntRect(size: canvas.size).intersection(IntRect(size: size))
+        let offset = anchor.offset(from: canvas.size, to: size)
+        // The old picture's part that's still on the canvas, where it was and where it goes.
+        let kept = IntRect(size: canvas.size).intersection(IntRect(x: -offset.x, y: -offset.y, width: size.width, height: size.height))
+        let placed = IntRect(x: kept.minX + offset.x, y: kept.minY + offset.y, width: kept.width, height: kept.height)
         for layer in canvas.layers {
             let fill = layer.adjustment == nil ? canvas.vacatedFill(for: layer, color2: context.color2) : .clear
             let buffer = PixelBuffer(width: size.width, height: size.height, fill: fill)
             // A layer with no pixels has nothing to copy, unless the new area's fill would cover where they go.
             if !(layer.holdsNoPixels && fill == .clear), !kept.isEmpty {
-                buffer.setPixels(layer.buffer.pixels(in: kept), in: kept)
+                buffer.setPixels(layer.buffer.pixels(in: kept), in: placed)
             }
             buffers[layer.id] = buffer
         }
         canvas.replaceContents(size: size, buffers: buffers)
-        canvas.selection = .none
+        // The selection moves with the picture, losing any part that's cut off.
+        let moved = canvas.selection.marquee.map { $0.translatedBy(dx: offset.x, dy: offset.y) }
+        let onCanvas = SelectionMask.combine(moved, with: .rectangle(canvas.bounds, clippedTo: canvas.bounds), mode: .intersect)
+        canvas.selection = moved == nil ? .none : onCanvas.map { .marquee($0) } ?? .none
         return history.commit(edit)
     }
 

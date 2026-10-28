@@ -949,13 +949,14 @@ final class Editor {
         return canvas.hasTransparentBackground
     }
 
-    /// Canvas Properties: the new size and the transparent-background setting, each its own step.
-    func applyCanvasProperties(size: IntSize, transparentBackground: Bool) {
+    /// Canvas Properties: the new size, with the picture at `anchor`, and the transparent-background setting, each its
+    /// own step.
+    func applyCanvasProperties(size: IntSize, anchor: CanvasAnchor = .center, transparentBackground: Bool) {
         isCanvasPropertiesOpen = false
         finishInteractions()
         recordingChanges {
             ImageActions.setTransparentBackground(transparentBackground, canvas: canvas, history: history)
-            ImageActions.resizeCanvas(to: size, canvas: canvas, history: history, context: selectionContext)
+            ImageActions.resizeCanvas(to: size, anchor: anchor, canvas: canvas, history: history, context: selectionContext)
         }
         selectionDidChange()
     }

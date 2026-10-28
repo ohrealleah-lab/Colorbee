@@ -1,13 +1,15 @@
 import ColorbeeCore
 import SwiftUI
 
-/// Canvas Properties (⌥⌘E): the canvas size and whether its background is transparent (FR-1.4, FR-2.2).
-/// The image stays at the top-left; new area gets Color 2, or transparency.
+/// Canvas Properties (⌥⌘E): the canvas size, where the picture stays, and whether the background is transparent
+/// (FR-1.4, FR-2.2). New area gets Color 2, or transparency.
 struct CanvasPropertiesSheet: View {
     let editor: Editor
     @State private var width: Int
     @State private var height: Int
     @State private var transparent: Bool
+    /// Center each time the sheet opens, never remembered (Q18.4).
+    @State private var anchor = CanvasAnchor.center
 
     init(editor: Editor) {
         self.editor = editor
@@ -23,19 +25,25 @@ struct CanvasPropertiesSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Canvas Properties").font(.headline)
-            Grid(alignment: .leading, verticalSpacing: 8) {
-                GridRow {
-                    Text("Width")
-                    TextField("Width", value: $width, format: .number).frame(width: 90).labelsHidden()
-                    Text("px")
+            HStack(alignment: .top, spacing: 24) {
+                Grid(alignment: .leading, verticalSpacing: 8) {
+                    GridRow {
+                        Text("Width")
+                        TextField("Width", value: $width, format: .number).frame(width: 90).labelsHidden()
+                        Text("px")
+                    }
+                    GridRow {
+                        Text("Height")
+                        TextField("Height", value: $height, format: .number).frame(width: 90).labelsHidden()
+                        Text("px")
+                    }
                 }
-                GridRow {
-                    Text("Height")
-                    TextField("Height", value: $height, format: .number).frame(width: 90).labelsHidden()
-                    Text("px")
+                VStack(spacing: 4) {
+                    AnchorGrid(anchor: $anchor)
+                    Text("Anchor").font(.caption).foregroundStyle(.secondary)
                 }
             }
-            Text("The image stays at the top-left. New area is filled with Color 2, or left transparent.")
+            Text("The picture stays at the anchor. New area is filled with Color 2, or left transparent; a smaller canvas cuts the sides away from the anchor.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -54,14 +62,42 @@ struct CanvasPropertiesSheet: View {
                 Button("Cancel", role: .cancel) { editor.isCanvasPropertiesOpen = false }
                     .keyboardShortcut(.cancelAction)
                 Button("OK") {
-                    editor.applyCanvasProperties(size: IntSize(width: width, height: height), transparentBackground: transparent)
+                    editor.applyCanvasProperties(size: IntSize(width: width, height: height), anchor: anchor, transparentBackground: transparent)
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!valid)
             }
         }
         .padding(20)
-        .frame(width: 340)
+        .frame(width: 360)
+    }
+}
+
+/// The anchor's 3 × 3 squares: the chosen one filled, the others outlined.
+private struct AnchorGrid: View {
+    @Binding var anchor: CanvasAnchor
+
+    var body: some View {
+        Grid(horizontalSpacing: 3, verticalSpacing: 3) {
+            ForEach(0..<3, id: \.self) { row in
+                GridRow {
+                    ForEach(0..<3, id: \.self) { column in
+                        let square = CanvasAnchor(rawValue: row * 3 + column)!
+                        Button { anchor = square } label: {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(square == anchor ? Color.accentColor : Color.clear)
+                                .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(square == anchor ? Color.accentColor : Color.secondary, lineWidth: 1))
+                                .frame(width: 18, height: 18)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Keep the picture at the \(square.title.lowercased())")
+                        .accessibilityLabel(square.title)
+                        .accessibilityAddTraits(square == anchor ? .isSelected : [])
+                    }
+                }
+            }
+        }
     }
 }
 

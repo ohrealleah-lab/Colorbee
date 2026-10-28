@@ -3203,6 +3203,51 @@ final class Editor {
         let settings = photoEdit
         cancelEffect()
         addAdjustmentLayer(.photo(settings), named: settings.filter?.name ?? "Adjust Photo")
+        PhotoSettingsStore.shared.last = settings
+    }
+
+    // MARK: Using Adjust Photo settings again (FR-9.7 item 4)
+
+    /// Adjustments ▸ Adjust Photo: Same as Last: the last settings applied, on the selection or active layer, as one
+    /// step.
+    func applySameAsLastPhoto() {
+        guard let last = PhotoSettingsStore.shared.last else { return onRefused() }
+        applyAdjustment(.photo(last))
+    }
+
+    /// The settings of the active Adjust Photo layer, if it is one.
+    var activePhotoLayerEdit: PhotoEdit? {
+        guard case .photo(let edit) = activeAdjustment else { return nil }
+        return edit
+    }
+
+    /// Copy Photo Settings: from the Adjust Photo panel while it's open, otherwise from the active Adjust Photo layer.
+    func copyPhotoSettings() {
+        if activeEffect == .adjustPhoto {
+            PhotoSettingsStore.shared.copied = photoEdit
+        } else if let edit = activePhotoLayerEdit {
+            PhotoSettingsStore.shared.copied = edit
+        } else {
+            onRefused()
+        }
+    }
+
+    /// Paste Photo Settings: into the Adjust Photo panel, opening it if needed, so they're seen before Return (Leah,
+    /// 2026-10-27). On an Adjust Photo layer, they become that layer's settings, as one step.
+    func pastePhotoSettings() {
+        guard let copied = PhotoSettingsStore.shared.copied else { return onRefused() }
+        if activeEffect == nil, activePhotoLayerEdit != nil { return setAdjustment(.photo(copied)) }
+        if activeEffect == nil { beginEffect(.adjustPhoto) }
+        guard activeEffect == .adjustPhoto else { return }
+        photoAutoMoved = []
+        setPhotoEdit(copied)
+    }
+
+    /// Paste Photo Settings as Adjustment Layer: a new Adjust Photo layer above the active one.
+    func pastePhotoSettingsAsLayer() {
+        guard let copied = PhotoSettingsStore.shared.copied else { return onRefused() }
+        addAdjustmentLayer(.photo(copied), named: copied.filter?.name ?? "Adjust Photo")
+        PhotoSettingsStore.shared.last = copied
     }
 
     /// Save as Filter…: the filter at its intensity, then the sliders a filter may hold, as one filter.
@@ -3375,11 +3420,13 @@ final class Editor {
         guard let edit = effectEdit else { return }
         // Batch Redact's preview already covers every layer under the selection; Apply keeps what's shown.
         let redacting = effectCoversAllLayers
+        let appliedPhoto = activeEffect == .adjustPhoto ? photoEdit : nil
         endEffectSession()
         activeEffect = nil
         var committed = false
         recordingChanges { committed = history.commit(edit) }
         if redacting, committed { noteRedaction() }
+        if committed, let appliedPhoto { PhotoSettingsStore.shared.last = appliedPhoto }
     }
 
     // MARK: After a redaction (review H, findings 1 and 2)

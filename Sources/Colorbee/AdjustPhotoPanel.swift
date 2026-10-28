@@ -58,6 +58,11 @@ struct PhotoControls: View {
                 Button("Auto", systemImage: "wand.and.stars") { onAuto() }
                     .help("Balance exposure, brilliance, highlights, shadows, contrast, whites, white balance and vibrance for this photo")
                 Spacer()
+                Button("Copy") { editor.copyPhotoSettings() }
+                    .help("Copy these settings, to paste onto another picture or Adjust Photo layer")
+                Button("Paste") { editor.pastePhotoSettings() }
+                    .disabled(PhotoSettingsStore.shared.copied == nil)
+                    .help("Use the copied settings here")
                 Button("Reset") {
                     onChange(PhotoEdit())
                     onFinish()

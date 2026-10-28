@@ -157,6 +157,10 @@ final class DocumentWindow: NSWindow {
     @objc func showSharpen(_ sender: Any?) { editor?.beginEffect(.sharpen) }
     @objc func showLevels(_ sender: Any?) { editor?.beginEffect(.levels) }
     @objc func showAdjustPhoto(_ sender: Any?) { editor?.beginEffect(.adjustPhoto) }
+    @objc func applySameAsLastPhoto(_ sender: Any?) { editor?.applySameAsLastPhoto() }
+    @objc func copyPhotoSettings(_ sender: Any?) { editor?.copyPhotoSettings() }
+    @objc func pastePhotoSettings(_ sender: Any?) { editor?.pastePhotoSettings() }
+    @objc func pastePhotoSettingsAsLayer(_ sender: Any?) { editor?.pastePhotoSettingsAsLayer() }
     @objc func showCurves(_ sender: Any?) { editor?.beginEffect(.curves) }
     @objc func showSepia(_ sender: Any?) { editor?.beginEffect(.sepia) }
     @objc func showPosterize(_ sender: Any?) { editor?.beginEffect(.posterize) }
@@ -372,6 +376,14 @@ final class DocumentWindow: NSWindow {
             if editor.hasSelection, [#selector(applyOrientation(_:)), #selector(showResizeSkew(_:))].contains(action) { return false }
         }
         switch menuItem.action {
+        case #selector(applySameAsLastPhoto(_:)):
+            return PhotoSettingsStore.shared.last != nil
+        case #selector(copyPhotoSettings(_:)):
+            return editor.activePhotoLayerEdit != nil
+        case #selector(pastePhotoSettings(_:)):
+            return PhotoSettingsStore.shared.copied != nil && (editor.activeLayerTakesEdits || editor.activePhotoLayerEdit != nil)
+        case #selector(pastePhotoSettingsAsLayer(_:)):
+            return PhotoSettingsStore.shared.copied != nil
         case #selector(showSpotlight(_:)):
             // Spotlight changes what's around a selection, so it waits for one.
             return editor.hasSelection
@@ -519,7 +531,7 @@ final class DocumentWindow: NSWindow {
         #selector(cut(_:)), #selector(delete(_:)), #selector(paste(_:)),
         #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showSharpen(_:)), #selector(showLevels(_:)),
         #selector(showAdjustPhoto(_:)), #selector(showCurves(_:)), #selector(showSepia(_:)), #selector(showPosterize(_:)),
-        #selector(autoContrast(_:)), #selector(showAddNoise(_:)), #selector(showMotionBlur(_:)), #selector(showEmboss(_:)),
+        #selector(applySameAsLastPhoto(_:)), #selector(autoContrast(_:)), #selector(showAddNoise(_:)), #selector(showMotionBlur(_:)), #selector(showEmboss(_:)),
         #selector(showVignette(_:)), #selector(showDropShadow(_:)), #selector(showBorder(_:)), #selector(showSpotlight(_:)),
         #selector(showHueSaturation(_:)), #selector(invertColors(_:)), #selector(desaturate(_:)),
         #selector(removeBackground(_:)), #selector(liftSubject(_:)),

@@ -274,12 +274,23 @@ since both use the same eight color ranges.
    - **History:** one undo step, the same as Apply today.
    - Questions: Q2.1 to Q2.5.
 4. **Size:** S–M. **Opus, medium.**
-5. **Hand test** (`TestImages/Stage 9 Practice Photo.png`, `Color Cast.png`)
-   1. On the practice photo, Adjust Photo: Vivid filter, Exposure +20. Apply.
-   2. Open `Color Cast.png` and choose Same as Last. It gets Vivid and Exposure +20, as one undo step.
-   3. Back on the practice photo, open Adjust Photo and click Copy Settings. Cancel.
-   4. On `Color Cast.png`, choose Paste Settings: the same look. ⌘Z.
-   5. Quit and reopen Colorbee, then Same as Last again (if you chose that it's kept, Q2.2).
+5. **Hand test** (`TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/Color Cast.png`)
+   1. Open `TestImages/Stage 9 Practice Photo.png` and choose Adjustments ▸ Adjust Photo…. Choose **Vivid**, set
+      Exposure +20, and Apply.
+   2. Open `Color Cast.png` and choose **Adjustments ▸ Adjust Photo: Same as Last**: it gets Vivid and Exposure +20 at
+      once, as one step ("Adjust Photo" in the History panel). ⌘Z.
+   3. Back on the practice photo, open Adjust Photo, choose **Noir**, and click **Copy** (beside Auto). Cancel.
+   4. On `Color Cast.png`, choose **Adjustments ▸ Paste Photo Settings**: Adjust Photo opens with Noir chosen, and the
+      picture shows it in black and white before you apply. Press Return, then ⌘Z.
+   5. Choose **Adjustments ▸ Paste Photo Settings as Adjustment Layer**: a "Noir" layer appears. Hide it: the picture
+      underneath is unchanged. Show it again.
+   6. With that layer chosen, set Exposure −30 in the Adjustments panel, then choose **Adjustments ▸ Copy Photo
+      Settings**. Open the practice photo, choose Layer ▸ New Adjustment Layer ▸ Adjust Photo, and click **Paste** in the
+      Adjustments panel: the new layer gets Noir and Exposure −30. ⌘Z undoes just that.
+   7. Quit Colorbee and open it again. Open any picture and choose Adjust Photo: Same as Last: Noir is applied (the last
+      settings used were the pasted layer's, in step 5).
+   8. In Preview, copy a picture (⌘C). In Colorbee, open Adjust Photo on any picture, click Copy, Cancel, then press ⌘V:
+      the picture from Preview pastes, so copying settings didn't replace it.
 6. **Done when:** app tests check that last and pasted settings equal the source. Help is updated, and `make help`
    has run for the new menu items.
 
@@ -1233,47 +1244,47 @@ _Added after the review (2026-10-27):_
 
 - **Q2.1** Where: Adjustments ▸ "Adjust Photo: Same as Last" plus "Copy Photo Settings" and "Paste Photo Settings",
   with no default keys (they can be set in Settings), and Copy and Paste buttons in the panel. *Recommend this:*
-  Lightroom's keys (⇧⌘C, ⇧⌘V) are taken here.
+  Lightroom's keys (⇧⌘C, ⇧⌘V) are taken here. **Answer: yes, as recommended.**
 - **Q2.2** "Last" is the last settings applied anywhere (Apply or As Adjustment Layer), kept across a relaunch?
-  *Recommend yes:* the use is coming back to a look later.
+  *Recommend yes:* the use is coming back to a look later. **Answer: yes, as recommended.**
 - **Q2.3** Paste Settings opens Adjust Photo with the settings in place, so you see them before Return? *Recommend
-  yes:* there are no surprises, and it's still one undo step. The other way, it applies straight away.
+  yes:* there are no surprises, and it's still one undo step. The other way, it applies straight away. **Answer: yes, as recommended.**
 - **Q2.4** Copy everything, or choose which settings (Lightroom shows a checklist)? *Recommend everything for now;* a
-  checklist can come later if you miss it.
-- **Q2.5** Copy from an Adjust Photo layer too, and offer "Paste as Adjustment Layer"? *Recommend yes.*
+  checklist can come later if you miss it. **Answer: yes, as recommended.**
+- **Q2.5** Copy from an Adjust Photo layer too, and offer "Paste as Adjustment Layer"? *Recommend yes.* **Answer: yes, as recommended.**
 
 ### Before stage 3
 
-- **Q3.1** Texture in Detail next to Definition, Dehaze in Light after Brilliance? *Recommend yes.*
+- **Q3.1** Texture in Detail next to Definition, Dehaze in Light after Brilliance? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q3.2** Both −100 to 100, where a negative Texture softens and a negative Dehaze adds haze? *Recommend yes,* as in
-  Lightroom.
+  Lightroom. **Answer: yes, as recommended.**
 
 ### Before stage 4
 
-- **Q4.1** The eight ranges: Red, Orange, Yellow, Green, Aqua, Blue, Purple, Magenta? *Recommend yes* (Lightroom's).
+- **Q4.1** The eight ranges: Red, Orange, Yellow, Green, Aqua, Blue, Purple, Magenta? *Recommend yes* (Lightroom's). **Answer: yes, as recommended.**
 - **Q4.2** Layout: Hue, Saturation and Luminance tabs with eight sliders each? *Recommend tabs:* you can see all the
-  colors at once, as in Lightroom.
+  colors at once, as in Lightroom. **Answer: yes, as recommended.**
 - **Q4.3** How far Hue can move a color: ±100 is about ±30°? *Recommend yes:* red can lean orange or magenta but
-  can't become green, which keeps it natural.
+  can't become green, which keeps it natural. **Answer: yes, as recommended.**
 - **Q4.4** Black & White as a switch at the top of the Color Mixer, where Color Grading still tints (for split-toned
-  black and white)? *Recommend yes.*
-- **Q4.5** The Black & White mix starts at neutral, looking like the Mono filter? *Recommend yes:* it's predictable.
+  black and white)? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q4.5** The Black & White mix starts at neutral, looking like the Mono filter? *Recommend yes:* it's predictable. **Answer: yes, as recommended.**
 
 ### Before stage 5
 
-- **Q5.1** Shadows, Midtones and Highlights, plus a Global wheel? *Recommend all four:* Global is a small extra.
+- **Q5.1** Shadows, Midtones and Highlights, plus a Global wheel? *Recommend all four:* Global is a small extra. **Answer: yes, as recommended.**
 - **Q5.2** One large wheel with tabs, since the sidebar is narrow, and small dots showing the others? *Recommend
-  yes.*
-- **Q5.3** A filter at 50% halves each wheel's strength and keeps its hue? *Recommend yes.*
-- **Q5.4** Blending starts at 50 and Balance at 0? *Recommend yes,* as in Lightroom.
+  yes.* **Answer: yes, as recommended.**
+- **Q5.3** A filter at 50% halves each wheel's strength and keeps its hue? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q5.4** Blending starts at 50 and Balance at 0? *Recommend yes,* as in Lightroom. **Answer: yes, as recommended.**
 
 ### Before stage 6
 
-- **Q6.1** Up to 8 picked colors? *Recommend yes,* as in Lightroom.
+- **Q6.1** Up to 8 picked colors? *Recommend yes,* as in Lightroom. **Answer: yes, as recommended.**
 - **Q6.2** Per color: Hue, Saturation, Luminance and Range? *Recommend those four.* Lightroom also has Variance; I'd
-  add it only if you want it.
+  add it only if you want it. **Answer: yes, as recommended.**
 - **Q6.3** While you hold the Range slider, gray out everything it doesn't touch? *Recommend yes:* it shows what
-  "this color" means.
+  "this color" means. **Answer: yes, as recommended.**
 
 ### Before stage 7
 

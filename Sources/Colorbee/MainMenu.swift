@@ -119,6 +119,10 @@ enum MainMenu {
         "showHueSaturation:": "Shift colors around the color wheel, or make them more or less vivid.",
         "desaturate:": "Turn the selection or image to grayscale.",
         "showAdjustPhoto:": "Exposure, light, color and detail sliders, Auto, and filters, in a panel at the side.",
+        "applySameAsLastPhoto:": "Apply the Adjust Photo settings you last used again, to the selection or layer.",
+        "copyPhotoSettings:": "Copy the active Adjust Photo layer's settings, to paste onto another picture.",
+        "pastePhotoSettings:": "Open Adjust Photo with the copied settings, or give them to the active Adjust Photo layer.",
+        "pastePhotoSettingsAsLayer:": "Add an Adjust Photo layer with the copied settings.",
         "showLevels:": "Set the black point, white point and midtones, with a histogram. Auto sets them from the image.",
         "autoContrast:": "Stretch the darkest pixels to black and the lightest to white, in one step.",
         "showCurves:": "Reshape the tones with a curve, for all colors together or one at a time.",
@@ -344,6 +348,10 @@ enum MainMenu {
     private static func adjustmentsMenu() -> NSMenu {
         let menu = NSMenu(title: "Adjustments")
         menu.addItem(item("Adjust Photo…", "showAdjustPhoto:"))
+        menu.addItem(item("Adjust Photo: Same as Last", "applySameAsLastPhoto:"))
+        menu.addItem(item("Copy Photo Settings", "copyPhotoSettings:"))
+        menu.addItem(item("Paste Photo Settings", "pastePhotoSettings:"))
+        menu.addItem(item("Paste Photo Settings as Adjustment Layer", "pastePhotoSettingsAsLayer:"))
         menu.addItem(item("Auto Contrast", "autoContrast:"))
         menu.addItem(.separator())
         menu.addItem(item("Levels…", "showLevels:"))

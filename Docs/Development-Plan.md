@@ -1346,12 +1346,12 @@ _Added after the review (2026-10-27):_
 ### Before stage 11
 
 - **Q11.1** Import only from the filter strip's menu, with no opening of .cube files from Finder? *Recommend yes:*
-  it's simpler.
+  it's simpler. **Answer: yes, as recommended.**
 - **Q11.2** Apply looks to the document's own color values, as Photoshop's Color Lookup does? *Recommend yes:* it's
   simple and predictable. The other way converts through sRGB first, closer to what the look's maker saw on sRGB
-  pictures.
-- **Q11.3** Name it from the file's TITLE line, or the file name if there's none? *Recommend yes.*
-- **Q11.4** A look filter exported as .colorbeefilter carries its table (1–3 MB)? *Recommend yes.*
+  pictures. **Answer: yes, as recommended.**
+- **Q11.3** Name it from the file's TITLE line, or the file name if there's none? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q11.4** A look filter exported as .colorbeefilter carries its table (1–3 MB)? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q11.5** One-dimensional .cube files (a curve per channel): accept them, or a plain "not supported" message?
   *Recommend the message:* most looks are 3D. **Answer: the message.**
 
@@ -1363,32 +1363,32 @@ _Added after the review (2026-10-27):_
   with a message at the cap. **Answer: yes to both** (Leah, 2026-10-27). The cap counts per page, like the undo
   history (my choice; veto any).
 - **Q12.2** Not saved in the project, like undo history? *Recommend not saved:* it keeps files small and redaction
-  safe.
+  safe. **Answer: yes, as recommended.**
 - **Q12.3** "Remove Earlier Versions and Undo History" after a redaction deletes snapshots too? *Recommend yes:*
-  otherwise a snapshot could bring a secret back.
+  otherwise a snapshot could bring a secret back. **Answer: yes, as recommended.**
 - **Q12.4** Where: a New Snapshot… button in the History panel, plus Edit ▸ New Snapshot… with no key? *Recommend
-  yes.*
+  yes.* **Answer: yes, as recommended.**
 - **Q12.5** Going to a snapshot is an undo step of its own ("Go to Snapshot"), so ⌘Z comes back? *Recommend yes:*
-  nothing is lost.
-- **Q12.6** Each page has its own snapshots? *Recommend yes,* like its undo history.
+  nothing is lost. **Answer: yes, as recommended.**
+- **Q12.6** Each page has its own snapshots? *Recommend yes,* like its undo history. **Answer: yes, as recommended.**
 
 ### Before stage 13
 
 - **Q13.1** Radius 0.5–3 px, Detail 0–100, Masking 0–100, with Luminance and Color noise reduction each with Detail;
-  defaults that match today's look? *Recommend yes,* so old edits don't change.
+  defaults that match today's look? *Recommend yes,* so old edits don't change. **Answer: yes, as recommended.**
 - **Q13.2** Option-drag on Masking shows the edge mask on the picture (display only)? *Recommend yes,* as in
-  Lightroom.
+  Lightroom. **Answer: yes, as recommended.**
 - **Q13.3** The extra settings under a disclosure arrow next to Sharpness and Noise Reduction? *Recommend yes:* it
-  keeps the panel short.
+  keeps the panel short. **Answer: yes, as recommended.**
 
 ### Before stage 14
 
-- **Q14.1** Vignette Midpoint, Roundness and Feather start at today's shape? *Recommend yes.*
+- **Q14.1** Vignette Midpoint, Roundness and Feather start at today's shape? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q14.2** Grain: Amount 0–100, Size 0–100 (starting at 25), Roughness 0–100 (starting at 50)? *Recommend yes,*
-  as in Lightroom.
-- **Q14.3** Effects ▸ Vignette… stays as it is? *Recommend yes* (§23, 2026-10-03 kept both).
+  as in Lightroom. **Answer: yes, as recommended.**
+- **Q14.3** Effects ▸ Vignette… stays as it is? *Recommend yes* (§23, 2026-10-03 kept both). **Answer: yes, as recommended.**
 - **Q14.4** A new Effects section holding Vignette and Grain, with Vignette moved out of Detail? *Recommend yes,* as
-  in Lightroom.
+  in Lightroom. **Answer: yes, as recommended.**
 
 ### Before stage 15
 

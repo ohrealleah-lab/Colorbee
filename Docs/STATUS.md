@@ -13,8 +13,7 @@ _Last updated: 2026-10-28 · 659 core tests and 205 app tests passing; `make per
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Lifting one subject after another](#test-lifting-one-subject-after-another)
-- [Subjects always wait for a click](#test-subjects-always-wait-for-a-click)
+- Nothing right now. Stages 11 to 14 are being built next, to be tested together.
 
 ---
 
@@ -584,7 +583,7 @@ Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a 
 6. Add an adjustment layer (**Layer ▸ New Adjustment Layer ▸ Hue/Saturation**). In the Adjustments panel, drag sideways on the **Saturation** name line: the slider follows. ⌘Z once undoes that drag.
 7. Hover the wand mark next to a slider that **Auto** moved (press Auto in Adjust Photo first): check whether "Set by Auto" still shows. If not, tell me.
 
-### Test: Subjects always wait for a click
+### Test: Subjects always wait for a click (passed 2026-10-28)
 
 Test image: Leah's `Downloads/toughcat.png` (not in the repo: it's a personal photo). Run `make run` first for a fresh Release copy.
 1. Open the photo and choose **Layer ▸ Lift Subject to New Layer**. Nothing is lifted yet: the bar says "Click the subject you want, even a small one, or press Return for the one Colorbee found."
@@ -592,7 +591,7 @@ Test image: Leah's `Downloads/toughcat.png` (not in the repo: it's a personal ph
 3. Choose **Lift Subject to New Layer** again and press **Return**: a Subject layer with the black and white cats together (Vision sees them as one).
 4. Choose **Edit ▸ Select Subject**, then press **Esc**: the bar goes away and nothing changed.
 
-### Test: Lifting one subject after another
+### Test: Lifting one subject after another (passed 2026-10-28)
 
 Test image: Leah's `Downloads/test.jpeg` (not in the repo: it's a personal screenshot). Run `make run` first for a fresh Release copy.
 1. Open the picture and choose **Layer ▸ Lift Subject to New Layer**. Click the **bat in the upper right**. The Layers panel opens (close it first with the toolbar's Layers button to see this), a new **Subject** layer appears just above the picture's layer, and the picture's layer is still the highlighted (active) one.

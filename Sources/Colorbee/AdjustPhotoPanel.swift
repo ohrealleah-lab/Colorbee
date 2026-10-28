@@ -252,21 +252,23 @@ struct PhotoControls: View {
         let shown = step == 1 ? "\(Int(value.rounded()))" : value.formatted(.number.precision(.fractionLength(1)))
         return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                HStack(spacing: 4) {
-                    if let disclosure {
-                        Button { disclosure.wrappedValue.toggle() } label: {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 9, weight: .semibold))
-                                .rotationEffect(.degrees(disclosure.wrappedValue ? 90 : 0))
-                                .frame(width: 12, height: 16)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Theme.secondaryInk)
-                        .help(disclosure.wrappedValue ? "Hide the finer \(title) settings" : "Show the finer \(title) settings")
-                        .accessibilityLabel("\(title) settings")
-                        .accessibilityValue(disclosure.wrappedValue ? "Open" : "Closed")
+                // Before the line, not on it: the grab area would take its clicks (Leah, 2026-10-28).
+                if let disclosure {
+                    Button { disclosure.wrappedValue.toggle() } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .rotationEffect(.degrees(disclosure.wrappedValue ? 90 : 0))
+                            .frame(width: 12, height: 16)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.secondaryInk)
+                    .help(disclosure.wrappedValue ? "Hide the finer \(title) settings" : "Show the finer \(title) settings")
+                    .accessibilityLabel("\(title) settings")
+                    .accessibilityValue(disclosure.wrappedValue ? "Open" : "Closed")
+                    .padding(.trailing, -2)
+                }
+                HStack(spacing: 4) {
                     if let swatch {
                         Circle().fill(swatch).frame(width: 8, height: 8).accessibilityHidden(true)
                     }

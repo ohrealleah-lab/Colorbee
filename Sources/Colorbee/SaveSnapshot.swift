@@ -1,4 +1,5 @@
 import ColorbeeCore
+import CoreGraphics
 import Foundation
 import Synchronization
 
@@ -21,10 +22,24 @@ struct SaveSnapshot: @unchecked Sendable {
     let otherPages: [(index: Int, id: UUID, geometrySteps: [ObjectIdentifier], page: ProjectFile.StoredPage)]
     let currentIndex: Int
 
-    /// The page shown in an image format, with its camera details only when asked (FR-11.8).
-    func encoded(as format: ImageFileFormat, quality: Double = 0.9, tiffLZW: Bool = false, includingCameraDetails: Bool = false) throws -> Data {
-        try ImageCodec.encode(canvas.flattened(transparentKey: transparentKey, resampling: resampling), colorSpace: canvas.colorSpace, as: format, quality: quality,
-                              matte: matte, tiffLZW: tiffLZW, cameraDetails: includingCameraDetails ? canvas.cameraDetails : nil)
+    /// The page shown in an image format, with its camera details only when asked (FR-11.8), in `color`'s colors and,
+    /// for JPEG and HEIC, no bigger than `limit` bytes when there is one (FR-9.7 item 8).
+    func encoded(as format: ImageFileFormat, quality: Double = 0.9, tiffLZW: Bool = false, includingCameraDetails: Bool = false,
+                 color: ExportColor = .keep, limit: Int? = nil) throws -> Data {
+        let (pixels, space, matte) = try inColors(color, canvas.flattened(transparentKey: transparentKey, resampling: resampling))
+        let details = includingCameraDetails ? canvas.cameraDetails : nil
+        if let limit, format.isLossy {
+            return try ImageCodec.encode(pixels, colorSpace: space, as: format, limit: limit, matte: matte, cameraDetails: details)
+        }
+        return try ImageCodec.encode(pixels, colorSpace: space, as: format, quality: quality, matte: matte, tiffLZW: tiffLZW, cameraDetails: details)
+    }
+
+    /// `image` and the matte converted to `color`'s space, and that space.
+    private func inColors(_ color: ExportColor, _ image: PixelBuffer) throws -> (PixelBuffer, CGColorSpace, Pixel) {
+        let space = color.space(for: canvas.colorSpace)
+        let swatch = PixelBuffer(width: 1, height: 1, fill: matte)
+        let convertedMatte = try ImageCodec.converted(swatch, from: canvas.colorSpace, to: space)[0, 0]
+        return (try ImageCodec.converted(image, from: canvas.colorSpace, to: space), space, convertedMatte)
     }
 
     func encodedProject() throws -> Data {
@@ -78,6 +93,7 @@ struct SaveSnapshot: @unchecked Sendable {
     func encoded(using preset: ExportPreset, scaling: Resampling? = nil) throws -> Data {
         let image = canvas.flattened(transparentKey: transparentKey, resampling: resampling)
         let scaled = image.resampled(to: preset.targetSize(for: image.size), using: scaling ?? ExportPreset.resampling(for: image.size))
-        return try ImageCodec.encode(scaled, colorSpace: canvas.colorSpace, as: .png)
+        let (pixels, space, _) = try inColors(preset.color, scaled)
+        return try ImageCodec.encode(pixels, colorSpace: space, as: .png)
     }
 }

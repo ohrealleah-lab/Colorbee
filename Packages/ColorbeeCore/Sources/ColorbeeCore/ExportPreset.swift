@@ -9,10 +9,13 @@ public struct ExportPreset: Hashable, Sendable {
 
     public let name: String
     public let size: Size
+    /// The colors the PNG is written in (FR-9.7 item 8, Q19.1).
+    public let color: ExportColor
 
-    public init(name: String, size: Size) {
+    public init(name: String, size: Size, color: ExportColor = .keep) {
         self.name = name
         self.size = size
+        self.color = color
     }
 
     public static let defaults = [

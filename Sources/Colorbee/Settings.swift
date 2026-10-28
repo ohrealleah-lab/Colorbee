@@ -16,8 +16,9 @@ final class ExportPresetStore {
         /// Scale to this width, or (when `square`) fit inside a square of this side.
         var pixels: Int
         var square: Bool
+        var color = ExportColor.keep
 
-        var preset: ExportPreset { ExportPreset(name: name, size: square ? .fitSquare(pixels) : .width(pixels)) }
+        var preset: ExportPreset { ExportPreset(name: name, size: square ? .fitSquare(pixels) : .width(pixels), color: color) }
 
         init(name: String, pixels: Int, square: Bool) {
             self.name = name
@@ -30,6 +31,21 @@ final class ExportPresetStore {
             case .width(let width): self.init(name: preset.name, pixels: width, square: false)
             case .fitSquare(let side): self.init(name: preset.name, pixels: side, square: true)
             }
+            color = preset.color
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id, name, pixels, square, color
+        }
+
+        /// Presets saved before stage 19 have no color, and keep the document's.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            name = try container.decode(String.self, forKey: .name)
+            pixels = try container.decode(Int.self, forKey: .pixels)
+            square = try container.decode(Bool.self, forKey: .square)
+            color = (try? container.decodeIfPresent(ExportColor.self, forKey: .color)) ?? .keep
         }
     }
 
@@ -153,7 +169,7 @@ private struct ExportPresetSettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("File ▸ Export As saves a PNG at each preset's size. Images are never enlarged.")
+            Text("File ▸ Export As saves a PNG at each preset's size and in its colors. Images are never enlarged.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Picker("Scaling", selection: $store.scaling) {
@@ -178,6 +194,12 @@ private struct ExportPresetSettings: View {
                             .frame(width: 70)
                             .multilineTextAlignment(.trailing)
                         Text("px")
+                        Picker("Color", selection: $item.color) {
+                            ForEach(ExportColor.allCases, id: \.self) { Text($0 == .keep ? "Keep" : $0.title).tag($0) }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                        .help("The colors the PNG is written in: the document's own, or converted to sRGB or Display P3")
                         Spacer()
                         Button("Remove", systemImage: "minus.circle") { store.items.removeAll { $0.id == item.id } }
                             .labelStyle(.iconOnly)

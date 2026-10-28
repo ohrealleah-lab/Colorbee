@@ -18,6 +18,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 17: Photo geometry](#test-stage-17-photo-geometry) (2026-10-28)
 - [Stage 18a: Trim](#test-stage-18a-trim) (2026-10-28)
 - [Stage 18b: Canvas Size anchor](#test-stage-18b-canvas-size-anchor) (2026-10-28)
+- [Stage 19: Export: color space and Limit file size](#test-stage-19-export-color-space-and-limit-file-size) (2026-10-28; stages 19 to 21 are built in a row, then tested together)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -82,6 +83,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 17. Photo geometry | Built 2026-10-28; waiting for Leah's test (with stages 15, 16, 18a and 18b) | Medium |
 | 14 · 18a. Trim | Built 2026-10-28; waiting for Leah's test (with stages 15 to 17 and 18b) | Medium |
 | 14 · 18b. Canvas Size anchor | Built 2026-10-28; waiting for Leah's test (with stages 15 to 18a) | Medium |
+| 14 · 19. Export: color space and Limit file size | Built 2026-10-28; waiting for Leah's test (with stages 20 and 21) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -150,6 +152,8 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - Stage 18a (2026-10-28): Image ▸ Trim (`Trim.swift` finds the border; `ImageActions.crop(to:named:)` crops).
 - Stage 18b (2026-10-28): Canvas Properties' anchor (`CanvasAnchor.swift`, `ImageActions.resizeCanvas(to:anchor:)`,
   `AnchorGrid` in `CanvasPropertiesSheet.swift`).
+- Stage 19 (2026-10-28): Export's Color and Limit file size (`ExportColor.swift`, `ImageCodec.converted`,
+  `ImageCodec.encode(…limit:)`, `SaveSnapshot.encoded(…color:limit:)`), and each Export As preset's Color.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -317,6 +321,20 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 19: Export: color space and Limit file size
+
+Test file: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first.
+1. Choose File ▸ **Export…**, JPEG, and **Color: sRGB**. Open the file in Preview, then Tools ▸ Show Inspector:
+   the profile is sRGB.
+2. Export again with **Keep Document's**: Display P3, as before.
+3. Turn on **Limit file size to** 200 KB: the Quality slider greys out, and "Fitting the file into 200 KB…" shows
+   briefly. Finder shows the file as 200 KB or less.
+4. Choose PNG: the size limit is greyed out.
+5. Back on JPEG, limit 5 KB: a message says it can't be that small, with the smallest it can be, and nothing is
+   saved.
+6. In Colorbee ▸ Settings ▸ Export Presets, set **Slack**'s color to sRGB, then File ▸ Export As ▸ Slack: the PNG's
+   profile is sRGB. Set it back to Keep.
 
 ### Test: Stage 18b: Canvas Size anchor
 

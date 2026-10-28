@@ -481,9 +481,12 @@ final class ImageDocument: NSDocument {
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             let format = options.format, quality = options.quality, lzw = options.tiffLZW
-            let details = options.writesCameraDetails
+            let details = options.writesCameraDetails, color = options.color
+            let limit = options.limitsSize && format.isLossy ? options.limitBytes : nil
+            // Fitting a size takes several tries, a few seconds on a very big picture.
+            if let limit { editor.showNotice("Fitting the file into \(ByteCountFormatter.string(fromByteCount: Int64(limit), countStyle: .file))…") }
             self?.export(editor.saveSnapshot(), to: url) {
-                try $0.encoded(as: format, quality: quality, tiffLZW: lzw, includingCameraDetails: details)
+                try $0.encoded(as: format, quality: quality, tiffLZW: lzw, includingCameraDetails: details, color: color, limit: limit)
             }
         }
     }
@@ -542,6 +545,23 @@ private final class ExportOptions {
     }
 
     var writesCameraDetails: Bool { hasCameraDetails && includeCameraDetails && format.holdsCameraDetails }
+
+    /// The colors the file is written in (FR-9.7 item 8); remembered, like the format (Q19.4).
+    var color = ExportColor(rawValue: ExportOptions.defaults.string(forKey: "ExportColor") ?? "") ?? .keep {
+        didSet { Self.defaults.set(color.rawValue, forKey: "ExportColor") }
+    }
+    /// Limit file size, for JPEG and HEIC (FR-9.7 item 8); remembered (Q19.4).
+    var limitsSize = ExportOptions.defaults.bool(forKey: "ExportLimitsSize") {
+        didSet { Self.defaults.set(limitsSize, forKey: "ExportLimitsSize") }
+    }
+    var limitAmount = ExportOptions.defaults.object(forKey: "ExportLimitAmount") as? Double ?? 200 {
+        didSet { Self.defaults.set(limitAmount, forKey: "ExportLimitAmount") }
+    }
+    var limitInMegabytes = ExportOptions.defaults.bool(forKey: "ExportLimitInMegabytes") {
+        didSet { Self.defaults.set(limitInMegabytes, forKey: "ExportLimitInMegabytes") }
+    }
+    /// A KB is 1,000 bytes, as Finder counts, so a 200 KB limit never shows as more there (Q19.6).
+    var limitBytes: Int { max(1, Int(limitAmount * (limitInMegabytes ? 1_000_000 : 1000))) }
 }
 
 /// Lets the export accessory resize the view that hosts it.
@@ -572,6 +592,8 @@ private struct ExportAccessory: View {
                             .frame(width: 30, alignment: .trailing)
                     }
                 }
+                // With a size limit, Colorbee picks the quality.
+                .disabled(options.limitsSize)
             }
             if options.format == .tiff {
                 Picker("Compression", selection: $options.tiffLZW) {
@@ -580,6 +602,29 @@ private struct ExportAccessory: View {
                 }
                 .help("LZW is lossless and smaller; some older apps only read uncompressed TIFF")
             }
+            Picker("Color", selection: $options.color) {
+                ForEach(ExportColor.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .help("Keep the picture's own colors, or convert them: sRGB for the web and older screens, Display P3 for Apple devices. Converting to sRGB dulls the most vivid colors a little.")
+            LabeledContent("Size") {
+                HStack {
+                    Toggle("Limit file size to", isOn: $options.limitsSize)
+                    TextField("Size", value: $options.limitAmount, format: .number)
+                        .frame(width: 60)
+                        .multilineTextAlignment(.trailing)
+                        .labelsHidden()
+                        .disabled(!options.limitsSize)
+                    Picker("Unit", selection: $options.limitInMegabytes) {
+                        Text("KB").tag(false)
+                        Text("MB").tag(true)
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .disabled(!options.limitsSize)
+                }
+            }
+            .disabled(!options.format.isLossy)
+            .help(options.format.isLossy ? "Colorbee finds the best quality that fits" : "Only JPEG and HEIC can be fitted to a size")
             if options.hasCameraDetails && options.format.holdsCameraDetails {
                 Toggle("Include camera details", isOn: $options.includeCameraDetails)
                     .help("Camera, lens, ISO, shutter speed, aperture, focal length and date taken. Never location, serial numbers or the owner's name.")

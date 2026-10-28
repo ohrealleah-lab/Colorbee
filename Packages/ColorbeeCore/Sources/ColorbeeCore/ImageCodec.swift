@@ -11,6 +11,9 @@ public enum ImageCodecError: Error, Equatable {
     case unsupportedColorSpace
     case conversionFailed(Int)
     case encodingFailed
+    /// Export's Limit file size (FR-9.7 item 8): even the lowest quality is over the limit; this is the smallest it
+    /// can be, in bytes.
+    case overSizeLimit(limit: Int, smallest: Int)
 }
 
 extension ImageCodecError: LocalizedError {
@@ -23,6 +26,15 @@ extension ImageCodecError: LocalizedError {
         case .unsupportedColorSpace: "This image uses colors Colorbee can't read."
         case .conversionFailed: "This image couldn't be read."
         case .encodingFailed: "The image couldn't be written in this format."
+        case .overSizeLimit(let limit, let smallest):
+            "This picture can't be made as small as \(ByteCountFormatter.string(fromByteCount: Int64(limit), countStyle: .file)). The smallest it can be at this size is \(ByteCountFormatter.string(fromByteCount: Int64(smallest), countStyle: .file))."
+        }
+    }
+
+    public var recoverySuggestion: String? {
+        switch self {
+        case .overSizeLimit: "Nothing was saved. Raise the limit, or use File ▸ Export As to make the picture smaller in pixels first."
+        default: nil
         }
     }
 }
@@ -117,6 +129,13 @@ public enum ImageCodec {
         return DecodedImage(buffer: buffer, colorSpace: colorSpace)
     }
 
+    /// `buffer`'s colors, in `source`, as `target` shows them, for Export's Color (FR-9.7 item 8). Colors `target`
+    /// can't show are brought just inside it, so vivid ones get a little duller going from Display P3 to sRGB.
+    public static func converted(_ buffer: PixelBuffer, from source: CGColorSpace, to target: CGColorSpace) throws -> PixelBuffer {
+        guard source != target, source.name != target.name || source.name == nil else { return buffer }
+        return try decode(makeCGImage(buffer, colorSpace: source), convertingTo: target).buffer
+    }
+
     public static func makeCGImage(_ buffer: PixelBuffer, colorSpace: CGColorSpace) throws -> CGImage {
         var format = try storageFormat(for: colorSpace)
         var source = buffer.vImageBuffer
@@ -144,18 +163,62 @@ public enum ImageCodec {
         cameraDetails: CameraDetails? = nil
     ) throws -> Data {
         guard format.canWrite else { throw ImageCodecError.encodingFailed }
+        let image = try prepared(buffer, colorSpace: colorSpace, as: format, matte: matte)
+        return try write(image, as: format, quality: quality, tiffLZW: tiffLZW, cameraDetails: cameraDetails)
+    }
+
+    /// A JPEG or HEIC no bigger than `limit` bytes (FR-9.7 item 8): the highest quality that fits, found by halving
+    /// the range eight times. Camera details count toward the size. Throws `overSizeLimit` if even the lowest
+    /// quality is too big.
+    public static func encode(
+        _ buffer: PixelBuffer,
+        colorSpace: CGColorSpace,
+        as format: ImageFileFormat,
+        limit: Int,
+        matte: Pixel = .white,
+        cameraDetails: CameraDetails? = nil
+    ) throws -> Data {
+        guard format.canWrite, format.isLossy else { throw ImageCodecError.encodingFailed }
+        let image = try prepared(buffer, colorSpace: colorSpace, as: format, matte: matte)
+        func at(_ quality: Double) throws -> Data { try write(image, as: format, quality: quality, cameraDetails: cameraDetails) }
+        let best = try at(1)
+        if best.count <= limit { return best }
+        var fits = try at(0.01)
+        guard fits.count <= limit else { throw ImageCodecError.overSizeLimit(limit: limit, smallest: fits.count) }
+        var low = 0.01, high = 1.0
+        for _ in 0..<8 {
+            let middle = (low + high) / 2
+            let data = try at(middle)
+            if data.count <= limit {
+                low = middle
+                fits = data
+            } else {
+                high = middle
+            }
+        }
+        return fits
+    }
+
+    /// The picture as `format` takes it: flattened over `matte` when the format has no transparency (FR-11.1).
+    private static func prepared(_ buffer: PixelBuffer, colorSpace: CGColorSpace, as format: ImageFileFormat, matte: Pixel) throws -> CGImage {
         var pixels = buffer
         if !format.supportsTransparency {
             pixels = PixelBuffer(width: buffer.width, height: buffer.height, fill: Pixel(r: matte.r, g: matte.g, b: matte.b))
-            for y in 0..<buffer.height {
-                let source = buffer.row(y)
-                let destination = pixels.row(y)
-                for x in 0..<buffer.width {
-                    destination[x] = Compositing.over(destination[x], source[x])
+            ParallelRows.forEach(0..<buffer.height) { rows in
+                for y in rows {
+                    let source = buffer.row(y)
+                    let destination = pixels.row(y)
+                    for x in 0..<buffer.width {
+                        destination[x] = Compositing.over(destination[x], source[x])
+                    }
                 }
             }
         }
-        let image = try makeCGImage(pixels, colorSpace: colorSpace)
+        return try makeCGImage(pixels, colorSpace: colorSpace)
+    }
+
+    private static func write(_ image: CGImage, as format: ImageFileFormat, quality: Double, tiffLZW: Bool = false,
+                              cameraDetails: CameraDetails?) throws -> Data {
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, format.type.identifier as CFString, 1, nil) else {
             throw ImageCodecError.encodingFailed

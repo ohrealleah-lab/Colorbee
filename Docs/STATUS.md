@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-28 · 636 core tests and 187 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
+_Last updated: 2026-10-28 · 636 core tests and 188 app tests passing; `make perf` not yet run for stages 3 to 6 (only the new Color Grading speed test has run)_
 
 ## Waiting for Leah's tests
 
@@ -508,7 +508,7 @@ Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a 
 ### Test: Lifting one subject after another
 
 Test image: Leah's `Downloads/test.jpeg` (not in the repo: it's a personal screenshot). Run `make run` first for a fresh Release copy.
-1. Open the picture and choose **Layer ▸ Lift Subject to New Layer**. Click the **bat in the upper right**. A new **Subject** layer appears just above the picture's layer, and the picture's layer is still the highlighted (active) one.
+1. Open the picture and choose **Layer ▸ Lift Subject to New Layer**. Click the **bat in the upper right**. The Layers panel opens (close it first with the toolbar's Layers button to see this), a new **Subject** layer appears just above the picture's layer, and the picture's layer is still the highlighted (active) one.
 2. Choose **Lift Subject to New Layer** again and click the **catgirl**. A second **Subject** layer appears with her on it. Hide the bottom layer to check.
 3. ⌘Z twice: both Subject layers go, one per ⌘Z, and the picture is as it was.
 

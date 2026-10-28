@@ -62,6 +62,14 @@ struct PanelTests {
         #expect(editor.isSidebarOpen && editor.showsLayersPanel)
     }
 
+    /// The lifted layer isn't active, so the panel shows it (Leah, 2026-10-28).
+    @Test func liftingASubjectShowsTheLayersPanel() {
+        let editor = editor(keeping: \.showsHistoryPanel)
+        editor.isSidebarOpen = false
+        editor.perform(.liftToNewLayer, mask: [UInt8](repeating: 255, count: editor.canvas.size.width * editor.canvas.size.height))
+        #expect(editor.isSidebarOpen && editor.showsLayersPanel)
+    }
+
     /// Review P, finding 4: the sidebar holds Adjust Photo's sliders, so it stays.
     @Test func adjustPhotoKeepsTheSidebarWithNoPanels() {
         let editor = editor(keeping: \.showsLayersPanel)

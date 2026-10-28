@@ -2896,7 +2896,12 @@ final class Editor {
             case .removeBackground: SubjectActions.removeBackground(mask, canvas: canvas, history: history, context: selectionContext)
             case .liftToNewLayer:
                 // The picture's layer stays active and is the only one chosen (review T, finding 4; Leah, 2026-10-28).
-                if SubjectActions.liftToNewLayer(mask, canvas: canvas, history: history, context: selectionContext) { otherChosenLayerIDs = [] }
+                // The Layers panel opens, as after New Layer, so the new layer shows though it isn't active (Leah, 2026-10-28).
+                if SubjectActions.liftToNewLayer(mask, canvas: canvas, history: history, context: selectionContext) {
+                    otherChosenLayerIDs = []
+                    showsLayersPanel = true
+                    isSidebarOpen = true
+                }
             case .select: SubjectActions.select(mask, canvas: canvas, history: history, context: selectionContext)
             }
         }

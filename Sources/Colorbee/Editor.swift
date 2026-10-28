@@ -2513,7 +2513,20 @@ final class Editor {
         return SelectionActions.selectedPixels(canvas: canvas, context: selectionContext)
     }
 
-    /// Pastes as a floating selection at the top-left of the visible part of the canvas.
+    /// Where Copy's pixels come from on the canvas, recorded with them for Paste in Place (FR-10.1).
+    func copiedPlace(merged: Bool) -> IntPoint {
+        SelectionActions.selectedPixelsOrigin(canvas: canvas, merged: merged)
+    }
+
+    /// Paste in Place: at `place` when any of the image lands on the canvas there; otherwise, or with no place (a
+    /// picture copied in another app), where ⌘V puts it (Leah, 2026-10-28).
+    func paste(_ image: PixelBuffer, inPlaceAt place: IntPoint?) {
+        guard let place, !IntRect(x: place.x, y: place.y, width: image.width, height: image.height).intersection(canvas.bounds).isEmpty else {
+            return paste(image)
+        }
+        paste(image, at: place)
+    }
+
     /// Pastes as a floating selection at the top-left of the visible area (FR-10.1), or at `origin`.
     func paste(_ image: PixelBuffer, at origin: IntPoint? = nil) {
         guard !refusedBecauseLocked() else { return }

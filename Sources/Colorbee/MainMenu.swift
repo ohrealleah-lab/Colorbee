@@ -103,6 +103,7 @@ enum MainMenu {
         "selectAll:": "Select the whole image.",
         "deselect:": "Remove the selection, placing any moved pixels.",
         "invertSelection:": "Select everything that isn't selected, and nothing that is.",
+        "pasteInPlace:": "Paste exactly where the copied pixels came from, in this image or another one.",
         "showFeather:": "Soften the selection's edge, so changes fade out across it.",
         "showExpandSelection:": "Grow the selection outward by a number of pixels.",
         "showContractSelection:": "Shrink the selection inward by a number of pixels.",
@@ -234,6 +235,7 @@ enum MainMenu {
         menu.addItem(item("Copy Merged", "copyMerged:", "c", [.command, .shift]))
         menu.addItem(item("Copy Text", "copyText:", "c", [.command, .option]))
         menu.addItem(item("Paste", "paste:", "v"))
+        menu.addItem(item("Paste in Place", "pasteInPlace:", "v", [.command, .option, .shift]))
         // The canvas handles the Delete key itself, so text fields keep their own Delete.
         menu.addItem(item("Delete", "delete:"))
         menu.addItem(.separator())

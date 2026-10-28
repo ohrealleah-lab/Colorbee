@@ -95,22 +95,23 @@ final class DocumentWindow: NSWindow {
         // An adjustment layer has no pixels of its own, so copying it alone pasted as nothing. It copies what you see
         // instead, like Copy Merged (Leah, 2026-10-09).
         let isAdjustment = editor.canvas.activeLayer.adjustment != nil
-        copyToClipboard(selected: isAdjustment ? editor.selectedMergedPixels() : editor.selectedPixels(), editor: editor)
+        copyToClipboard(selected: isAdjustment ? editor.selectedMergedPixels() : editor.selectedPixels(), merged: isAdjustment, editor: editor)
     }
 
     /// The selected pixels (made now, so they're the selection as it is), or the whole image from a
-    /// snapshot flattened in the background.
-    private func copyToClipboard(selected: PixelBuffer?, editor: Editor) {
+    /// snapshot flattened in the background. Where they came from goes with them, for Paste in Place.
+    private func copyToClipboard(selected: PixelBuffer?, merged: Bool, editor: Editor) {
         let colorSpace = editor.canvas.colorSpace
+        let place = editor.copiedPlace(merged: merged)
         // A copy made from the document is offered for removal after a redaction too, like the image it came from
         // (Leah, 2026-10-05; review K, finding 11).
         let added: @MainActor @Sendable (ClipboardHistory.Item.ID) -> Void = { [weak editor] id in editor?.noteClipboardSource(id) }
         if let selected {
             let pixels = UnsafePixels(selected)
-            ClipboardImage.copy(colorSpace: colorSpace, pixels: { pixels.value }, added: added)
+            ClipboardImage.copy(colorSpace: colorSpace, place: place, pixels: { pixels.value }, added: added)
         } else {
             let snapshot = editor.saveSnapshot()
-            ClipboardImage.copy(colorSpace: colorSpace, pixels: {
+            ClipboardImage.copy(colorSpace: colorSpace, place: place, pixels: {
                 snapshot.canvas.flattened(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling)
             }, added: added)
         }
@@ -223,7 +224,7 @@ final class DocumentWindow: NSWindow {
 
     @objc func copyMerged(_ sender: Any?) {
         guard let editor else { return }
-        copyToClipboard(selected: editor.selectedMergedPixels(), editor: editor)
+        copyToClipboard(selected: editor.selectedMergedPixels(), merged: true, editor: editor)
     }
 
     @objc func toggleSidebar(_ sender: Any?) { editor?.toggleSidebar() }
@@ -294,14 +295,20 @@ final class DocumentWindow: NSWindow {
         editor?.showsPixelGrid.toggle()
     }
 
-    @objc func paste(_ sender: Any?) {
+    @objc func paste(_ sender: Any?) { paste(inPlace: false) }
+
+    /// Paste in Place (⌥⇧⌘V): where Colorbee copied the pixels from, when any of them land on this canvas (FR-10.1).
+    @objc func pasteInPlace(_ sender: Any?) { paste(inPlace: true) }
+
+    private func paste(inPlace: Bool) {
         guard let editor, let data = Self.imageDataOnPasteboard() else { return }
+        let place = inPlace ? ClipboardImage.place() : nil
         do {
             let decoded = try ImageCodec.decode(data, convertingTo: editor.canvas.colorSpace)
             let source = ClipboardHistory.shared.add(data)
             let image = decoded.buffer, canvas = editor.canvasSize
             guard image.width > canvas.width || image.height > canvas.height else {
-                editor.paste(image)
+                editor.paste(image, inPlaceAt: place)
                 editor.noteClipboardSource(source)
                 return
             }
@@ -315,6 +322,8 @@ final class DocumentWindow: NSWindow {
                 if response == .alertFirstButtonReturn {
                     editor.resizeCanvas(to: IntSize(width: max(image.width, canvas.width), height: max(image.height, canvas.height)))
                     editor.paste(image, at: IntPoint(x: 0, y: 0))
+                } else if let place {
+                    editor.paste(image, inPlaceAt: place)
                 } else {
                     // At the top-left, shown only where it falls on the canvas; drag it to choose what shows.
                     editor.paste(image, at: IntPoint(x: 0, y: 0))
@@ -417,7 +426,7 @@ final class DocumentWindow: NSWindow {
         case #selector(redo(_:)):
             menuItem.title = editor.redoActionName.map { "Redo \($0)" } ?? "Redo"
             return editor.redoActionName != nil
-        case #selector(paste(_:)):
+        case #selector(paste(_:)), #selector(pasteInPlace(_:)):
             return PasteboardImages.hasImage()
         case #selector(cut(_:)), #selector(delete(_:)), #selector(deselect(_:)), #selector(cropToSelection(_:)),
              #selector(applySolidFill(_:)):
@@ -532,7 +541,7 @@ final class DocumentWindow: NSWindow {
     private static let pixelCommands: Set<Selector> = [
         // Not Batch Redact ▸ Solid Fill: like Blur… and Pixelate…, it redacts every layer under the selection (review P,
         // finding 6).
-        #selector(cut(_:)), #selector(delete(_:)), #selector(paste(_:)),
+        #selector(cut(_:)), #selector(delete(_:)), #selector(paste(_:)), #selector(pasteInPlace(_:)),
         #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showSharpen(_:)), #selector(showLevels(_:)),
         #selector(showAdjustPhoto(_:)), #selector(showCurves(_:)), #selector(showSepia(_:)), #selector(showPosterize(_:)),
         #selector(applySameAsLastPhoto(_:)), #selector(autoContrast(_:)), #selector(showAddNoise(_:)), #selector(showMotionBlur(_:)), #selector(showEmboss(_:)),

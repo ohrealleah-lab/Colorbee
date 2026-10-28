@@ -12,15 +12,20 @@ final class ClipboardImage: NSObject, NSPasteboardItemDataProvider, @unchecked S
     private var png: Data?
     private var finished = false
 
+    /// Where copied pixels came from on their canvas, for Paste in Place (FR-10.1). Only Colorbee writes it, and it
+    /// goes when anything else is copied, since copying clears the clipboard.
+    static let placeType = NSPasteboard.PasteboardType("com.leah.Colorbee.place")
+
     /// Puts an image on the clipboard. `pixels` is called in the background and must only read things
     /// nothing else changes (a snapshot or a fresh buffer). The PNG joins Clipboard History when it's ready, and
-    /// `added` gets its item.
+    /// `added` gets its item. `place` is where the pixels' top-left was.
     @MainActor
-    static func copy(colorSpace: CGColorSpace, pixels: @escaping @Sendable () -> PixelBuffer?,
+    static func copy(colorSpace: CGColorSpace, place: IntPoint? = nil, pixels: @escaping @Sendable () -> PixelBuffer?,
                      added: @escaping @MainActor @Sendable (ClipboardHistory.Item.ID) -> Void = { _ in }) {
         let image = ClipboardImage()
         let item = NSPasteboardItem()
         item.setDataProvider(image, forTypes: [.png])
+        if let place { item.setString("\(place.x),\(place.y)", forType: placeType) }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.writeObjects([item])
@@ -37,6 +42,13 @@ final class ClipboardImage: NSObject, NSPasteboardItemDataProvider, @unchecked S
                 }
             }
         }
+    }
+
+    /// The place written with the image on the clipboard, if Colorbee copied it.
+    @MainActor
+    static func place(on pasteboard: NSPasteboard = .general) -> IntPoint? {
+        let parts = pasteboard.string(forType: placeType)?.split(separator: ",").compactMap { Int($0) } ?? []
+        return parts.count == 2 ? IntPoint(x: parts[0], y: parts[1]) : nil
     }
 
     private func finish(with data: Data?) {

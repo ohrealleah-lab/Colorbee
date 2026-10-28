@@ -14,6 +14,7 @@ _Last updated: 2026-10-28 · 647 core tests and 190 app tests passing; `make per
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Stage 7: Expand, Contract and Smooth](#test-stage-7-expand-contract-and-smooth) (2026-10-28; stages 7 to 10 are built in a row, then tested together)
+- [Stage 8: Paste in Place](#test-stage-8-paste-in-place) (2026-10-28)
 - [Lifting one subject after another](#test-lifting-one-subject-after-another)
 - [Subjects always wait for a click](#test-subjects-always-wait-for-a-click)
 
@@ -26,7 +27,20 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - **Say the recommended model and effort before each stage** (Opus throughout; high for design-heavy work, medium for routine UI).
 - Log any behavior choices Claude makes on its own in FRD §23, phrased "veto any".
 - Prefer plain explanations. Leah tests features by hand and reports back; give her a short "please try" list after each stage.
-- **Keep "Waiting for Leah's tests" at the top current:** add each new test there with a link to its steps (a `### Test: Stage 7: Expand, Contract and Smooth
+- **Keep "Waiting for Leah's tests" at the top current:** add each new test there with a link to its steps (a `### Test: Stage 8: Paste in Place
+
+Test file: `TestImages/Help/Sample Screenshot.png`. Run `make run` first for a fresh Release copy.
+1. Marquee a button near the bottom right, then press ⌘C.
+2. Scroll or zoom so the top-left of the image shows, then choose Edit ▸ **Paste in Place** (⌥⇧⌘V): the copy lands
+   exactly over the original (drag it aside to check, then ⌘Z).
+3. Press ⌘V instead: it lands at the top-left of the view, as before. ⌘Z.
+4. Press ⌘N for a new image, then ⌥⇧⌘V: the button lands at the same place in the new image (if the new image is
+   smaller and it wouldn't land on it, it pastes as ⌘V does).
+5. Open any picture in Preview, select part of it and copy it. Back in Colorbee, press ⌥⇧⌘V: it pastes as ⌘V would,
+   with no beep.
+6. Click a picture in Clipboard History: it pastes as before (Clipboard History doesn't remember places).
+
+### Test: Stage 7: Expand, Contract and Smooth
 
 Test file: `TestImages/Magic Wand Practice.png`. Run `make run` first for a fresh Release copy.
 1. Press W and click the red circle. Choose Edit ▸ Modify Selection ▸ **Expand…**: an "Expand Selection" sheet opens
@@ -81,6 +95,7 @@ Test file: `TestImages/Magic Wand Practice.png`. Run `make run` first for a fres
 | 14 · 5. Color Grading | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 6. Point Color | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 7. Expand, Contract and Smooth | Built 2026-10-28; waiting for Leah's test (with stages 8 to 10) | High |
+| 14 · 8. Paste in Place | Built 2026-10-28; waiting for Leah's test (with stages 7, 9 and 10) | Medium |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -115,6 +130,8 @@ Test file: `TestImages/Magic Wand Practice.png`. Run `make run` first for a fres
   Feather's sheet (`Editor.selectionChange`, `SelectionModification`). Hard edges use a distance map (about 0.2 s at
   any radius on 8000 × 8000); soft edges take the most or least over a round area built from rectangles (vImage),
   seconds at 100 px on a huge soft selection, in the background. OK waits for the result rather than blocking.
+- Stage 8 (2026-10-28): Edit ▸ Paste in Place (⌥⇧⌘V). Copy writes where the pixels came from as a private
+  clipboard type (`ClipboardImage.placeType`, "x,y"); copying anywhere else clears it. `Editor.paste(_:inPlaceAt:)`.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.

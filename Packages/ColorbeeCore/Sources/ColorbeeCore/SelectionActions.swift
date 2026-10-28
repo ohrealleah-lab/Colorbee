@@ -242,6 +242,19 @@ public enum SelectionActions {
         }
     }
 
+    /// Where `selectedPixels` came from on the canvas: its top-left, for Paste in Place (FR-10.1). The whole image's
+    /// is the canvas's top-left.
+    public static func selectedPixelsOrigin(canvas: Canvas, merged: Bool = false) -> IntPoint {
+        let area: IntRect? = switch canvas.selection {
+        case .none: nil
+        case .floating(let floating) where !merged: floating.destination
+        case .floating: canvas.selection.outline.map { $0.bounds.intersection(canvas.bounds) }
+        case .marquee(let mask): mask.bounds.intersection(canvas.bounds)
+        }
+        guard let area, !area.isEmpty else { return IntPoint(x: 0, y: 0) }
+        return IntPoint(x: area.minX, y: area.minY)
+    }
+
     /// The pixels of `image` under `mask`, cropped to the mask's bounds; unselected pixels are transparent.
     private static func crop(_ image: PixelBuffer, to mask: SelectionMask) -> PixelBuffer {
         let bounds = mask.bounds.intersection(image.bounds)

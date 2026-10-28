@@ -1392,41 +1392,41 @@ _Added after the review (2026-10-27):_
 
 ### Before stage 15
 
-- **Q15.1** Adjust Photo has no histogram: add a live one at the top of the panel? *Recommend yes.*
-- **Q15.2** Clipping warnings as two buttons on the histogram, off by default, with no key? *Recommend yes.*
+- **Q15.1** Adjust Photo has no histogram: add a live one at the top of the panel? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q15.2** Clipping warnings as two buttons on the histogram, off by default, with no key? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q15.3** Naming: Adjust Photo already has Highlights and Shadows. *Recommend* putting the curve's four regions
-  under a "Tone Curve" heading, named Highlights, Lights, Darks, Shadows, so the heading tells them apart.
+  under a "Tone Curve" heading, named Highlights, Lights, Darks, Shadows, so the heading tells them apart. **Answer: yes, as recommended.**
 - **Q15.4** A parametric curve only, since Adjustments ▸ Curves… already does point curves? *Recommend yes,* per
-  FR-9.7.
+  FR-9.7. **Answer: yes, as recommended.**
 
 ### Before stage 16
 
 - **Q16.1** The hand drives the tone curve, or the Color Mixer tab showing, depending on which section's hand you
-  click? *Recommend yes.*
-- **Q16.2** Dragging up is more? *Recommend yes,* as in Lightroom.
+  click? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q16.2** Dragging up is more? *Recommend yes,* as in Lightroom. **Answer: yes, as recommended.**
 
 ### Before stage 17
 
 - **Q17.1** Find corners automatically every time Perspective Correction opens, falling back to today's corners,
-  with a Reset button? *Recommend yes.*
+  with a Reset button? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q17.2** Overlays: Thirds, Grid, Diagonal, Triangle, Golden Ratio, Golden Spiral; O switches between them while
-  cropping (O is free). Shown while dragging, as thirds are now? *Recommend yes.*
+  cropping (O is free). Shown while dragging, as thirds are now? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q17.3** Crop… already shades what it cuts out. What should change? *Recommend* looking at today's Crop… first;
-  if it's enough, this part is done. Otherwise tell me what you'd like: darker, or fully hidden.
+  if it's enough, this part is done. Otherwise tell me what you'd like: darker, or fully hidden. **Answer: keep today's shading.**
 
 ### Before stage 18a
 
 - **Q18.1** One click, Image ▸ Trim: transparent borders if there are any, otherwise the top-left pixel's color.
-  No dialog? *Recommend yes:* it's immediate, like Paint. Photoshop's dialog with choices is the other way.
-- **Q18.2** A small fixed tolerance (about 2%) so JPEG edges still trim? *Recommend yes.*
-- **Q18.3** Decided by everything shown, with all layers cropped together? *Recommend yes,* the same as Crop.
+  No dialog? *Recommend yes:* it's immediate, like Paint. Photoshop's dialog with choices is the other way. **Answer: yes, as recommended.**
+- **Q18.2** A small fixed tolerance (about 2%) so JPEG edges still trim? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q18.3** Decided by everything shown, with all layers cropped together? *Recommend yes,* the same as Crop. **Answer: yes, as recommended.**
 
 ### Before stage 18b
 
 - **Q18.4** The anchor is a 3 × 3 grid of squares in Canvas Properties, set to Center each time the sheet opens
-  (not remembered)? *Recommend yes:* Center is the common case, and it's never a surprise.
+  (not remembered)? *Recommend yes:* Center is the common case, and it's never a surprise. **Answer: yes, as recommended.**
 - **Q18.5** The anchor also decides which edges are cut when the canvas gets smaller? *Recommend yes,* as in
-  Photoshop.
+  Photoshop. **Answer: yes, as recommended.**
 
 ### Before stage 19
 

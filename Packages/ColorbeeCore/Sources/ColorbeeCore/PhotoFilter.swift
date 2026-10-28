@@ -117,6 +117,7 @@ extension Effect {
         case .photo(var edit):
             edit.adjustments = edit.adjustments.scaled(by: f)
             edit.filterIntensity *= f
+            edit.mixer = edit.mixer?.scaled(by: f)
             return .photo(edit)
         default: return self
         }

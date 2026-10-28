@@ -279,7 +279,7 @@ since both use the same eight color ranges.
       Exposure +20, and Apply.
    2. Open `Color Cast.png` and choose **Adjustments ▸ Adjust Photo: Same as Last**: it gets Vivid and Exposure +20 at
       once, as one step ("Adjust Photo" in the History panel). ⌘Z.
-   3. Back on the practice photo, open Adjust Photo, choose **Noir**, and click **Copy** (beside Auto). Cancel.
+   3. Back on the practice photo, open Adjust Photo, choose **Noir**, and click **Copy Settings** (the two-page icon beside Auto). Cancel.
    4. On `Color Cast.png`, choose **Adjustments ▸ Paste Photo Settings**: Adjust Photo opens with Noir chosen, and the
       picture shows it in black and white before you apply. Press Return, then ⌘Z.
    5. Choose **Adjustments ▸ Paste Photo Settings as Adjustment Layer**: a "Noir" layer appears. Hide it: the picture
@@ -289,7 +289,7 @@ since both use the same eight color ranges.
       Adjustments panel: the new layer gets Noir and Exposure −30. ⌘Z undoes just that.
    7. Quit Colorbee and open it again. Open any picture and choose Adjust Photo: Same as Last: Noir is applied (the last
       settings used were the pasted layer's, in step 5).
-   8. In Preview, copy a picture (⌘C). In Colorbee, open Adjust Photo on any picture, click Copy, Cancel, then press ⌘V:
+   8. In Preview, copy a picture (⌘C). In Colorbee, open Adjust Photo on any picture, click Copy Settings, Cancel, then press ⌘V:
       the picture from Preview pastes, so copying settings didn't replace it.
 6. **Done when:** app tests check that last and pasted settings equal the source. Help is updated, and `make help`
    has run for the new menu items.
@@ -352,13 +352,21 @@ since both use the same eight color ranges.
    - **Filters:** hue shifts scale toward zero with Intensity.
    - Questions: Q4.1 to Q4.5.
 4. **Size:** M. **Opus, high.**
-5. **Hand test** (`Color Chart.png`, `Stage 9 Practice Photo.png`)
-   1. Open `Color Chart.png`, Adjust Photo, Color Mixer ▸ Saturation, Blue −100. Only the blue patches turn gray;
-      skin tones and the others stay.
-   2. Hue tab, Green +100: the greens lean toward aqua, and nothing else moves.
-   3. Turn on Black & White, then drag Red +60: the red patch gets lighter in gray, and the others don't.
-   4. On the practice photo, darken the sky with Blue luminance −40. Apply, then ⌘Z.
-   5. Save as Filter "Blue Sky", then try it at 50% Intensity: half the change.
+5. **Hand test** (`TestImages/Photo Editing/Color Chart.png` (its colors are listed in `Color Chart.txt`), `TestImages/Stage 9 Practice Photo.png`)
+   1. Open `Color Chart.png` and choose Adjust Photo. Under Color there's a **Color Mixer** section. Choose its
+      **Saturation** tab and drag **Blue** to −100: only the Blue patch turns gray; Aqua, Purple, the skin patches and
+      the grays stay as they are.
+   2. Click Reset. Choose the **Hue** tab and drag **Green** to +100: the Green patch leans toward aqua, and nothing
+      else moves.
+   3. Click Reset. Turn on **Black & White**: the chart turns gray, like the Mono filter, and the tabs give way to eight
+      sliders. Drag **Red** to +60: the Red patch becomes a lighter gray (Orange and Magenta a little); Blue, Green and
+      the gray patches don't change. Cancel.
+   4. Open `TestImages/Stage 9 Practice Photo.png`, Adjust Photo, Color Mixer ▸ **Luminance**, Blue −40: the sky
+      darkens; the hills and the moon don't. Apply, then ⌘Z.
+   5. Open Adjust Photo again, set Luminance Blue −40 again, then ⋯ ▸ Save as Filter… named "Blue Sky". Set its
+      Intensity to 50%: the sky darkens half as much. Cancel.
+   6. On `Color Chart.png`, Adjust Photo, Hue tab, Green +100, then **As Adjustment Layer**. File ▸ Export… as a PNG and
+      open it in Preview: the patches look the same as in Colorbee.
 6. **Done when:** an exact-value test on each patch passes, and the screen-versus-export test is within the agreed
    limit. Help is updated.
 

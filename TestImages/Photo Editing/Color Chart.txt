@@ -1,0 +1,19 @@
+Color Chart.png (sRGB): patch, sRGB values, hex
+
+Red: 217, 43, 43  #D92B2B
+Orange: 217, 130, 43  #D9822B
+Yellow: 217, 217, 43  #D9D92B
+Green: 43, 217, 43  #2BD92B
+Aqua: 43, 217, 217  #2BD9D9
+Blue: 43, 87, 217  #2B57D9
+Purple: 130, 43, 217  #822BD9
+Magenta: 217, 43, 173  #D92BAD
+Skin light: 241, 194, 167  #F1C2A7
+Skin medium: 198, 134, 99  #C68663
+Skin dark: 120, 78, 54  #784E36
+Gray 0: 0, 0, 0  #000000
+Gray 64: 64, 64, 64  #404040
+Gray 128: 128, 128, 128  #808080
+Gray 191: 191, 191, 191  #BFBFBF
+Gray 255: 255, 255, 255  #FFFFFF
+Gray ramp: x = 20 to 1179, y = 420 to 559, black to white

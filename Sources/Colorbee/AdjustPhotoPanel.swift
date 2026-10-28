@@ -38,6 +38,8 @@ struct PhotoControls: View {
     private typealias Slider = PhotoAdjustments.Slider
     /// The titles of the folded sections, one per line, the same in every window (Leah, 2026-10-27).
     @AppStorage("adjustPhotoFoldedSections") private var folded = ""
+    /// Which of the Color Mixer's settings its eight sliders show.
+    @State var mixerSetting = ColorMixer.Setting.hue
     private static let groups: [(String, [Slider])] = [
         ("Light", [.exposure, .brilliance, .dehaze, .highlights, .shadows, .contrast, .brightness, .whites, .blackPoint]),
         ("Color", [.saturation, .vibrance, .warmth, .tint]),
@@ -58,11 +60,14 @@ struct PhotoControls: View {
                 Button("Auto", systemImage: "wand.and.stars") { onAuto() }
                     .help("Balance exposure, brilliance, highlights, shadows, contrast, whites, white balance and vibrance for this photo")
                 Spacer()
-                Button("Copy") { editor.copyPhotoSettings() }
-                    .help("Copy these settings, to paste onto another picture or Adjust Photo layer")
-                Button("Paste") { editor.pastePhotoSettings() }
-                    .disabled(PhotoSettingsStore.shared.copied == nil)
-                    .help("Use the copied settings here")
+                // Icons, so Auto and Reset keep their names in the narrow sidebar.
+                settingsButton("Copy Settings", "doc.on.doc", help: "Copy Settings: copy these settings, to paste onto another picture or Adjust Photo layer") {
+                    editor.copyPhotoSettings()
+                }
+                settingsButton("Paste Settings", "doc.on.clipboard", help: "Paste Settings: use the copied settings here") {
+                    editor.pastePhotoSettings()
+                }
+                .disabled(PhotoSettingsStore.shared.copied == nil)
                 Button("Reset") {
                     onChange(PhotoEdit())
                     onFinish()
@@ -72,27 +77,8 @@ struct PhotoControls: View {
             }
             .controlSize(.small)
             ForEach(Self.groups, id: \.0) { title, sliders in
-                let isFolded = foldedTitles.contains(title)
-                Button {
-                    var titles = foldedTitles
-                    if isFolded { titles.remove(title) } else { titles.insert(title) }
-                    folded = titles.sorted().joined(separator: "\n")
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .semibold))
-                            .rotationEffect(.degrees(isFolded ? 0 : 90))
-                        Text(title).font(.system(size: 11, weight: .semibold))
-                        Spacer()
-                    }
-                    .foregroundStyle(Theme.secondaryInk)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(isFolded ? "Show the \(title) sliders" : "Hide the \(title) sliders")
-                .accessibilityLabel(title)
-                .accessibilityValue(isFolded ? "Folded" : "Open")
-                ForEach(isFolded ? [] : sliders, id: \.self) { slider in
+                sectionHeading(title)
+                ForEach(isFolded(title) ? [] : sliders, id: \.self) { slider in
                     row(slider.title, value: edit.adjustments[slider], range: slider.range, unit: "", moved: autoMoved.contains(slider),
                         dropper: slider == .warmth) { value in
                         var changed = edit
@@ -100,8 +86,50 @@ struct PhotoControls: View {
                         onChange(changed)
                     }
                 }
+                if title == "Color" { colorMixerSection }
             }
         }
+    }
+
+    func isFolded(_ title: String) -> Bool {
+        foldedTitles.contains(title)
+    }
+
+    /// A section's name, which folds it away or opens it again.
+    func sectionHeading(_ title: String) -> some View {
+        let folded = isFolded(title)
+        return Button {
+            var titles = foldedTitles
+            if folded { titles.remove(title) } else { titles.insert(title) }
+            self.folded = titles.sorted().joined(separator: "\n")
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .rotationEffect(.degrees(folded ? 0 : 90))
+                Text(title).font(.system(size: 11, weight: .semibold))
+                Spacer()
+            }
+            .foregroundStyle(Theme.secondaryInk)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(folded ? "Show the \(title) settings" : "Hide the \(title) settings")
+        .accessibilityLabel(title)
+        .accessibilityValue(folded ? "Folded" : "Open")
+    }
+
+    private func settingsButton(_ title: String, _ symbol: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12))
+                .frame(width: 22, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.secondaryInk)
+        .help(help)
+        .accessibilityLabel(title)
     }
 
     /// Click something in the picture that should be gray, and Warmth and Tint are set (FR-9.7).
@@ -125,11 +153,14 @@ struct PhotoControls: View {
         Set(folded.split(separator: "\n").map(String.init))
     }
 
-    private func row(_ title: String, value: Double, range: ClosedRange<Double>, unit: String, moved: Bool = false, dropper: Bool = false,
-                     set: @escaping (Double) -> Void) -> some View {
+    func row(_ title: String, value: Double, range: ClosedRange<Double>, unit: String, moved: Bool = false, dropper: Bool = false,
+             swatch: Color? = nil, set: @escaping (Double) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 HStack(spacing: 4) {
+                    if let swatch {
+                        Circle().fill(swatch).frame(width: 8, height: 8).accessibilityHidden(true)
+                    }
                     Text(title).font(.system(size: 12))
                     if moved {
                         Image(systemName: "wand.and.stars")

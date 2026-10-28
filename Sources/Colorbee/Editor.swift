@@ -3255,15 +3255,16 @@ final class Editor {
     /// back at zero (only Sharpness, Definition, Texture and Noise Reduction stay). Nil if there was nothing to save.
     func saveFilter(from edit: PhotoEdit, named name: String) -> PhotoEdit? {
         var steps = edit.filter?.steps(atIntensity: edit.filterIntensity / 100) ?? []
-        let own = edit.adjustments.forFilters
-        if !own.isNeutral { steps.append(.photo(PhotoEdit(adjustments: own))) }
+        let own = edit.filterPart
+        if !own.isNeutral { steps.append(.photo(own)) }
         guard !steps.isEmpty else {
             onRefused()
             return nil
         }
         let savedName = FilterStore.shared.add(PhotoFilter(name: name, steps: steps))
-        let detail = PhotoAdjustments(edit.adjustments.values.filter { !$0.key.inFilters })
-        return PhotoEdit(adjustments: detail, filter: FilterStore.shared.filter(named: savedName), filterIntensity: 100)
+        var after = edit.partFiltersLeaveOut
+        after.filter = FilterStore.shared.filter(named: savedName)
+        return after
     }
 
     /// Save Filter from Layers: the visible adjustment layers, bottom to top, each with what a filter may hold.

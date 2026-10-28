@@ -215,20 +215,53 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     public var filter: PhotoFilter?
     /// 0...100 percent.
     public var filterIntensity: Double
+    /// The Color Mixer and Black & White (FR-9.7); nil when untouched.
+    public var mixer: ColorMixer? {
+        didSet { if mixer?.isNeutral == true { mixer = nil } }
+    }
 
-    public init(adjustments: PhotoAdjustments = PhotoAdjustments(), filter: PhotoFilter? = nil, filterIntensity: Double = 100) {
+    public init(adjustments: PhotoAdjustments = PhotoAdjustments(), filter: PhotoFilter? = nil, filterIntensity: Double = 100,
+                mixer: ColorMixer? = nil) {
         self.adjustments = adjustments
         self.filter = filter
         self.filterIntensity = filterIntensity
+        self.mixer = mixer?.isNeutral == true ? nil : mixer
     }
 
-    public var isNeutral: Bool { adjustments.isNeutral && (filter == nil || filterIntensity == 0) }
+    public var isNeutral: Bool { adjustments.isNeutral && (filter == nil || filterIntensity == 0) && mixer == nil }
 
-    /// The color and tone part: the filter's steps at its intensity, then the sliders' color and tone.
+    /// The color and tone part: the filter's steps at its intensity, then the sliders' color and tone, then the
+    /// Color Mixer.
     public var colorTransform: (Pixel) -> Pixel {
         let steps = (filter?.steps(atIntensity: filterIntensity / 100) ?? []).compactMap(\.colorTransform)
         let own = adjustments.colorTransform
-        return { pixel in own(steps.reduce(pixel) { $1($0) }) }
+        let mixed = mixer?.transform
+        return { pixel in
+            let adjusted = own(steps.reduce(pixel) { $1($0) })
+            return mixed?(adjusted) ?? adjusted
+        }
+    }
+
+    /// Whether the display needs `ColorLookup.fineSize` to show this closely: a Color Mixer here or in the filter.
+    public var needsFineColorTable: Bool {
+        mixer != nil || (filter?.steps ?? []).contains { step in
+            if case .photo(let edit) = step { return edit.needsFineColorTable }
+            return false
+        }
+    }
+
+    /// What Save as Filter keeps of the panel's own settings (its filter is kept separately): everything a filter may hold.
+    public var filterPart: PhotoEdit {
+        var part = self
+        part.adjustments = adjustments.forFilters
+        part.filter = nil
+        part.filterIntensity = 100
+        return part
+    }
+
+    /// What stays on the panel after Save as Filter: the settings filters leave out.
+    public var partFiltersLeaveOut: PhotoEdit {
+        PhotoEdit(adjustments: PhotoAdjustments(adjustments.values.filter { !$0.key.inFilters }))
     }
 
     /// The vignettes, in the order they apply after all the color: the filter's at its intensity, then the
@@ -287,14 +320,16 @@ extension PhotoAdjustments {
 
 extension PhotoEdit {
     private enum CodingKeys: String, CodingKey {
-        case adjustments, filter, filterIntensity
+        case adjustments, filter, filterIntensity, mixer
     }
 
+    /// A control this version can't read is left at neutral rather than losing the whole adjustment.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let intensity = try container.decode(Double.self, forKey: .filterIntensity)
         self.init(adjustments: try container.decode(PhotoAdjustments.self, forKey: .adjustments),
                   filter: try container.decodeIfPresent(PhotoFilter.self, forKey: .filter),
-                  filterIntensity: intensity.isFinite ? min(max(intensity, 0), 100) : 100)
+                  filterIntensity: intensity.isFinite ? min(max(intensity, 0), 100) : 100,
+                  mixer: try? container.decodeIfPresent(ColorMixer.self, forKey: .mixer))
     }
 }

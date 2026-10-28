@@ -16,6 +16,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 1b: Whites and the white-balance eyedropper](#test-stage-1b-whites-and-the-white-balance-eyedropper) (2026-10-27)
 - [Stage 2: Same as Last, and copy and paste settings](#test-stage-2-same-as-last-and-copy-and-paste-settings) (2026-10-27)
 - [Stage 3: Texture and Dehaze](#test-stage-3-texture-and-dehaze) (2026-10-27)
+- [Stage 4: Color Mixer and Black & White](#test-stage-4-color-mixer-and-black-white) (2026-10-27)
 
 ---
 
@@ -26,43 +27,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - **Say the recommended model and effort before each stage** (Opus throughout; high for design-heavy work, medium for routine UI).
 - Log any behavior choices Claude makes on its own in FRD §23, phrased "veto any".
 - Prefer plain explanations. Leah tests features by hand and reports back; give her a short "please try" list after each stage.
-- **Keep "Waiting for Leah's tests" at the top current:** add each new test there with a link to its steps (a `### Test: Stage 3: Texture and Dehaze
-
-Test files: `TestImages/Photo Editing/Hazy.png`, `TestImages/Photo Editing/Texture Practice.png`. Run `make run` first for a fresh Release copy.
-1. Open `Hazy.png` and choose Adjust Photo. Drag **Dehaze** (in Light, after Brilliance) to +50: the haze lifts, the
-   hills turn green again and the sky deepens. Apply, then ⌘Z.
-2. Open Adjust Photo again and drag Dehaze to −50: the picture gets hazier. Cancel.
-3. Open Adjust Photo again, Dehaze +50, then ⋯ ▸ Save as Filter… named "Clear". Open `Texture Practice.png` and
-   choose Clear: it gets clearer and more contrasty too (filters keep Dehaze). Cancel.
-4. On `Texture Practice.png`, zoom to 200% on the hills. Adjust Photo, **Texture** (in Detail, after Definition)
-   +60: the grass grain gets crisper, with no glow along the hills' edges. Try −60: it smooths.
-5. Set Texture back to 0 and Definition to +60: now a wider glow runs along the hills' edges. That's the difference
-   between them. Cancel.
-6. Open Adjust Photo, Texture +60, then **As Adjustment Layer**. Choose the Background layer and paint a few Brush
-   strokes across the hills: drawing stays smooth, and the strokes get the crisper look too.
-7. File ▸ Export… as a PNG and open it in Preview. Zoom both to 100%: the grass looks the same.
-
-### Test: Stage 2: Same as Last, and copy and paste settings
-
-Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/Color Cast.png`. Run `make run` first for a fresh Release copy.
-1. Open `TestImages/Stage 9 Practice Photo.png` and choose Adjustments ▸ Adjust Photo…. Choose **Vivid**, set
-   Exposure +20, and Apply.
-2. Open `Color Cast.png` and choose **Adjustments ▸ Adjust Photo: Same as Last**: it gets Vivid and Exposure +20 at
-   once, as one step ("Adjust Photo" in the History panel). ⌘Z.
-3. Back on the practice photo, open Adjust Photo, choose **Noir**, and click **Copy** (beside Auto). Cancel.
-4. On `Color Cast.png`, choose **Adjustments ▸ Paste Photo Settings**: Adjust Photo opens with Noir chosen, and the
-   picture shows it in black and white before you apply. Press Return, then ⌘Z.
-5. Choose **Adjustments ▸ Paste Photo Settings as Adjustment Layer**: a "Noir" layer appears. Hide it: the picture
-   underneath is unchanged. Show it again.
-6. With that layer chosen, set Exposure −30 in the Adjustments panel, then choose **Adjustments ▸ Copy Photo
-   Settings**. Open the practice photo, choose Layer ▸ New Adjustment Layer ▸ Adjust Photo, and click **Paste** in the
-   Adjustments panel: the new layer gets Noir and Exposure −30. ⌘Z undoes just that.
-7. Quit Colorbee and open it again. Open any picture and choose Adjust Photo: Same as Last: Noir is applied (the last
-   settings used were the pasted layer's, in step 5).
-8. In Preview, copy a picture (⌘C). In Colorbee, open Adjust Photo on any picture, click Copy, Cancel, then press ⌘V:
-   the picture from Preview pastes, so copying settings didn't replace it.
-
-### Test: …` heading), and remove it when it passes. Also give Leah the steps in chat; the file is long.
+- **Keep "Waiting for Leah's tests" at the top current:** add each new test there with a link to its steps (a `### Test: …` heading), and remove it when it passes. Also give Leah the steps in chat; the file is long.
 - Work locally (no cloud sessions: the build needs macOS and Xcode). The repo is public on GitHub at github.com/ohrealleah-lab/Colorbee so employers can see it: keep commits and docs presentable, never commit secrets or personal data, and push after each commit.
 
 ## Build order progress (FRD §20)
@@ -97,6 +62,7 @@ Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/C
 | 14 · 1b. Whites and the white-balance eyedropper (FR-9.7 item 1) | Built 2026-10-27; waiting for Leah's test. Stage 2 not started | High |
 | 14 · 2. Same as Last, and copy and paste settings | Built 2026-10-27; waiting for Leah's test | High |
 | 14 · 3. Texture and Dehaze | Built 2026-10-27; waiting for Leah's test | High |
+| 14 · 4. Color Mixer and Black & White | Built 2026-10-27; waiting for Leah's test | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -119,6 +85,9 @@ Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/C
   in the settings folder, the copied ones in memory; never the Mac clipboard).
 - Stage 3 (2026-10-27): Dehaze (an even veil of light gray taken off or laid on, per pixel, in the color table and
   in filters) and Texture (detail against a 3 px blur; one more blurred copy in `Renderer`). Both saved under `added`.
+- Stage 4 (2026-10-27): the Color Mixer (`ColorMixer.swift`: hue, saturation and luminance for eight ranges, and
+  Black & White with its mix), saved as `mixer` beside the sliders, in filters, scaled by Intensity. Adjust Photo
+  layers with one use a 65-point color table (`ColorLookup.fineSize`), built on all cores.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -286,6 +255,62 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 4: Color Mixer and Black & White
+
+Test files: `TestImages/Photo Editing/Color Chart.png` (its colors are listed in `Color Chart.txt`), `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a fresh Release copy.
+1. Open `Color Chart.png` and choose Adjust Photo. Under Color there's a **Color Mixer** section. Choose its
+   **Saturation** tab and drag **Blue** to −100: only the Blue patch turns gray; Aqua, Purple, the skin patches and
+   the grays stay as they are.
+2. Click Reset. Choose the **Hue** tab and drag **Green** to +100: the Green patch leans toward aqua, and nothing
+   else moves.
+3. Click Reset. Turn on **Black & White**: the chart turns gray, like the Mono filter, and the tabs give way to eight
+   sliders. Drag **Red** to +60: the Red patch becomes a lighter gray (Orange and Magenta a little); Blue, Green and
+   the gray patches don't change. Cancel.
+4. Open `TestImages/Stage 9 Practice Photo.png`, Adjust Photo, Color Mixer ▸ **Luminance**, Blue −40: the sky
+   darkens; the hills and the moon don't. Apply, then ⌘Z.
+5. Open Adjust Photo again, set Luminance Blue −40 again, then ⋯ ▸ Save as Filter… named "Blue Sky". Set its
+   Intensity to 50%: the sky darkens half as much. Cancel.
+6. On `Color Chart.png`, Adjust Photo, Hue tab, Green +100, then **As Adjustment Layer**. File ▸ Export… as a PNG and
+   open it in Preview: the patches look the same as in Colorbee.
+
+### Test: Stage 3: Texture and Dehaze
+
+Test files: `TestImages/Photo Editing/Hazy.png`, `TestImages/Photo Editing/Texture Practice.png`. Run `make run` first for a fresh Release copy.
+1. Open `Hazy.png` and choose Adjust Photo. Drag **Dehaze** (in Light, after Brilliance) to +50: the haze lifts, the
+   hills turn green again and the sky deepens. Apply, then ⌘Z.
+2. Open Adjust Photo again and drag Dehaze to −50: the picture gets hazier. Cancel.
+3. Open Adjust Photo again, Dehaze +50, then ⋯ ▸ Save as Filter… named "Clear". Open `Texture Practice.png` and
+   choose Clear: it gets clearer and more contrasty too (filters keep Dehaze). Cancel.
+4. On `Texture Practice.png`, zoom to 200% on the hills. Adjust Photo, **Texture** (in Detail, after Definition)
+   +60: the grass grain gets crisper, with no glow along the hills' edges. Try −60: it smooths.
+5. Set Texture back to 0 and Definition to +60: now a wider glow runs along the hills' edges. That's the difference
+   between them. Cancel.
+6. Open Adjust Photo, Texture +60, then **As Adjustment Layer**. Choose the Background layer and paint a few Brush
+   strokes across the hills: drawing stays smooth, and the strokes get the crisper look too.
+7. File ▸ Export… as a PNG and open it in Preview. Zoom both to 100%: the grass looks the same.
+
+### Test: Stage 2: Same as Last, and copy and paste settings
+
+Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/Color Cast.png`. Run `make run` first for a fresh Release copy.
+1. Open `TestImages/Stage 9 Practice Photo.png` and choose Adjustments ▸ Adjust Photo…. Choose **Vivid**, set
+   Exposure +20, and Apply.
+2. Open `Color Cast.png` and choose **Adjustments ▸ Adjust Photo: Same as Last**: it gets Vivid and Exposure +20 at
+   once, as one step ("Adjust Photo" in the History panel). ⌘Z.
+3. Back on the practice photo, open Adjust Photo, choose **Noir**, and click **Copy Settings** (the two-page icon beside Auto). Cancel.
+4. On `Color Cast.png`, choose **Adjustments ▸ Paste Photo Settings**: Adjust Photo opens with Noir chosen, and the
+   picture shows it in black and white before you apply. Press Return, then ⌘Z.
+5. Choose **Adjustments ▸ Paste Photo Settings as Adjustment Layer**: a "Noir" layer appears. Hide it: the picture
+   underneath is unchanged. Show it again.
+6. With that layer chosen, set Exposure −30 in the Adjustments panel, then choose **Adjustments ▸ Copy Photo
+   Settings**. Open the practice photo, choose Layer ▸ New Adjustment Layer ▸ Adjust Photo, and click **Paste Settings** (the clipboard
+   icon) in the Adjustments panel: the new layer gets Noir and Exposure −30. ⌘Z undoes just that.
+7. Quit Colorbee and open it again. Open any picture and choose Adjust Photo: Same as Last: Noir is applied (the last
+   settings used were the pasted layer's, in step 5).
+8. In Preview, copy a picture (⌘C). In Colorbee, open Adjust Photo on any picture, click Copy Settings, Cancel, then press ⌘V:
+   the picture from Preview pastes, so copying settings didn't replace it.
+
+### Test: …
 
 ### Test: Stage 1b: Whites and the white-balance eyedropper
 

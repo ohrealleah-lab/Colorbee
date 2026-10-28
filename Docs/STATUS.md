@@ -16,6 +16,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 15: Tone curve and clipping warnings](#test-stage-15-tone-curve-and-clipping-warnings) (2026-10-28; stages 15 to 18b are built in a row, then tested together)
 - [Stage 16: Drag on the picture to adjust](#test-stage-16-drag-on-the-picture-to-adjust) (2026-10-28)
 - [Stage 17: Photo geometry](#test-stage-17-photo-geometry) (2026-10-28)
+- [Stage 18a: Trim](#test-stage-18a-trim) (2026-10-28)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -77,6 +78,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 15. Tone curve and clipping warnings | Built 2026-10-28; waiting for Leah's test (with stages 16 to 18b) | High |
 | 14 · 16. Drag on the picture to adjust | Built 2026-10-28; waiting for Leah's test (with stages 15, 17 to 18b) | High |
 | 14 · 17. Photo geometry | Built 2026-10-28; waiting for Leah's test (with stages 15, 16, 18a and 18b) | Medium |
+| 14 · 18a. Trim | Built 2026-10-28; waiting for Leah's test (with stages 15 to 17 and 18b) | Medium |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -142,6 +144,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   `ColorMixer.range(for:)` say what's under the pointer.
 - Stage 17 (2026-10-28): Perspective Correction's corners from Vision (`RectangleFinder.swift`, which also checks
   each side follows an edge) with Reset; Crop…'s guides (`CropOverlay.swift`) switched with O.
+- Stage 18a (2026-10-28): Image ▸ Trim (`Trim.swift` finds the border; `ImageActions.crop(to:named:)` crops).
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -309,6 +312,18 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 18a: Trim
+
+Test files: `TestImages/Trim Practice.png`, `TestImages/Trim Practice Solid.png` and
+`TestImages/Stage 9 Practice Cutout.png`. Run `make run` first.
+1. Open `Trim Practice.png` and choose Image ▸ **Trim**. The see-through border is gone, tight around the orange
+   box, the soft blue circle (its blurry edge kept whole) and the thin line. The status bar shows 491 × 331.
+2. Open `Trim Practice Solid.png` and choose **Trim**: the white border is gone (561 × 411), though it isn't
+   perfectly even white.
+3. Open the cutout, choose Layer ▸ **Remove Background**, click the subject, then choose **Trim**: the edges are
+   tight around what's left. ⌘Z brings the full size back in one step.
+4. Choose **Trim** again on the trimmed picture: a beep, since there's no border left.
 
 ### Test: Stage 17: Photo geometry
 

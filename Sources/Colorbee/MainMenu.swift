@@ -107,6 +107,7 @@ enum MainMenu {
         "showGraduatedSelection:": "Drag a line: fully selected where it starts, fading to nothing where it ends.",
         "showLuminanceRange:": "Select by brightness: the shadows, midtones or highlights.",
         "pasteInPlace:": "Paste exactly where the copied pixels came from, in this image or another one.",
+        "trim:": "Crop away a transparent or one-color border in one click.",
         "newSnapshot:": "Name the image as it is now, so you can go back to it from the History panel.",
         "showFeather:": "Soften the selection's edge, so changes fade out across it.",
         "showExpandSelection:": "Grow the selection outward by a number of pixels.",
@@ -288,6 +289,7 @@ enum MainMenu {
         let menu = NSMenu(title: "Image")
         menu.addItem(item("Crop to Selection", "cropToSelection:", "x", [.command, .shift]))
         menu.addItem(item("Crop…", "showCrop:"))
+        menu.addItem(item("Trim", "trim:"))
         menu.addItem(item("Resize and Skew…", "showResizeSkew:", "e"))
         menu.addItem(item("Canvas Properties…", "showCanvasProperties:", "e", [.command, .option]))
         menu.addItem(.separator())

@@ -179,6 +179,7 @@ final class DocumentWindow: NSWindow {
     @objc func showBorder(_ sender: Any?) { editor?.beginEffect(.border) }
     @objc func showSpotlight(_ sender: Any?) { editor?.beginEffect(.spotlight) }
     @objc func showCrop(_ sender: Any?) { editor?.beginEffect(.crop) }
+    @objc func trim(_ sender: Any?) { editor?.trim() }
     @objc func selectSubject(_ sender: Any?) { editor?.findSubject(.select) }
     @objc func showColorRange(_ sender: Any?) { editor?.beginEffect(.colorRange) }
     @objc func showLuminanceRange(_ sender: Any?) { editor?.beginEffect(.luminanceRange) }
@@ -471,7 +472,7 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(applyAdjustment(_:)):
             return LayerActions.canApplyAdjustment(editor.canvas)
-        case #selector(newSnapshot(_:)):
+        case #selector(newSnapshot(_:)), #selector(trim(_:)):
             return true
         case #selector(undoOnActiveLayer(_:)):
             let name = editor.undoOnActiveLayerName

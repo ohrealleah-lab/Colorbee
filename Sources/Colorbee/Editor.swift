@@ -2852,6 +2852,15 @@ final class Editor {
         performSelectionCommand { ImageActions.cropToSelection(canvas: canvas, history: history, context: selectionContext) }
     }
 
+    /// Image ▸ Trim: the border found from everything shown, and every layer cropped to what's inside it, as one step.
+    /// Nothing to trim beeps.
+    func trim() {
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        guard let kept = Trim.keptBounds(of: canvas.flattened()) else { return onRefused() }
+        performSelectionCommand { ImageActions.crop(to: kept, named: "Trim", canvas: canvas, history: history, context: selectionContext) }
+    }
+
     /// Keeps the zoom and recenters on the new canvas.
     private func canvasDidResize() {
         canvasSize = canvas.size

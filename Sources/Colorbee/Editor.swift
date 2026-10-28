@@ -3782,6 +3782,12 @@ final class Editor {
     /// The picture as it looks now, for Adjust Photo's histogram: worked out from a small copy after each change.
     private(set) var photoHistogram: Histogram?
     @ObservationIgnored private var photoHistogramScheduled = false
+    @ObservationIgnored private var lastPhotoHistogram: ContinuousClock.Instant?
+    /// While a slider is dragged, the histogram follows about ten times a second: worked out on every step, it made
+    /// Exposure stutter, taking up to two frames on an Adjust Photo layer (Leah, 2026-10-28).
+    static let photoHistogramInterval = Duration.milliseconds(100)
+    /// The copy it's worked out from: plenty for its shape, and a quarter of the work of 320.
+    static let photoHistogramSide = 160
     /// Blown highlights shown red, and crushed shadows blue, on the picture only (Q15.2).
     var clipsHighlights = false {
         didSet { renderSoon() }
@@ -3795,15 +3801,19 @@ final class Editor {
         activeEffect == .adjustPhoto || (isSidebarOpen && showsAdjustmentsPanel && activePhotoLayerEdit != nil)
     }
 
-    /// Works out the histogram again once the current change has been drawn; several changes in a row make one.
+    /// Works out the histogram again once the current change has been drawn, at most every `photoHistogramInterval`.
+    /// Changes meanwhile wait for that one, so the last change is always shown.
     func refreshPhotoHistogram() {
         guard !photoHistogramScheduled else { return }
         photoHistogramScheduled = true
+        let wait = lastPhotoHistogram.map { max(.zero, Self.photoHistogramInterval - (ContinuousClock.now - $0)) } ?? .zero
         Task { @MainActor [weak self] in
+            if wait > .zero { try? await Task.sleep(for: wait) }
             guard let self else { return }
             photoHistogramScheduled = false
+            lastPhotoHistogram = .now
             guard showsPhotoControls else { return }
-            photoHistogram = Histogram(canvas.thumbnail(maxSide: 320))
+            photoHistogram = Histogram(canvas.thumbnail(maxSide: Self.photoHistogramSide))
         }
     }
 

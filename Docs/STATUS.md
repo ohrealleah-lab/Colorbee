@@ -13,7 +13,7 @@ _Last updated: 2026-10-28 · 636 core tests and 187 app tests passing; `make per
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting: stages 1b to 6 and the faster Color Grading passed (Leah, 2026-10-28).
+- [Lifting one subject after another](#test-lifting-one-subject-after-another)
 
 ---
 
@@ -504,6 +504,13 @@ Test image: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first for a 
 5. Press **Apply**, then ⌘Z: the whole Adjust Photo change comes back off in one step.
 6. Add an adjustment layer (**Layer ▸ New Adjustment Layer ▸ Hue/Saturation**). In the Adjustments panel, drag sideways on the **Saturation** name line: the slider follows. ⌘Z once undoes that drag.
 7. Hover the wand mark next to a slider that **Auto** moved (press Auto in Adjust Photo first): check whether "Set by Auto" still shows. If not, tell me.
+
+### Test: Lifting one subject after another
+
+Test image: Leah's `Downloads/test.jpeg` (not in the repo: it's a personal screenshot). Run `make run` first for a fresh Release copy.
+1. Open the picture and choose **Layer ▸ Lift Subject to New Layer**. Click the **bat in the upper right**. A new **Subject** layer appears just above the picture's layer, and the picture's layer is still the highlighted (active) one.
+2. Choose **Lift Subject to New Layer** again and click the **catgirl**. A second **Subject** layer appears with her on it. Hide the bottom layer to check.
+3. ⌘Z twice: both Subject layers go, one per ⌘Z, and the picture is as it was.
 
 ### Test: Small subjects (passed 2026-10-27)
 

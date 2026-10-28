@@ -134,9 +134,9 @@ public enum SubjectActions {
         apply(mask, to: lifted)
         let edit = history.beginEdit("Lift Subject", on: canvas)
         edit.willChangeLayers()
-        let index = canvas.indexAboveActiveLayer
-        canvas.insertLayer(Layer(name: "Subject", buffer: lifted), at: index)
-        canvas.activeLayerIndex = index
+        // The picture's layer stays active, so the next lift finds subjects in the picture, not in this one
+        // (Leah, 2026-10-28).
+        canvas.insertLayer(Layer(name: "Subject", buffer: lifted), at: canvas.indexAboveActiveLayer)
         return history.commit(edit)
     }
 

@@ -2895,7 +2895,7 @@ final class Editor {
             switch action {
             case .removeBackground: SubjectActions.removeBackground(mask, canvas: canvas, history: history, context: selectionContext)
             case .liftToNewLayer:
-                // The new Subject layer is active and the only one chosen, as after New Layer (review T, finding 4).
+                // The picture's layer stays active and is the only one chosen (review T, finding 4; Leah, 2026-10-28).
                 if SubjectActions.liftToNewLayer(mask, canvas: canvas, history: history, context: selectionContext) { otherChosenLayerIDs = [] }
             case .select: SubjectActions.select(mask, canvas: canvas, history: history, context: selectionContext)
             }

@@ -43,9 +43,10 @@ struct SubjectTests {
         let history = History(byteBudget: .max)
         let original = canvas.layers[0].buffer.contentHash()
         #expect(SubjectActions.liftToNewLayer(scan().mask(for: [1]), canvas: canvas, history: history, context: context))
-        #expect(canvas.layers.count == 2 && canvas.activeLayerIndex == 1 && canvas.activeLayer.name == "Subject")
+        // The picture's layer stays active, so another lift searches the picture again (Leah, 2026-10-28).
+        #expect(canvas.layers.count == 2 && canvas.activeLayerIndex == 0 && canvas.layers[1].name == "Subject")
         #expect(canvas.layers[0].buffer.contentHash() == original)
-        #expect(canvas.activeLayer.buffer[8, 0].a == 255 && canvas.activeLayer.buffer[1, 0].a == 0)
+        #expect(canvas.layers[1].buffer[8, 0].a == 255 && canvas.layers[1].buffer[1, 0].a == 0)
         history.undo(on: canvas)
         #expect(canvas.layers.count == 1)
     }

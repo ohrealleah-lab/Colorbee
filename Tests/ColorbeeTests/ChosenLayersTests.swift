@@ -123,11 +123,13 @@ struct ChosenLayersTests {
         #expect(!editor.hasSeveralChosenLayers)
     }
 
-    @Test func liftingASubjectChoosesJustTheNewLayer() {
+    @Test func liftingASubjectChoosesJustThePicturesLayer() {
         let editor = editor()
         editor.chooseLayer(at: 3, extending: false, toggling: true)
+        let picture = editor.canvas.activeLayer.id
         editor.perform(.liftToNewLayer, mask: [UInt8](repeating: 255, count: 64))
-        #expect(editor.canvas.activeLayer.name == "Subject" && !editor.hasSeveralChosenLayers)
+        #expect(editor.canvas.activeLayer.id == picture && !editor.hasSeveralChosenLayers)
+        #expect(editor.canvas.layers[editor.canvas.activeLayerIndex + 1].name == "Subject")
     }
 
     @Test func addingALayerChoosesJustIt() {

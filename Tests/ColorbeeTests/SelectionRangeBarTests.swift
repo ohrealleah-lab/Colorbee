@@ -102,6 +102,21 @@ struct SelectionRangeBarTests {
         let highlights = try #require(editor.canvas.selection.marquee)
         #expect(highlights[63, 4] == 255 && highlights[0, 4] == 0)
     }
+
+    @Test func theBarShowsWhichPresetIsInUse() {
+        let editor = makeEditor()
+        #expect(editor.luminancePresetIndex == nil)
+        editor.beginEffect(.luminanceRange)
+        #expect(editor.luminancePresetIndex == 0)
+        editor.setLuminanceRange(.highlights)
+        #expect(editor.luminancePresetIndex == 2)
+        // Dragging a handle off the preset leaves none chosen; dragging it back chooses it again.
+        editor.effectValues[0] = 60
+        #expect(editor.luminancePresetIndex == nil)
+        editor.effectValues[0] = 70
+        #expect(editor.luminancePresetIndex == 2)
+        editor.cancelEffect()
+    }
 }
 
 /// Edit ▸ Graduated Selection (FR-9.7 item 3), dragged the way `CanvasView` does.

@@ -307,9 +307,10 @@ Test files: `TestImages/Stage 9 Practice Photo.png`, `TestImages/Photo Editing/C
    changes.
 5. Draw a box selection over the hills. Choose **Color Range…**, click **Add** in the bar, then click the sky: the
    sky and the box are both untinted. Press Return: both are selected.
-6. Open `Color Chart.png` and choose Edit ▸ **Luminance Range…**: it opens at Shadows (0–30). On the gray ramp, only
-   the dark end is untinted, fading in. Click **Highlights**: the light end instead. Drag the two handles and
-   Smoothness: the untinted part follows. Press Return.
+6. Open `Color Chart.png` and choose Edit ▸ **Luminance Range…**: it opens at Shadows (0–30), with **Shadows** blue.
+   On the gray ramp, only the dark end is untinted, fading in. Click **Highlights**: it turns blue, and the light end
+   is untinted instead. Drag the two handles and Smoothness: the untinted part follows, and once the range isn't
+   70–100 none of the three is blue. Press Return.
 7. Open `TestImages/Stage 9 Practice Cutout.png`, choose **Color Range…** and click the empty checkerboard: a beep.
 
 ### Test: Stage 8: Paste in Place

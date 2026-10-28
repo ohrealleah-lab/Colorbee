@@ -630,11 +630,16 @@ private struct LuminanceRangeControls: View {
                 .monospacedDigit()
                 .fixedSize()
                 .frame(width: 52, alignment: .leading)
-            HStack(spacing: 2) {
-                Button("Shadows") { editor.setLuminanceRange(.shadows) }
-                Button("Midtones") { editor.setLuminanceRange(.midtones) }
-                Button("Highlights") { editor.setLuminanceRange(.highlights) }
+            // Shows the preset in use; none is chosen once the handles are dragged off every preset.
+            Picker("Preset", selection: Binding(get: { editor.luminancePresetIndex }, set: { index in
+                if let index { editor.setLuminanceRange(Editor.luminancePresets[index].range) }
+            })) {
+                ForEach(Array(Editor.luminancePresets.enumerated()), id: \.offset) { index, preset in
+                    Text(preset.title).tag(Int?.some(index))
+                }
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
             .fixedSize()
         }
     }

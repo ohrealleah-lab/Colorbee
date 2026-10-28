@@ -193,7 +193,7 @@ enum EffectKind: CaseIterable {
             Parameter(label: "Fuzziness", range: 0...100, defaultValue: 25, unit: "%"),
             Parameter(label: "Selection", range: 0...3, defaultValue: 0, unit: "", options: Self.combineOptions),
         ]
-        // From and To are shown as one two-handle slider, with the Shadows, Midtones and Highlights buttons.
+        // From and To are shown as one two-handle slider, with the Shadows, Midtones and Highlights choices.
         case .luminanceRange: [
             Parameter(label: "From", range: 0...100, defaultValue: LuminanceRange.shadows.lower, unit: ""),
             Parameter(label: "To", range: 0...100, defaultValue: LuminanceRange.shadows.upper, unit: ""),
@@ -2705,7 +2705,17 @@ final class Editor {
                 Point2D(x: point.x + across.x * high, y: point.y + across.y * high))
     }
 
-    /// Luminance Range's Shadows, Midtones and Highlights buttons.
+    /// Luminance Range's presets, in the order the bar shows them.
+    static let luminancePresets: [(title: String, range: LuminanceRange)] =
+        [("Shadows", .shadows), ("Midtones", .midtones), ("Highlights", .highlights)]
+
+    /// The preset whose From and To the bar's values match, shown chosen; nil once the handles leave every preset.
+    var luminancePresetIndex: Int? {
+        guard activeEffect == .luminanceRange, effectValues.count > 1 else { return nil }
+        return Self.luminancePresets.firstIndex { $0.range.lower == effectValues[0] && $0.range.upper == effectValues[1] }
+    }
+
+    /// Luminance Range's Shadows, Midtones and Highlights choices.
     func setLuminanceRange(_ range: LuminanceRange) {
         guard activeEffect == .luminanceRange, effectValues.count > 1 else { return }
         effectValues[0] = range.lower

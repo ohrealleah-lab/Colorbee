@@ -1120,6 +1120,30 @@ Each stage starts with its FRD section drafted for your approval (Q0.1).
 6. **Done when:** exact-path tests pass, and `make bench` shows unchanged latency at 0% (I'll ask before running
    it). Help (`tools.html`) is updated.
 
+### Stage 32. Overnight monkey test (Leah, 2026-10-29)
+
+Last, once every stage is built and hardened: a program that drives the editor headless all night, with no AI
+running, to find the complicated bugs a hand test can miss.
+
+1. **What gets built:** a test runner that does thousands of random but legal things to small documents (draw,
+   paste, move, lock, add and merge layers, adjustments, snapshots, crop, rotate, undo, redo, save and reopen). After
+   each step it checks the rules that must always hold: undo all the way gives back the exact picture; redo gives
+   back the exact result; the screen's composite matches the export; a saved project reopens the same; nothing
+   crashes; memory stays within the history budget. Every run uses a seed, so any failure can be replayed exactly
+   and shrunk to the shortest list of steps that shows it.
+2. **Depends on:** every other stage. **Touches:** a new test target or `make monkey`, plus small hooks so it can
+   drive the `Editor` as `CanvasView` does. No app behavior changes.
+3. **Risks**
+   - **Memory and heat:** it must stay gentle (small canvases, one core's worth of work) so it can't upset the Mac
+     the way the soak test did.
+   - **False alarms:** some rules have known, chosen exceptions (FRD §23); the checks must know them.
+   - It never touches your settings, clipboard or files outside a scratch folder.
+   - Questions: Q32.1 to Q32.3.
+4. **Size:** M. **Opus, high.**
+5. **How you use it:** run `make monkey` at bedtime. In the morning it has written a short report: how many steps
+   ran, and each failure as plain numbered steps. I turn each failure into a test and a fix.
+6. **Done when:** a full night runs on the finished app, and its report's failures are fixed or recorded as known.
+
 ---
 
 ## 7. What can be built together, and what must not
@@ -1189,6 +1213,7 @@ build time.
 | 29 | Re-editable text 1 | §23 text | L | High | 25, 27 |
 | 30 | Re-editable text 2 | §23 text | M | High | 29 |
 | 31 | Stroke smoothing | §23 smoothing | M | High | — |
+| 32 | Overnight monkey test | Leah, 2026-10-29 | M | High | all |
 
 All Opus. FR-8.6 is already built, so it has no stage.
 
@@ -1545,3 +1570,12 @@ _Added after the review (2026-10-27):_
 - **Q31.3** The line catches up to the pointer on release? *Recommend yes.*
 - **Q31.4** A "pulled string" feel (the line moves only once the pointer pulls away), as Photoshop does?
   *Recommend yes.* I'll give you a test build to try before finishing.
+
+### Before stage 32
+
+- **Q32.1** How long a run: all night until you stop it, or a set number of hours? *Recommend a set time (8 hours) that
+  you can change, so it always finishes and writes its report.*
+- **Q32.2** On a failure, stop or keep going? *Recommend keep going, collecting up to 20 different failures, so one
+  night finds as much as it can.*
+- **Q32.3** Also run it with Release speed checks, so it notices when something gets slow? *Recommend no at first:
+  timing on a sleeping, busy Mac gives false alarms. Speed stays with `make perf`.*

@@ -4442,6 +4442,53 @@ final class Editor {
         layerCommand { LayerActions.stampVisible(canvas: canvas, history: history, context: selectionContext) }
     }
 
+    // MARK: Align and Distribute (stage 24)
+
+    /// The chosen layers with pixels to line up: adjustment layers have none.
+    private var chosenPixelLayers: [Layer] {
+        canvas.layers.filter { chosenLayerIDs.contains($0.id) && $0.adjustment == nil }
+    }
+
+    var canAlignChosenLayers: Bool {
+        let layers = chosenPixelLayers
+        return !layers.isEmpty && !canvas.layers.contains { chosenLayerIDs.contains($0.id) && $0.isLocked }
+    }
+
+    var canDistributeChosenLayers: Bool { canAlignChosenLayers && chosenPixelLayers.count >= 3 }
+
+    /// Layer ▸ Align: the chosen layers' visible pixels lined up, as one step. They line up with the selection if
+    /// there is one; otherwise one layer lines up with the canvas, and several with the box around them all (Q24.3).
+    func alignChosenLayers(_ alignment: LayerAlignment) {
+        guard canAlignChosenLayers else { return onRefused() }
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        let layers = chosenPixelLayers
+        let boxes = layers.compactMap(\.buffer.visibleBounds)
+        let reference = canvas.selection.marquee.map { $0.bounds.intersection(canvas.bounds) }
+            ?? (layers.count == 1 ? canvas.bounds : boxes.dropFirst().reduce(boxes.first ?? canvas.bounds) { $0.union($1) })
+        moveChosenLayers(LayerAlign.offsets(aligning: layers, to: alignment, reference: reference), named: "Align \(alignment.title)")
+    }
+
+    /// Layer ▸ Align ▸ Distribute: equal gaps between three or more chosen layers, as one step.
+    func distributeChosenLayers(_ distribution: LayerDistribution) {
+        guard canDistributeChosenLayers else { return onRefused() }
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        moveChosenLayers(LayerAlign.offsets(distributing: chosenPixelLayers, distribution), named: distribution.title)
+    }
+
+    private func moveChosenLayers(_ offsets: [LayerID: IntPoint], named name: String) {
+        var refusal: LayerAlign.Refusal?
+        recordingChanges { refusal = LayerAlign.move(offsets, named: name, canvas: canvas, history: history, context: selectionContext) }
+        // Pixels past the canvas's edge would be lost, so nothing moves (Q24.1).
+        if case .offCanvas(let layer) = refusal {
+            onRefused()
+            showNotice("That would push part of “\(layer)” off the canvas, so nothing moved.")
+        }
+        layersRevision += 1
+        onRender()
+    }
+
     /// Layer ▸ Select All Layers (⌥⌘A): every layer is chosen, hidden and adjustment layers too (Q22.2).
     func selectAllLayers() {
         finishInteractions()

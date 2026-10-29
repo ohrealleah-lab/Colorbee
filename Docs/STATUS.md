@@ -15,6 +15,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 - [Stage 22: Select All Layers, isolate a layer, Stamp Visible](#test-stage-22-select-all-layers-isolate-a-layer-stamp-visible) (2026-10-28; stages 22 to 24 are built in a row, then tested together)
 - [Stage 23: Lock transparent pixels](#test-stage-23-lock-transparent-pixels) (2026-10-28)
+- [Stage 24: Align and Distribute](#test-stage-24-align-and-distribute) (2026-10-28)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -84,6 +85,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 21. Auto-redact faces | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 22. Select All Layers, isolate a layer, Stamp Visible | Built 2026-10-28; waiting for Leah's test (with stages 23 and 24) | Medium |
 | 14 · 23. Lock transparent pixels | Built 2026-10-28; waiting for Leah's test (with stages 22 and 24) | High |
+| 14 · 24. Align and Distribute | Built 2026-10-28; waiting for Leah's test (with stages 22 and 23) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -165,6 +167,8 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   `Edit.keepLockedTransparency`, from history's before-images: at commit and before each frame
   (`Canvas.keepLockedTransparency`, called by the renderer). `Canvas.erasedFill` paints Color 2 for the Eraser, Cut
   and Delete.
+- Stage 24 (2026-10-28): Layer ▸ Align and Distribute (`LayerAlign.swift`: boxes from `PixelBuffer.visibleBounds`,
+  each move one layer step that swaps in a moved buffer).
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -332,6 +336,19 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 24: Align and Distribute
+
+Test file: `TestImages/Several Layers/Align Practice.colorproj` (three colored badges, each on its own layer). Run
+`make run` first.
+1. Click Badge 1, then Shift-click Badge 3, so all three badges are chosen. Choose Layer ▸ Align ▸ **Left**: their
+   left edges line up. ⌘Z.
+2. With the three still chosen, choose Align ▸ **Distribute Vertically**: the gaps between them, top to bottom, are
+   equal. ⌘Z.
+3. Click just Badge 2, then Align ▸ **Centers** and then **Middle**: it sits in the middle of the canvas. ⌘Z twice.
+4. With just Badge 3 chosen, draw a small selection near the right edge, then Align ▸ **Left**: a message says it
+   would push part of Badge 3 off the canvas, and nothing moves.
+5. Lock Badge 1 and choose all three: the Align items are greyed out.
 
 ### Test: Stage 23: Lock transparent pixels
 

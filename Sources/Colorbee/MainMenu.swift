@@ -96,6 +96,14 @@ enum MainMenu {
         "mergeDown:": "Combine the active layer into the one below, or the chosen layers into one, keeping how they look.",
         "mergeVisible:": "Combine every visible layer into one. Hidden layers stay.",
         "toggleLayerTransparencyLock:": "Recolor the layer but keep its clear area clear, so a cutout or shape keeps its outline.",
+        "alignLeft:": "Line up the chosen layers' left edges (one layer: with the canvas; with a selection: with it).",
+        "alignCenters:": "Line up the chosen layers' centers, across.",
+        "alignRight:": "Line up the chosen layers' right edges.",
+        "alignTop:": "Line up the chosen layers' top edges.",
+        "alignMiddle:": "Line up the chosen layers' middles, down.",
+        "alignBottom:": "Line up the chosen layers' bottom edges.",
+        "distributeHorizontally:": "Space three or more chosen layers with equal gaps across.",
+        "distributeVertically:": "Space three or more chosen layers with equal gaps down.",
         "stampVisible:": "Add a layer holding everything visible, merged, and keep the layers as they are.",
         "selectAllLayers:": "Choose every layer, to change or move them together.",
         "flattenImage:": "Combine all visible layers into one and drop hidden layers.",
@@ -351,6 +359,8 @@ enum MainMenu {
         menu.addItem(item("Stamp Visible", "stampVisible:"))
         menu.addItem(item("Flatten", "flattenImage:"))
         menu.addItem(.separator())
+        menu.addItem(submenu(alignMenu()))
+        menu.addItem(.separator())
         menu.addItem(submenu(adjustmentLayerMenu()))
         menu.addItem(item("Merge Adjustment", "applyAdjustment:"))
         menu.addItem(item("Revert Layer", "revertLayer:"))
@@ -359,6 +369,22 @@ enum MainMenu {
         menu.addItem(item("Lock Layer", "toggleLayerLock:"))
         menu.addItem(item("Lock Transparent Pixels", "toggleLayerTransparencyLock:"))
         menu.addItem(item("Layer Properties…", "showLayerProperties:"))
+        return menu
+    }
+
+    /// Layer ▸ Align (stage 24): each its own command, so each can have a key in the shortcut editor.
+    private static func alignMenu() -> NSMenu {
+        let menu = NSMenu(title: "Align")
+        menu.addItem(item("Left", "alignLeft:"))
+        menu.addItem(item("Centers", "alignCenters:"))
+        menu.addItem(item("Right", "alignRight:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Top", "alignTop:"))
+        menu.addItem(item("Middle", "alignMiddle:"))
+        menu.addItem(item("Bottom", "alignBottom:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Distribute Horizontally", "distributeHorizontally:"))
+        menu.addItem(item("Distribute Vertically", "distributeVertically:"))
         return menu
     }
 

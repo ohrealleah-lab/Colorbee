@@ -262,6 +262,14 @@ final class DocumentWindow: NSWindow {
     @objc func mergeDown(_ sender: Any?) { editor?.mergeDown() }
     @objc func mergeVisible(_ sender: Any?) { editor?.mergeVisible() }
     @objc func stampVisible(_ sender: Any?) { editor?.stampVisible() }
+    @objc func alignLeft(_ sender: Any?) { editor?.alignChosenLayers(.left) }
+    @objc func alignCenters(_ sender: Any?) { editor?.alignChosenLayers(.centers) }
+    @objc func alignRight(_ sender: Any?) { editor?.alignChosenLayers(.right) }
+    @objc func alignTop(_ sender: Any?) { editor?.alignChosenLayers(.top) }
+    @objc func alignMiddle(_ sender: Any?) { editor?.alignChosenLayers(.middle) }
+    @objc func alignBottom(_ sender: Any?) { editor?.alignChosenLayers(.bottom) }
+    @objc func distributeHorizontally(_ sender: Any?) { editor?.distributeChosenLayers(.horizontally) }
+    @objc func distributeVertically(_ sender: Any?) { editor?.distributeChosenLayers(.vertically) }
     @objc func selectAllLayers(_ sender: Any?) { editor?.selectAllLayers() }
     /// With hidden layers, asks first: flattening keeps only what's visible (Leah, 2026-10-04).
     @objc func flattenImage(_ sender: Any?) {
@@ -505,6 +513,11 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(mergeVisible(_:)):
             return LayerActions.canMergeVisible(editor.canvas)
+        case #selector(alignLeft(_:)), #selector(alignCenters(_:)), #selector(alignRight(_:)), #selector(alignTop(_:)),
+             #selector(alignMiddle(_:)), #selector(alignBottom(_:)):
+            return editor.canAlignChosenLayers
+        case #selector(distributeHorizontally(_:)), #selector(distributeVertically(_:)):
+            return editor.canDistributeChosenLayers
         case #selector(stampVisible(_:)):
             return editor.canvas.layers.contains(where: \.isVisible)
         case #selector(selectAllLayers(_:)):

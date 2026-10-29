@@ -389,6 +389,11 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
   shown or hidden meanwhile, the second Option-click shows everything. Each is one undo step (stage 22).
 - **Stamp Visible** (Layer menu, no key): a new layer named "Stamp", just above the active one, holding everything
   visible merged as it looks; the layers stay as they are. One undo step (stage 22).
+- **Align and Distribute** (Layer ▸ Align, stage 24): Left, Centers, Right, Top, Middle and Bottom line up the chosen
+  layers by the box around each one's visible pixels: with the selection if there is one; otherwise one layer with
+  the canvas, and several with the box around them all. Distribute Horizontally and Vertically give three or more
+  chosen layers equal gaps, the outer two staying put. Each is one undo step. If a move would push pixels off the
+  canvas, nothing moves and a message says so. Greyed out if a chosen layer is locked.
 - **Right-click menu on a layer:** New Layer and New Adjustment Layer ▸ (every kind, as in the Layer menu), each
   added just above that layer; then Merge Down (or Merge Layers), Duplicate, Delete, Hide/Show, Lock/Unlock,
   Rename and Layer Properties. Rename is greyed out while several layers are chosen. Right-clicking (or Control-clicking) a layer that isn't chosen chooses it alone, and
@@ -904,6 +909,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-28 | **Stage 24 built** (my choices, veto any): Align is a submenu at the end of the Layer menu's merge group; each item is its own command, with no keys, so the shortcut editor can give them keys. Several chosen layers with a selection line up with the selection, as in Photoshop. Adjustment and empty layers among the chosen don't move. Distribute keeps the leftmost (or topmost) and rightmost (or bottommost) layers where they are and rounds each gap to whole pixels. The off-canvas message shows at the bottom of the canvas, with a beep. |
 | 2026-10-28 | **Stage 23 built** (my choices, veto any): the padlock shows a closed lock for Lock All and a lock in a square for Lock Transparent Pixels. Lock Transparent Pixels is also in the Layer menu, after Lock Layer, with no key, and works on every chosen pixel layer. Where a pixel was clear, the whole pixel comes back exactly (color included); a half-clear pixel keeps its opacity with its new color. New canvas space, skew corners and Perspective's edges stay clear on such a layer, since they move its outline. Duplicating a layer keeps the lock. |
 | 2026-10-28 | **Stage 22 built** (my choices, veto any): Select All Layers sits after Lift Subject in the Layer menu, and Stamp Visible after Merge Visible. Isolating is named "Show Only “Green”" in the History panel, and bringing them back "Show Layers". Option-clicking the eye of a layer that's already the only one showing shows everything, as in Photoshop. Stamp Visible becomes the active layer. |
 | 2026-10-28 | **Stages 22 to 24 answers** (Leah: "use your recommendations", Q22.1 to Q24.4 in `Docs/Development-Plan.md`; built one after another, then hand tested together). **Stage 22:** Select All Layers on ⌥⌘A, including hidden and adjustment layers; isolating a layer, and undoing it, are each one undo step; if visibility changes while isolated, the second Option-click shows everything; Stamp Visible goes just above the active layer, named "Stamp", with no default key. **Stage 23:** the padlock becomes a small menu (Lock All, Lock Transparent Pixels) and the row shows which; the Eraser on such a layer paints Color 2 inside the shape, with no holes; every tool, effect, adjustment and Delete respects it. **Stage 24:** Align refuses with a message when it would push pixels off the canvas; it goes by each layer's visible pixels; one chosen layer aligns to the canvas, or to the selection if there is one; greyed out if a chosen layer is locked. |

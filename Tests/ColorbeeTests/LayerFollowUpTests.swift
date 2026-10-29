@@ -74,3 +74,43 @@ struct LayerFollowUpTests {
         #expect(editor.canvas.layers.count == count && editor.imageHash == shown)
     }
 }
+
+/// Layer ▸ Align and Distribute (stage 24), as the menu runs them.
+@MainActor
+struct AlignAppTests {
+    private func badges() -> Editor {
+        let editor = makeEditor(width: 60, height: 40)
+        for box in [IntRect(x: 5, y: 2, width: 6, height: 6), IntRect(x: 30, y: 15, width: 8, height: 4), IntRect(x: 20, y: 30, width: 4, height: 8)] {
+            editor.addLayer()
+            editor.canvas.activeLayer.buffer.fill(.black, in: box)
+        }
+        return editor
+    }
+
+    @Test func severalLayersLineUpWithEachOtherAndOneWithTheCanvas() {
+        let editor = badges()
+        editor.selectAllLayers()
+        #expect(editor.canAlignChosenLayers && editor.canDistributeChosenLayers)
+        editor.alignChosenLayers(.left)
+        #expect(editor.canvas.layers.dropFirst().allSatisfy { $0.buffer.visibleBounds?.minX == 0 })
+        #expect(editor.stepNames.last == "Align Left")
+        editor.undo()
+        // One layer centers on the canvas.
+        editor.selectLayer(at: 2)
+        editor.alignChosenLayers(.centers)
+        #expect(editor.canvas.layers[2].buffer.visibleBounds?.minX == 26)
+    }
+
+    @Test func aLockedChosenLayerGreysItOutAndOffCanvasRefuses() throws {
+        let editor = badges()
+        editor.selectLayer(at: 1)
+        editor.selectionDrag(from: pt(50.5, 0.5), to: pt(58.5, 10.5))
+        var refused = 0
+        editor.onRefused = { refused += 1 }
+        // The 6-wide badge fits inside the selection's right edge; aligning left to x 50 is fine.
+        editor.alignChosenLayers(.left)
+        #expect(editor.canvas.layers[1].buffer.visibleBounds?.minX == 50 && refused == 0)
+        editor.setLayerLocked(true, at: 1)
+        #expect(!editor.canAlignChosenLayers)
+    }
+}

@@ -415,7 +415,7 @@ Several layers, the keyboard and pointer fixes, the save folder, small subjects,
 
 ---
 
-# Code review round 9 ([PLAN-10.md](PLAN-10.md)), 2026-10-29 (waiting for Leah's test)
+# Code review round 9 ([PLAN-10.md](PLAN-10.md)), 2026-10-29 (passed Leah's test 2026-10-29)
 
 Leah's answers are in FRD §23 (2026-10-29), with my own choices in the row after. Each fix has a test where code can
 check it, but they weren't each re-run against the old code; the ones marked "by hand" can only be seen in the app.

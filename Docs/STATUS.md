@@ -13,7 +13,6 @@ _Last updated: 2026-10-29 · 754 core tests and 257 app tests passing (review ro
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Review round 9 fixes](#test-review-round-9-fixes) (2026-10-29)
 - [Stage 22: Select All Layers, isolate a layer, Stamp Visible](#test-stage-22-select-all-layers-isolate-a-layer-stamp-visible) (2026-10-28; stages 22 to 24 are built in a row, then tested together)
 - [Stage 23: Lock transparent pixels](#test-stage-23-lock-transparent-pixels) (2026-10-28)
 - [Stage 24: Align and Distribute](#test-stage-24-align-and-distribute) (2026-10-28)
@@ -340,7 +339,8 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ### Test: Review round 9 fixes
 
-Results in [Review/RESULTS.md](Review/RESULTS.md), round 9. Grouped by picture. When you close a test picture, choose
+**All 16 steps passed Leah's hand test on 2026-10-29** (step 3 after a second fix to Reset Range). Results in
+[Review/RESULTS.md](Review/RESULTS.md), round 9. Grouped by picture. When you close a test picture, choose
 **Don't Save**, so the test images stay as they are. Show the panels you need from the View menu: Layers (⌘L),
 Adjustments, History (⌘Y).
 

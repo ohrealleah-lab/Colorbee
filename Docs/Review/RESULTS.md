@@ -437,7 +437,7 @@ check it, but they weren't each re-run against the old code; the ones marked "by
 
 | # | Severity | Finding | Outcome |
 |---|---|---|---|
-| 1 | High | Point Color's gray Range view could get stuck and be applied, exported and copied | **Fixed.** Reset Range ends the view, and it's stripped from anything applied, kept, copied, saved as a filter or left on a layer. App test. |
+| 1 | High | Point Color's gray Range view could get stuck and be applied, exported and copied | **Fixed.** Reset Range puts Range back to the middle with the view off in one change (a first fix put the old Range back; found in Leah's test), and the view is stripped from anything applied, kept, copied, saved as a filter or left on a layer. Core and app tests. |
 | 2 | Medium | Beta 7 opened an Adjust Photo layer with a look as an empty layer | **Fixed (Leah's rule).** Looks are written where beta 7 doesn't read, with their place in the list, in projects, the filter list and .colorbeefilter files. Core test with a copy of beta 7's strict reading. |
 | 3 | Medium | Importing a big .cube look froze Colorbee | **Fixed.** Number lines are read straight from the bytes (a 65-point look in about 70 ms, was 0.86 s), the import runs in the background, and the filter list is written in the background. Release test in `make perf`. |
 | 4 | Medium | Same as Last worked the whole photo out on the main thread | **Fixed.** It works from a copy in the background and is applied as one step; if the picture changes meanwhile, nothing is applied and a notice says so. App tests. |

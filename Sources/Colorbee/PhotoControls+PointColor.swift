@@ -58,6 +58,9 @@ extension PhotoControls {
                         changed.showsRangeOf = nil
                         change(changed)
                         onFinish()
+                    }, reset: {
+                        change(colors.resettingRange(of: chosen))
+                        onFinish()
                     }) { value in
                         var changed = colors
                         changed[chosen].range = value

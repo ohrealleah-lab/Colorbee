@@ -12,6 +12,16 @@ struct PointColorsTests {
         PointColors([.init(color: color, hue: hue, saturation: saturation, range: range)])
     }
 
+    /// Reset Range puts the Range back to the middle and turns the gray view off, in one change (Leah's test of
+    /// review V, finding 1).
+    @Test func resetRangeGoesBackToTheMiddleWithTheViewOff() {
+        var colors = PointColors([PointColors.Swatch(color: Pixel(r: 220, g: 40, b: 40), hue: 50, range: 80)])
+        colors.showsRangeOf = 0
+        let reset = colors.resettingRange(of: 0)
+        #expect(reset[0].range == 50 && reset[0].hue == 50)
+        #expect(reset.showsRangeOf == nil)
+    }
+
     @Test func aHueShiftMovesOnlyThePickedColor() {
         let apply = picked(orange, hue: 50).transform!
         #expect(apply(orange) != orange)

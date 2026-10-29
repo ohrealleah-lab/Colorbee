@@ -60,6 +60,15 @@ public struct PointColors: Sendable, Hashable {
         showsRangeOf = nil
     }
 
+    /// Reset Range: the swatch's Range back to where it starts, with the Range view off, in one change. Done as two,
+    /// the second worked from settings read before the first and put the old Range back.
+    public func resettingRange(of index: Int) -> PointColors {
+        var reset = self
+        if swatches.indices.contains(index) { reset[index].range = Swatch(color: swatches[index].color).range }
+        reset.showsRangeOf = nil
+        return reset
+    }
+
     public subscript(index: Int) -> Swatch {
         get { swatches[index] }
         set { swatches[index] = newValue.cleaned() }

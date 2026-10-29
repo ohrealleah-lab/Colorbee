@@ -300,7 +300,8 @@ struct PhotoControls: View {
     /// shows finer settings; `onEditing` hears when the slider is pressed and let go.
     func row(_ title: String, value: Double, range: ClosedRange<Double>, unit: String, step: Double = 1, moved: Bool = false,
              dropper: Bool = false, swatch: Color? = nil, resetValue: Double = 0, disclosure: Binding<Bool>? = nil,
-             onEditing: ((Bool) -> Void)? = nil, end: (() -> Void)? = nil, set: @escaping (Double) -> Void) -> some View {
+             onEditing: ((Bool) -> Void)? = nil, end: (() -> Void)? = nil, reset: (() -> Void)? = nil,
+             set: @escaping (Double) -> Void) -> some View {
         let snapped = { (value: Double) in step == 1 ? value.rounded() : (value / step).rounded() * step }
         let shown = step == 1 ? "\(Int(value.rounded()))" : value.formatted(.number.precision(.fractionLength(1)))
         return VStack(alignment: .leading, spacing: 3) {
@@ -353,9 +354,9 @@ struct PhotoControls: View {
             // The size the Adjustments panel uses, easier to grab than mini (Leah, 2026-10-27).
             .controlSize(.small)
             .accessibilityLabel(title)
-            // Control-click a slider to put it back to zero.
-            // Through `end`, which turns off a view shown while the slider is held (review V, finding 1).
-            .contextMenu { Button("Reset \(title)") { set(resetValue); (end ?? onFinish)() } }
+            // Control-click a slider to put it back to zero. A row whose slider shows a view while held resets in one
+            // change of its own (review V, finding 1).
+            .contextMenu { Button("Reset \(title)") { if let reset { reset() } else { set(resetValue); onFinish() } } }
         }
     }
 }

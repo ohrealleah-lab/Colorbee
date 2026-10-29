@@ -43,6 +43,8 @@ struct HistoryPanel: View {
                 Image(systemName: "camera").font(.system(size: 12))
             }
             .buttonStyle(.borderless)
+            // Like Edit ▸ New Snapshot…: an open effect would be cancelled (review U, finding 5).
+            .disabled(editor.blocksDocumentCommands)
             .help("New Snapshot: name the image as it is now, to come back to later")
             .accessibilityLabel("New Snapshot")
         }
@@ -53,6 +55,7 @@ struct HistoryPanel: View {
                 help: "Click to go back to “\(snapshot.name)”. ⌘Z comes back here.") {
                 editor.goToSnapshot(snapshot.id)
             }
+            .disabled(editor.blocksDocumentCommands)
             .contextMenu {
                 Button("Rename…") { rename(snapshot) }
                 Button("Delete") { editor.deleteSnapshot(snapshot.id) }
@@ -110,6 +113,7 @@ struct HistoryPanel: View {
 @MainActor
 enum SnapshotPrompt {
     static func newSnapshot(editor: Editor) {
+        guard !editor.blocksDocumentCommands else { return }
         guard editor.historySnapshots.count < History.snapshotLimit else { return tellFull() }
         guard let name = askForName("New Snapshot", message: "Name the image as it is now. Click the name in the History panel to come back to it.",
                                     defaultName: editor.nextSnapshotName, confirm: "Take Snapshot") else { return }

@@ -7,12 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-28 · 730 core tests and 239 app tests passing; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
+_Last updated: 2026-10-29 · 754 core tests and 257 app tests passing (review round 9 fixed); the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Review round 9 fixes](#test-review-round-9-fixes) (2026-10-29)
 - [Stage 22: Select All Layers, isolate a layer, Stamp Visible](#test-stage-22-select-all-layers-isolate-a-layer-stamp-visible) (2026-10-28; stages 22 to 24 are built in a row, then tested together)
 - [Stage 23: Lock transparent pixels](#test-stage-23-lock-transparent-pixels) (2026-10-28)
 - [Stage 24: Align and Distribute](#test-stage-24-align-and-distribute) (2026-10-28)
@@ -336,6 +337,52 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Review round 9 fixes
+
+Results in [Review/RESULTS.md](Review/RESULTS.md), round 9.
+
+1. **Snapshot after a crop.** Open `TestImages/Photo Editing/Color Chart.png`. Edit ▸ New Snapshot…, Take Snapshot.
+   Select the top-left quarter and Image ▸ Crop to Selection. Click "Snapshot 1" in the History panel. Open the Edit
+   menu: Undo on Active Layer is greyed out. ⌘Z brings the cropped picture back.
+2. **Pasting onto a locked layer.** Open `TestImages/Stage 9 Practice Cutout.png`. In the Layers panel's padlock menu
+   choose Lock Transparent Pixels. Rectangle-select part of the object, edge included, and drag it half over the
+   see-through area: only the part over the object shows. Press Return: nothing changes on screen.
+3. **A soft edge put back.** Same picture, ⌘Z back to the start. Set Color 2 to bright red. Select part of the object
+   including its soft edge, press → once, then ← once, then ⌘D. The edge has no red tint.
+4. **A shadow on a locked layer.** Same picture, still locked. Effects ▸ Drop Shadow… with a distance big enough that
+   the canvas grows. Apply: no shadow appears in the see-through area.
+5. **Snapshots wait for an effect.** Show the History panel. Effects ▸ Gaussian Blur…: the camera button and the
+   snapshot rows are greyed out until you Apply or Cancel.
+6. **Isolating after an undo.** Open `TestImages/Several Layers/Opacity Test.colorproj`. Option-click Red's eye (only
+   Red shows), ⌘Z, click Green's eye to hide it, then Option-click Red's eye again: only Red shows.
+7. **Point Color's Range.** Open `Color Chart.png`, Adjustments ▸ Adjust Photo…. In Point Color, click the eyedropper,
+   then the Red patch. Drag its Hue to about +50. Control-click the Range slider ▸ Reset Range: the picture is in full
+   color. Apply: it stays in color.
+8. **White balance through a curve.** Open `Color Chart.png`, Adjust Photo…, click Vivid Cool. In Tone Curve set
+   Darks −100 and Lights +100. Click the eyedropper beside Warmth, then the Gray 128 patch: it comes out gray, not
+   orange.
+9. **Same as Last.** Open `TestImages/Photo Editing/Texture Practice.png`. Adjust Photo…, Sharpness 50, Texture 50,
+   Noise Reduction 50, Apply, then ⌘Z. Adjustments ▸ Adjust Photo: Same as Last: the window doesn't freeze, and the
+   change arrives as one step.
+10. **Esc during a hand drag.** Open `TestImages/Photo Editing/Dull Photo.png`, Layer ▸ New Adjustment Layer ▸ Adjust
+    Photo. In Tone Curve click the hand, press on the picture and drag up, press Esc while holding, then let go: the
+    History panel has a new step and the window shows unsaved changes.
+11. **A wheel's double-click.** Same Adjust Photo layer. In Color Grading's Shadows, drag the point toward blue and let
+    go. Double-click the wheel near its orange edge: the point goes to the middle. ⌘Z: the point goes back to blue.
+12. **Clipped eyedropper.** Open `Opacity Test.colorproj`. Click Red, set its opacity to 50%. Layer ▸ New Adjustment
+    Layer ▸ Adjust Photo, turn on "Only the layer below". In Point Color, eyedropper, click the red block: the new dot
+    is full red, not pale.
+13. **Readout over a paste.** Open `Color Chart.png`. Select a small box inside Red, ⌘C, ⌘V, drag the copy onto Blue.
+    Hover over it: the status bar says `#D92B2B`. ⌃⌘C and paste into TextEdit: the red hex. Open the Edit menu with the
+    mouse: Copy Color as Hex is greyed out.
+14. **Export size limit.** Open `Texture Practice.png`, File ▸ Export… as JPEG, turn on Limit file size, type 50 (KB)
+    and click Save straight away, without Return or Tab. The file is 50 KB or less in Finder.
+15. **Big blur, smooth drawing.** Open `Texture Practice.png`, add a Gaussian Blur adjustment layer at 100. Click the
+    picture layer and draw with the Pencil: no lag.
+16. **Detail blurs while resizing.** Open `Texture Practice.png`, add an Adjust Photo adjustment layer: Texture −100,
+    Noise Reduction 100, Sharpness 30, and Sharpness's Radius 2.5. Drag the window's corner slowly: the picture stays
+    smooth, with no flicker.
 
 ### Test: Stage 24: Align and Distribute
 

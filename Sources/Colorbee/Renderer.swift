@@ -369,11 +369,18 @@ final class Renderer {
             }
             let overlay = layer.id == canvas.activeLayer.id ? scene.overlay : nil
             let hasFloating = floating?.layerID == layer.id
+            // On a layer that locks its transparency it shows clipped to the layer's shape, as placing will leave it.
+            let lockedPatch = hasFloating && layer.locksTransparency
+                ? floating?.placedPatch(on: layer, resampling: scene.smoothFloating ? .smooth : .nearestNeighbor, transparentKey: scene.transparentKey)
+                : nil
+            // A shape or text not yet placed likewise shows only where the lock will keep it.
+            let lockedOverlay = layer.locksTransparency ? overlay.flatMap { Compositing.lockedPatch(of: layer, under: $0.pixels, at: $0.origin) } : nil
             // Objects not yet placed go into their layer before it's blended, so on a layer that isn't Normal
             // at 100% they look as they will once placed (Leah; review F, finding 1).
             // Its clipped adjustments change it alone, so it's drawn on its own first, then blended in.
             let clips = canvas.clippedAdjustments(onLayerAt: index).filter { $0.isVisible && $0.opacity > 0 }
             let isolated = ((hasFloating || overlay != nil) && (layer.blendMode != .normal || layer.opacity < 1)) || !clips.isEmpty
+                || lockedPatch != nil || lockedOverlay != nil
             if isolated {
                 encoder.endEncoding()
                 let isolatedPass = MTLRenderPassDescriptor()
@@ -391,7 +398,13 @@ final class Renderer {
             encoder.setFragmentTexture(texture(for: layer.buffer, live: &liveBuffers), index: 0)
             draw(blendLayerPipeline)
 
-            if let floating, hasFloating {
+            if let lockedPatch {
+                uniforms.rect = deviceRect(lockedPatch.area)
+                uniforms.blendMode = -1
+                encoder.setFragmentTexture(texture(for: lockedPatch.pixels, live: &liveBuffers), index: 0)
+                draw(blendLayerPipeline)
+                uniforms.blendMode = 0
+            } else if let floating, hasFloating {
                 uniforms.rect = deviceRect(floating.destination)
                 let stretched = floating.destination.size != floating.pixels.size
                 sampling(stretched && scene.smoothFloating)
@@ -403,7 +416,14 @@ final class Renderer {
                 draw(blendLayerPipeline)
                 sampling(zoom < 1)
             }
-            if let overlay {
+            if let lockedOverlay {
+                uniforms.rect = deviceRect(lockedOverlay.area)
+                uniforms.keyEnabled = 0
+                uniforms.blendMode = -1
+                encoder.setFragmentTexture(texture(for: lockedOverlay.pixels, live: &liveBuffers), index: 0)
+                draw(blendLayerPipeline)
+                uniforms.blendMode = 0
+            } else if let overlay {
                 uniforms.rect = deviceRect(IntRect(x: overlay.origin.x, y: overlay.origin.y, width: overlay.pixels.width, height: overlay.pixels.height))
                 uniforms.keyEnabled = 0
                 uniforms.blendMode = 0
@@ -646,7 +666,10 @@ final class Renderer {
     /// when needed.
     private func preparedBlurTargets(width: Int, height: Int, count: Int = 3) -> [BlurTarget] {
         let count = max(count, 3)
-        if blurTargets.count >= count, blurTargets[0].blurred.width == width, blurTargets[0].blurred.height == height { return blurTargets }
+        // A new size remakes them; more slots only add to the list, so blurs already made this frame stay (review V,
+        // finding 7).
+        if let first = blurTargets.first, first.blurred.width != width || first.blurred.height != height { blurTargets = [] }
+        guard blurTargets.count < count else { return blurTargets }
         func make(_ format: MTLPixelFormat, renderTarget: Bool) -> MTLTexture {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
             descriptor.usage = renderTarget ? [.renderTarget, .shaderRead] : [.shaderRead, .shaderWrite]
@@ -654,7 +677,7 @@ final class Renderer {
             guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create a blur texture") }
             return texture
         }
-        blurTargets = (0..<count).map { _ in (make(Self.layerTargetFormat, renderTarget: false), make(.r16Float, renderTarget: true), make(.r16Float, renderTarget: false)) }
+        blurTargets += (blurTargets.count..<count).map { _ in (make(Self.layerTargetFormat, renderTarget: false), make(.r16Float, renderTarget: true), make(.r16Float, renderTarget: false)) }
         return blurTargets
     }
 

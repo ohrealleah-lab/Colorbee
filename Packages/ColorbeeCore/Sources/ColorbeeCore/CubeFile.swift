@@ -28,43 +28,80 @@ public enum CubeFile {
     }
 
     /// The look in `data`, and its name: the TITLE line's, or `fallbackName` (the file's name) when there's none
-    /// (Q11.3).
+    /// (Q11.3). Number lines are read straight from the bytes: a 129-point look has over two million of them, which
+    /// took seconds through strings (review V, finding 3).
     public static func read(_ data: Data, fallbackName: String) throws(ReadError) -> (name: String, look: ColorLook) {
-        guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else { throw .damaged }
+        var bytes = [CChar](repeating: 0, count: data.count + 1)
+        bytes.withUnsafeMutableBytes { _ = data.copyBytes(to: $0) }
         var title: String?
         var size: Int?
         var domainMin: [Double] = [0, 0, 0], domainMax: [Double] = [1, 1, 1]
         var numbers: [Double] = []
-        for rawLine in text.split(whereSeparator: \.isNewline) {
-            let line = rawLine.trimmingCharacters(in: .whitespaces)
-            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
-            let words = line.split(whereSeparator: \.isWhitespace)
-            switch words[0].uppercased() {
-            case "TITLE":
-                let rest = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
-                title = rest.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-            case "LUT_1D_SIZE":
-                throw .oneDimensional
-            case "LUT_3D_SIZE":
-                guard words.count == 2, let n = Int(words[1]), n >= 2 else { throw .damaged }
-                guard n <= ColorLook.sizes.upperBound else { throw .tooLarge }
-                size = n
-            case "DOMAIN_MIN":
-                domainMin = try triple(words)
-            case "DOMAIN_MAX":
-                domainMax = try triple(words)
-            case "LUT_3D_INPUT_RANGE":
-                guard words.count == 3, let low = Double(words[1]), let high = Double(words[2]) else { throw .damaged }
-                domainMin = [low, low, low]
-                domainMax = [high, high, high]
-            default:
-                // Other keywords some programs add (LUT_IN_VIDEO_RANGE and the like) don't change the table.
-                guard Double(words[0]) != nil else { continue }
-                guard size != nil else { throw .damaged }
-                let values = try triple(words, from: 0)
-                numbers.append(contentsOf: values)
+        let result: Result<Void, ReadError> = bytes.withUnsafeBufferPointer { buffer in
+            let base = buffer.baseAddress!, end = data.count
+            func isSpace(_ c: CChar) -> Bool { c == 0x20 || c == 0x09 }
+            func isNewline(_ c: CChar) -> Bool { c == 0x0A || c == 0x0D }
+            var i = 0
+            while i < end {
+                while i < end, isSpace(base[i]) { i += 1 }
+                var lineEnd = i
+                while lineEnd < end, !isNewline(base[lineEnd]) { lineEnd += 1 }
+                defer { i = lineEnd + 1 }
+                guard i < lineEnd, base[i] != 0x23 else { continue }
+                let first = UInt8(bitPattern: base[i])
+                if (0x30...0x39).contains(first) || first == 0x2D || first == 0x2B || first == 0x2E {
+                    guard size != nil else { return .failure(.damaged) }
+                    // Three numbers, then nothing but spaces.
+                    var position = UnsafeMutablePointer(mutating: base + i)
+                    for _ in 0..<3 {
+                        var next: UnsafeMutablePointer<CChar>?
+                        let value = strtod(position, &next)
+                        guard let next, next != position, next <= base + lineEnd, value.isFinite else { return .failure(.damaged) }
+                        numbers.append(value)
+                        position = next
+                    }
+                    var rest = position - UnsafeMutablePointer(mutating: base)
+                    while rest < lineEnd, isSpace(base[rest]) { rest += 1 }
+                    guard rest == lineEnd else { return .failure(.damaged) }
+                    continue
+                }
+                let raw = UnsafeRawBufferPointer(start: base + i, count: lineEnd - i)
+                let line = (String(bytes: raw, encoding: .utf8) ?? String(bytes: raw, encoding: .isoLatin1) ?? "")
+                    .trimmingCharacters(in: .whitespaces)
+                let words = line.split(whereSeparator: \.isWhitespace)
+                guard !words.isEmpty else { continue }
+                do throws(ReadError) {
+                    switch words[0].uppercased() {
+                    case "TITLE":
+                        let rest = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+                        title = rest.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                    case "LUT_1D_SIZE":
+                        throw .oneDimensional
+                    case "LUT_3D_SIZE":
+                        guard words.count == 2, let n = Int(words[1]), n >= 2 else { throw .damaged }
+                        guard n <= ColorLook.sizes.upperBound else { throw .tooLarge }
+                        size = n
+                        numbers.reserveCapacity(n * n * n * 3)
+                    case "DOMAIN_MIN":
+                        domainMin = try triple(words)
+                    case "DOMAIN_MAX":
+                        domainMax = try triple(words)
+                    case "LUT_3D_INPUT_RANGE":
+                        guard words.count == 3, let low = Double(words[1]), let high = Double(words[2]) else { throw .damaged }
+                        domainMin = [low, low, low]
+                        domainMax = [high, high, high]
+                    default:
+                        // Other keywords some programs add (LUT_IN_VIDEO_RANGE and the like) don't change the table;
+                        // "nan" and "inf" aren't numbers a table can hold.
+                        if Double(words[0]) != nil { throw .damaged }
+                    }
+                } catch {
+                    return .failure(error)
+                }
             }
+            return .success(())
         }
+        if case .failure(let error) = result { throw error }
         guard let size, numbers.count == size * size * size * 3, zip(domainMin, domainMax).allSatisfy({ $0 < $1 }) else {
             throw .damaged
         }

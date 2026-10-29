@@ -561,7 +561,16 @@ private final class ExportOptions {
         didSet { Self.defaults.set(limitInMegabytes, forKey: "ExportLimitInMegabytes") }
     }
     /// A KB is 1,000 bytes, as Finder counts, so a 200 KB limit never shows as more there (Q19.6).
-    var limitBytes: Int { max(1, Int(limitAmount * (limitInMegabytes ? 1_000_000 : 1000))) }
+    var limitBytes: Int { ExportSizeLimit.bytes(limitAmount, inMegabytes: limitInMegabytes) }
+}
+
+enum ExportSizeLimit {
+    /// A KB is 1,000 bytes, as Finder counts. At most 10 GB: a huge number typed in the box mustn't overflow (review W,
+    /// finding 5).
+    static func bytes(_ amount: Double, inMegabytes: Bool) -> Int {
+        let bytes = amount * (inMegabytes ? 1_000_000 : 1000)
+        return bytes.isFinite ? Int(min(max(bytes, 1), 10_000_000_000)) : 1
+    }
 }
 
 /// Lets the export accessory resize the view that hosts it.
@@ -574,6 +583,9 @@ private struct ExportAccessory: View {
     @Bindable var options: ExportOptions
     let formatChanged: (ImageFileFormat) -> Void
     let sizeChanged: (CGSize) -> Void
+    /// The size box's text. It sets the limit on every keystroke, since clicking Save doesn't end typing and would
+    /// otherwise export with the old limit (review W, finding 2; as review P, finding 13).
+    @State private var typedLimit = ""
 
     var body: some View {
         Form {
@@ -609,7 +621,16 @@ private struct ExportAccessory: View {
             LabeledContent("Size") {
                 HStack {
                     Toggle("Limit file size to", isOn: $options.limitsSize)
-                    TextField("Size", value: $options.limitAmount, format: .number)
+                    TextField("Size", text: $typedLimit)
+                        .onAppear { typedLimit = options.limitAmount.formatted(.number) }
+                        .onChange(of: typedLimit) {
+                            if let value = try? Double(typedLimit, format: .number), value > 0, value != options.limitAmount {
+                                options.limitAmount = value
+                            }
+                        }
+                        .onChange(of: options.limitAmount) {
+                            if (try? Double(typedLimit, format: .number)) != options.limitAmount { typedLimit = options.limitAmount.formatted(.number) }
+                        }
                         .frame(width: 60)
                         .multilineTextAlignment(.trailing)
                         .labelsHidden()

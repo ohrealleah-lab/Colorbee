@@ -9,15 +9,19 @@ public final class HistorySnapshot: Identifiable {
     /// How the image looked, for the History panel.
     public let thumbnail: Thumbnail?
     let size: IntSize
-    let layers: [StoredLayer]
+    /// Replaced, with new places in the scratch file, when an older snapshot is deleted (`History.deleteSnapshot`).
+    var layers: [StoredLayer]
     let activeIndex: Int
     let hasTransparentBackground: Bool
     let selection: SelectionState
 
     /// A layer as it was: its settings, and where its pixels are in `History.snapshotStore`.
     struct StoredLayer {
-        /// The layer object itself, as undo steps keep it, so going to the snapshot gives back the same layer.
-        let layer: Layer
+        /// The layer object, so going to the snapshot gives back the same layer that undo steps know, while it's still
+        /// around. Held weakly: holding it would keep the pixels it has since, which the snapshot never uses
+        /// (review U, finding 8). Once it's gone, going back makes a new layer with the same id.
+        weak var layer: Layer?
+        let id: LayerID
         let name: String
         let isVisible: Bool
         let opacity: Double
@@ -27,7 +31,7 @@ public final class HistorySnapshot: Identifiable {
         let adjustment: Effect?
         let clipsToLayerBelow: Bool
         /// One band of rows each (`GeometryChange.bands`); nil for a layer with no pixels (empty or an adjustment).
-        let pixels: [SpillStore.Location]?
+        var pixels: [SpillStore.Location]?
     }
 
     init(name: String, thumbnail: Thumbnail?, size: IntSize, layers: [StoredLayer], activeIndex: Int,

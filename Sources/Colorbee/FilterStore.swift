@@ -91,19 +91,30 @@ final class FilterStore {
     }
 
     /// Adds the filter in a .colorbeefilter, or a .cube look as a filter of its own. Returns the name it was saved under.
+    /// The file is read in the background: a big look is tens of megabytes (review V, finding 3).
     @discardableResult
-    func importFilter(from url: URL) throws -> String {
-        let data = try Data(contentsOf: url)
-        guard url.pathExtension.lowercased() == "cube" else { return add(try PhotoFilter.imported(from: data)) }
-        let (name, look) = try CubeFile.read(data, fallbackName: url.deletingPathExtension().lastPathComponent)
-        return add(PhotoFilter(name: name, steps: [.look(look)]))
+    func importFilter(from url: URL) async throws -> String {
+        add(try await Task.detached(priority: .userInitiated) { try Self.read(url) }.value)
     }
+
+    private nonisolated static func read(_ url: URL) throws -> PhotoFilter {
+        let data = try Data(contentsOf: url)
+        guard url.pathExtension.lowercased() == "cube" else { return try PhotoFilter.imported(from: data) }
+        let (name, look) = try CubeFile.read(data, fallbackName: url.deletingPathExtension().lastPathComponent)
+        return PhotoFilter(name: name, steps: [.look(look)])
+    }
+
+    /// Writes in order, in the background: with looks the list can be many megabytes.
+    private static let writer = DispatchQueue(label: "com.leah.Colorbee.filters", qos: .utility)
 
     private func persist() {
         guard let file else { return }
-        try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try? encoder.encode(custom).write(to: file, options: .atomic)
+        let filters = custom
+        Self.writer.async {
+            try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try? encoder.encode(filters).write(to: file, options: .atomic)
+        }
     }
 }

@@ -44,7 +44,9 @@ final class CanvasView: NSView {
     private var pendingInputTime: TimeInterval?
     private var hasFitted = false
     private var hasPresented = false
-    private var drag: Drag?
+    private var drag: Drag? {
+        didSet { if (drag != nil) != editor.isPointerDragging { editor.isPointerDragging = drag != nil } }
+    }
     private var spaceHeld = false
     /// Where the pointer is over the view, in image coordinates, for the eraser's outline.
     private var hoverPoint: Point2D?

@@ -133,4 +133,52 @@ struct HistorySnapshotTests {
         try history.goToSnapshot(snapshot.id, on: canvas)
         #expect(canvas.activeLayer.buffer.isUntouched)
     }
+
+    /// Review U, finding 1: going to a snapshot of another size can't be taken back on one layer alone, which would
+    /// leave that layer a different size from the canvas.
+    @Test func goingToASnapshotOfAnotherSizeIsNotUndoneOnOneLayer() throws {
+        let canvas = canvas(), history = History(byteBudget: .max)
+        let snapshot = try history.takeSnapshot(named: "Start", of: canvas)
+        #expect(ImageActions.crop(to: IntRect(x: 0, y: 0, width: 120, height: 80), canvas: canvas, history: history, context: context))
+        try history.goToSnapshot(snapshot.id, on: canvas)
+        #expect(history.undoOnLayerActionName(canvas.activeLayer.id, canvas: canvas) == nil)
+        #expect(!history.undoOnLayer(canvas.activeLayer.id, canvas: canvas))
+        #expect(canvas.layers.allSatisfy { $0.buffer.size == canvas.size })
+    }
+
+    /// Review U, finding 4: going to a snapshot counts as a change to the whole picture, so Revert Layer (which needs
+    /// the same geometry steps as when saved) isn't offered after it.
+    @Test func goingToASnapshotCountsAsAGeometryStep() throws {
+        let canvas = canvas(), history = History(byteBudget: .max)
+        let snapshot = try history.takeSnapshot(named: "Start", of: canvas)
+        let before = history.geometrySteps
+        try history.goToSnapshot(snapshot.id, on: canvas)
+        #expect(history.geometrySteps != before)
+        history.undo(on: canvas)
+        #expect(history.geometrySteps == before)
+    }
+
+    /// Review U, finding 8: deleting a snapshot moves the rest to a fresh scratch file, and they still go back exactly;
+    /// a snapshot doesn't keep a removed layer alive.
+    @Test func deletingASnapshotKeepsTheOthersAndFreesRemovedLayers() throws {
+        let canvas = canvas(), history = History(byteBudget: .max)
+        weak var added: Layer?
+        do {
+            let layer = Layer(name: "Added", buffer: PixelBuffer(width: 300, height: 300, fill: red))
+            canvas.insertLayer(layer, at: 1)
+            added = layer
+        }
+        let first = try history.takeSnapshot(named: "First", of: canvas)
+        fill(IntRect(x: 0, y: 0, width: 40, height: 40), with: .black, on: canvas, history: history)
+        let second = try history.takeSnapshot(named: "Second", of: canvas)
+        let kept = look(canvas)
+        let oldStore = history.snapshotStore
+        history.deleteSnapshot(first.id)
+        #expect(history.snapshotStore != nil && history.snapshotStore !== oldStore)
+        canvas.removeLayer(at: 1)
+        #expect(added == nil)
+        try history.goToSnapshot(second.id, on: canvas)
+        #expect(look(canvas) == kept)
+        #expect(canvas.layers[1].buffer[200, 200] == red)
+    }
 }

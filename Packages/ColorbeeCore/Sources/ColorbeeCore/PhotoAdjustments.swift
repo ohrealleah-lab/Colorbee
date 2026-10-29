@@ -223,6 +223,15 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
     /// Shows Masking's edge mask instead of the photo while Masking is Option-dragged (Q13.2). Never saved.
     public var showsSharpeningMask = false
 
+    /// Without the views shown only while a slider is held (Masking's edge mask, Point Color's Range): what's applied,
+    /// kept or copied (review V, finding 1).
+    public var withoutViews: PhotoEdit {
+        var edit = self
+        edit.showsSharpeningMask = false
+        edit.pointColors?.showsRangeOf = nil
+        return edit
+    }
+
     public init(adjustments: PhotoAdjustments = PhotoAdjustments(), filter: PhotoFilter? = nil, filterIntensity: Double = 100,
                 mixer: ColorMixer? = nil, grading: ColorGrading? = nil, pointColors: PointColors? = nil, detail: PhotoDetail? = nil,
                 effects: PhotoEffects? = nil, toneCurve: ToneCurve? = nil) {

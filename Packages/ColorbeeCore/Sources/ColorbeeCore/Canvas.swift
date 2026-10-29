@@ -353,8 +353,10 @@ public final class Canvas {
                         for x in 0..<floatingSpan.lowerBound {
                             Compositing.blend(&row[x], source[x], opacity: opacity, mode: mode)
                         }
+                        let locked = layer.locksTransparency
                         for x in floatingSpan {
-                            Compositing.blend(&row[x], Compositing.over(source[x], floatingRow[x]), opacity: opacity, mode: mode)
+                            let placed = locked ? Pixel.placedOnLocked(source[x], floatingRow[x]) : Compositing.over(source[x], floatingRow[x])
+                            Compositing.blend(&row[x], placed, opacity: opacity, mode: mode)
                         }
                         for x in floatingSpan.upperBound..<width {
                             Compositing.blend(&row[x], source[x], opacity: opacity, mode: mode)
@@ -395,13 +397,29 @@ public final class Canvas {
     /// `rect` (inside the canvas) as the visible layers from the bottom up to `index` show it: what an adjustment
     /// above `index` sees there, for the eyedroppers and the color readout. It's worked out on a patch around `rect`
     /// wide enough for blurs to reach in, and placed where it sits on the canvas, so vignettes and grain land as they
-    /// do on the whole picture: it matches an export (FR-9.7 item 9).
+    /// do on the whole picture: it matches an export (FR-9.7 item 9). A floating selection shows as it does on screen
+    /// (review W, finding 1).
     public func patchAsShown(_ rect: IntRect, through index: Int) -> PixelBuffer {
-        let stack = layers.prefix(max(0, index + 1))
-        let reach = min(stack.filter(\.isVisible).compactMap { $0.adjustment?.reach }.max() ?? 0, 400)
+        patch(rect, of: Array(layers.prefix(max(0, index + 1))))
+    }
+
+    /// `rect` of the layer that the adjustment at `index`, set to "Only the layer below", changes, as it sees it: that
+    /// layer's own pixels at full opacity and Normal, with the clipped adjustments under `index` applied (review V,
+    /// finding 9). Nil when the adjustment at `index` isn't clipped.
+    public func clipBasePatch(_ rect: IntRect, under index: Int) -> PixelBuffer? {
+        guard layers.indices.contains(index), layers[index].adjustment != nil, layers[index].clipsToLayerBelow,
+              let base = clipBaseIndex(forLayerAt: index) else { return nil }
+        return patch(rect, of: Array(layers[base..<index]), alone: true)
+    }
+
+    /// `rect` as `stack` shows it, worked out on a patch. With `alone`, the stack's first layer is shown fully, at
+    /// Normal.
+    private func patch(_ rect: IntRect, of stack: [Layer], alone: Bool = false) -> PixelBuffer {
+        // Blurs one after another reach as far as their reaches added up (review W, finding 3).
+        let reach = min(stack.filter(\.isVisible).compactMap { $0.adjustment?.reach }.reduce(0, +), 400)
         let padded = rect.insetBy(-reach).intersection(bounds)
         // Every layer, hidden ones too, so an adjustment set to "Only the layer below" finds the same layer below.
-        let patch = stack.map { layer -> Layer in
+        let patch = stack.enumerated().map { offset, layer -> Layer in
             let buffer = PixelBuffer(width: padded.width, height: padded.height)
             if layer.adjustment == nil {
                 for y in 0..<padded.height {
@@ -409,16 +427,22 @@ public final class Canvas {
                 }
             }
             let copy = Layer(name: layer.name, buffer: buffer, id: layer.id)
-            copy.isVisible = layer.isVisible
-            copy.opacity = layer.opacity
-            copy.blendMode = layer.blendMode
+            let shownAlone = alone && offset == 0
+            copy.isVisible = shownAlone || layer.isVisible
+            copy.opacity = shownAlone ? 1 : layer.opacity
+            copy.blendMode = shownAlone ? .normal : layer.blendMode
             copy.adjustment = layer.adjustment
             copy.clipsToLayerBelow = layer.clipsToLayerBelow
+            copy.locksTransparency = layer.locksTransparency
             return copy
         }
         let canvas = Canvas(colorSpace: colorSpace, layers: patch.isEmpty ? [Layer(name: "Empty", buffer: PixelBuffer(width: padded.width, height: padded.height))] : Array(patch),
                             hasTransparentBackground: true)
         canvas.placement = Effects.Placement(origin: IntPoint(x: padded.minX, y: padded.minY), canvas: bounds)
+        if var floating = selection.floating, stack.contains(where: { $0.id == floating.layerID }) {
+            floating.destination = floating.destination.offsetBy(dx: -padded.minX, dy: -padded.minY)
+            canvas.selection = .floating(floating)
+        }
         let shown = canvas.flattened()
         guard padded != rect else { return shown }
         let inner = PixelBuffer(width: rect.width, height: rect.height)
@@ -436,15 +460,7 @@ public final class Canvas {
                 buffers[layer.id] = layer.buffer
                 continue
             }
-            let buffer = layer.buffer.copy()
-            let pixels = floating.rendered(using: resampling, transparentKey: transparentKey)
-            let origin = IntPoint(x: floating.destination.minX, y: floating.destination.minY)
-            let area = IntRect(x: origin.x, y: origin.y, width: pixels.width, height: pixels.height).intersection(buffer.bounds)
-            for y in area.minY..<area.maxY {
-                let source = pixels.row(y - origin.y), target = buffer.row(y)
-                for x in area.minX..<area.maxX { target[x] = Compositing.over(target[x], source[x - origin.x]) }
-            }
-            buffers[layer.id] = buffer
+            buffers[layer.id] = floating.placedCopy(of: layer, resampling: resampling, transparentKey: transparentKey)
         }
         return buffers
     }

@@ -24,6 +24,28 @@ struct HistorySnapshotAppTests {
         #expect(editor.imageHash == edited)
     }
 
+    /// Review U, finding 5: while an effect's bar is open, snapshots wait, as Edit ▸ New Snapshot… does.
+    @Test func snapshotsWaitWhileAnEffectIsOpen() throws {
+        let editor = makeEditor()
+        try editor.takeSnapshot(named: "Start")
+        editor.beginEffect(.gaussianBlur)
+        try editor.takeSnapshot(named: "During")
+        editor.goToSnapshot(try #require(editor.historySnapshots.first).id)
+        #expect(editor.activeEffect != nil && editor.historySnapshots.count == 1 && editor.stepNames.isEmpty)
+        editor.cancelEffect()
+    }
+
+    /// Review U, finding 4: a snapshot taken turned, gone to after the turn was undone, isn't the saved picture's
+    /// geometry, so Revert Layer waits.
+    @Test func revertLayerWaitsAfterGoingToATurnedSnapshot() throws {
+        let editor = makeEditor()
+        editor.apply(Orientation.rotate180)
+        try editor.takeSnapshot(named: "Turned")
+        editor.undo()
+        editor.goToSnapshot(try #require(editor.historySnapshots.first).id)
+        #expect(!editor.canRevertLayer)
+    }
+
     @Test func aFloatingSelectionIsPlacedBeforeTheSnapshot() throws {
         let editor = makeEditor()
         editor.paste(PixelBuffer(width: 10, height: 10, fill: Pixel(r: 0, g: 0, b: 255)))

@@ -45,6 +45,9 @@ public final class Edit {
     let selectionBefore: SelectionState
     /// Record this edit even when only the selection changed (for example, moving a floating selection).
     public var recordsSelectionChange = false
+    /// A layer step that puts back a whole other picture (Go to Snapshot): it can change the size and orientation, so
+    /// it counts as a geometry step for Revert Layer, and Undo on Active Layer can't take one layer out of it.
+    var replacesPicture = false
     private(set) var geometryBefore: GeometryChange?
     private(set) var orientation: Orientation?
     private(set) var layersBefore: LayerStackState?
@@ -193,6 +196,8 @@ final class HistoryEntry {
     /// For a rotation or flip: what the next undo or redo applies to every layer.
     var transform: Orientation?
     var layers: LayerStackState?
+    /// See `Edit.replacesPicture`.
+    var replacesPicture = false
     /// How the image looked after this step, for the History panel.
     var thumbnail: Thumbnail?
     let selectionBefore: SelectionState
@@ -347,6 +352,7 @@ public final class History {
             discardRedo()
             let entry = HistoryEntry(name: edit.name, changes: [], selectionBefore: edit.selectionBefore, selectionAfter: selectionAfter)
             entry.layers = layers
+            entry.replacesPicture = edit.replacesPicture
             undoStack.append(entry)
             revision += 1
             spillToBudget(canvas: edit.canvas)
@@ -488,10 +494,17 @@ public final class History {
         return candidate(for: layer, canvas: canvas).map { undoStack[$0].name }
     }
 
+    /// The most recent step, to ask later with `isDone` whether it's still done (not undone or thrown away).
+    public var lastStep: AnyObject? { undoStack.last }
+
+    public func isDone(_ step: AnyObject) -> Bool {
+        undoStack.contains { $0 === step }
+    }
+
     /// The crop, resize, rotation and flip steps that brought the canvas to how it is now. Equal lists mean the
     /// same geometry, so Revert Layer can tell whether the image was turned since the save (review G, finding 4).
     public var geometrySteps: [ObjectIdentifier] {
-        undoStack.filter { $0.geometry != nil || $0.transform != nil }.map(ObjectIdentifier.init)
+        undoStack.filter { $0.geometry != nil || $0.transform != nil || $0.replacesPicture }.map(ObjectIdentifier.init)
     }
 
     /// Takes back the most recent step that changed `layer`, leaving later steps on other layers in place.
@@ -538,8 +551,10 @@ public final class History {
         for index in undoStack.indices.reversed() {
             let entry = undoStack[index]
             // A whole-canvas change replaced every layer's pixels; nothing older can be pulled out alone.
-            if entry.geometry != nil || entry.transform != nil { return nil }
+            if entry.geometry != nil || entry.transform != nil || entry.replacesPicture { return nil }
             if let before = entry.layers {
+                // A step that changed the size can't be taken back on one layer alone (review U, finding 1).
+                guard before.size == now.size else { return nil }
                 // Nothing newer touched this layer, so its record now is what this step left it as.
                 guard let record = before.records.first(where: { $0.layer.id == layer }) else { return nil }
                 let changedThisLayer = !record.matches(currentRecord)

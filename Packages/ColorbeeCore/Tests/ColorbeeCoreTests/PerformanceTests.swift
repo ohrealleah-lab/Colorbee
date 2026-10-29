@@ -133,6 +133,20 @@ struct PerformanceTests {
         #expect(table < .milliseconds(50), "the screen's color table took \(table)")
     }
 
+    /// Reading a 65-point .cube look, the size most camera makers' looks are (review V, finding 3: it took 0.86 s).
+    @Test func readingALargeCubeLook() throws {
+        let n = 65
+        var text = "TITLE \"Big\"\nLUT_3D_SIZE \(n)\n"
+        for i in 0..<(n * n * n) {
+            text += "\(Double(i % n) / Double(n - 1)) \(Double(i / n % n) / Double(n - 1)) \(Double(i / (n * n)) / Double(n - 1))\n"
+        }
+        let data = Data(text.utf8)
+        var read: ColorLook?
+        let time = fastest { read = try? CubeFile.read(data, fallbackName: "Big").look }
+        #expect(read?.size == n)
+        #expect(time < .milliseconds(200), "took \(time)")
+    }
+
     /// A 65-point .cube look as a filter, with a slider: applying it, and the screen's color table while it's chosen.
     @Test func adjustPhotoWithALook() {
         let canvas = PerformanceFixture.photo(side: Self.side)

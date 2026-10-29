@@ -52,6 +52,42 @@ struct PhotoCompatibilityTests {
         let values: [Slider: Double]
     }
 
+    /// How beta 7 reads a filter: every step strictly, and an effect kind it doesn't know (a look) throws, which loses
+    /// the whole Adjust Photo layer, or every saved filter.
+    private struct Beta7Filter: Decodable {
+        struct Step: Decodable {
+            enum Key: String, CodingKey { case kind }
+            init(from decoder: Decoder) throws {
+                let kind = try decoder.container(keyedBy: Key.self).decode(String.self, forKey: .kind)
+                if kind == "look" { throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Unknown effect look")) }
+            }
+        }
+        let name: String
+        let steps: [Step]
+        let isBuiltIn: Bool
+    }
+
+    private struct Beta7FilterFile: Decodable {
+        let name: String
+        let steps: [Beta7Filter.Step]
+    }
+
+    /// Review V, finding 2: a look is saved where beta 7 doesn't read, so it opens the rest; this version reads the
+    /// look back in its place.
+    @Test func beta7SkipsALookAndKeepsTheRest() throws {
+        let n = 2
+        let look = ColorLook(size: n, values: (0..<(n * n * n * 3)).map { UInt16($0 * 2700) })
+        let exposure = Effect.photo(PhotoEdit(adjustments: PhotoAdjustments([.exposure: 30])))
+        let filter = PhotoFilter(name: "Warm", steps: [.invert, .look(look), exposure])
+        let saved = try JSONEncoder().encode(filter)
+        let old = try JSONDecoder().decode(Beta7Filter.self, from: saved)
+        #expect(old.name == "Warm" && old.steps.count == 2)
+        #expect(try JSONDecoder().decode(PhotoFilter.self, from: saved) == filter)
+        let file = try filter.exported()
+        #expect(try JSONDecoder().decode(Beta7FilterFile.self, from: file).steps.count == 2)
+        #expect(try PhotoFilter.imported(from: file) == filter)
+    }
+
     @Test func beta7ReadsWhatIsSavedNow() throws {
         let adjustments = PhotoAdjustments(Dictionary(uniqueKeysWithValues: S.allCases.enumerated().map { ($0.element, Double($0.offset + 1)) }))
         let read = try JSONDecoder().decode(Beta7Adjustments.self, from: JSONEncoder().encode(adjustments))

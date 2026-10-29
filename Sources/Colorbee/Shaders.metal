@@ -222,6 +222,9 @@ fragment float4 blend_layer_fragment(QuadOut in [[stage_in]],
                                      constant QuadUniforms &u [[buffer(0)]],
                                      float4 backdrop [[color(0)]]) {
     float4 color = sampleLayer(layer, layerSampler, in.uv, u.smooth);
+    // A selection floating over a layer that locks its transparency, already placed on its patch of that layer,
+    // replaces what's under it (review U, finding 3).
+    if (u.blendMode < -0.5) return float4(color.rgb * color.a, color.a);
     if (u.keyEnabled > 0.5 && color.a > 0 && all(abs(color.rgb - u.keyColor.rgb) < 0.5 / 255.0)) {
         discard_fragment();
     }

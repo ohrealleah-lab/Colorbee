@@ -58,6 +58,16 @@ struct LayerFollowUpTests {
         #expect(visibility(editor) == [false, true, false, false])
     }
 
+    /// Review U, finding 6: an isolation that was undone is forgotten, even after other eyes change.
+    @Test func anUndoneIsolationIsForgottenAfterAnotherEyeChanges() {
+        let editor = layered()
+        editor.toggleIsolation(at: 1)
+        editor.undo()
+        editor.setLayerVisible(false, at: 2)
+        editor.toggleIsolation(at: 1)
+        #expect(visibility(editor) == [false, true, false, false])
+    }
+
     @Test func stampVisibleAddsTheMergedPictureAndKeepsTheLayers() {
         let editor = layered()
         editor.setLayerVisible(false, at: 2)

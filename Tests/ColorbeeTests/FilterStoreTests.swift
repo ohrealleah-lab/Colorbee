@@ -42,9 +42,9 @@ struct FilterStoreTests {
     private let looks = URL(filePath: #filePath).deletingLastPathComponent()
         .appending(path: "../../TestImages/Photo Editing/Looks")
 
-    @Test func aCubeLookImportsAsAFilterNamedFromItsTitle() throws {
+    @Test func aCubeLookImportsAsAFilterNamedFromItsTitle() async throws {
         let store = FilterStore.shared
-        let name = try store.importFilter(from: looks.appending(path: "Warm.cube"))
+        let name = try await store.importFilter(from: looks.appending(path: "Warm.cube"))
         defer { store.delete(name) }
         #expect(name == "Warm")
         let filter = try #require(store.filter(named: name))
@@ -60,20 +60,20 @@ struct FilterStoreTests {
         #expect(editor.canvas.activeLayer.adjustment == .photo(PhotoEdit(filter: filter, filterIntensity: 100)))
     }
 
-    @Test func aLookWithNoTitleIsNamedFromTheFile() throws {
-        let name = try FilterStore.shared.importFilter(from: looks.appending(path: "Identity.cube"))
+    @Test func aLookWithNoTitleIsNamedFromTheFile() async throws {
+        let name = try await FilterStore.shared.importFilter(from: looks.appending(path: "Identity.cube"))
         defer { FilterStore.shared.delete(name) }
         #expect(name == "Identity")
     }
 
-    @Test func unreadableLooksAddNothing() throws {
+    @Test func unreadableLooksAddNothing() async throws {
         let store = FilterStore.shared
         let count = store.custom.count
-        #expect(throws: CubeFile.ReadError.oneDimensional) { try store.importFilter(from: looks.appending(path: "Curve 1D.cube")) }
+        await #expect(throws: CubeFile.ReadError.oneDimensional) { try await store.importFilter(from: looks.appending(path: "Curve 1D.cube")) }
         let text = FileManager.default.temporaryDirectory.appending(path: "Not a look \(UUID()).cube")
         try Data("Shopping list: eggs, milk".utf8).write(to: text)
         defer { try? FileManager.default.removeItem(at: text) }
-        #expect(throws: CubeFile.ReadError.damaged) { try store.importFilter(from: text) }
+        await #expect(throws: CubeFile.ReadError.damaged) { try await store.importFilter(from: text) }
         #expect(store.custom.count == count)
     }
 }

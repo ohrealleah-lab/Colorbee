@@ -14,6 +14,11 @@ struct ColorWheel: View {
 
     /// Where the point was, and where the drag began, so Option slows it from there.
     @State private var dragStart: (point: CGPoint, location: CGPoint)?
+    /// The second click of a double-click: it resets, and the rest of it is ignored.
+    @State private var isResetting = false
+    /// A click is finished only once it can't be the first of a double-click, so a double-click is one step, from
+    /// where the point was before it (review V, finding 8).
+    @State private var pendingFinish: DispatchWorkItem?
 
     /// Hue increases counterclockwise from red at the right, as on a color circle; SwiftUI's angular gradient
     /// runs clockwise, so its stops go the other way.
@@ -44,6 +49,15 @@ struct ColorWheel: View {
             .contentShape(Circle())
             .gesture(DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    if dragStart == nil, !isResetting {
+                        pendingFinish?.cancel()
+                        pendingFinish = nil
+                        if (NSApp.currentEvent?.clickCount ?? 1) >= 2 {
+                            isResetting = true
+                            onChange(ColorGrading.Wheel(luminance: wheel.luminance))
+                        }
+                    }
+                    guard !isResetting else { return }
                     let start = dragStart ?? (Self.point(for: wheel, radius: radius), value.startLocation)
                     if dragStart == nil {
                         dragStart = start
@@ -57,14 +71,15 @@ struct ColorWheel: View {
                                         y: origin.point.y + (value.location.y - origin.location.y) * speed)
                     onChange(Self.wheel(at: point, radius: radius, keeping: wheel))
                 }
-                .onEnded { _ in
+                .onEnded { value in
                     dragStart = nil
-                    onFinish()
+                    let wasClick = !isResetting && hypot(value.translation.width, value.translation.height) < 1
+                    isResetting = false
+                    guard wasClick else { return onFinish() }
+                    let finish = DispatchWorkItem { onFinish() }
+                    pendingFinish = finish
+                    DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: finish)
                 })
-            .simultaneousGesture(TapGesture(count: 2).onEnded {
-                onChange(ColorGrading.Wheel(luminance: wheel.luminance))
-                onFinish()
-            })
         }
         .aspectRatio(1, contentMode: .fit)
         .help("Drag to tint toward a color; farther out is stronger. Option-drag moves finely; double-click resets.")

@@ -412,3 +412,49 @@ Several layers, the keyboard and pointer fixes, the save folder, small subjects,
 | 7 | Low | A drag passing under the sidebar left the arrow pointer | **Fixed.** During a drag the tool's pointer stays. |
 | 8 | Low | A quick Shift- or ⌘-click might be read as a plain click | **Not seen** in Leah's hand test (2026-10-27), so nothing changed. |
 
+
+---
+
+# Code review round 9 ([PLAN-10.md](PLAN-10.md)), 2026-10-29 (waiting for Leah's test)
+
+Leah's answers are in FRD §23 (2026-10-29), with my own choices in the row after. Each fix has a test where code can
+check it, but they weren't each re-run against the old code; the ones marked "by hand" can only be seen in the app.
+
+## Session U: history, layers and selections ([findings](findings-U.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | Undo on Active Layer after Go to Snapshot left a layer a different size from the canvas | **Fixed.** Going to a snapshot is a whole-picture step: Undo on Active Layer isn't offered for it, or for any step that changed the size. Core test. |
+| 2 | Medium | Drop Shadow and Border painted into a locked layer's clear area when the canvas grew | **Fixed.** The growing path keeps the lock: clear pixels stay exactly, opacity is kept, and the new space stays clear. Core test. |
+| 3 | Medium | A paste, moved piece, shape or text on a locked layer showed and saved pixels that placing removed | **Fixed (Leah's rule).** One rule places a piece on such a layer, for the screen, saves and placing: it shows only inside the shape, and a soft edge moved and put back comes back exactly. Shapes and text not yet placed show the same way. Core tests; the screen by hand. |
+| 4 | Low | Revert Layer after Go to Snapshot could put one layer back unturned | **Fixed.** Going to a snapshot counts as a geometry step. Core and app tests. |
+| 5 | Low | New Snapshot from the History panel cancelled an open effect | **Fixed.** The camera and snapshot rows are greyed out while an effect's bar is open, as the menu is. App test. |
+| 6 | Low | Option-clicking an eye after an undone isolation showed every layer | **Fixed.** The isolation is remembered only while its step is still done. App test. |
+| 7 | Low | Taking or going to a snapshot held the whole image's compressed copy at once | **Fixed.** One layer at a time. Covered by the snapshot tests; memory itself not measured (a heavy run). |
+| 8 | Low | Snapshots kept removed layers' pixels, and the scratch file kept growing | **Fixed.** Snapshots hold layers weakly; deleting a snapshot copies the rest to a fresh file, all or nothing. Core test. |
+
+## Session V: Adjust Photo, its filters and the screen matching the export ([findings](findings-V.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | Point Color's gray Range view could get stuck and be applied, exported and copied | **Fixed.** Reset Range ends the view, and it's stripped from anything applied, kept, copied, saved as a filter or left on a layer. App test. |
+| 2 | Medium | Beta 7 opened an Adjust Photo layer with a look as an empty layer | **Fixed (Leah's rule).** Looks are written where beta 7 doesn't read, with their place in the list, in projects, the filter list and .colorbeefilter files. Core test with a copy of beta 7's strict reading. |
+| 3 | Medium | Importing a big .cube look froze Colorbee | **Fixed.** Number lines are read straight from the bytes (a 65-point look in about 70 ms, was 0.86 s), the import runs in the background, and the filter list is written in the background. Release test in `make perf`. |
+| 4 | Medium | Same as Last worked the whole photo out on the main thread | **Fixed.** It works from a copy in the background and is applied as one step; if the picture changes meanwhile, nothing is applied and a notice says so. App tests. |
+| 5 | Medium | The white-balance eyedropper missed gray with a curve, Mixer or Point Color set | **Fixed (Leah's rule).** It makes the spot gray before the Tone Curve, Mixer and Point Color, and keeps Color Grading's tint. Core test. |
+| 6 | Low | Esc during a hand drag on an Adjust Photo layer left the change outside History | **Fixed.** Esc keeps the change as its step. App test. |
+| 7 | Low | Sharpness's own Radius lost the other detail blurs for a frame | **Fixed.** More blur slots are added to the list; only a new size remakes them. By hand. |
+| 8 | Low | Double-clicking a Color Grading wheel left extra undo steps | **Fixed.** A click becomes its step after the double-click time, so a double-click is one Reset step. By hand. |
+| 9 | Low | The eyedroppers and hand on an "Only the layer below" layer read the whole picture | **Fixed.** They read that layer itself, at full opacity and Normal. Core test. |
+
+## Session W: export, Vision, the readout and the menus ([findings](findings-W.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | The readout and Copy Color as Hex read what's under a floating paste | **Fixed.** The readout draws the paste in, as the screen does. A shape or text not yet placed is still read as what's under it (FRD §23). Core test. |
+| 2 | Medium | A typed size limit could be ignored unless Return or Tab was pressed | **Fixed.** The box sets the limit on every keystroke, like Feather's. By hand. |
+| 3 | Low | The readout was off with two stacked blurs | **Fixed.** The patch reaches as far as the blurs' reaches added up (at most 400 px). Core test. |
+| 4 | Low | The readout re-rendered a large patch on every mouse move, drawing too | **Fixed.** While you drag, the readout keeps its last color. App test. |
+| 5 | Low | A huge size limit crashed Colorbee | **Fixed.** Capped at 10 GB. App test. |
+| 6 | Low | Copy Color as Hex chosen with the mouse always beeped | **Fixed.** Greyed out unless the pointer is on the picture; ⌃⌘C works. By hand. |
+| 7 | Low | Opening Perspective Correction flattened the picture on the main thread | **Fixed.** Flattened from a copy in the background, as Auto-Redact does. Covered by the corner-search test. |

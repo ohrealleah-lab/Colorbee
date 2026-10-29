@@ -101,4 +101,55 @@ struct LockTransparencyTests {
         history.undo(on: canvas)
         #expect(!canvas.layers[1].locksTransparency)
     }
+
+    /// Review U, finding 3: a soft edge lifted, moved and put back comes back exactly, and while it floats a save
+    /// shows what placing it will leave.
+    @Test func aSoftEdgeMovedAndPutBackIsExact() throws {
+        let (canvas, history, layer) = shape()
+        let original = layer.buffer.contentHash()
+        canvas.selection = .marquee(try #require(SelectionMask.rectangle(IntRect(x: 22, y: 14, width: 10, height: 12), clippedTo: canvas.bounds)))
+        SelectionActions.nudge(dx: 3, dy: 0, canvas: canvas, history: history, context: context)
+        let floating = try #require(canvas.selection.floating)
+        let saved = try #require(canvas.layerBuffersAsSaved(transparentKey: nil, resampling: .nearestNeighbor)[layer.id])
+        let patch = try #require(floating.placedPatch(on: layer, resampling: .nearestNeighbor, transparentKey: nil))
+        for y in 0..<patch.area.height {
+            for x in 0..<patch.area.width {
+                #expect(saved[patch.area.minX + x, patch.area.minY + y] == patch.pixels[x, y])
+            }
+        }
+        // Past the shape, the piece doesn't show at all.
+        #expect(saved[34, 20] == strayClear)
+        SelectionActions.nudge(dx: -3, dy: 0, canvas: canvas, history: history, context: context)
+        #expect(SelectionActions.placeFloating(canvas: canvas, history: history, context: context))
+        #expect(layer.buffer.contentHash() == original)
+    }
+
+    @Test func aPasteOverTheClearAreaLeavesItClear() {
+        let (canvas, history, layer) = shape()
+        let image = PixelBuffer(width: 40, height: 4, fill: Pixel(r: 0, g: 255, b: 0, a: 200))
+        SelectionActions.paste(image, at: IntPoint(x: 0, y: 18), canvas: canvas, history: history, context: context)
+        let flat = canvas.flattened()
+        #expect(flat[2, 19] == .white)
+        #expect(SelectionActions.placeFloating(canvas: canvas, history: history, context: context))
+        expectOutlineKept(layer)
+        #expect(canvas.flattened().contentHash() == flat.contentHash())
+        #expect(layer.buffer[20, 19] == Pixel(r: 55, g: 255, b: 55))
+    }
+
+    /// Review U, finding 2: a shadow big enough to grow the canvas still leaves the clear area as it was.
+    @Test func aShadowThatGrowsTheCanvasKeepsTheClearArea() {
+        let (canvas, history, layer) = shape()
+        let original = layer.buffer.contentHash()
+        #expect(Decorations.dropShadow(DropShadow(offsetX: 30, offsetY: 0, blur: 0, color: .black, opacity: 100), canvas: canvas, history: history, context: context))
+        #expect(canvas.size.width > 40)
+        let grown = canvas.layers[1]
+        for y in 0..<40 {
+            for x in 0..<canvas.size.width {
+                let inside = (x - 20) * (x - 20) + (y - 20) * (y - 20) <= 64
+                if x >= 40 { #expect(grown.buffer[x, y] == .clear) } else if !inside, x != 28 || y != 20 { #expect(grown.buffer[x, y] == strayClear, "at \(x), \(y)") }
+            }
+        }
+        history.undo(on: canvas)
+        #expect(canvas.layers[1].buffer.contentHash() == original)
+    }
 }

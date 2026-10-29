@@ -24,16 +24,33 @@ struct PhotoSettingsTests {
         editor.applyEffect()
     }
 
-    @Test func sameAsLastAppliesTheLastSettingsAsOneStep() {
+    /// Same as Last is worked out in the background (review V, finding 4).
+    private func waitForSameAsLast(_ editor: Editor) async throws {
+        for _ in 0..<500 where editor.sameAsLastRunning { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(!editor.sameAsLastRunning)
+    }
+
+    @Test func sameAsLastAppliesTheLastSettingsAsOneStep() async throws {
         store.last = nil
         let first = picture(), second = picture()
         adjustPhoto(first, look)
         #expect(store.last == look)
         second.applySameAsLastPhoto()
+        #expect(second.stepNames.isEmpty)
+        try await waitForSameAsLast(second)
         #expect(second.stepNames == ["Adjust Photo"])
         #expect(second.imageHash == first.imageHash)
         second.undo()
         #expect(second.imageHash == picture().imageHash)
+    }
+
+    @Test func sameAsLastAppliesNothingIfTheImageChangesMeanwhile() async throws {
+        let editor = picture()
+        store.last = look
+        editor.applySameAsLastPhoto()
+        editor.applyAdjustment(.invert)
+        try await waitForSameAsLast(editor)
+        #expect(editor.stepNames.count == 1 && editor.stepNames.last != "Adjust Photo")
     }
 
     @Test func asAdjustmentLayerAlsoCountsAsLast() {

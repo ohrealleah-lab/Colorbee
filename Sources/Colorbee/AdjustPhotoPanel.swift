@@ -354,7 +354,8 @@ struct PhotoControls: View {
             .controlSize(.small)
             .accessibilityLabel(title)
             // Control-click a slider to put it back to zero.
-            .contextMenu { Button("Reset \(title)") { set(resetValue); onFinish() } }
+            // Through `end`, which turns off a view shown while the slider is held (review V, finding 1).
+            .contextMenu { Button("Reset \(title)") { set(resetValue); (end ?? onFinish)() } }
         }
     }
 }
@@ -470,13 +471,16 @@ private struct FilterMenu: View {
         panel.message = "Choose a Colorbee filter, or a .cube color look."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         // The imported filter is chosen, so you see it straight away.
-        do {
-            var changed = edit
-            changed.filter = store.filter(named: try store.importFilter(from: url))
-            changed.filterIntensity = 100
-            onChange(changed)
-        } catch {
-            NSAlert(error: error).runModal()
+        Task {
+            do {
+                let name = try await store.importFilter(from: url)
+                var changed = edit
+                changed.filter = store.filter(named: name)
+                changed.filterIntensity = 100
+                onChange(changed)
+            } catch {
+                NSAlert(error: error).runModal()
+            }
         }
     }
 

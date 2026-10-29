@@ -121,10 +121,24 @@ public enum Decorations {
                 buffers[other.id] = buffer
             }
             let active = PixelBuffer(width: size.width, height: size.height)
+            // A layer that locks its transparency keeps its outline, as the fitting case does through its edit: what
+            // was clear stays exactly so, every pixel keeps its opacity, and the new space stays clear (review U,
+            // finding 2).
+            let locked = layer.locksTransparency
             ParallelRows.forEach(0..<size.height) { rows in
                 for y in rows {
                     let target = active.row(y)
-                    for x in 0..<size.width { target[x] = composed(x, y) }
+                    for x in 0..<size.width {
+                        let pixel = composed(x, y)
+                        guard locked else {
+                            target[x] = pixel
+                            continue
+                        }
+                        let ox = x - left, oy = y - top
+                        guard ox >= 0, oy >= 0, ox < canvas.size.width, oy < canvas.size.height else { continue }
+                        let original = layer.buffer[ox, oy]
+                        target[x] = original.a == 0 ? original : Pixel(r: pixel.r, g: pixel.g, b: pixel.b, a: original.a)
+                    }
                 }
             }
             buffers[layer.id] = active

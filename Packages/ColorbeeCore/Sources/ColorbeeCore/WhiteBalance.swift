@@ -2,14 +2,21 @@ import Foundation
 
 extension PhotoEdit {
     /// The white-balance eyedropper (FR-9.7): Warmth and Tint set so `sample`, a color from the picture before any
-    /// of these settings, comes out gray after all of them, the filter included. When the cast is stronger than
-    /// Warmth and Tint can fix, or the sample isn't near gray, they go as far as they can (Leah, 2026-10-27).
+    /// of these settings, comes out gray, the filter included. The Tone Curve, Color Mixer and Point Color keep a gray
+    /// gray; Color Grading's tint is kept on purpose (Leah, review V, finding 5). When the cast is stronger than Warmth
+    /// and Tint can fix, or the sample isn't near gray, they go as far as they can (Leah, 2026-10-27).
     public func neutralizing(_ sample: Pixel) -> PhotoEdit {
         var neutral = self
         neutral.adjustments[.warmth] = 0
         neutral.adjustments[.tint] = 0
-        // Warmth and Tint are the last steps, so the color just before them is known.
-        let before = neutral.colorTransform(sample)
+        // Warmth and Tint are the sliders' last steps, so the color just before them is the filter's and the other
+        // sliders'; what comes after them is left out, since a curve steepens the very cast being measured.
+        var upToWarmth = neutral
+        upToWarmth.toneCurve = nil
+        upToWarmth.mixer = nil
+        upToWarmth.pointColors = nil
+        upToWarmth.grading = nil
+        let before = upToWarmth.colorTransform(sample)
         let r = Double(before.r), g = Double(before.g), b = Double(before.b)
         guard r + b > 0 else { return neutral }
         // Warmth multiplies red by 1 + w and blue by 1 − w (w = 0.15 per 100); Tint multiplies green by 1 − 0.12t and

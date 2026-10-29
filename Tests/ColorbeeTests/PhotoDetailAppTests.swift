@@ -44,6 +44,32 @@ struct PhotoDetailAppTests {
         #expect(!kept.showsSharpeningMask && kept.detail?.masking == 40)
     }
 
+    /// Review V, finding 1: Point Color's gray Range view is never applied, kept or copied.
+    @Test func pointColorsRangeViewIsNeverApplied() {
+        func pointColors(showingRange: Bool) -> PhotoEdit {
+            var colors = PointColors([PointColors.Swatch(color: Pixel(r: 190, g: 190, b: 190), hue: 50, saturation: 40)])
+            if showingRange { colors.showsRangeOf = 0 }
+            return PhotoEdit(pointColors: colors)
+        }
+        let editor = picture(), expected = picture()
+        for target in [editor, expected] {
+            target.beginEffect(.adjustPhoto)
+            target.setPhotoEdit(pointColors(showingRange: target === editor))
+        }
+        editor.copyPhotoSettings()
+        #expect(PhotoSettingsStore.shared.copied?.pointColors?.showsRangeOf == nil)
+        editor.applyEffect()
+        expected.applyEffect()
+        #expect(editor.imageHash == expected.imageHash)
+        #expect(PhotoSettingsStore.shared.last?.pointColors?.showsRangeOf == nil)
+        let layered = picture()
+        layered.beginEffect(.adjustPhoto)
+        layered.setPhotoEdit(pointColors(showingRange: true))
+        layered.photoAsAdjustmentLayer()
+        guard case .photo(let kept) = layered.canvas.activeLayer.adjustment else { Issue.record("No Adjust Photo layer"); return }
+        #expect(kept.pointColors?.showsRangeOf == nil && kept.pointColors?.swatches.count == 1)
+    }
+
     /// QuadUniforms must lay out as Shaders.metal's struct does: float4s on 16-byte boundaries.
     @Test func theShaderSeesTheDetailSettingsWhereItLooks() {
         #expect(MemoryLayout<QuadUniforms>.offset(of: \.detailParams) == 144)

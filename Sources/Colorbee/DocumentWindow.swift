@@ -491,8 +491,12 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(applyAdjustment(_:)):
             return LayerActions.canApplyAdjustment(editor.canvas)
-        case #selector(newSnapshot(_:)), #selector(trim(_:)), #selector(copyColorHex(_:)):
+        case #selector(newSnapshot(_:)), #selector(trim(_:)):
             return true
+        case #selector(copyColorHex(_:)):
+            // Only with the pointer on the picture: ⌃⌘C there, not the menu, which the pointer has left (review W,
+            // finding 6).
+            return editor.pointer.map(editor.canvas.bounds.contains) ?? false
         case #selector(undoOnActiveLayer(_:)):
             let name = editor.undoOnActiveLayerName
             menuItem.title = name.map { "Undo \($0) on Active Layer" } ?? "Undo on Active Layer"

@@ -67,6 +67,19 @@ struct PictureDragTests {
         editor.cancelEffect()
     }
 
+    /// Review V, finding 6: Esc before letting go keeps the change as its step.
+    @Test func escMidDragOnALayerKeepsItsStep() {
+        let editor = picture()
+        editor.addAdjustmentLayer(.adjustPhoto)
+        let steps = editor.stepNames.count
+        editor.togglePicturePick(.toneCurve)
+        #expect(editor.beginPictureDrag(at: pt(10, 50), viewY: 300))
+        editor.continuePictureDrag(viewY: 260)
+        editor.cancelPicturePick()
+        editor.endPictureDrag()
+        #expect(editor.stepNames.count == steps + 1)
+    }
+
     @Test func onAnAdjustPhotoLayerADragIsOneStep() {
         let editor = picture()
         editor.addAdjustmentLayer(.adjustPhoto)

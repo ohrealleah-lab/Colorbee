@@ -884,6 +884,7 @@ final class Editor {
     /// Copies the image as it is now. A floating selection is placed first, keeping its outline, since a snapshot
     /// holds only layers and a marquee.
     func takeSnapshot(named name: String) throws(HistorySnapshot.Failure) {
+        guard !blocksDocumentCommands else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
         try history.takeSnapshot(named: name, of: canvas)
@@ -892,6 +893,7 @@ final class Editor {
 
     /// Puts the image back as the snapshot has it, as one step that ⌘Z takes back (Q12.5).
     func goToSnapshot(_ id: HistorySnapshot.ID) {
+        guard !blocksDocumentCommands else { return onRefused() }
         finishInteractions()
         placeFloatingKeepingOutline()
         stopFillForChange()
@@ -1352,8 +1354,16 @@ final class Editor {
     /// status bar; averaged over the Sample Size while the Eyedropper is chosen (Q20.4). Nil off the picture.
     var pointerColor: Pixel? {
         _ = layersRevision
-        return pointer.flatMap(readoutColor(at:))
+        // Mid-drag the readout keeps its last color, rather than working out a patch of every layer on each mouse move
+        // while a stroke draws (review W, finding 4).
+        guard !isPointerDragging else { return lastPointerColor }
+        lastPointerColor = pointer.flatMap(readoutColor(at:))
+        return lastPointerColor
     }
+
+    /// A drag is going on over the picture: drawing, moving or panning.
+    var isPointerDragging = false
+    @ObservationIgnored private var lastPointerColor: Pixel?
 
     /// What the readout shows for `pixel`: the color as shown, in sRGB, averaged over the Sample Size while the
     /// Eyedropper is chosen. Nil off the picture.
@@ -3015,11 +3025,15 @@ final class Editor {
     /// it, unless they've been moved meanwhile. With none found, they stay where they are.
     private func findPerspectiveCorners() {
         cornerSearch += 1
-        guard let image = try? ImageCodec.makeCGImage(canvas.flattened(), colorSpace: canvas.colorSpace) else { return }
         let search = cornerSearch
         isFindingCorners = true
+        // Flattened from a copy in the background, as Auto-Redact does: a big picture took a moment (review W, finding 7).
+        let copy = UnsafeTransfer(canvas.copy())
         Task { @MainActor [weak self] in
-            let found = try? await RectangleFinder.find(in: image)
+            let image = await Task.detached(priority: .userInitiated) {
+                (try? ImageCodec.makeCGImage(copy.value.flattened(), colorSpace: copy.value.colorSpace)).map(UnsafeTransfer.init)
+            }.value
+            let found = if let image { try? await RectangleFinder.find(in: image.value) } else { [Point2D]?.none }
             guard let self, search == self.cornerSearch else { return }
             self.isFindingCorners = false
             guard self.activeEffect == .perspective, self.perspectiveCorners == self.perspectiveStartCorners, let found else { return }
@@ -3657,6 +3671,8 @@ final class Editor {
 
     func cancelPicturePick() {
         picturePick = nil
+        // A drag on an Adjust Photo layer has already changed it: Esc keeps that as its step (review V, finding 6).
+        if case .layer = pictureDrag?.target { finishLayerSettings() }
         pictureDrag = nil
     }
 
@@ -3667,7 +3683,8 @@ final class Editor {
     }
 
     /// The 5 × 5 pixels around `center`, averaged: in the panel, the active layer as it was before Adjust Photo; for an
-    /// Adjust Photo layer, the layers below it as shown. Nil where there's nothing to read.
+    /// Adjust Photo layer, the layers below it as shown, or with "Only the layer below", that layer as the adjustment
+    /// sees it (review V, finding 9). Nil where there's nothing to read.
     private func pictureSample(at center: IntPoint, for target: PicturePick.Target) -> Pixel? {
         let area = IntRect(x: center.x - 2, y: center.y - 2, width: 5, height: 5).intersection(canvas.bounds)
         guard canvas.bounds.contains(center), !area.isEmpty else { return nil }
@@ -3675,7 +3692,8 @@ final class Editor {
         case .panel:
             return effectSource?.averageColor(in: area)
         case .layer:
-            return canvas.patchAsShown(area, through: canvas.activeLayerIndex - 1)
+            let index = canvas.activeLayerIndex
+            return (canvas.clipBasePatch(area, under: index) ?? canvas.patchAsShown(area, through: index - 1))
                 .averageColor(in: IntRect(x: 0, y: 0, width: area.width, height: area.height))
         }
     }
@@ -3809,8 +3827,7 @@ final class Editor {
     /// Adjust Photo's "As Adjustment Layer": the settings become an adjustment layer instead of pixels.
     func photoAsAdjustmentLayer() {
         guard activeEffect == .adjustPhoto else { return }
-        var settings = photoEdit
-        settings.showsSharpeningMask = false
+        let settings = photoEdit.withoutViews
         cancelEffect()
         addAdjustmentLayer(.photo(settings), named: settings.filter?.name ?? "Adjust Photo")
         PhotoSettingsStore.shared.last = settings
@@ -3819,11 +3836,36 @@ final class Editor {
     // MARK: Using Adjust Photo settings again (FR-9.7 item 4)
 
     /// Adjustments ▸ Adjust Photo: Same as Last: the last settings applied, on the selection or active layer, as one
-    /// step.
+    /// step. Worked out in the background from a copy, so a big photo doesn't stall the window (review V, finding 4); if
+    /// the image changes meanwhile, nothing is applied.
     func applySameAsLastPhoto() {
         guard let last = PhotoSettingsStore.shared.last else { return onRefused() }
-        applyAdjustment(.photo(last))
+        guard !refusedBecauseLocked() else { return }
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        let effect = Effect.photo(last), selection = canvas.selection.marquee
+        let source = UnsafeTransfer(canvas.activeLayer.buffer.copy())
+        let revision = history.revision, layerID = canvas.activeLayer.id, pageID = page.id
+        sameAsLastRunning = true
+        Task { @MainActor [weak self] in
+            let preview = await Task.detached(priority: .userInitiated) {
+                EffectPreview.render(effect, from: source.value, regions: nil, selection: selection, copying: false)
+            }.value
+            guard let self else { return }
+            self.sameAsLastRunning = false
+            guard self.history.revision == revision, self.page.id == pageID, self.canvas.activeLayer.id == layerID else {
+                return self.showNotice("The image changed while Same as Last was working. Try again.")
+            }
+            guard let preview else { return }
+            let edit = self.history.beginEdit(effect.name, on: self.canvas)
+            preview.write(into: self.canvas.activeLayer, edit: edit)
+            self.recordingChanges { self.history.commit(edit) }
+            self.onRender()
+        }
     }
+
+    /// Same as Last is being worked out.
+    @ObservationIgnored private(set) var sameAsLastRunning = false
 
     /// The settings of the active Adjust Photo layer, if it is one.
     var activePhotoLayerEdit: PhotoEdit? {
@@ -3874,12 +3916,9 @@ final class Editor {
     /// Copy Photo Settings: from the Adjust Photo panel while it's open, otherwise from the active Adjust Photo layer.
     func copyPhotoSettings() {
         if activeEffect == .adjustPhoto {
-            var settings = photoEdit
-            settings.showsSharpeningMask = false
-            PhotoSettingsStore.shared.copied = settings
-        } else if var edit = activePhotoLayerEdit {
-            edit.showsSharpeningMask = false
-            PhotoSettingsStore.shared.copied = edit
+            PhotoSettingsStore.shared.copied = photoEdit.withoutViews
+        } else if let edit = activePhotoLayerEdit {
+            PhotoSettingsStore.shared.copied = edit.withoutViews
         } else {
             onRefused()
         }
@@ -4018,8 +4057,9 @@ final class Editor {
 
     func applyEffect() {
         if activeEffect?.choosesSelection == true { return applyRange() }
-        // Masking's edge mask is only ever a view (Q13.2): what's applied is the photo, re-rendered below if need be.
-        photoEdit.showsSharpeningMask = false
+        // Masking's edge mask and Point Color's Range are only ever views (Q13.2; review V, finding 1): what's applied is
+        // the photo, re-rendered below if need be.
+        photoEdit = photoEdit.withoutViews
         if effectPreviewScheduled { renderEffectPreview() }
         if activeEffect == .pickSubject {
             // With no subjects of its own there's nothing for Return to take; waiting on a closer look, it waits.
@@ -4496,9 +4536,16 @@ final class Editor {
         layersRevision += 1
     }
 
-    /// What Option-clicking an eye last did: which layer it left showing alone, how every layer was before, and how
-    /// they were right after.
-    @ObservationIgnored private var isolation: (layer: LayerID, before: [LayerID: Bool], after: [LayerID: Bool])?
+    /// What Option-clicking an eye last did: which layer it left showing alone, how every layer was before, how they
+    /// were right after, and the step, which must still be done for any of it to count (review U, finding 6).
+    private struct Isolation {
+        let layer: LayerID
+        let before: [LayerID: Bool]
+        let after: [LayerID: Bool]
+        weak var step: AnyObject?
+    }
+
+    @ObservationIgnored private var isolation: Isolation?
 
     /// Option-click on a layer's eye (FR-8.6): only that layer shows. Option-clicking it again brings back what was
     /// showing; if anything was shown or hidden meanwhile, everything shows (Q22.4). Each is one step (Q22.3).
@@ -4507,7 +4554,7 @@ final class Editor {
         finishInteractions()
         let layer = canvas.layers[index]
         let now = Dictionary(uniqueKeysWithValues: canvas.layers.map { ($0.id, $0.isVisible) })
-        if let isolation, isolation.layer == layer.id, now != isolation.before {
+        if let isolation, isolation.layer == layer.id, let step = isolation.step, history.isDone(step), now != isolation.before {
             let restored = now == isolation.after ? isolation.before : now.mapValues { _ in true }
             self.isolation = nil
             recordingChanges { LayerActions.setVisibility(restored, named: "Show Layers", canvas: canvas, history: history) }
@@ -4519,8 +4566,8 @@ final class Editor {
                 recordingChanges { LayerActions.setVisibility(now.mapValues { _ in true }, named: "Show Layers", canvas: canvas, history: history) }
                 return onRender()
             }
-            isolation = (layer.id, now, alone)
             recordingChanges { LayerActions.setVisibility(alone, named: "Show Only “\(layer.name)”", canvas: canvas, history: history) }
+            isolation = Isolation(layer: layer.id, before: now, after: alone, step: history.lastStep)
         }
         onRender()
     }
@@ -4580,6 +4627,10 @@ final class Editor {
     func finishLayerSettings() {
         guard let edit = layerSettingsEdit else { return }
         layerSettingsEdit = nil
+        // A view shown while a slider was held never stays in the layer, however the slider let go (review V, finding 1).
+        for layer in canvas.layers {
+            if case .photo(let photo) = layer.adjustment, photo != photo.withoutViews { layer.adjustment = .photo(photo.withoutViews) }
+        }
         recordingChanges { history.commit(edit) }
     }
 

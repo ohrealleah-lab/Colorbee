@@ -59,6 +59,7 @@ public struct PhotoFilter: Sendable, Hashable, Codable {
         var version = 1
         var name: String
         var steps: [LenientStep]
+        var laterSteps: [LaterStep]?
     }
 
     /// A step that reads back as none if it's of a kind this version doesn't know, so the filter keeps the rest.
@@ -73,14 +74,53 @@ public struct PhotoFilter: Sendable, Hashable, Codable {
     public func exported() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(Stored(name: name, steps: steps.map(LenientStep.init)))
+        let (known, later) = Self.split(steps)
+        return try encoder.encode(Stored(name: name, steps: known.map(LenientStep.init), laterSteps: later.isEmpty ? nil : later))
     }
 
     public static func imported(from data: Data) throws -> PhotoFilter {
         let stored = try JSONDecoder().decode(Stored.self, from: data)
-        let filter = PhotoFilter(name: stored.name, steps: stored.steps.compactMap(\.effect))
+        let filter = PhotoFilter(name: stored.name, steps: merged(stored.steps, stored.laterSteps))
         guard !filter.steps.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
         return filter
+    }
+
+    // MARK: Coding
+
+    /// A step beta 7 can't read (it knows no looks), written where it doesn't look, with its place in the list. Beta 7
+    /// reads a filter's steps all or nothing, and a whole Adjust Photo layer or filter list with them, so this way it
+    /// still opens the rest (review V, finding 2).
+    struct LaterStep: Codable {
+        var at: Int
+        var step: LenientStep
+    }
+
+    private static func readByBeta7(_ step: Effect) -> Bool {
+        if case .look = step { return false }
+        return true
+    }
+
+    private static func split(_ steps: [Effect]) -> (known: [Effect], later: [LaterStep]) {
+        let later = steps.enumerated().filter { !readByBeta7($0.element) }.map { LaterStep(at: $0.offset, step: LenientStep($0.element)) }
+        return (steps.filter(readByBeta7), later)
+    }
+
+    private static func merged(_ known: [LenientStep], _ later: [LaterStep]?) -> [Effect] {
+        var steps = known.compactMap(\.effect)
+        for later in (later ?? []).sorted(by: { $0.at < $1.at }) {
+            guard let step = later.step.effect else { continue }
+            steps.insert(step, at: min(max(0, later.at), steps.count))
+        }
+        return steps
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        let (known, later) = Self.split(steps)
+        try container.encode(name, forKey: .name)
+        try container.encode(known, forKey: .steps)
+        try container.encode(isBuiltIn, forKey: .isBuiltIn)
+        if !later.isEmpty { try container.encode(later, forKey: .laterSteps) }
     }
 }
 
@@ -95,7 +135,7 @@ extension Effect {
             edit.adjustments = edit.adjustments.forFilters
             // Sharpness's and Noise Reduction's finer settings go with them; the Vignette's shape and Grain stay.
             edit.detail = nil
-            edit.showsSharpeningMask = false
+            edit = edit.withoutViews
             return edit.isNeutral ? nil : .photo(edit)
         default:
             return nil
@@ -135,7 +175,7 @@ extension Effect {
 
 extension PhotoFilter {
     private enum CodingKeys: String, CodingKey {
-        case name, steps, isBuiltIn
+        case name, steps, isBuiltIn, laterSteps
     }
 
     /// Through `init`, so a filter read from a project holds only what filters may, like an imported one. A step of a
@@ -143,7 +183,8 @@ extension PhotoFilter {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(name: try container.decode(String.self, forKey: .name),
-                  steps: try container.decode([LenientStep].self, forKey: .steps).compactMap(\.effect),
+                  steps: Self.merged(try container.decode([LenientStep].self, forKey: .steps),
+                                try container.decodeIfPresent([LaterStep].self, forKey: .laterSteps)),
                   isBuiltIn: try container.decode(Bool.self, forKey: .isBuiltIn))
     }
 }

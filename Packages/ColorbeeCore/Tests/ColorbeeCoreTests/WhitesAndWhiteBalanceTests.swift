@@ -58,6 +58,21 @@ struct WhitesAndWhiteBalanceTests {
         }
     }
 
+    /// Review V, finding 5: a steep Tone Curve or a Color Mixer change doesn't throw the eyedropper off.
+    @Test func theEyedropperMakesGrayThroughACurveAndTheMixer() {
+        let card = Pixel(r: 124, g: 128, b: 134)
+        var curve = ToneCurve()
+        curve[.darks] = -100
+        curve[.lights] = 100
+        var mixer = ColorMixer()
+        mixer[.saturation, .blue] = 100
+        for edit in [PhotoEdit(filter: PhotoFilter.builtIn[2], toneCurve: curve), PhotoEdit(filter: PhotoFilter.builtIn[2], mixer: mixer)] {
+            let out = edit.neutralizing(card).colorTransform(card)
+            let channels = [Int(out.r), Int(out.g), Int(out.b)]
+            #expect(channels.max()! - channels.min()! <= 2, "came out \(out), warmth \(edit.neutralizing(card).adjustments[.warmth])")
+        }
+    }
+
     @Test func theEyedropperGoesAsFarAsItCan() {
         let fixed = PhotoEdit().neutralizing(Pixel(r: 40, g: 60, b: 230))
         #expect(fixed.adjustments[.warmth] == 100)

@@ -40,6 +40,26 @@ struct ColorReadoutTests {
         #expect(editor.pointerColor == .black)
     }
 
+    /// Review W, finding 4: mid-drag the readout keeps its last color instead of working it out on every move.
+    @Test func midDragTheReadoutWaits() {
+        let editor = picture()
+        editor.pointer = IntPoint(x: 5, y: 5)
+        #expect(editor.pointerColor == .white)
+        editor.isPointerDragging = true
+        editor.pointer = IntPoint(x: 1, y: 1)
+        #expect(editor.pointerColor == .white)
+        editor.isPointerDragging = false
+        #expect(editor.pointerColor == .black)
+    }
+
+    /// Review W, finding 5: a huge size limit can't overflow.
+    @Test func aHugeExportLimitIsCapped() {
+        #expect(ExportSizeLimit.bytes(200, inMegabytes: false) == 200_000)
+        #expect(ExportSizeLimit.bytes(1e16, inMegabytes: true) == 10_000_000_000)
+        #expect(ExportSizeLimit.bytes(.infinity, inMegabytes: false) == 1)
+        #expect(ExportSizeLimit.bytes(0, inMegabytes: false) == 1)
+    }
+
     @Test func withTheEyedropperTheReadoutFollowsTheSampleSize() {
         let editor = picture()
         editor.pointer = IntPoint(x: 5, y: 5)

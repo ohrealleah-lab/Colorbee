@@ -6,16 +6,19 @@ public struct EffectPreview: @unchecked Sendable {
     /// That region as it should look, unselected pixels included.
     let pixels: PixelBuffer
 
-    /// `effect` applied to a copy of `source` (the layer's original pixels), in `regions` or everywhere.
-    /// Reads `source` only, so it's safe off the main thread while nothing else writes to it.
-    public static func render(_ effect: Effect, from source: PixelBuffer, regions: [SelectionMask]?) -> EffectPreview? {
-        let scratch = Canvas(colorSpace: Canvas.defaultColorSpace, layers: [Layer(name: "Preview", buffer: source.copy())], hasTransparentBackground: true)
+    /// `effect` applied to a copy of `source` (the layer's original pixels), in `regions`, or else in `selection` or
+    /// everywhere. Reads `source` only, so it's safe off the main thread while nothing else writes to it. With
+    /// `copying` false, `source` is a copy of its own and is worked on in place.
+    public static func render(_ effect: Effect, from source: PixelBuffer, regions: [SelectionMask]?, selection: SelectionMask? = nil,
+                              copying: Bool = true) -> EffectPreview? {
+        let buffer = copying ? source.copy() : source
+        let scratch = Canvas(colorSpace: Canvas.defaultColorSpace, layers: [Layer(name: "Preview", buffer: buffer)], hasTransparentBackground: true)
         let layer = scratch.layers[0]
         let edit = Edit(name: "Preview", canvas: scratch, recordsPixels: false)
         let changed = if let regions {
             Effects.apply(effect, to: layer, regions: regions, edit: edit)
         } else {
-            Effects.apply(effect, to: layer, selection: nil, edit: edit)
+            Effects.apply(effect, to: layer, selection: selection, edit: edit)
         }
         guard !changed.isEmpty else { return nil }
         let pixels = PixelBuffer(width: changed.width, height: changed.height)

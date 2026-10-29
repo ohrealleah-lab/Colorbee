@@ -37,4 +37,28 @@ public enum Compositing {
         }
         return target
     }
+
+    /// For the screen while a shape or text not yet placed sits on a layer that locks its transparency: that layer's
+    /// pixels under `image`, with `image` drawn over them as placing it and the lock will leave them, and where they go
+    /// (review U, finding 3). Nil when nothing overlaps.
+    public static func lockedPatch(of layer: Layer, under image: PixelBuffer, at origin: IntPoint) -> (pixels: PixelBuffer, area: IntRect)? {
+        let area = IntRect(x: origin.x, y: origin.y, width: image.width, height: image.height).intersection(layer.buffer.bounds)
+        guard !area.isEmpty else { return nil }
+        let patch = PixelBuffer(width: area.width, height: area.height)
+        ParallelRows.forEach(area.minY..<area.maxY) { rows in
+            for y in rows {
+                let source = image.row(y - origin.y), base = layer.buffer.row(y), target = patch.row(y - area.minY)
+                for x in area.minX..<area.maxX {
+                    let old = base[x]
+                    guard old.a > 0 else {
+                        target[x - area.minX] = old
+                        continue
+                    }
+                    let drawn = over(old, source[x - origin.x])
+                    target[x - area.minX] = Pixel(r: drawn.r, g: drawn.g, b: drawn.b, a: old.a)
+                }
+            }
+        }
+        return (patch, area)
+    }
 }

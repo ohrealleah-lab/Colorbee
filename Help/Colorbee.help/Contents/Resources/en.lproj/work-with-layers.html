@@ -38,7 +38,7 @@
         <li><strong>Double-click</strong> to rename it. <strong>Drag</strong> to change the order.</li>
         <li><strong>Shift-click</strong> chooses every layer between the active one and the one you click; <strong>⌘-click</strong> adds a layer or takes it away. Chosen layers are tinted; the one you clicked last is the active layer, where painting goes. See <a href="#several">Several layers at once</a>.</li>
         <li><strong>Right-click</strong> a layer for New Layer and New Adjustment Layer (added just above it), Merge, Duplicate, Delete, Hide, Lock, Rename and Layer Properties. The layer you right-click is chosen first, so the menu is always for the highlighted layers.</li>
-        <li>The <strong>eye</strong> hides or shows a layer. The <strong>padlock</strong> locks it, so it can't be painted on, moved, merged into or deleted. Commands that change the whole image, such as Crop, Rotate and Resize, still change it. A locked layer can still be hidden and reordered.</li>
+        <li>The <strong>eye</strong> hides or shows a layer. <strong>Option-click</strong> an eye to show only that layer; Option-click it again to bring back what was showing. The <strong>padlock</strong> locks it, so it can't be painted on, moved, merged into or deleted. Commands that change the whole image, such as Crop, Rotate and Resize, still change it. A locked layer can still be hidden and reordered.</li>
         <li><strong>Blend mode</strong> and <strong>Opacity</strong>, at the top of the panel, set how the active layer mixes with the ones below.</li>
         <li>The buttons along the bottom add, duplicate, delete and merge down.</li>
     </ul>
@@ -52,13 +52,14 @@
         <tr><td>Delete Layer (⌘⌫)</td><td>Removes the active layer.</td></tr>
         <tr><td>Merge Down (⇧⌘E)</td><td>Combines the active layer into the one below it.</td></tr>
         <tr><td>Merge Visible (⌥⇧⌘E)</td><td>Combines every visible layer into one. Hidden layers stay.</td></tr>
+        <tr><td>Stamp Visible</td><td>Adds a layer holding everything visible, merged, just above the active layer, and keeps all the layers as they are: handy for trying an effect on the whole picture.</td></tr>
         <tr><td>Flatten</td><td>Combines all visible layers into one, and drops hidden layers.</td></tr>
     </table>
     <p>All of these are in the Layer menu. Merging keeps how the picture looks.</p>
 
     <a name="several"></a>
     <h2>Several layers at once</h2>
-    <p>Choose several layers with Shift-click or ⌘-click, then:</p>
+    <p>Choose several layers with Shift-click or ⌘-click, or all of them with Layer ▸ Select All Layers (⌥⌘A), then:</p>
     <ul>
         <li><strong>Merge Layers</strong> (⇧⌘E, where Merge Down usually is) combines them into one, where the top one was and with its name. Unchosen layers in between stay where they are. Hidden chosen layers are left alone, and a chosen adjustment layer is merged into the chosen layers below it. If any chosen layer is locked, Merge Layers isn't available. Merging keeps the look of Normal layers; a layer set to Multiply, Screen or another blend mode is baked in, as in Photoshop, so it can look different where nothing chosen is under it.</li>
         <li><strong>Delete</strong>, <strong>Duplicate</strong>, <strong>Hide</strong> and <strong>Lock</strong> work on all of them, from the Layer menu or the right-click menu.</li>

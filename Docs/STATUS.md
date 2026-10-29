@@ -13,6 +13,7 @@ _Last updated: 2026-10-28 · 730 core tests and 239 app tests passing; the full 
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Stage 22: Select All Layers, isolate a layer, Stamp Visible](#test-stage-22-select-all-layers-isolate-a-layer-stamp-visible) (2026-10-28; stages 22 to 24 are built in a row, then tested together)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -80,6 +81,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 19. Export: color space and Limit file size | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 20. Color readout and Eyedropper sample size | ✅ Done; passed Leah's test 2026-10-28 | Medium |
 | 14 · 21. Auto-redact faces | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 22. Select All Layers, isolate a layer, Stamp Visible | Built 2026-10-28; waiting for Leah's test (with stages 23 and 24) | Medium |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -155,6 +157,8 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   (`Effects.Placement`), so readings match an export.
 - Stage 21 (2026-10-28): Auto-Redact's Faces row (`FaceFinder.swift`; `RedactionPattern.facesID`), read with the text
   on every page and listed after it.
+- Stage 22 (2026-10-28): Select All Layers (⌥⌘A), Option-click an eye to isolate a layer (`Editor.toggleIsolation`),
+  and Stamp Visible (`LayerActions.stampVisible`, `LayerActions.setVisibility`).
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -322,6 +326,17 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 22: Select All Layers, isolate a layer, Stamp Visible
+
+Test file: `TestImages/Several Layers/Opacity Test.colorproj`. Run `make run` first.
+1. Choose Layer ▸ **Select All Layers** (⌥⌘A): every layer in the Layers panel is tinted as chosen.
+2. Hold **Option** and click Green's eye: only Green shows. Option-click it again: everything that was showing is
+   back.
+3. Option-click Green's eye, then click another layer's eye to show it, then Option-click Green's eye again:
+   everything shows.
+4. Choose Layer ▸ **Stamp Visible**: a new layer named "Stamp" appears above the active one. Option-click its eye:
+   with only the stamp showing, the picture looks the same. ⌘Z twice.
 
 ### Test: Stage 21: Auto-redact faces (passed 2026-10-28)
 

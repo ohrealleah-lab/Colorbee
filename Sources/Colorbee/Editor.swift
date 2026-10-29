@@ -4424,6 +4424,47 @@ final class Editor {
         layerCommand { LayerActions.mergeVisible(canvas: canvas, history: history, context: selectionContext) }
     }
 
+    /// Layer ▸ Stamp Visible: a merged copy of everything visible, as a new layer above the active one.
+    func stampVisible() {
+        layerCommand { LayerActions.stampVisible(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    /// Layer ▸ Select All Layers (⌥⌘A): every layer is chosen, hidden and adjustment layers too (Q22.2).
+    func selectAllLayers() {
+        finishInteractions()
+        otherChosenLayerIDs = Set(canvas.layers.map(\.id)).subtracting([canvas.activeLayer.id])
+        layersRevision += 1
+    }
+
+    /// What Option-clicking an eye last did: which layer it left showing alone, how every layer was before, and how
+    /// they were right after.
+    @ObservationIgnored private var isolation: (layer: LayerID, before: [LayerID: Bool], after: [LayerID: Bool])?
+
+    /// Option-click on a layer's eye (FR-8.6): only that layer shows. Option-clicking it again brings back what was
+    /// showing; if anything was shown or hidden meanwhile, everything shows (Q22.4). Each is one step (Q22.3).
+    func toggleIsolation(at index: Int) {
+        guard canvas.layers.indices.contains(index) else { return }
+        finishInteractions()
+        let layer = canvas.layers[index]
+        let now = Dictionary(uniqueKeysWithValues: canvas.layers.map { ($0.id, $0.isVisible) })
+        if let isolation, isolation.layer == layer.id, now != isolation.before {
+            let restored = now == isolation.after ? isolation.before : now.mapValues { _ in true }
+            self.isolation = nil
+            recordingChanges { LayerActions.setVisibility(restored, named: "Show Layers", canvas: canvas, history: history) }
+        } else {
+            let alone = now.mapValues { _ in false }.merging([layer.id: true]) { $1 }
+            // Already showing alone, with nothing to go back to: everything shows, as in Photoshop.
+            if now == alone {
+                isolation = nil
+                recordingChanges { LayerActions.setVisibility(now.mapValues { _ in true }, named: "Show Layers", canvas: canvas, history: history) }
+                return onRender()
+            }
+            isolation = (layer.id, now, alone)
+            recordingChanges { LayerActions.setVisibility(alone, named: "Show Only “\(layer.name)”", canvas: canvas, history: history) }
+        }
+        onRender()
+    }
+
     func flatten() {
         layerCommand { LayerActions.flatten(canvas: canvas, history: history, context: selectionContext) }
     }

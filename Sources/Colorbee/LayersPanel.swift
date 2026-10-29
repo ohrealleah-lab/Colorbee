@@ -180,14 +180,21 @@ private struct LayersPanel: View {
 
     private func row(_ layer: Layer, index: Int, isActive: Bool, isChosen: Bool) -> some View {
         HStack(spacing: 8) {
-            Button { editor.setLayerVisible(!layer.isVisible, at: index) } label: {
+            Button {
+                // Option-click shows only this layer, and again brings back what was showing (FR-8.6).
+                if NSEvent.modifierFlags.contains(.option) {
+                    editor.toggleIsolation(at: index)
+                } else {
+                    editor.setLayerVisible(!layer.isVisible, at: index)
+                }
+            } label: {
                 Image(systemName: layer.isVisible ? "eye" : "eye.slash")
                     .font(.system(size: 12))
                     .frame(width: 18, height: 18)
                     .opacity(layer.isVisible ? 1 : 0.5)
             }
             .buttonStyle(.plain)
-            .help(layer.isVisible ? "Hide this layer" : "Show this layer")
+            .help(layer.isVisible ? "Hide this layer. Option-click to show only this layer." : "Show this layer. Option-click to show only this layer.")
             .accessibilityLabel(layer.isVisible ? "Hide \(layer.name)" : "Show \(layer.name)")
 
             if layer.adjustment != nil, layer.clipsToLayerBelow {

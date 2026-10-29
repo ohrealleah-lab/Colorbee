@@ -261,6 +261,8 @@ final class DocumentWindow: NSWindow {
     @objc func deleteLayer(_ sender: Any?) { editor?.deleteLayer() }
     @objc func mergeDown(_ sender: Any?) { editor?.mergeDown() }
     @objc func mergeVisible(_ sender: Any?) { editor?.mergeVisible() }
+    @objc func stampVisible(_ sender: Any?) { editor?.stampVisible() }
+    @objc func selectAllLayers(_ sender: Any?) { editor?.selectAllLayers() }
     /// With hidden layers, asks first: flattening keeps only what's visible (Leah, 2026-10-04).
     @objc func flattenImage(_ sender: Any?) {
         guard let editor else { return }
@@ -502,6 +504,10 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(mergeVisible(_:)):
             return LayerActions.canMergeVisible(editor.canvas)
+        case #selector(stampVisible(_:)):
+            return editor.canvas.layers.contains(where: \.isVisible)
+        case #selector(selectAllLayers(_:)):
+            return editor.canvas.layers.count > 1
         case #selector(flattenImage(_:)):
             return LayerActions.canFlatten(editor.canvas)
         case #selector(deletePage(_:)):

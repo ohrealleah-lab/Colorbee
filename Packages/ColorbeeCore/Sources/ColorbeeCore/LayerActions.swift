@@ -184,6 +184,32 @@ public enum LayerActions {
         }
     }
 
+    /// Stamp Visible (FR-8.6, §23 2026-10-28): a new layer just above the active one, named "Stamp", holding everything
+    /// visible merged as it looks, while the layers themselves stay. It becomes active.
+    @discardableResult
+    public static func stampVisible(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        guard canvas.layers.contains(where: \.isVisible) else { return false }
+        return change("Stamp Visible", canvas: canvas, history: history, context: context) {
+            let stamp = Layer(name: "Stamp", buffer: canvas.composite(canvas.layers.filter(\.isVisible)))
+            let index = canvas.indexAboveActiveLayer
+            canvas.insertLayer(stamp, at: index)
+            canvas.activeLayerIndex = index
+            return true
+        }
+    }
+
+    /// Shows and hides layers together as one step named `name`, for isolating a layer with Option-click (FR-8.6).
+    /// Layers not in `visibility` keep theirs.
+    @discardableResult
+    public static func setVisibility(_ visibility: [LayerID: Bool], named name: String, canvas: Canvas, history: History) -> Bool {
+        let edit = history.beginEdit(name, on: canvas)
+        edit.willChangeLayers()
+        for layer in canvas.layers {
+            if let visible = visibility[layer.id] { layer.isVisible = visible }
+        }
+        return history.commit(edit)
+    }
+
     public static func canMergeVisible(_ canvas: Canvas) -> Bool {
         let visible = canvas.layers.filter(\.isVisible)
         return visible.count > 1 && !visible.contains(where: \.isLocked)

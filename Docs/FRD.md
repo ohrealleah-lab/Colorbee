@@ -383,6 +383,11 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - **On every chosen layer:** Delete, Duplicate (each copy just above its layer), Hide/Show and Lock/Unlock (Layer
   menu and right-click menu), opacity and blend mode in the Layers panel, and dragging to reorder (they move
   together, keeping their order). Each is one undo step.
+- **Select All Layers** (Layer menu, ⌥⌘A) chooses every layer, hidden and adjustment layers too (stage 22).
+- **Option-click an eye** shows only that layer; Option-click it again brings back what was showing. If anything was
+  shown or hidden meanwhile, the second Option-click shows everything. Each is one undo step (stage 22).
+- **Stamp Visible** (Layer menu, no key): a new layer named "Stamp", just above the active one, holding everything
+  visible merged as it looks; the layers stay as they are. One undo step (stage 22).
 - **Right-click menu on a layer:** New Layer and New Adjustment Layer ▸ (every kind, as in the Layer menu), each
   added just above that layer; then Merge Down (or Merge Layers), Duplicate, Delete, Hide/Show, Lock/Unlock,
   Rename and Layer Properties. Rename is greyed out while several layers are chosen. Right-clicking (or Control-clicking) a layer that isn't chosen chooses it alone, and
@@ -898,6 +903,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-28 | **Stage 22 built** (my choices, veto any): Select All Layers sits after Lift Subject in the Layer menu, and Stamp Visible after Merge Visible. Isolating is named "Show Only “Green”" in the History panel, and bringing them back "Show Layers". Option-clicking the eye of a layer that's already the only one showing shows everything, as in Photoshop. Stamp Visible becomes the active layer. |
 | 2026-10-28 | **Stages 22 to 24 answers** (Leah: "use your recommendations", Q22.1 to Q24.4 in `Docs/Development-Plan.md`; built one after another, then hand tested together). **Stage 22:** Select All Layers on ⌥⌘A, including hidden and adjustment layers; isolating a layer, and undoing it, are each one undo step; if visibility changes while isolated, the second Option-click shows everything; Stamp Visible goes just above the active layer, named "Stamp", with no default key. **Stage 23:** the padlock becomes a small menu (Lock All, Lock Transparent Pixels) and the row shows which; the Eraser on such a layer paints Color 2 inside the shape, with no holes; every tool, effect, adjustment and Delete respects it. **Stage 24:** Align refuses with a message when it would push pixels off the canvas; it goes by each layer's visible pixels; one chosen layer aligns to the canvas, or to the selection if there is one; greyed out if a chosen layer is locked. |
 | 2026-10-28 | **Copying a color's hex** (Leah): the readout clears as the pointer leaves the picture, so its hex couldn't be clicked. Instead, the eyedropper at the start of the readout is a button: click it, then a color in the picture, and its hex is copied (Leah's choice); Edit ▸ Copy Color as Hex (⌃⌘C) copies the hex under the pointer (also Leah's). My choices (veto any): the status bar's eyedropper works whatever the tool, takes one click, beeps off the picture and stays on, and Esc turns it off; ⌃⌘C works while an effect's bar is open, and beeps off the picture. |
 | 2026-10-28 | **Stage 21 built** (my choices, veto any): faces come after each page's text in the list, numbered through the whole document in reading order (rows top to bottom, each left to right). The test picture is three made-up shaded faces (`TestImages/Auto-Redact Faces.png`), which Vision finds; flat cartoon faces it didn't, so none of Leah's photos was needed. The "can be missed" note shows whenever the Faces row is on. With nothing found, the sheet says "No sensitive text or faces found." |

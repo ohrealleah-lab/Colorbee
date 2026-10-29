@@ -95,6 +95,8 @@ enum MainMenu {
         "deleteLayer:": "Delete the active layer, or every chosen layer. The only layer, or a locked one, can't be deleted.",
         "mergeDown:": "Combine the active layer into the one below, or the chosen layers into one, keeping how they look.",
         "mergeVisible:": "Combine every visible layer into one. Hidden layers stay.",
+        "stampVisible:": "Add a layer holding everything visible, merged, and keep the layers as they are.",
+        "selectAllLayers:": "Choose every layer, to change or move them together.",
         "flattenImage:": "Combine all visible layers into one and drop hidden layers.",
         "toggleLayerVisibility:": "Hide or show the active layer, or every chosen layer.",
         "toggleLayerLock:": "Lock the active layer (or every chosen layer) against changes, or unlock it.",
@@ -341,9 +343,11 @@ enum MainMenu {
         menu.addItem(item("Duplicate Layer", "duplicateLayer:", "j"))
         menu.addItem(item("Delete Layer", "deleteLayer:", "\u{8}"))
         menu.addItem(item("Lift Subject to New Layer", "liftSubject:"))
+        menu.addItem(item("Select All Layers", "selectAllLayers:", "a", [.command, .option]))
         menu.addItem(.separator())
         menu.addItem(item("Merge Down", "mergeDown:", "e", [.command, .shift]))
         menu.addItem(item("Merge Visible", "mergeVisible:", "e", [.command, .option, .shift]))
+        menu.addItem(item("Stamp Visible", "stampVisible:"))
         menu.addItem(item("Flatten", "flattenImage:"))
         menu.addItem(.separator())
         menu.addItem(submenu(adjustmentLayerMenu()))

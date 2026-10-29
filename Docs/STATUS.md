@@ -354,10 +354,11 @@ Adjustments, History (⌘Y).
    - Press ⌘Z: the cropped picture comes back, at the cropped size. Press ⌘Z again: the whole chart.
 2. **Snapshots wait for an effect.** Choose Effects ▸ Gaussian Blur…. While its bar is open, **the camera button next
    to "Snapshots" and the "Snapshot 1" row are greyed out.** Click Cancel: they work again.
-3. **Point Color's Range.** Choose Adjustments ▸ Adjust Photo…. In the Point Color section, click its eyedropper, then
-   click the Red patch: a red dot appears, with Hue, Saturation, Luminance and Range sliders. Drag Hue to about +50.
-   Control-click the Range slider and choose Reset Range.
-   - **The picture is in full color** (not gray apart from the red). Click Apply: it stays in color. Press ⌘Z.
+3. **Point Color's Range.** Choose Adjustments ▸ Adjust Photo…. In Point Color, click its eyedropper, then the Red
+   patch. Drag Hue to about +50. Drag the Range slider to about 80: while you hold it, everything but the reds turns
+   gray (the Range view); let go and it's in color again. Control-click the Range slider and choose Reset Range.
+   - **The slider jumps back to the middle (50), and the picture stays in full color.** Click Apply: it stays in
+     color. Press ⌘Z.
 4. **White balance through a curve.** Choose Adjustments ▸ Adjust Photo…. In Filters, click Vivid Cool: the gray
    patches turn slightly blue. In Tone Curve, set Darks to −100 and Lights to +100. Click the eyedropper beside Warmth,
    then click the Gray 128 patch.

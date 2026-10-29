@@ -13,14 +13,6 @@ _Last updated: 2026-10-28 · 730 core tests and 239 app tests passing; the full 
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Stage 15: Tone curve and clipping warnings](#test-stage-15-tone-curve-and-clipping-warnings) (2026-10-28; stages 15 to 18b are built in a row, then tested together)
-- [Stage 16: Drag on the picture to adjust](#test-stage-16-drag-on-the-picture-to-adjust) (2026-10-28)
-- [Stage 17: Photo geometry](#test-stage-17-photo-geometry) (2026-10-28)
-- [Stage 18a: Trim](#test-stage-18a-trim) (2026-10-28)
-- [Stage 18b: Canvas Size anchor](#test-stage-18b-canvas-size-anchor) (2026-10-28)
-- [Stage 19: Export: color space and Limit file size](#test-stage-19-export-color-space-and-limit-file-size) (2026-10-28; stages 19 to 21 are built in a row, then tested together)
-- [Stage 20: Color readout and Eyedropper sample size](#test-stage-20-color-readout-and-eyedropper-sample-size) (2026-10-28)
-- [Stage 21: Auto-redact faces](#test-stage-21-auto-redact-faces) (2026-10-28)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -80,14 +72,14 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 12. History Snapshots | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 13. Sharpening and Noise Reduction in detail | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 14. Vignette and Grain | ✅ Done; passed Leah's test 2026-10-28 | Medium |
-| 14 · 15. Tone curve and clipping warnings | Built 2026-10-28; waiting for Leah's test (with stages 16 to 18b) | High |
-| 14 · 16. Drag on the picture to adjust | Built 2026-10-28; waiting for Leah's test (with stages 15, 17 to 18b) | High |
-| 14 · 17. Photo geometry | Built 2026-10-28; waiting for Leah's test (with stages 15, 16, 18a and 18b) | Medium |
-| 14 · 18a. Trim | Built 2026-10-28; waiting for Leah's test (with stages 15 to 17 and 18b) | Medium |
-| 14 · 18b. Canvas Size anchor | Built 2026-10-28; waiting for Leah's test (with stages 15 to 18a) | Medium |
-| 14 · 19. Export: color space and Limit file size | Built 2026-10-28; waiting for Leah's test (with stages 20 and 21) | High |
-| 14 · 20. Color readout and Eyedropper sample size | Built 2026-10-28; waiting for Leah's test (with stages 19 and 21) | Medium |
-| 14 · 21. Auto-redact faces | Built 2026-10-28; waiting for Leah's test (with stages 19 and 20) | High |
+| 14 · 15. Tone curve and clipping warnings | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 16. Drag on the picture to adjust | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 17. Photo geometry | ✅ Done; passed Leah's test 2026-10-28 | Medium |
+| 14 · 18a. Trim | ✅ Done; passed Leah's test 2026-10-28 | Medium |
+| 14 · 18b. Canvas Size anchor | ✅ Done; passed Leah's test 2026-10-28 | Medium |
+| 14 · 19. Export: color space and Limit file size | ✅ Done; passed Leah's test 2026-10-28 | High |
+| 14 · 20. Color readout and Eyedropper sample size | ✅ Done; passed Leah's test 2026-10-28 | Medium |
+| 14 · 21. Auto-redact faces | ✅ Done; passed Leah's test 2026-10-28 | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -331,7 +323,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Stage 21: Auto-redact faces
+### Test: Stage 21: Auto-redact faces (passed 2026-10-28)
 
 Test files: `TestImages/Auto-Redact Faces.png` (three made-up faces and an email) and
 `TestImages/Stage 10/Three Page Test.pdf`. Run `make run` first.
@@ -342,7 +334,7 @@ Test files: `TestImages/Auto-Redact Faces.png` (three made-up faces and an email
 3. Open the PDF and choose Auto-Redact: no faces are listed, and its text matches are as before.
 4. If you have a photo of your own with people in it, try it too (it stays on your Mac): each face should be found.
 
-### Test: Stage 20: Color readout and Eyedropper sample size
+### Test: Stage 20: Color readout and Eyedropper sample size (passed 2026-10-28)
 
 Test files: `TestImages/Photo Editing/Color Chart.png` (its colors are listed in `Color Chart.txt`),
 `TestImages/Help/Sample Screenshot.png` and `TestImages/Photo Editing/Old Adjust Photo.colorproj`. Run `make run`
@@ -357,7 +349,7 @@ first.
 4. Open `Old Adjust Photo.colorproj` and point at a corner, where the vignette darkens it. Hide the Adjust Photo
    layers: the readout changes, so it was reading what you see.
 
-### Test: Stage 19: Export: color space and Limit file size
+### Test: Stage 19: Export: color space and Limit file size (passed 2026-10-28)
 
 Test file: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first.
 1. Choose File ▸ **Export…**, JPEG, and **Color: sRGB**. Open the file in Preview, then Tools ▸ Show Inspector:
@@ -371,7 +363,7 @@ Test file: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first.
 6. In Colorbee ▸ Settings ▸ Export Presets, set **Slack**'s color to sRGB, then File ▸ Export As ▸ Slack: the PNG's
    profile is sRGB. Set it back to Keep.
 
-### Test: Stage 18b: Canvas Size anchor
+### Test: Stage 18b: Canvas Size anchor (passed 2026-10-28)
 
 Test file: `TestImages/Help/Sample Screenshot.png` (1200 × 760). Run `make run` first.
 1. Choose Image ▸ **Canvas Properties…**: the Anchor squares show the middle one chosen. Make it 1400 × 960 and press
@@ -382,7 +374,7 @@ Test file: `TestImages/Help/Sample Screenshot.png` (1200 × 760). Run `make run`
 4. Open Canvas Properties once more: the anchor is back on the middle square.
 5. Draw a selection, then make the canvas bigger with the middle square: the selection moves with the picture.
 
-### Test: Stage 18a: Trim
+### Test: Stage 18a: Trim (passed 2026-10-28)
 
 Test files: `TestImages/Trim Practice.png`, `TestImages/Trim Practice Solid.png` and
 `TestImages/Stage 9 Practice Cutout.png`. Run `make run` first.
@@ -394,7 +386,7 @@ Test files: `TestImages/Trim Practice.png`, `TestImages/Trim Practice Solid.png`
    tight around what's left. ⌘Z brings the full size back in one step.
 4. Choose **Trim** again on the trimmed picture: a beep, since there's no border left.
 
-### Test: Stage 17: Photo geometry
+### Test: Stage 17: Photo geometry (passed 2026-10-28)
 
 Test files: `TestImages/Stage 9 Practice Perspective.png` and `TestImages/Photo Editing/Dull Photo.png`. Run
 `make run` first.
@@ -408,7 +400,7 @@ Test files: `TestImages/Stage 9 Practice Perspective.png` and `TestImages/Photo 
    name "Grid" shows at the bottom and a grid shows for a moment. Keep pressing O: Diagonal, Triangle, Golden Ratio,
    Golden Spiral, then Thirds again. Drag the box: the guides you chose show while you drag. Esc.
 
-### Test: Stage 16: Drag on the picture to adjust
+### Test: Stage 16: Drag on the picture to adjust (passed 2026-10-28)
 
 Test file: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first.
 1. Open the photo and choose Adjustments ▸ **Adjust Photo…**. In **Tone Curve**, click the **hand** in the graph's
@@ -420,7 +412,7 @@ Test file: `TestImages/Stage 9 Practice Photo.png`. Run `make run` first.
    Aqua) saturation drops. Drag on a gray part: a beep, and nothing changes.
 5. Press **Esc**: the hand turns off. Apply, then ⌘Z: it all comes off in one step.
 
-### Test: Stage 15: Tone curve and clipping warnings
+### Test: Stage 15: Tone curve and clipping warnings (passed 2026-10-28)
 
 Test files: `TestImages/Stage 9 Practice Photo.png` and `TestImages/Photo Editing/Color Chart.png`. Run `make run`
 first.

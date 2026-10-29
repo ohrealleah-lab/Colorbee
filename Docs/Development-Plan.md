@@ -1467,22 +1467,22 @@ _Added after the review (2026-10-27):_
 
 ### Before stage 22
 
-- **Q22.1** Select All Layers on ⌥⌘A (Photoshop's; free in Colorbee)? *Recommend yes.*
-- **Q22.2** Includes hidden and adjustment layers? *Recommend yes,* all layers.
+- **Q22.1** Select All Layers on ⌥⌘A (Photoshop's; free in Colorbee)? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q22.2** Includes hidden and adjustment layers? *Recommend yes,* all layers. **Answer: yes, as recommended.**
 - **Q22.3** Isolating, and undoing it, are each one undo step, since showing and hiding are steps today?
-  *Recommend yes.*
+  *Recommend yes.* **Answer: yes, as recommended.**
 - **Q22.4** If you change visibility while isolated, the second Option-click shows everything? *Recommend yes;* it's
-  predictable.
+  predictable. **Answer: yes, as recommended.**
 - **Q22.5** Stamp Visible goes just above the active layer, named "Stamp", with no default key (⌥⇧⌘E is Merge
-  Visible here)? *Recommend yes.*
+  Visible here)? *Recommend yes.* **Answer: yes, as recommended.**
 
 ### Before stage 23
 
 - **Q23.1** The padlock becomes a small menu (Lock All, Lock Transparent Pixels), and the row shows which?
-  *Recommend yes.*
+  *Recommend yes.* **Answer: yes, as recommended.**
 - **Q23.2** The Eraser on such a layer paints Color 2 inside the shape, with no holes? *Recommend yes,* close to
-  Photoshop.
-- **Q23.3** Every tool, effect, adjustment and Delete respects it? *Recommend yes.*
+  Photoshop. **Answer: yes, as recommended.**
+- **Q23.3** Every tool, effect, adjustment and Delete respects it? *Recommend yes.* **Answer: yes, as recommended.**
 - **Q23.4** Flip, Rotate, Crop, Resize and Straighten work as usual on such a layer, moving its outline with the
   picture? *Recommend yes,* as in Photoshop: they move the whole layer rather than paint on it. **Answer: yes.**
 - **Q23.5** A one-layer picture saved as a PNG doesn't keep the lock, like today's padlock? *Recommend yes:* a lock
@@ -1491,10 +1491,10 @@ _Added after the review (2026-10-27):_
 ### Before stage 24
 
 - **Q24.1** Aligning a big layer to a small selection could push pixels off the canvas. *Recommend* refusing with a
-  message when that would happen, since pixels past the edge are lost.
-- **Q24.2** Go by each layer's visible pixels? *Recommend yes.*
-- **Q24.3** One chosen layer aligns to the canvas, or to the selection if there is one? *Recommend yes.*
-- **Q24.4** Greyed out if a chosen layer is locked, like Merge Layers? *Recommend yes.*
+  message when that would happen, since pixels past the edge are lost. **Answer: yes, as recommended.**
+- **Q24.2** Go by each layer's visible pixels? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q24.3** One chosen layer aligns to the canvas, or to the selection if there is one? *Recommend yes.* **Answer: yes, as recommended.**
+- **Q24.4** Greyed out if a chosen layer is locked, like Merge Layers? *Recommend yes.* **Answer: yes, as recommended.**
 
 ### Before stage 25
 

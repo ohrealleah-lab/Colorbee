@@ -340,49 +340,94 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ### Test: Review round 9 fixes
 
-Results in [Review/RESULTS.md](Review/RESULTS.md), round 9.
+Results in [Review/RESULTS.md](Review/RESULTS.md), round 9. Grouped by picture. When you close a test picture, choose
+**Don't Save**, so the test images stay as they are. Show the panels you need from the View menu: Layers (⌘L),
+Adjustments, History (⌘Y).
 
-1. **Snapshot after a crop.** Open `TestImages/Photo Editing/Color Chart.png`. Edit ▸ New Snapshot…, Take Snapshot.
-   Select the top-left quarter and Image ▸ Crop to Selection. Click "Snapshot 1" in the History panel. Open the Edit
-   menu: Undo on Active Layer is greyed out. ⌘Z brings the cropped picture back.
-2. **Pasting onto a locked layer.** Open `TestImages/Stage 9 Practice Cutout.png`. In the Layers panel's padlock menu
-   choose Lock Transparent Pixels. Rectangle-select part of the object, edge included, and drag it half over the
-   see-through area: only the part over the object shows. Press Return: nothing changes on screen.
-3. **A soft edge put back.** Same picture, ⌘Z back to the start. Set Color 2 to bright red. Select part of the object
-   including its soft edge, press → once, then ← once, then ⌘D. The edge has no red tint.
-4. **A shadow on a locked layer.** Same picture, still locked. Effects ▸ Drop Shadow… with a distance big enough that
-   the canvas grows. Apply: no shadow appears in the see-through area.
-5. **Snapshots wait for an effect.** Show the History panel. Effects ▸ Gaussian Blur…: the camera button and the
-   snapshot rows are greyed out until you Apply or Cancel.
-6. **Isolating after an undo.** Open `TestImages/Several Layers/Opacity Test.colorproj`. Option-click Red's eye (only
-   Red shows), ⌘Z, click Green's eye to hide it, then Option-click Red's eye again: only Red shows.
-7. **Point Color's Range.** Open `Color Chart.png`, Adjustments ▸ Adjust Photo…. In Point Color, click the eyedropper,
-   then the Red patch. Drag its Hue to about +50. Control-click the Range slider ▸ Reset Range: the picture is in full
-   color. Apply: it stays in color.
-8. **White balance through a curve.** Open `Color Chart.png`, Adjust Photo…, click Vivid Cool. In Tone Curve set
-   Darks −100 and Lights +100. Click the eyedropper beside Warmth, then the Gray 128 patch: it comes out gray, not
-   orange.
-9. **Same as Last.** Open `TestImages/Photo Editing/Texture Practice.png`. Adjust Photo…, Sharpness 50, Texture 50,
-   Noise Reduction 50, Apply, then ⌘Z. Adjustments ▸ Adjust Photo: Same as Last: the window doesn't freeze, and the
-   change arrives as one step.
-10. **Esc during a hand drag.** Open `TestImages/Photo Editing/Dull Photo.png`, Layer ▸ New Adjustment Layer ▸ Adjust
-    Photo. In Tone Curve click the hand, press on the picture and drag up, press Esc while holding, then let go: the
-    History panel has a new step and the window shows unsaved changes.
-11. **A wheel's double-click.** Same Adjust Photo layer. In Color Grading's Shadows, drag the point toward blue and let
-    go. Double-click the wheel near its orange edge: the point goes to the middle. ⌘Z: the point goes back to blue.
-12. **Clipped eyedropper.** Open `Opacity Test.colorproj`. Click Red, set its opacity to 50%. Layer ▸ New Adjustment
-    Layer ▸ Adjust Photo, turn on "Only the layer below". In Point Color, eyedropper, click the red block: the new dot
-    is full red, not pale.
-13. **Readout over a paste.** Open `Color Chart.png`. Select a small box inside Red, ⌘C, ⌘V, drag the copy onto Blue.
-    Hover over it: the status bar says `#D92B2B`. ⌃⌘C and paste into TextEdit: the red hex. Open the Edit menu with the
-    mouse: Copy Color as Hex is greyed out.
-14. **Export size limit.** Open `Texture Practice.png`, File ▸ Export… as JPEG, turn on Limit file size, type 50 (KB)
-    and click Save straight away, without Return or Tab. The file is 50 KB or less in Finder.
-15. **Big blur, smooth drawing.** Open `Texture Practice.png`, add a Gaussian Blur adjustment layer at 100. Click the
-    picture layer and draw with the Pencil: no lag.
-16. **Detail blurs while resizing.** Open `Texture Practice.png`, add an Adjust Photo adjustment layer: Texture −100,
-    Noise Reduction 100, Sharpness 30, and Sharpness's Radius 2.5. Drag the window's corner slowly: the picture stays
-    smooth, with no flicker.
+**A. `TestImages/Photo Editing/Color Chart.png`**
+
+1. **Snapshot after a crop.** Press ⌘Y to show the History panel. Choose Edit ▸ New Snapshot…, then click Take
+   Snapshot: "Snapshot 1" appears under Snapshots in the History panel. Press M (Rectangle Select) and drag a box over
+   the top-left quarter of the picture. Choose Image ▸ Crop to Selection. Click "Snapshot 1" in the History panel: the
+   whole chart comes back.
+   - Open the Edit menu: **Undo on Active Layer is greyed out.**
+   - Press ⌘Z: the cropped picture comes back, at the cropped size. Press ⌘Z again: the whole chart.
+2. **Snapshots wait for an effect.** Choose Effects ▸ Gaussian Blur…. While its bar is open, **the camera button next
+   to "Snapshots" and the "Snapshot 1" row are greyed out.** Click Cancel: they work again.
+3. **Point Color's Range.** Choose Adjustments ▸ Adjust Photo…. In the Point Color section, click its eyedropper, then
+   click the Red patch: a red dot appears, with Hue, Saturation, Luminance and Range sliders. Drag Hue to about +50.
+   Control-click the Range slider and choose Reset Range.
+   - **The picture is in full color** (not gray apart from the red). Click Apply: it stays in color. Press ⌘Z.
+4. **White balance through a curve.** Choose Adjustments ▸ Adjust Photo…. In Filters, click Vivid Cool: the gray
+   patches turn slightly blue. In Tone Curve, set Darks to −100 and Lights to +100. Click the eyedropper beside Warmth,
+   then click the Gray 128 patch.
+   - **Gray 128 comes out gray**, not orange. Click Cancel.
+5. **Readout over a paste.** Hover over the Red patch and note the hex in the status bar. Press M and drag a small box
+   inside the Red patch. Press ⌘C, then ⌘V. Drag inside the pasted square to move it onto the Blue patch. Don't click
+   anywhere else.
+   - Hover over the pasted square: **the status bar shows the red hex**, not the blue.
+   - With the pointer still on it, press ⌃⌘C, then paste into TextEdit: the red hex.
+   - Open the Edit menu with the mouse: **Copy Color as Hex is greyed out** (the pointer has left the picture).
+   - Close the picture with Don't Save.
+
+**B. `TestImages/Stage 9 Practice Cutout.png`** (an orange circle, a blue star with a soft glowing edge and a green
+square, on see-through)
+
+6. **Moving onto a locked layer.** Choose Layer ▸ Lock Transparent Pixels. Press M and drag a box just around the
+   green square. Drag inside the box to move the square up and to the left, so it half covers the star's lower-right
+   point.
+   - **Green shows only where it's over the star**; the half over the see-through area doesn't show.
+   - Where the square used to be is now a white square: on a locked layer, moving leaves Color 2 behind inside the
+     shape, as the Eraser does. That's expected.
+   - Press ⌘D to place it: **nothing changes on screen.** Press ⌘Z.
+7. **A soft edge put back.** Right-click the red swatch in the palette bar, to make Color 2 red. Press M and drag a
+   box around the star's top point, glow included. Press → once, then ← once, then ⌘D. Zoom in on the glow.
+   - **The glow looks as it did, with no red tint.**
+8. **A shadow on a locked layer.** Close with Don't Save, open the picture again, and choose Layer ▸ Lock Transparent
+   Pixels. Choose Effects ▸ Drop Shadow…, drag Across all the way right (200), and click Apply.
+   - The canvas grows wider on the right, and **no shadow appears anywhere**: the see-through area, old and new, stays
+     see-through. Close with Don't Save.
+
+**C. `TestImages/Several Layers/Opacity Test.colorproj`** (layers Background, Red, Green, Blue, Yellow; Red is at
+57% opacity)
+
+9. **Isolating after an undo.** In the Layers panel, Option-click Red's eye: only Red shows. Press ⌘Z: everything
+   shows. Click Green's eye to hide Green. Option-click Red's eye again.
+   - **Only Red shows** (not every layer).
+   - Press ⌘Z until everything shows again.
+10. **Clipped eyedropper.** Click the Red layer. Choose Layer ▸ New Adjustment Layer ▸ Adjust Photo. In the Layers
+    panel, turn on "Only the layer below". In the Adjustments panel's Point Color, click the eyedropper, then click a
+    red part of the picture.
+    - **The new dot is a strong red**, the Red layer's own color, not a paler mixed red. Close with Don't Save.
+
+**D. `TestImages/Photo Editing/Dull Photo.png`**
+
+11. **Esc during a hand drag.** Choose Layer ▸ New Adjustment Layer ▸ Adjust Photo. In the Adjustments panel's Tone
+    Curve, click the small hand at the top-left corner of the curve. Press on the picture and drag up so it brightens.
+    While still holding the button, press Esc, then let go.
+    - **The History panel shows a new step**, and the window's close button shows a dot (unsaved changes).
+12. **A wheel's double-click.** On the same layer, in Color Grading's Shadows tab, drag the wheel's point toward blue
+    and let go. Double-click the wheel near its orange edge: the point goes back to the middle. Press ⌘Z.
+    - **The point goes back to blue**, not to the orange edge. The History panel shows one step for the double-click.
+    - Close with Don't Save.
+
+**E. `TestImages/Photo Editing/Texture Practice.png`**
+
+13. **Same as Last.** Choose Adjustments ▸ Adjust Photo…. Set Sharpness, Texture and Noise Reduction to 50 and click
+    Apply. Press ⌘Z. Choose Adjustments ▸ Adjust Photo: Same as Last.
+    - **The window doesn't freeze**, and a moment later the change appears as one "Adjust Photo" step.
+    - Press ⌘Z.
+14. **Export size limit.** Choose File ▸ Export…, Format JPEG, turn on "Limit file size to", type 150 with KB, press
+    Tab, and save it as "Limit A". Choose File ▸ Export… again, click in the number box, change it to 600, and **click
+    Save straight away**, without pressing Return or Tab. Save as "Limit B".
+    - In Finder, **"Limit B" is bigger than 150 KB** (and no more than 600 KB). Delete both files afterwards.
+15. **Big blur, smooth drawing.** Choose Layer ▸ New Adjustment Layer ▸ Gaussian Blur and set its Radius to 100. In
+    the Layers panel, click the picture's own layer. Press P (Pencil) and draw on the picture.
+    - **No lag** while drawing; the status bar's color catches up when you let go.
+16. **Detail blurs while resizing.** In the Layers panel, click the Gaussian Blur layer and press ⌘⌫ to delete it. Choose Layer ▸ New Adjustment Layer ▸ Adjust Photo
+    and set Texture −100, Noise Reduction 100 and Sharpness 30. Open Sharpness's finer settings with its arrow and set
+    Radius to 2.5. Slowly drag the window's corner to resize it.
+    - **The picture stays smooth, with no flicker.** Close with Don't Save.
 
 ### Test: Stage 24: Align and Distribute
 

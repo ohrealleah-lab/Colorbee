@@ -29,7 +29,7 @@ extension History {
         }
         let layers = canvas.layers.map { layer in
             HistorySnapshot.StoredLayer(layer: layer, name: layer.name, isVisible: layer.isVisible, opacity: layer.opacity,
-                                        blendMode: layer.blendMode, isLocked: layer.isLocked, adjustment: layer.adjustment,
+                                        blendMode: layer.blendMode, isLocked: layer.isLocked, locksTransparency: layer.locksTransparency, adjustment: layer.adjustment,
                                         clipsToLayerBelow: layer.clipsToLayerBelow, pixels: locations[ObjectIdentifier(layer)])
         }
         let selection: SelectionState = canvas.selection.marquee.map { .marquee($0) } ?? .none
@@ -65,7 +65,7 @@ extension History {
         edit.willChangeLayers()
         let records = zip(snapshot.layers, buffers).map { stored, buffer in
             LayerStackState.Record(layer: stored.layer, name: stored.name, isVisible: stored.isVisible, opacity: stored.opacity,
-                                   blendMode: stored.blendMode, isLocked: stored.isLocked, adjustment: stored.adjustment,
+                                   blendMode: stored.blendMode, isLocked: stored.isLocked, locksTransparency: stored.locksTransparency, adjustment: stored.adjustment,
                                    clipsToLayerBelow: stored.clipsToLayerBelow, buffer: buffer)
         }
         canvas.restore(LayerStackState(records: records, activeIndex: snapshot.activeIndex,

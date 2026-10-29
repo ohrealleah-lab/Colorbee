@@ -14,6 +14,7 @@ _Last updated: 2026-10-28 · 730 core tests and 239 app tests passing; the full 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Stage 22: Select All Layers, isolate a layer, Stamp Visible](#test-stage-22-select-all-layers-isolate-a-layer-stamp-visible) (2026-10-28; stages 22 to 24 are built in a row, then tested together)
+- [Stage 23: Lock transparent pixels](#test-stage-23-lock-transparent-pixels) (2026-10-28)
 - Adjustments panel fills the sidebar when it's open alone (2026-10-28): steps given in chat. Open `Hazy.png`, add an
   Adjust Photo adjustment layer, close the Layers panel: the sliders fill the sidebar; reopen Layers: they shrink back.
 
@@ -82,6 +83,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 20. Color readout and Eyedropper sample size | ✅ Done; passed Leah's test 2026-10-28 | Medium |
 | 14 · 21. Auto-redact faces | ✅ Done; passed Leah's test 2026-10-28 | High |
 | 14 · 22. Select All Layers, isolate a layer, Stamp Visible | Built 2026-10-28; waiting for Leah's test (with stages 23 and 24) | Medium |
+| 14 · 23. Lock transparent pixels | Built 2026-10-28; waiting for Leah's test (with stages 22 and 24) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -159,6 +161,10 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   on every page and listed after it.
 - Stage 22 (2026-10-28): Select All Layers (⌥⌘A), Option-click an eye to isolate a layer (`Editor.toggleIsolation`),
   and Stamp Visible (`LayerActions.stampVisible`, `LayerActions.setVisibility`).
+- Stage 23 (2026-10-28): Lock Transparent Pixels (`Layer.locksTransparency`), kept for every tool in one place,
+  `Edit.keepLockedTransparency`, from history's before-images: at commit and before each frame
+  (`Canvas.keepLockedTransparency`, called by the renderer). `Canvas.erasedFill` paints Color 2 for the Eraser, Cut
+  and Delete.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -326,6 +332,19 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 23: Lock transparent pixels
+
+Test file: `TestImages/Stage 9 Practice Cutout.png`. Run `make run` first.
+1. Open the cutout and choose Layer ▸ **Lift Subject to New Layer**, then click the circle and star: a Subject layer
+   with just them. Click the Subject layer, then click its **padlock** and choose **Lock Transparent Pixels**: the
+   padlock shows a lock in a square.
+2. Pick a big red Brush and paint slowly across the subject and the empty space around it: the circle and star turn
+   red, and the empty area stays empty the whole time, not only when you let go.
+3. Use the **Fill** bucket and the **Gradient** inside the shapes, and outside them: only the shapes change.
+4. Use the **Eraser** across a shape: it paints Color 2 inside the shape, and leaves no hole.
+5. Choose Image ▸ Flip ▸ **Horizontal**: the layer flips as usual and is still locked. ⌘Z.
+6. Save (it's a project, since it has two layers), close and reopen: the padlock still shows it's locked.
 
 ### Test: Stage 22: Select All Layers, isolate a layer, Stamp Visible
 

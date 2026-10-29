@@ -244,15 +244,27 @@ private struct LayersPanel: View {
                     .opacity(0.7)
             }
             Spacer(minLength: 0)
-            Button { editor.setLayerLocked(!layer.isLocked, at: index) } label: {
-                Image(systemName: layer.isLocked ? "lock.fill" : "lock.open")
+            // The padlock is a small menu of the two locks, and shows which is on (Q23.1).
+            Menu {
+                Toggle("Lock All", isOn: Binding(get: { layer.isLocked }, set: { editor.setLayerLocked($0, at: index) }))
+                if layer.adjustment == nil {
+                    Toggle("Lock Transparent Pixels", isOn: Binding(get: { layer.locksTransparency },
+                                                                    set: { editor.setLayerLocksTransparency($0, at: index) }))
+                }
+            } label: {
+                Image(systemName: layer.isLocked ? "lock.fill" : layer.locksTransparency ? "lock.square" : "lock.open")
                     .font(.system(size: 11))
                     .frame(width: 18, height: 18)
-                    .opacity(layer.isLocked ? 1 : 0.35)
+                    .opacity(layer.isLocked || layer.locksTransparency ? 1 : 0.35)
             }
+            .menuStyle(.button)
             .buttonStyle(.plain)
-            .help(layer.isLocked ? "Unlock: allow changes to this layer" : "Lock: protect this layer from changes")
-            .accessibilityLabel(layer.isLocked ? "Unlock \(layer.name)" : "Lock \(layer.name)")
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(layer.isLocked ? "Locked: no changes to this layer. Click to unlock."
+                  : layer.locksTransparency ? "Transparent pixels locked: paint recolors the layer but can't fill its clear area. Click to change."
+                  : "Lock this layer, or just its transparent pixels")
+            .accessibilityLabel(layer.isLocked ? "\(layer.name), locked" : layer.locksTransparency ? "\(layer.name), transparent pixels locked" : "Lock \(layer.name)")
         }
         .padding(.leading, 6)
         .padding(.trailing, 8)

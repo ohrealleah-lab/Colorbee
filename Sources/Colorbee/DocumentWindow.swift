@@ -304,6 +304,7 @@ final class DocumentWindow: NSWindow {
 
     @objc func toggleLayerVisibility(_ sender: Any?) { editor?.toggleChosenLayersVisible() }
     @objc func toggleLayerLock(_ sender: Any?) { editor?.toggleChosenLayersLocked() }
+    @objc func toggleLayerTransparencyLock(_ sender: Any?) { editor?.toggleChosenLayersLockTransparency() }
 
     /// The Layers panel holds the active layer's name, blend mode and opacity, so this opens it.
     @objc func showLayerProperties(_ sender: Any?) {
@@ -524,6 +525,9 @@ final class DocumentWindow: NSWindow {
             let layers = editor.hasSeveralChosenLayers ? "Layers" : "Layer"
             menuItem.title = (editor.canvas.activeLayer.isVisible ? "Hide " : "Show ") + layers
             return true
+        case #selector(toggleLayerTransparencyLock(_:)):
+            menuItem.title = editor.canvas.activeLayer.locksTransparency ? "Unlock Transparent Pixels" : "Lock Transparent Pixels"
+            return editor.canvas.activeLayer.adjustment == nil
         case #selector(toggleLayerLock(_:)):
             let layers = editor.hasSeveralChosenLayers ? "Layers" : "Layer"
             menuItem.title = (editor.canvas.activeLayer.isLocked ? "Unlock " : "Lock ") + layers

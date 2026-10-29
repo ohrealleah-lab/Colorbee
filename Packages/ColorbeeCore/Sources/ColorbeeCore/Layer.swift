@@ -16,6 +16,9 @@ public final class Layer {
     public var blendMode: BlendMode = .normal
     /// A locked layer refuses every pixel change, move, merge and delete (FR-8.2).
     public var isLocked = false
+    /// Lock Transparent Pixels (FR-8.2, stage 23): its pixels can be recolored, but where it's clear stays clear and
+    /// every pixel keeps its opacity, so a cutout or shape keeps its outline. See `Edit.keepLockedTransparency`.
+    public var locksTransparency = false
     /// Set for an adjustment layer (FR-8.4): it changes how the layers below look and holds no pixels.
     public var adjustment: Effect?
     /// For an adjustment layer: it changes only the pixel layer it sits on, not everything below (a clipping mask;

@@ -53,6 +53,8 @@ public enum ProjectFile {
         /// piece's compressed size. Missing from projects saved before the pieces, which are one stream per layer.
         var pieceRows: Int?
         var pieces: [Int]?
+        /// Lock Transparent Pixels (stage 23); missing means no, so older versions open such a layer unlocked.
+        var locksTransparency: Bool?
         /// An adjustment that changes only the layer below; missing means no.
         var clipped: Bool?
     }
@@ -84,6 +86,7 @@ public enum ProjectFile {
                 adjustment: layer.adjustment.map(AdjustmentEntry.init), pixels: nil
             )
             if layer.adjustment != nil, layer.clipsToLayerBelow { entry.clipped = true }
+            if layer.locksTransparency { entry.locksTransparency = true }
             if let pixels = compressed[layer.id] {
                 entry.pixels = blobs.count..<(blobs.count + pixels.data.count)
                 entry.pieceRows = pixels.pieceRows
@@ -281,6 +284,7 @@ public enum ProjectFile {
             layer.opacity = min(1, max(0, entry.opacity))
             layer.blendMode = BlendMode(rawValue: entry.blendMode) ?? .normal
             layer.isLocked = entry.isLocked
+            layer.locksTransparency = entry.locksTransparency == true && entry.adjustment == nil
             layer.adjustment = entry.adjustment?.effect
             layer.clipsToLayerBelow = entry.clipped == true && layer.adjustment != nil
             return layer
@@ -319,6 +323,7 @@ public enum ProjectFile {
             layer.opacity = min(1, max(0, entry.opacity))
             layer.blendMode = BlendMode(rawValue: entry.blendMode) ?? .normal
             layer.isLocked = entry.isLocked
+            layer.locksTransparency = entry.locksTransparency == true && entry.adjustment == nil
             layer.adjustment = entry.adjustment?.effect
             layer.clipsToLayerBelow = entry.clipped == true && layer.adjustment != nil
             return layer

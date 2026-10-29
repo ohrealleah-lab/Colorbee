@@ -110,6 +110,7 @@ public enum LayerActions {
         copy.isVisible = source.isVisible
         copy.opacity = source.opacity
         copy.blendMode = source.blendMode
+        copy.locksTransparency = source.locksTransparency
         copy.adjustment = source.adjustment
         copy.clipsToLayerBelow = source.clipsToLayerBelow
         return copy

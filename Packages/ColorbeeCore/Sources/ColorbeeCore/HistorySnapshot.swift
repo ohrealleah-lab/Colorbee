@@ -23,6 +23,7 @@ public final class HistorySnapshot: Identifiable {
         let opacity: Double
         let blendMode: BlendMode
         let isLocked: Bool
+        let locksTransparency: Bool
         let adjustment: Effect?
         let clipsToLayerBelow: Bool
         /// One band of rows each (`GeometryChange.bands`); nil for a layer with no pixels (empty or an adjustment).

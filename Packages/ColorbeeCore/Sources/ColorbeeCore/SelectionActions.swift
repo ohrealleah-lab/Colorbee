@@ -108,7 +108,7 @@ public enum SelectionActions {
             return nil
         case .marquee(let mask):
             let layer = canvas.activeLayer
-            let holeFill = duplicate ? nil : canvas.vacatedFill(for: layer, color2: context.color2)
+            let holeFill = duplicate ? nil : canvas.erasedFill(for: layer, color2: context.color2)
             guard let floating = FloatingSelection.lift(from: layer, selection: mask, holeFill: holeFill, edit: edit) else {
                 return nil
             }
@@ -208,7 +208,7 @@ public enum SelectionActions {
             return false
         case .marquee(let mask):
             let layer = canvas.activeLayer
-            let fill = canvas.vacatedFill(for: layer, color2: context.color2)
+            let fill = canvas.erasedFill(for: layer, color2: context.color2)
             // A marquee can reach past the canvas (a placed paste's outline); only the layer's pixels change
             // (Leah's crash, 2026-10-04).
             let area = mask.bounds.intersection(layer.buffer.bounds)

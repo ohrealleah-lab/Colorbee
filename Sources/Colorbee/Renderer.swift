@@ -191,6 +191,8 @@ final class Renderer {
         onRendered: @escaping @Sendable (CFTimeInterval) -> Void,
         onPresented: @escaping @Sendable (CFTimeInterval) -> Void
     ) {
+        // Paint on a layer that locks its transparency is taken back out of its clear area before it's ever shown.
+        scene.canvas.keepLockedTransparency()
         guard let drawable = metalLayer.nextDrawable(),
               let commandBuffer = queue.makeCommandBuffer() else { return }
 

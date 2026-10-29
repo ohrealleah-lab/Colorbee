@@ -1190,7 +1190,7 @@ final class Editor {
             let colorErasing = secondary || colorEraserMode
             let effect: StrokeEffect = colorErasing
                 ? .replaceMatching(target: color1, tolerance: tolerance, with: color2)
-                : .replace(canvas.vacatedFill(for: layer, color2: color2))
+                : .replace(canvas.erasedFill(for: layer, color2: color2))
             name = colorErasing ? "Color Erase" : "Erase"
             makeStroke = { [eraserSize] edit, _, mirror, first in
                 EraserStroke(size: eraserSize, effect: effect, layer: layer, edit: edit, mirror: mirror, sharingPainterWith: first)
@@ -4370,6 +4370,19 @@ final class Editor {
     func toggleChosenLayersVisible() {
         let visible = !canvas.activeLayer.isVisible
         chosenLayerSetting(visible ? "Show Layer" : "Hide Layer", includingLocked: true) { $0.isVisible = visible }
+    }
+
+    /// Lock Transparent Pixels on every chosen pixel layer (FR-8.2, stage 23), as one step.
+    func toggleChosenLayersLockTransparency() {
+        let locks = !canvas.activeLayer.locksTransparency
+        chosenLayerSetting(locks ? "Lock Transparent Pixels" : "Unlock Transparent Pixels", includingLocked: true) { layer in
+            if layer.adjustment == nil { layer.locksTransparency = locks }
+        }
+    }
+
+    func setLayerLocksTransparency(_ locks: Bool, at index: Int) {
+        guard canvas.layers.indices.contains(index), canvas.layers[index].adjustment == nil else { return }
+        layerSetting(locks ? "Lock Transparent Pixels" : "Unlock Transparent Pixels", at: index) { $0.locksTransparency = locks }
     }
 
     func toggleChosenLayersLocked() {

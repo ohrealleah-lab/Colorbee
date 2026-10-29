@@ -18,6 +18,25 @@ public final class Canvas {
     public var locationRemoved = false
     /// For a patch worked out on its own (`patchAsShown`): where it sits in the whole canvas.
     var placement: Effects.Placement?
+    /// Edits that have written on a layer with locked transparency (stage 23), to finish before the canvas is shown.
+    private var lockedEdits: [WeakEdit] = []
+
+    private struct WeakEdit {
+        weak var edit: Edit?
+    }
+
+    func noteLockedEdit(_ edit: Edit) {
+        lockedEdits.append(WeakEdit(edit: edit))
+    }
+
+    /// Puts back locked transparency on everything written since the last time, so paint never shows in a locked
+    /// layer's clear area, even mid-stroke. The display calls this before drawing.
+    public func keepLockedTransparency() {
+        guard !lockedEdits.isEmpty else { return }
+        let edits = lockedEdits.compactMap(\.edit)
+        lockedEdits = []
+        edits.forEach { $0.keepLockedTransparency() }
+    }
 
     public static var defaultColorSpace: CGColorSpace {
         CGColorSpace(name: CGColorSpace.displayP3)!
@@ -60,6 +79,7 @@ public final class Canvas {
             copy.opacity = layer.opacity
             copy.blendMode = layer.blendMode
             copy.isLocked = layer.isLocked
+            copy.locksTransparency = layer.locksTransparency
             copy.adjustment = layer.adjustment
             copy.clipsToLayerBelow = layer.clipsToLayerBelow
             return copy
@@ -109,6 +129,13 @@ public final class Canvas {
 
     var currentGeometry: GeometryChange {
         GeometryChange(size: size, buffers: Dictionary(uniqueKeysWithValues: layers.map { ($0.id, $0.buffer) }))
+    }
+
+    /// What the Eraser, Cut and Delete leave on `layer`: as `vacatedFill`, but a layer that locks its transparency can't
+    /// get holes, so they paint Color 2 inside its shape (Q23.2). New canvas space and moved edges use `vacatedFill`,
+    /// since those move the layer's outline rather than paint on it (Q23.4).
+    public func erasedFill(for layer: Layer, color2: Pixel) -> Pixel {
+        layer.locksTransparency ? Pixel(r: color2.r, g: color2.g, b: color2.b) : vacatedFill(for: layer, color2: color2)
     }
 
     /// What erasing or lifting pixels leaves behind on `layer`: Color 2 on a solid background, otherwise transparency.
@@ -229,7 +256,7 @@ public final class Canvas {
         LayerStackState(
             records: layers.map {
                 LayerStackState.Record(layer: $0, name: $0.name, isVisible: $0.isVisible, opacity: $0.opacity,
-                                       blendMode: $0.blendMode, isLocked: $0.isLocked, adjustment: $0.adjustment,
+                                       blendMode: $0.blendMode, isLocked: $0.isLocked, locksTransparency: $0.locksTransparency, adjustment: $0.adjustment,
                                        clipsToLayerBelow: $0.clipsToLayerBelow, buffer: $0.buffer)
             },
             activeIndex: activeLayerIndex,
@@ -246,6 +273,7 @@ public final class Canvas {
             layer.opacity = record.opacity
             layer.blendMode = record.blendMode
             layer.isLocked = record.isLocked
+            layer.locksTransparency = record.locksTransparency
             layer.adjustment = record.adjustment
             layer.clipsToLayerBelow = record.clipsToLayerBelow
             layer.buffer = record.buffer
@@ -448,6 +476,7 @@ struct LayerStackState {
         let opacity: Double
         let blendMode: BlendMode
         let isLocked: Bool
+        let locksTransparency: Bool
         let adjustment: Effect?
         let clipsToLayerBelow: Bool
         let buffer: PixelBuffer
@@ -455,7 +484,7 @@ struct LayerStackState {
         /// The same settings and pixels as `other`.
         func matches(_ other: Record) -> Bool {
             name == other.name && isVisible == other.isVisible && opacity == other.opacity && blendMode == other.blendMode
-                && isLocked == other.isLocked && adjustment == other.adjustment && clipsToLayerBelow == other.clipsToLayerBelow
+                && isLocked == other.isLocked && locksTransparency == other.locksTransparency && adjustment == other.adjustment && clipsToLayerBelow == other.clipsToLayerBelow
                 && buffer === other.buffer
         }
     }

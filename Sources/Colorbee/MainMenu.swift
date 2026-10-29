@@ -95,6 +95,7 @@ enum MainMenu {
         "deleteLayer:": "Delete the active layer, or every chosen layer. The only layer, or a locked one, can't be deleted.",
         "mergeDown:": "Combine the active layer into the one below, or the chosen layers into one, keeping how they look.",
         "mergeVisible:": "Combine every visible layer into one. Hidden layers stay.",
+        "toggleLayerTransparencyLock:": "Recolor the layer but keep its clear area clear, so a cutout or shape keeps its outline.",
         "stampVisible:": "Add a layer holding everything visible, merged, and keep the layers as they are.",
         "selectAllLayers:": "Choose every layer, to change or move them together.",
         "flattenImage:": "Combine all visible layers into one and drop hidden layers.",
@@ -356,6 +357,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item("Hide Layer", "toggleLayerVisibility:"))
         menu.addItem(item("Lock Layer", "toggleLayerLock:"))
+        menu.addItem(item("Lock Transparent Pixels", "toggleLayerTransparencyLock:"))
         menu.addItem(item("Layer Properties…", "showLayerProperties:"))
         return menu
     }

@@ -50,6 +50,8 @@ public final class Edit {
     private(set) var layersBefore: LayerStackState?
     private(set) var snapshots: [TileKey: TileSnapshot] = [:]
     public private(set) var dirtyRect: IntRect = .zero
+    /// Areas written on layers that lock their transparency, not yet put back (`keepLockedTransparency`).
+    private var lockedPending: [(layer: Layer, rect: IntRect)] = []
 
     /// False for scratch canvases nobody undoes, so no before-images are copied.
     private let recordsPixels: Bool
@@ -73,6 +75,39 @@ public final class Edit {
             guard snapshots[key] == nil else { continue }
             let tileRect = TileGrid.rect(column: cell.column, row: cell.row, clippedTo: bounds)
             snapshots[key] = TileSnapshot(rect: tileRect, pixels: layer.buffer.pixels(in: tileRect))
+        }
+        if layer.locksTransparency {
+            if lockedPending.isEmpty { canvas.noteLockedEdit(self) }
+            lockedPending.append((layer, target))
+        }
+    }
+
+    /// Lock Transparent Pixels (stage 23), for every tool at once: where a pixel was fully clear before this edit, it's
+    /// put back exactly, color included, so nothing hides in clear pixels; every other pixel keeps its new color at its
+    /// old opacity. It works from the before-images history keeps, on what's been written since it last ran: on each
+    /// part of a stroke before it's shown (`Canvas.keepLockedTransparency`), and when the edit is recorded.
+    public func keepLockedTransparency() {
+        guard !lockedPending.isEmpty else { return }
+        let pending = lockedPending
+        lockedPending = []
+        for (layer, rect) in pending where layer.locksTransparency && canvas.layer(withID: layer.id) === layer {
+            for cell in TileGrid.cells(covering: rect) {
+                guard let snapshot = snapshots[TileKey(layer: layer.id, column: cell.column, row: cell.row)] else { continue }
+                let area = rect.intersection(snapshot.rect), tile = snapshot.rect
+                ParallelRows.forEach(area.minY..<area.maxY) { rows in
+                    for y in rows {
+                        let row = layer.buffer.row(y), start = (y - tile.minY) * tile.width - tile.minX
+                        for x in area.minX..<area.maxX {
+                            let old = snapshot.pixels[start + x], now = row[x]
+                            if old.a == 0 {
+                                row[x] = old
+                            } else if now.a != old.a {
+                                row[x] = Pixel(r: now.r, g: now.g, b: now.b, a: old.a)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -297,6 +332,7 @@ public final class History {
     }
 
     private func record(_ edit: Edit, mergingIntoPrevious: Bool) -> Bool {
+        edit.keepLockedTransparency()
         let selectionAfter = edit.canvas.selection
         var changes: [TileChange] = []
         for (key, snapshot) in edit.snapshots {
@@ -474,6 +510,7 @@ public final class History {
             target.opacity = record.opacity
             target.blendMode = record.blendMode
             target.isLocked = record.isLocked
+            target.locksTransparency = record.locksTransparency
             target.adjustment = record.adjustment
             target.clipsToLayerBelow = record.clipsToLayerBelow
             target.buffer = record.buffer

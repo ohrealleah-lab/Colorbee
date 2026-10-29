@@ -1573,6 +1573,8 @@ _Added after the review (2026-10-27):_
 
 ### Before stage 32
 
+Answered (Leah, 2026-10-29): all as recommended. Recorded in FRD §23.
+
 - **Q32.1** How long a run: all night until you stop it, or a set number of hours? *Recommend a set time (8 hours) that
   you can change, so it always finishes and writes its report.*
 - **Q32.2** On a failure, stop or keep going? *Recommend keep going, collecting up to 20 different failures, so one

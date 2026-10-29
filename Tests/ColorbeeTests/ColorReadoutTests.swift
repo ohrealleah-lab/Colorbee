@@ -49,3 +49,23 @@ struct ColorReadoutTests {
         #expect(editor.pointerColor == Pixel(r: 28, g: 28, b: 28))
     }
 }
+
+/// Copying a color's hex (Leah, 2026-10-28): the status bar's eyedropper, and Edit ▸ Copy Color as Hex. The clipboard
+/// itself is left alone here; these check the hex each would copy.
+@MainActor
+struct CopyColorHexTests {
+    @Test func theStatusBarEyedropperGivesTheClickedColorsHexOnce() {
+        let editor = makeEditor(width: 12, height: 12, background: .black)
+        editor.canvas.activeLayer.buffer.row(5)[5] = Pixel(r: 58, g: 123, b: 213)
+        editor.picksHexToCopy = true
+        var refused = 0
+        editor.onRefused = { refused += 1 }
+        // Off the picture: a beep, and it stays on.
+        #expect(editor.pickHexToCopy(at: pt(40, 40)) == nil && refused == 1 && editor.picksHexToCopy)
+        let hex = editor.pickHexToCopy(at: pt(5.5, 5.5))
+        #expect(hex?.count == 7 && hex?.hasPrefix("#") == true && !editor.picksHexToCopy)
+        // The same as the readout shows there.
+        editor.pointer = IntPoint(x: 5, y: 5)
+        #expect(editor.pointerColorHex == hex)
+    }
+}

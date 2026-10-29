@@ -347,8 +347,10 @@ Test files: `TestImages/Auto-Redact Faces.png` (three made-up faces and an email
 Test files: `TestImages/Photo Editing/Color Chart.png` (its colors are listed in `Color Chart.txt`),
 `TestImages/Help/Sample Screenshot.png` and `TestImages/Photo Editing/Old Adjust Photo.colorproj`. Run `make run`
 first.
-1. Open the chart and move over a patch: the status bar shows a swatch, "sRGB" and its numbers, and the hex. Click
-   the hex: it says "Copied"; paste it in Notes to check.
+1. Open the chart and move over a patch: the status bar (the strip along the bottom) shows a swatch, "sRGB" and its
+   numbers, and the hex.
+   To copy a hex: click the little **eyedropper** at the start of that readout, then click a color in the picture:
+   "Copied #…" shows at the bottom of the canvas. Paste in Notes to check. Or point at a color and press **⌃⌘C**.
 2. Point at the gray around the picture: the readout shows a dash.
 3. Open the screenshot, choose the **Eyedropper**, and set **Sample Size** 5 × 5. Point at the soft edge of a
    letter: the readout shows an in-between color; click, and Color 1 is that color. At **1 px**, one exact pixel.

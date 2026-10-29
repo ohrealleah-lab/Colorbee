@@ -10,7 +10,7 @@ struct StatusBar: View {
         HStack(spacing: 10) {
             item("cursorarrow", pointerText).frame(minWidth: 92, alignment: .leading)
             divider
-            ColorReadout(color: editor.pointerColor)
+            ColorReadout(editor: editor, color: editor.pointerColor)
                 .frame(minWidth: 150, alignment: .leading)
                 .layoutPriority(-1)
             divider
@@ -71,14 +71,34 @@ struct StatusBar: View {
     }
 }
 
-/// The color under the pointer (FR-9.7 item 9): a swatch, its sRGB values and hex. A click on the hex copies it.
+/// The color under the pointer (FR-9.7 item 9): a swatch, its sRGB values and hex. The readout clears as the pointer
+/// leaves the picture, so its hex can't be clicked; the eyedropper before it copies the hex of the next color clicked
+/// instead, as Edit ▸ Copy Color as Hex (⌃⌘C) copies the one under the pointer (Leah, 2026-10-28).
 private struct ColorReadout: View {
+    @Bindable var editor: Editor
     let color: Pixel?
-    @State private var copied = false
 
     var body: some View {
+        HStack(spacing: 5) {
+            Button { editor.picksHexToCopy.toggle() } label: {
+                Image(systemName: "eyedropper")
+                    .font(.system(size: 11))
+                    .frame(width: 18, height: 16)
+                    .background(editor.picksHexToCopy ? Color.accentColor.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 4))
+                    .foregroundStyle(editor.picksHexToCopy ? Color.accentColor : Theme.secondaryInk)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(editor.picksHexToCopy ? "Click a color in the picture to copy its hex code. Esc cancels." : "Copy a color's hex code: click this, then the color in the picture")
+            .accessibilityLabel("Copy a color's hex code")
+            .accessibilityValue(editor.picksHexToCopy ? "On" : "Off")
+            reading
+        }
+    }
+
+    @ViewBuilder private var reading: some View {
         if let color {
-            let hex = String(format: "#%02X%02X%02X", color.r, color.g, color.b)
+            let hex = Editor.hex(color)
             HStack(spacing: 5) {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color(.sRGB, red: Double(color.r) / 255, green: Double(color.g) / 255, blue: Double(color.b) / 255, opacity: Double(color.a) / 255))
@@ -86,26 +106,13 @@ private struct ColorReadout: View {
                     .frame(width: 10, height: 10)
                     .accessibilityHidden(true)
                 Text("sRGB \(color.r) \(color.g) \(color.b)" + (color.a < 255 ? " · \(Int((Double(color.a) / 255 * 100).rounded()))%" : ""))
-                Button(copied ? "Copied" : hex) {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(hex, forType: .string)
-                    copied = true
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(1.2))
-                        copied = false
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
-                .help("Copy \(hex)")
+                Text(hex)
+                    .foregroundStyle(Color.primary.opacity(0.75))
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Color under the pointer, sRGB \(color.r), \(color.g), \(color.b), \(hex)")
         } else {
-            HStack(spacing: 5) {
-                Image(systemName: "eyedropper").font(.system(size: 11)).accessibilityHidden(true)
-                Text("—")
-            }
+            Text("—")
         }
     }
 }

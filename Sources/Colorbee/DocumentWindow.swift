@@ -226,6 +226,14 @@ final class DocumentWindow: NSWindow {
         }
     }
 
+    /// Edit ▸ Copy Color as Hex (⌃⌘C, FR-9.7 item 9): the status bar's hex, for the color under the pointer.
+    @objc func copyColorHex(_ sender: Any?) {
+        guard let editor, let hex = editor.pointerColorHex else { return NSSound.beep() }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(hex, forType: .string)
+        editor.showNotice("Copied \(hex)")
+    }
+
     @objc func copyMerged(_ sender: Any?) {
         guard let editor else { return }
         copyToClipboard(selected: editor.selectedMergedPixels(), merged: true, editor: editor)
@@ -472,7 +480,7 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(applyAdjustment(_:)):
             return LayerActions.canApplyAdjustment(editor.canvas)
-        case #selector(newSnapshot(_:)), #selector(trim(_:)):
+        case #selector(newSnapshot(_:)), #selector(trim(_:)), #selector(copyColorHex(_:)):
             return true
         case #selector(undoOnActiveLayer(_:)):
             let name = editor.undoOnActiveLayerName
@@ -549,7 +557,7 @@ final class DocumentWindow: NSWindow {
         #selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)), #selector(zoomToFit(_:)),
         #selector(togglePixelGrid(_:)), #selector(toggleRulers(_:)), #selector(toggleStatusBar(_:)), #selector(toggleLayers(_:)),
         #selector(toggleAdjustmentsPanel(_:)), #selector(toggleHistoryPanel(_:)), #selector(toggleClipboardPanel(_:)), #selector(toggleInfoPanel(_:)),
-        #selector(togglePageSidebar(_:)), #selector(toggleSidebar(_:)),
+        #selector(togglePageSidebar(_:)), #selector(toggleSidebar(_:)), #selector(copyColorHex(_:)),
     ]
 
     private static let pixelCommands: Set<Selector> = [

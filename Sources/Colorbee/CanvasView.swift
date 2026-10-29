@@ -504,7 +504,7 @@ final class CanvasView: NSView {
     private func currentCursor(at point: Point2D?) -> NSCursor {
         if spaceHeld { return .openHand }
         if editor.picturePickPurpose?.drags == true { return .resizeUpDown }
-        if editor.isPickingFromPicture { return .crosshair }
+        if editor.isPickingFromPicture || editor.picksHexToCopy { return .crosshair }
         if let point, let handle = canvasHandle(atView: editor.viewport.viewPoint(fromImage: point)) {
             return NSCursor.frameResize(position: handle.cursorPosition, directions: .all)
         }
@@ -547,6 +547,14 @@ final class CanvasView: NSView {
         if editor.comparison != nil {
             drag = .divider
             moveDivider(event)
+            return
+        }
+        // The status bar's eyedropper copies the hex of the color clicked, whatever the tool.
+        if !spaceHeld, !secondary, editor.picksHexToCopy {
+            if let hex = editor.pickHexToCopy(at: imagePoint(event)) {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(hex, forType: .string)
+            }
             return
         }
         // Adjust Photo's hand takes drags, and its eyedroppers one click, whatever the tool (FR-9.7). Space-drag pans.
@@ -887,6 +895,10 @@ final class CanvasView: NSView {
     private func handleKey(_ event: NSEvent) {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
         let plain = modifiers.isEmpty
+        if editor.picksHexToCopy, event.charactersIgnoringModifiers == "\u{1b}" {
+            editor.picksHexToCopy = false
+            return
+        }
         // Esc turns an Adjust Photo eyedropper off before it closes anything else (FR-9.7).
         if editor.isPickingFromPicture, event.charactersIgnoringModifiers == "\u{1b}" {
             return editor.cancelPicturePick()

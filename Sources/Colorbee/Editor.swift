@@ -1326,15 +1326,46 @@ final class Editor {
         if secondary { color2 = picked } else { color1 = picked }
     }
 
+    /// `pointerColor` as the status bar writes it, "#RRGGBB", for Edit ▸ Copy Color as Hex.
+    var pointerColorHex: String? {
+        pointerColor.map(Self.hex)
+    }
+
+    /// The status bar's eyedropper is on: the next click on the picture copies that color's hex, whatever the tool
+    /// (Leah, 2026-10-28). Esc turns it off.
+    var picksHexToCopy = false
+
+    /// A click while the status bar's eyedropper is on: the hex of the color there, as the readout shows it, or nil
+    /// off the picture (a beep, and it stays on). The caller puts it on the clipboard.
+    func pickHexToCopy(at point: Point2D) -> String? {
+        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        guard let hex = readoutColor(at: pixel).map(Self.hex) else {
+            onRefused()
+            return nil
+        }
+        picksHexToCopy = false
+        showNotice("Copied \(hex)")
+        return hex
+    }
+
     /// The color under the pointer as shown, every layer included, in sRGB (FR-9.7 item 9, Q20.1 and Q20.2), for the
     /// status bar; averaged over the Sample Size while the Eyedropper is chosen (Q20.4). Nil off the picture.
     var pointerColor: Pixel? {
         _ = layersRevision
-        guard let pointer else { return nil }
+        return pointer.flatMap(readoutColor(at:))
+    }
+
+    /// What the readout shows for `pixel`: the color as shown, in sRGB, averaged over the Sample Size while the
+    /// Eyedropper is chosen. Nil off the picture.
+    private func readoutColor(at pixel: IntPoint) -> Pixel? {
         let size = tool == .eyedropper ? eyedropperSampleSize : 1
-        guard let shown = canvas.colorAsShown(in: sample(around: pointer, size: size)) else { return nil }
+        guard let shown = canvas.colorAsShown(in: sample(around: pixel, size: size)) else { return nil }
         let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
         return (try? ImageCodec.converted(PixelBuffer(width: 1, height: 1, fill: shown), from: canvas.colorSpace, to: srgb))?[0, 0] ?? shown
+    }
+
+    static func hex(_ color: Pixel) -> String {
+        String(format: "#%02X%02X%02X", color.r, color.g, color.b)
     }
 
     // MARK: Gradient

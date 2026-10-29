@@ -65,6 +65,7 @@ enum MainMenu {
         "copy:": "Copy the selection (or the whole image) to the clipboard as a PNG.",
         "copyMerged:": "Copy the selection as all visible layers show it together.",
         "copyText:": "Copy the text in the selection, or the whole page, as plain text. Read on this Mac.",
+        "copyColorHex:": "Copy the hex code of the color under the pointer, as the status bar shows it (sRGB).",
         "pasteIntoNewImage:": "Open the clipboard image as a new document at its own size.",
         "showCanvasProperties:": "Change the canvas size or make its background transparent.",
         "toggleHistoryPanel:": "Show or hide every step you've taken, to jump back to any of them.",
@@ -240,6 +241,7 @@ enum MainMenu {
         menu.addItem(item("Copy", "copy:", "c"))
         menu.addItem(item("Copy Merged", "copyMerged:", "c", [.command, .shift]))
         menu.addItem(item("Copy Text", "copyText:", "c", [.command, .option]))
+        menu.addItem(item("Copy Color as Hex", "copyColorHex:", "c", [.command, .control]))
         menu.addItem(item("Paste", "paste:", "v"))
         menu.addItem(item("Paste in Place", "pasteInPlace:", "v", [.command, .option, .shift]))
         // The canvas handles the Delete key itself, so text fields keep their own Delete.

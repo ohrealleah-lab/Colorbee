@@ -58,17 +58,9 @@ struct ColorWheel: View {
                         }
                     }
                     guard !isResetting else { return }
-                    let start = dragStart ?? (Self.point(for: wheel, radius: radius), value.startLocation)
-                    if dragStart == nil {
-                        dragStart = start
-                        // A click lands the point where it was clicked; a drag from the point moves it from there.
-                        let fromPoint = hypot(value.startLocation.x - start.point.x, value.startLocation.y - start.point.y) < 10
-                        if !fromPoint { dragStart = (value.startLocation, value.startLocation) }
-                    }
-                    let speed = NSEvent.modifierFlags.contains(.option) ? 0.25 : 1
-                    let origin = dragStart!
-                    let point = CGPoint(x: origin.point.x + (value.location.x - origin.location.x) * speed,
-                                        y: origin.point.y + (value.location.y - origin.location.y) * speed)
+                    let origin = dragStart ?? Self.dragStart(at: value.startLocation, point: Self.point(for: wheel, radius: radius))
+                    dragStart = origin
+                    let point = Self.dragged(from: origin, to: value.location, finely: NSEvent.modifierFlags.contains(.option))
                     onChange(Self.wheel(at: point, radius: radius, keeping: wheel))
                 }
                 .onEnded { value in
@@ -101,6 +93,18 @@ struct ColorWheel: View {
         changed.hue += degrees
         onChange(changed)
         onFinish()
+    }
+
+    /// Where a drag pressed at `location` moves the point from: a press on the point moves it from where it was; a
+    /// press anywhere else lands it there.
+    static func dragStart(at location: CGPoint, point: CGPoint) -> (point: CGPoint, location: CGPoint) {
+        hypot(location.x - point.x, location.y - point.y) < 10 ? (point, location) : (location, location)
+    }
+
+    /// The point as the drag from `start` reaches `location`; `finely` (Option) moves it a quarter as far.
+    static func dragged(from start: (point: CGPoint, location: CGPoint), to location: CGPoint, finely: Bool) -> CGPoint {
+        let speed = finely ? 0.25 : 1
+        return CGPoint(x: start.point.x + (location.x - start.location.x) * speed, y: start.point.y + (location.y - start.location.y) * speed)
     }
 
     static func point(for wheel: ColorGrading.Wheel, radius: CGFloat) -> CGPoint {

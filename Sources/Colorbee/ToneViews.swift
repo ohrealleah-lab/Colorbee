@@ -37,9 +37,7 @@ struct CurvesEditor: View {
     let onChange: (Curves) -> Void
     var onFinish: () -> Void = {}
 
-    @State private var dragging: Int?
-    /// Where the dragged point was when it was grabbed; it moves by the drag, so a click doesn't shift it.
-    @State private var grabbed: Curves.Point?
+    @State private var drag: CurveDrag?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -57,8 +55,8 @@ struct CurvesEditor: View {
                 let points = curves[channel]
                 Canvas { context, fullSize in
                     // Inset so the end points' handles aren't cut off at the corners.
-                    context.translateBy(x: Self.inset, y: Self.inset)
-                    let size = CGSize(width: fullSize.width - 2 * Self.inset, height: fullSize.height - 2 * Self.inset)
+                    context.translateBy(x: CurveDrag.inset, y: CurveDrag.inset)
+                    let size = CGSize(width: fullSize.width - 2 * CurveDrag.inset, height: fullSize.height - 2 * CurveDrag.inset)
                     for step in 1..<4 {
                         let x = size.width * Double(step) / 4, y = size.height * Double(step) / 4
                         context.stroke(Path { $0.move(to: CGPoint(x: x, y: 0)); $0.addLine(to: CGPoint(x: x, y: size.height)) }, with: .color(.gray.opacity(0.25)))
@@ -81,21 +79,27 @@ struct CurvesEditor: View {
                 .background(Theme.field, in: RoundedRectangle(cornerRadius: 4))
                 .contentShape(Rectangle())
                 .gesture(DragGesture(minimumDistance: 0)
-                    .onChanged { drag in move(drag, in: size) }
+                    .onChanged { value in
+                        var moving = drag ?? CurveDrag(size: size)
+                        let points = moving.moved(curves[channel], start: value.startLocation, location: value.location, translation: value.translation)
+                        drag = moving
+                        if let points { change(to: points) }
+                    }
                     .onEnded { _ in
-                        dragging = nil
-                        grabbed = nil
+                        drag = nil
                         onFinish()
                     })
-                .simultaneousGesture(SpatialTapGesture(count: 2).onEnded { tap in remove(near: tap.location, in: size) })
+                .simultaneousGesture(SpatialTapGesture(count: 2).onEnded { tap in
+                    guard let points = CurveDrag(size: size).removing(near: tap.location, from: curves[channel]) else { return }
+                    change(to: points)
+                    onFinish()
+                })
             }
             .aspectRatio(1, contentMode: .fit)
             .accessibilityLabel("Curve")
             .accessibilityValue(curves[channel].map { "\(Int($0.x)) to \(Int($0.y))" }.joined(separator: ", "))
         }
     }
-
-    private static let inset: CGFloat = 5
 
     private var lineColor: Color {
         switch channel {
@@ -106,71 +110,10 @@ struct CurvesEditor: View {
         }
     }
 
-    /// Where a point sits in the view, whose plot area is inset on every side.
-    private func location(of point: Curves.Point, in size: CGSize) -> CGPoint {
-        let width = size.width - 2 * Self.inset, height = size.height - 2 * Self.inset
-        return CGPoint(x: Self.inset + point.x / 255 * width, y: Self.inset + (1 - point.y / 255) * height)
-    }
-
-    private func value(at location: CGPoint, in size: CGSize) -> Curves.Point {
-        let width = Double(size.width - 2 * Self.inset), height = Double(size.height - 2 * Self.inset)
-        let x: Double = min(max(Double(location.x - Self.inset) / width, 0), 1) * 255
-        let y: Double = min(max(1 - Double(location.y - Self.inset) / height, 0), 1) * 255
-        return Curves.Point(x: x.rounded(), y: y.rounded())
-    }
-
-    private func nearest(to location: CGPoint, in size: CGSize) -> Int? {
-        let points = curves[channel]
-        let distances = points.indices.map { index -> (Int, Double) in
-            let center = self.location(of: points[index], in: size)
-            return (index, hypot(center.x - location.x, center.y - location.y))
-        }
-        return distances.filter { $0.1 <= 10 }.min { $0.1 < $1.1 }?.0
-    }
-
-    private func move(_ drag: DragGesture.Value, in size: CGSize) {
-        var points = curves[channel]
-        if dragging == nil {
-            let start = value(at: drag.startLocation, in: size)
-            // A click at an existing point's x (an end point's, say) grabs that point rather than adding a
-            // second one there (review D, finding 3).
-            if let index = nearest(to: drag.startLocation, in: size) ?? points.firstIndex(where: { $0.x == start.x }) {
-                dragging = index
-            } else {
-                points.append(start)
-                points.sort { $0.x < $1.x }
-                dragging = points.firstIndex(of: start)
-            }
-            grabbed = dragging.flatMap { points.indices.contains($0) ? points[$0] : nil }
-        }
-        guard let index = dragging, points.indices.contains(index) else { return }
-        // Dragging a middle point well outside the graph removes it.
-        let outside = drag.location.x < -20 || drag.location.x > size.width + 20 || drag.location.y < -20 || drag.location.y > size.height + 20
-        if outside, index != 0, index != points.count - 1 {
-            points.remove(at: index)
-            dragging = -1
-        } else {
-            let origin = grabbed.map { location(of: $0, in: size) } ?? drag.startLocation
-            var point = value(at: CGPoint(x: origin.x + drag.translation.width, y: origin.y + drag.translation.height), in: size)
-            // A point stays between its neighbors, so the curve stays a function of x.
-            let low = index > 0 ? points[index - 1].x + 1 : 0
-            let high = index < points.count - 1 ? points[index + 1].x - 1 : 255
-            point.x = min(max(point.x, low), high)
-            points[index] = point
-        }
+    private func change(to points: [Curves.Point]) {
         var changed = curves
         changed[channel] = points
         onChange(changed)
-    }
-
-    private func remove(near location: CGPoint, in size: CGSize) {
-        var points = curves[channel]
-        guard let index = nearest(to: location, in: size), index != 0, index != points.count - 1 else { return }
-        points.remove(at: index)
-        var changed = curves
-        changed[channel] = points
-        onChange(changed)
-        onFinish()
     }
 }
 
@@ -283,9 +226,9 @@ struct SplitSlider: View {
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0)
                 .onChanged { drag in
-                    let index = moving ?? (0..<3).min { abs(x(splits[$0]) - drag.startLocation.x) < abs(x(splits[$1]) - drag.startLocation.x) }!
+                    let index = moving ?? Self.handle(nearest: drag.startLocation.x, splits: splits, width: width)
                     moving = index
-                    onChange(index, Double(drag.location.x / max(width, 1)) * 100)
+                    onChange(index, Self.split(at: drag.location.x, width: width))
                 }
                 .onEnded { _ in
                     moving = nil
@@ -297,5 +240,15 @@ struct SplitSlider: View {
         .accessibilityElement()
         .accessibilityLabel("Split points")
         .accessibilityValue(splits.map { "\(Int($0))" }.joined(separator: ", "))
+    }
+
+    /// The handle a drag starting at `x` moves: the nearest one.
+    static func handle(nearest x: CGFloat, splits: [Double], width: CGFloat) -> Int {
+        (0..<3).min { abs(CGFloat(splits[$0] / 100) * width - x) < abs(CGFloat(splits[$1] / 100) * width - x) }!
+    }
+
+    /// The split at `x`, 0...100 across the line; the tone curve keeps it in order and away from the ends.
+    static func split(at x: CGFloat, width: CGFloat) -> Double {
+        Double(x / max(width, 1)) * 100
     }
 }

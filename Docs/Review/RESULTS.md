@@ -458,3 +458,64 @@ check it, but they weren't each re-run against the old code; the ones marked "by
 | 5 | Low | A huge size limit crashed Colorbee | **Fixed.** Capped at 10 GB. App test. |
 | 6 | Low | Copy Color as Hex chosen with the mouse always beeped | **Fixed.** Greyed out unless the pointer is on the picture; ⌃⌘C works. By hand. |
 | 7 | Low | Opening Perspective Correction flattened the picture on the main thread | **Fixed.** Flattened from a copy in the background, as Auto-Redact does. Covered by the corner-search test. |
+
+# Code review round 10 ([PLAN-11.md](PLAN-11.md)), stage 33, 2026-10-31 (waiting for Leah's test)
+
+All fixed (Leah, all recommended). The monkey test's first trial and its second, stricter run found two more, also fixed.
+
+## The monkey test
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | Merge Down on a group holding every layer crashed | **Fixed.** The merged layer goes in before the group's layers come out. Core test. |
+| 2 | Medium | Grouping a clipped layer without its layer split it off, and the export, thumbnails and screen disagreed | **Fixed.** A clipped layer stays with its layer when grouped or dragged (Leah). Monkey test. |
+
+## Session X: groups and masks in the model ([findings](findings-X.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | Merge Adjustment crashed with a clipped pixel layer under the clipped adjustment | **Fixed.** Clipped pixel layers are blended in. Core test. |
+| 2 | Critical | Undo on Active Layer lost a deleted or applied mask | **Fixed.** The mask comes back. Core test. |
+| 3 | High | Merge Down and Merge Layers threw away a clipped pixel layer | **Fixed.** It's blended onto its layer, or stays. Core test. |
+| 4 | High | Align moved a text layer's pixels but not its words | **Fixed.** The words move too. Core test. |
+| 5 | High | Merge Adjustment ignored a clipped adjustment's mask | **Fixed.** Core test. |
+| 6 | Medium | A piece floating on a mask wasn't saved | **Fixed.** Masks are saved as shown. By hand. |
+| 7 | Medium | Redacted words survived in a mask's name | **Fixed.** Redaction renames the mask too. Core test. |
+| 8 | Medium | Align left a layer's mask behind | **Fixed.** The mask moves with its layer (Leah). Core test. |
+| 9 | Medium | Dropping a layer onto one with clipped layers split them | **Fixed.** It goes past the whole set. Core test. |
+| 10 | Low | Deleting every word left the text's clipped layers | **Fixed.** Core test. |
+| 11 | Low | Masks only history held weren't counted or spilled | **Fixed.** Core test. |
+
+## Session Y: text layers and redaction safety ([findings](findings-Y.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1, 2 | High | Redacted words survived in a copy's name, or a layer made pixels first | **Fixed.** A layer remembers its name came from its words; every redaction renames it. Core test. |
+| 3 | High | Cancelling Batch Redact ▸ Blur or Pixelate turned a text layer into pixels for good | **Fixed.** Cancel puts the text back. Core test. |
+| 4 | High | Align left a text layer's words behind | **Fixed** with X4. |
+| 5 | Medium | Turning Editable off with a box open could paint a locked layer | **Fixed.** The words go on a layer of their own. By hand. |
+| 6 | Medium | Words cut off by a crop came back later | **Fixed.** A crop that cuts text makes it pixels (Leah). Core test. |
+| 7 | Medium | New editable text previewed inside the active layer | **Fixed.** It previews on top, as placed. By hand. |
+| 8 | Low | Deleting every word left clipped layers, or did nothing silently | **Fixed.** They go too; the last layer says why it stays. Core test. |
+| 9 | Low | Revert Layer renamed a text layer "Text" | **Fixed.** Only redaction renames. Core test. |
+
+## Session Z: the app side and smoothing ([findings](findings-Z.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Medium | A floating paste exported over clipped layers instead of under them | **Fixed.** The export matches the screen. By hand. |
+| 2, 3, 7 | Medium | The monkey saw only the visible picture, moved layers by a path the app doesn't use, and took steps the panel wouldn't allow | **Fixed.** It compares every layer and setting, drops layers as the panel does, and keeps to what the panel allows. |
+| 4 | Low | Invert Mask beeped unless the mask was chosen | **Fixed.** By hand. |
+| 5 | Low | A layer in a locked group could still change opacity and clipping | **Fixed.** By hand. |
+| 6 | Low | The selection outline's texture was never freed | **Fixed.** |
+| 8 | Low | Double-clicking the toolbar's empty space ignored "Fill" | **Fixed.** It uses the Window menu's Fill. |
+| 9 | Low | Edit Text was enabled on a locked text layer | **Fixed.** By hand. |
+
+## Session AA: the whole app, worst risks ([findings](findings-AA.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | Pictures over 16,384 px a side crashed when drawn | **Fixed.** The limit is 16,384 px a side (Leah). Core test. |
+| 2 | High | Lock Transparent Pixels kept redacted text readable | **Fixed.** Redaction ignores that lock (Leah). Core test. |
+| 3 | Medium | Closing or quitting threw away an open text box or shape | **Fixed.** It's placed first. By hand. |
+| 4 | Medium | After a relaunch, redacting didn't offer to clear the Clipboard History original | **Fixed.** The picture keeps where it was pasted from (Leah). By hand. |

@@ -14,6 +14,7 @@ _Last updated: 2026-10-31 · 799 core tests and 284 app tests passing (stage 31 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
+- [Stage 33: Review round 10 fixes](#test-stage-33-review-round-10-fixes) (2026-10-31)
 
 ---
 
@@ -91,7 +92,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 30. Re-editable text 2: when text becomes pixels | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 31. Stroke smoothing | ✅ Done; passed Leah's test 2026-10-31 ("feels great") | High |
 | 14 · 32. Overnight monkey test | Built 2026-10-31; waiting for Leah's first overnight run | High |
-| 14 · 33. Code reviews (Leah, 2026-10-31) | Plan written ([Review/PLAN-11.md](Review/PLAN-11.md)); waiting for the four review sessions | High |
+| 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done and fixed ([Review/RESULTS.md](Review/RESULTS.md)); waiting for Leah's test | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -368,6 +369,45 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 33: Review round 10 fixes
+
+Choose **Don't Save** when you close a test picture, unless a step says otherwise. Press ⌘L if the Layers panel isn't
+showing.
+
+**A. Crashes and lost work**
+1. Open `TestImages/Several Layers/Opacity Test.colorproj`. Click Background, Shift-click Yellow, press ⌘G, then ⇧⌘E.
+   - The group merges into one layer that looks the same. No crash.
+2. Open `TestImages/Stage 9 Practice Photo.png`. Image ▸ Canvas Properties…, width **17,000**, OK.
+   - Colorbee says it's too large, and nothing changes.
+3. In the same picture, choose File ▸ Save As… and save a copy as a project wherever you like. In that copy, press T,
+   click the picture, type `Hello` and **don't** click away. Press ⌘W, then open the copy again.
+   - "Hello" is there. Delete the copy afterwards.
+
+**B. Redaction** (`TestImages/Stage 9 Practice Photo.png`)
+4. Press T, check **Editable**, type `4111 2222` large and click away. Choose Layer ▸ Lock Transparent Pixels. Press K
+   and paint over the number with Solid Fill.
+   - It's a solid block; the digits can't be read. The layer is now named "Text". ⌘Z twice.
+5. Layer ▸ Duplicate Layer, hide the original, and paint over the copy with the Redact Brush.
+   - The copy is renamed "Text"; "4111" appears in no layer's name.
+6. Make two-line text (`Name`, Return, `SSN 123`), click away. Select a box over the picture without the second line,
+   Image ▸ Crop to Selection, then Image ▸ Canvas Properties… and make it taller.
+   - The SSN line doesn't come back.
+7. Open `TestImages/Auto-Redact Practice.png` in Preview, Select All, Copy. In Colorbee choose File ▸ Paste into New
+   Image (⇧⌘V). Quit Colorbee (⌘Q), open it again, and paint over the email address with the Redact Brush.
+   - Colorbee offers to remove the original from Clipboard History.
+
+**C. Layers** (`TestImages/Magic Wand Practice.png`)
+8. Layer ▸ New Adjustment Layer ▸ Invert. Press T with Editable on and type a word.
+   - You can see the word while typing, as it will look. Click away.
+9. Layer ▸ New Layer, paint a blob on the left. Layer Mask ▸ Add Mask and paint black over the left half of the blob.
+   Click the layer's own picture, then Layer ▸ Align ▸ Right.
+   - The half-hidden blob moves to the right edge, still half hidden.
+10. Click the Invert layer's own icon (not a mask). Layer ▸ Layer Mask ▸ Add Mask, click the icon again, then Layer
+    Mask ▸ Invert Mask.
+    - It works, with no beep.
+11. Turn on **Only the layer below** for the Invert layer, then click it and ⌘-click the layer above it and press ⌘G.
+    - The Invert layer stays right above its layer, outside the group.
 
 ### Test: Stage 32: Overnight monkey test
 

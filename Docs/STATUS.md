@@ -15,6 +15,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 - [Stages 29 and 30: Text layers](#test-stages-29-and-30-text-layers) (2026-10-31)
 - [Only the layer below, saved](#test-only-the-layer-below-saved) (2026-10-31)
+- [Shape fill color](#test-shape-fill-color) (2026-10-31)
 
 ---
 
@@ -414,6 +415,21 @@ saved. Use `TestImages/Several Layers/Opacity Test.colorproj`, and choose **Don'
 2. Check **Only the layer below** near the top of the Layers panel. The paint shows only on the blue block.
 3. Choose File ▸ Save As…, save a copy as a project, close it, and open that copy.
    - The paint still shows only on the blue block, and the box is still checked.
+
+### Test: Shape fill color
+
+Leah, 2026-10-31: a shape with only one part draws it in Color 1. Use any picture, such as
+`TestImages/Stage 5a Practice.png`, and choose **Don't Save** when you close it.
+
+1. Press U for Shapes and choose the Rectangle. Set **Outline** to None and **Fill** to Solid.
+2. Click a pink swatch, so Color 1 is pink.
+   - The Fill swatch in the toolbar turns pink.
+3. Drag out a square.
+   - It's solid pink.
+4. Right-drag another square.
+   - It's filled with Color 2.
+5. Set **Outline** to Solid and drag a square.
+   - A pink outline, filled with Color 2, as before. The Fill swatch shows Color 2 again.
 
 ### Test: Stages 27, 28a and 28b: Layer masks
 

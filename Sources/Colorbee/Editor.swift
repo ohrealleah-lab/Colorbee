@@ -1452,11 +1452,18 @@ final class Editor {
 
     // MARK: Shapes
 
+    /// What a shape's fill is painted with (Leah, 2026-10-31): under an outline, Color 2 as in Paint; on its own, Color 1,
+    /// like an outline on its own, so picking a color and drawing gives a shape in that color. Right-click swaps them.
+    func shapeFillColor(swapped: Bool) -> Pixel {
+        let outlined = shapeOutline != nil
+        return outlined != swapped ? color2 : color1
+    }
+
     /// The pending shape with the current toolbar settings applied.
     var pendingShapeSpec: ShapeSpec? {
         guard let pendingShape else { return nil }
         let outlineColor = pendingShape.swapped ? color2 : color1
-        let fillColor = pendingShape.swapped ? color1 : color2
+        let fillColor = shapeFillColor(swapped: pendingShape.swapped)
         return ShapeSpec(
             kind: pendingShape.kind,
             start: pendingShape.start,

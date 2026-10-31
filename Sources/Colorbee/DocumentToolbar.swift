@@ -233,12 +233,13 @@ private struct OutlineFillControl: View {
                     Button(style.name) { editor.shapeFill = style }
                 }
             } label: {
-                // The swatch shows Color 2, so a white fill on a white canvas isn't a surprise.
+                // The swatch shows the fill's color, so a white fill on a white canvas isn't a surprise.
                 StyleLabel(title: "Fill", value: open ? "None" : editor.shapeFill?.name ?? "None",
-                           outline: nil, fill: !open && editor.shapeFill != nil ? swatch(editor.color2) : nil)
+                           outline: nil, fill: !open && editor.shapeFill != nil ? swatch(editor.shapeFillColor(swapped: false)) : nil)
             }
             .disabled(open)
-            .help(open ? "Lines, arrows and curves have no fill" : "How shapes are filled (with Color 2)")
+            .help(open ? "Lines, arrows and curves have no fill"
+                  : "How shapes are filled: with Color 2 inside an outline, or Color 1 with Outline set to None")
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
@@ -249,7 +250,7 @@ private struct OutlineFillControl: View {
         Color(nsColor: pixel.nsColor(in: editor.canvas.colorSpace))
     }
 
-    /// The swatch is drawn in the colors a shape will get: Color 1 for the outline, Color 2 for the fill.
+    /// The swatch is drawn in the colors a shape will get: Color 1 for the outline, and `Editor.shapeFillColor` for the fill.
     private struct StyleLabel: View {
         let title: String
         let value: String

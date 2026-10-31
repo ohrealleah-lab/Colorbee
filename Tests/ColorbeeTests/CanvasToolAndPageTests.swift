@@ -143,6 +143,27 @@ struct EditorPageTests {
         #expect(editor.imageHash != drawn)
     }
 
+    /// Review round 11, AB A: Drop Shadow, Border and Straighten are applied from a preview step, and once applied
+    /// they're the newest edit, so ⌘Z takes them back rather than an earlier page change.
+    @Test func afterAPageChangeUndoTakesBackAnAppliedDecorationFirst() {
+        for kind in [EffectKind.dropShadow, .border, .straighten] {
+            let editor = makeEditor(width: 40, height: 30)
+            editor.canvas.activeLayer.buffer.fill(.black, in: IntRect(x: 10, y: 10, width: 8, height: 8))
+            editor.newPage()
+            editor.deletePage()
+            #expect(editor.pageCount == 1)
+            let before = editor.imageHash
+            editor.beginEffect(kind)
+            if kind == .straighten { editor.effectValues[0] = 5 }
+            editor.applyEffect()
+            #expect(editor.imageHash != before, "\(kind) changed the picture")
+            editor.undo()
+            #expect(editor.imageHash == before && editor.pageCount == 1, "\(kind) is undone, not the page delete")
+            editor.undo()
+            #expect(editor.pageCount == 1, "the page delete can't be undone after an edit, as for any other edit")
+        }
+    }
+
     @Test func theLastPageCantBeDeleted() {
         let editor = makeEditor(width: 40, height: 30)
         editor.deletePage()

@@ -2617,14 +2617,18 @@ final class Editor {
     private func recordingChanges(_ body: () -> Void) {
         let revision = history.revision
         body()
-        if history.revision != revision {
-            stopFillForChange()
-            // A page edit: page changes made before it can't be undone any more, as edits work in an image.
-            pages.noteEdit()
-            undone = []
-            onDocumentChange(.done)
-            layersRevision += 1
-        }
+        if history.revision != revision { noteEdited() }
+    }
+
+    /// The bookkeeping every recorded step needs, wherever it was recorded. Not for page changes (`changePages`),
+    /// which are undone on their own list.
+    private func noteEdited() {
+        stopFillForChange()
+        // A page edit: page changes made before it can't be undone any more, as edits work in an image.
+        pages.noteEdit()
+        undone = []
+        onDocumentChange(.done)
+        layersRevision += 1
     }
 
     func selectAll() {
@@ -4235,8 +4239,7 @@ final class Editor {
             activeEffect = nil
             // The preview already is the step; it counts as a change only now.
             if decorationPreviewed {
-                onDocumentChange(.done)
-                layersRevision += 1
+                noteEdited()
             } else {
                 onRefused()
             }
@@ -5383,12 +5386,7 @@ final class Editor {
                 try? await Task.sleep(for: .milliseconds(1))
             }
             if group.count > 1 { redactionGroups.append(group) }
-            if changedOtherPages {
-                pages.noteEdit()
-                undone = []
-                onDocumentChange(.done)
-                layersRevision += 1
-            }
+            if changedOtherPages { noteEdited() }
             if redacted { noteRedaction() }
             if autoRedact?.problem == nil { autoRedact = nil } else { autoRedact?.applying = nil }
             onRender()

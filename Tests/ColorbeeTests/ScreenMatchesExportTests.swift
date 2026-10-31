@@ -219,7 +219,8 @@ struct ScreenMatchesExportTests {
         let editor = Self.picture()
         editor.addLayer()
         let patch = editor.canvas.activeLayer.buffer
-        for y in 12..<44 { for x in 16..<60 { patch.row(y)[x] = Pixel(r: UInt8(x * 3), g: 120, b: UInt8(200 - y * 2)) } }
+        // Out toward the corners, where the vignette is strongest.
+        for y in 3..<51 { for x in 4..<68 { patch.row(y)[x] = Pixel(r: UInt8(x * 3), g: 120, b: UInt8(200 - y * 2)) } }
         let before = editor.canvas.flattened()
         editor.addAdjustmentLayer(.photo(Self.mixed), named: "Adjust Photo")
         editor.setClipsToLayerBelow(true)

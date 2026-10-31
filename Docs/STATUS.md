@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-31 · 799 core tests and 284 app tests passing (stage 31 passed Leah's test); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
+_Last updated: 2026-10-31 · 824 core tests and 316 app tests passing (photo-editing test coverage added; stage 31 passed Leah's test); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
 
 ## Waiting for Leah's tests
 
@@ -15,6 +15,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 - [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
 - [The monkey's thumbnail and export fixes](#test-the-monkeys-thumbnail-and-export-fixes) (2026-10-31)
+- [Photo test coverage: screen drawing, Curves and color wheels](#test-photo-test-coverage-screen-drawing-curves-and-color-wheels) (2026-10-31)
 
 ---
 
@@ -168,6 +169,17 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   (`Effects.Placement`), so readings match an export.
 - Stage 21 (2026-10-28): Auto-Redact's Faces row (`FaceFinder.swift`; `RedactionPattern.facesID`), read with the text
   on every page and listed after it.
+- Test coverage for stages 1a to 21 (2026-10-31; Leah chose the riskiest behaviors over a number). Screen against
+  export: `Renderer.renderedPixels` draws a scene off screen through the real shaders (`encode(_:into:)`, split out of
+  `render`), and `ScreenMatchesExportTests` compares every Adjust Photo control, and a layer at half opacity, Multiply,
+  masked, "Only the layer below" and in a group, with `Canvas.flattened()`. Colors agree within 4 levels (about 0.3 on
+  average); controls that look at neighbors within 24 (Sharpness and Definition about 1.1 on average), since Metal and
+  vImage blur a little differently. Turning the screen's vignette off on purpose failed all seven cases that use one. RAW Develop on
+  `Test Camera.dng` (`RawDevelopTests`). Panel drags (`PanelDragTests`): the Curves graph's point editing moved into
+  `CurveDrag`; `SplitSlider` and `ColorWheel` gained small static helpers; `ScrubView` is fed mouse events. Coverage
+  (`make coverage`): core 95.6% → 95.8% (the photo files' remaining misses are menu `title` switches); app 24.4% →
+  29.0%; RawDeveloper 9% → 86%, CurveDrag 97%, Renderer (never run by a test before) 76%. Still untested: the SwiftUI
+  panel layouts themselves (AdjustPhotoPanel, PhotoControls, HistoryPanels), which Leah checks by hand.
 - Stage 22 (2026-10-28): Select All Layers (⌥⌘A), Option-click an eye to isolate a layer (`Editor.toggleIsolation`),
   and Stamp Visible (`LayerActions.stampVisible`, `LayerActions.setVisibility`).
 - Stage 23 (2026-10-28): Lock Transparent Pixels (`Layer.locksTransparency`), kept for every tool in one place,
@@ -369,6 +381,30 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Photo test coverage: screen drawing, Curves and color wheels
+
+Only tests were added, but three pieces of code were reorganized so tests could reach them. These steps check that
+nothing changed. Use `TestImages/Photo Editing/Old Adjust Photo.colorproj`.
+
+1. File > Open `Old Adjust Photo.colorproj`.
+   Expected: it looks the same as `Old Adjust Photo (as shown before stage 1a).png` in the same folder.
+2. Edit > Before/After, then Edit > Before/After again.
+   Expected: the split view shows, then goes away, as before.
+3. Layer > New Adjustment Layer > Curves.
+4. Click the middle of the graph and drag up.
+   Expected: a new point follows the mouse and the picture brightens.
+5. Drag that point off the side of the graph.
+   Expected: the point is removed.
+6. Click to add a point again, then double-click it.
+   Expected: the point is removed.
+7. Delete the Curves layer, then select the top Adjust Photo layer.
+8. In the Adjustments panel, open Tone Curve and drag the left triangle under the graph to the right.
+   Expected: it stops just before the middle triangle.
+9. Open Color Grading and drag on the wheel. Then Option-drag.
+   Expected: the dot follows the mouse; with Option it moves a quarter as far.
+10. Drag sideways across a slider's name, such as Exposure.
+    Expected: the slider moves as if you dragged it.
 
 ### Test: The monkey's thumbnail and export fixes
 

@@ -215,14 +215,44 @@ final class Renderer {
         // Paint on a layer that locks its transparency is taken back out of its clear area before it's ever shown.
         scene.canvas.keepLockedTransparency()
         guard let drawable = metalLayer.nextDrawable(),
-              let commandBuffer = queue.makeCommandBuffer() else { return }
+              let commandBuffer = queue.makeCommandBuffer(),
+              encode(scene, into: drawable.texture, scale: scale, surround: surround, commandBuffer: commandBuffer) else { return }
+        commandBuffer.addCompletedHandler { _ in
+            onRendered(CACurrentMediaTime())
+        }
+        drawable.addPresentedHandler { presented in
+            onPresented(presented.presentedTime)
+        }
+        commandBuffer.present(drawable)
+        commandBuffer.commit()
+    }
 
+    /// The scene drawn into a picture of `size` device pixels instead of a window, exactly as the screen would show
+    /// it, so tests can check the screen against an export.
+    func renderedPixels(_ scene: RenderScene, size: IntSize, scale: Double = 1, surround: MTLClearColor) -> PixelBuffer? {
+        scene.canvas.keepLockedTransparency()
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: size.width, height: size.height, mipmapped: false)
+        descriptor.usage = .renderTarget
+        descriptor.storageMode = .shared
+        guard let target = device.makeTexture(descriptor: descriptor),
+              let commandBuffer = queue.makeCommandBuffer(),
+              encode(scene, into: target, scale: scale, surround: surround, commandBuffer: commandBuffer) else { return nil }
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        let pixels = PixelBuffer(width: size.width, height: size.height)
+        target.getBytes(pixels.baseAddress, bytesPerRow: pixels.bytesPerRow, from: MTLRegionMake2D(0, 0, size.width, size.height), mipmapLevel: 0)
+        return pixels
+    }
+
+    /// Encodes the whole frame into `output`. False if the GPU couldn't go on.
+    private func encode(_ scene: RenderScene, into output: MTLTexture, scale: Double, surround: MTLClearColor, commandBuffer: MTLCommandBuffer) -> Bool {
+        let drawableSize = CGSize(width: output.width, height: output.height)
         let layerPass = MTLRenderPassDescriptor()
-        layerPass.colorAttachments[0].texture = layerTarget(width: drawable.texture.width, height: drawable.texture.height)
+        layerPass.colorAttachments[0].texture = layerTarget(width: output.width, height: output.height)
         layerPass.colorAttachments[0].loadAction = .clear
         layerPass.colorAttachments[0].storeAction = .store
         layerPass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
-        guard var encoder = commandBuffer.makeRenderCommandEncoder(descriptor: layerPass) else { return }
+        guard var encoder = commandBuffer.makeRenderCommandEncoder(descriptor: layerPass) else { return false }
 
         let canvas = scene.canvas
         let zoom = scene.viewport.zoom
@@ -246,7 +276,7 @@ final class Renderer {
         }
 
         var uniforms = QuadUniforms()
-        uniforms.viewportSize = SIMD2(Float(metalLayer.drawableSize.width), Float(metalLayer.drawableSize.height))
+        uniforms.viewportSize = SIMD2(Float(drawableSize.width), Float(drawableSize.height))
         uniforms.checkerSize = Float(8 * scale)
         uniforms.pixelSize = Float(zoom * scale)
         uniforms.antsPhase = scene.antsPhase
@@ -409,7 +439,7 @@ final class Renderer {
         func drawGroup(_ node: LayerNode, onto target: MTLTexture, depth: Int) -> Bool {
             let group = node.layer
             if group.passesThrough, group.opacity >= 1, group.activeMask == nil { return drawNodes(node.children, onto: target, depth: depth + 1) }
-            let width = drawable.texture.width, height = drawable.texture.height
+            let width = output.width, height = output.height
             if group.passesThrough {
                 let backdrop = groupTarget(depth: depth, backdrop: true, width: width, height: height)
                 encoder.endEncoding()
@@ -481,7 +511,7 @@ final class Renderer {
                     || layer.activeMask != nil
                     || lockedPatch != nil || lockedOverlay != nil
                 // Made only when needed: it's the size of the window.
-                let isolatedTexture = isolated ? isolatedTarget(depth: depth, width: drawable.texture.width, height: drawable.texture.height) : nil
+                let isolatedTexture = isolated ? isolatedTarget(depth: depth, width: output.width, height: output.height) : nil
                 if isolated {
                     encoder.endEncoding()
                     let isolatedPass = MTLRenderPassDescriptor()
@@ -565,7 +595,7 @@ final class Renderer {
             return true
         }
 
-        guard drawNodes(canvas.tree(of: canvas.shownLayers), onto: layerPass.colorAttachments[0].texture!, depth: 0) else { return }
+        guard drawNodes(canvas.tree(of: canvas.shownLayers), onto: layerPass.colorAttachments[0].texture!, depth: 0) else { return false }
         if let mask = scene.maskAlone {
             uniforms.rect = deviceRect(canvas.bounds)
             sampling(zoom < 1)
@@ -584,11 +614,11 @@ final class Renderer {
         encoder.endEncoding()
 
         let pass = MTLRenderPassDescriptor()
-        pass.colorAttachments[0].texture = drawable.texture
+        pass.colorAttachments[0].texture = output
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].storeAction = .store
         pass.colorAttachments[0].clearColor = surround
-        guard let mainEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        guard let mainEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return false }
         encoder = mainEncoder
         uniforms.rect = deviceRect(canvas.bounds)
         drawShadow()
@@ -616,9 +646,9 @@ final class Renderer {
 
         if let comparison = scene.comparison, comparison.layout == .split {
             // Left of the divider shows "before", drawn over the current image.
-            let dividerDevice = max(0, min(Double(metalLayer.drawableSize.width), comparison.dividerX * scale))
+            let dividerDevice = max(0, min(Double(drawableSize.width), comparison.dividerX * scale))
             if dividerDevice > 0 {
-                encoder.setScissorRect(MTLScissorRect(x: 0, y: 0, width: Int(dividerDevice), height: Int(metalLayer.drawableSize.height)))
+                encoder.setScissorRect(MTLScissorRect(x: 0, y: 0, width: Int(dividerDevice), height: Int(drawableSize.height)))
                 uniforms.rect = deviceRect(IntRect(size: comparison.before.size))
                 uniforms.opacity = 1
                 uniforms.keyEnabled = 0
@@ -626,10 +656,10 @@ final class Renderer {
                 encoder.setFragmentTexture(texture(for: comparison.before, live: &liveBuffers), index: 0)
                 draw(checkerPipeline)
                 draw(layerPipeline)
-                encoder.setScissorRect(MTLScissorRect(x: 0, y: 0, width: Int(metalLayer.drawableSize.width), height: Int(metalLayer.drawableSize.height)))
+                encoder.setScissorRect(MTLScissorRect(x: 0, y: 0, width: Int(drawableSize.width), height: Int(drawableSize.height)))
             }
             let lineWidth = Float(2 * scale)
-            uniforms.rect = SIMD4(Float(dividerDevice) - lineWidth / 2, 0, lineWidth, Float(metalLayer.drawableSize.height))
+            uniforms.rect = SIMD4(Float(dividerDevice) - lineWidth / 2, 0, lineWidth, Float(drawableSize.height))
             uniforms.keyColor = SIMD4(1, 1, 1, 1)
             draw(solidPipeline)
         }
@@ -720,15 +750,7 @@ final class Renderer {
             }
         }
         encoder.endEncoding()
-
-        commandBuffer.addCompletedHandler { _ in
-            onRendered(CACurrentMediaTime())
-        }
-        drawable.addPresentedHandler { presented in
-            onPresented(presented.presentedTime)
-        }
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
+        return true
     }
 
     /// An adjustment's kind code and settings for the shaders.

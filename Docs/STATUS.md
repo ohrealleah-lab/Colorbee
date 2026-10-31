@@ -91,6 +91,9 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 28b. Masks on groups, clipping for pixel layers | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 29. Re-editable text 1: text layers | Built 2026-10-31; waiting for Leah's test (with 30) | High |
 | 14 · 30. Re-editable text 2: when text becomes pixels | Built 2026-10-31; waiting for Leah's test (with 29) | High |
+| 14 · 31. Stroke smoothing | Not started | High |
+| 14 · 32. Overnight monkey test | Not started | High |
+| 14 · 33. Code reviews (Leah, 2026-10-31) | Not started | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built

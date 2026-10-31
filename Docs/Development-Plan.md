@@ -1144,6 +1144,11 @@ running, to find the complicated bugs a hand test can miss.
    ran, and each failure as plain numbered steps. I turn each failure into a test and a fix.
 6. **Done when:** a full night runs on the finished app, and its report's failures are fixed or recorded as known.
 
+### Stage 33. Code reviews (Leah, 2026-10-31)
+
+Last of all, after the monkey test: code reviews of the finished app. Its scope, rounds and how findings are handled
+are to be settled with Leah before it starts.
+
 ---
 
 ## 7. What can be built together, and what must not
@@ -1214,6 +1219,7 @@ build time.
 | 30 | Re-editable text 2 | §23 text | M | High | 29 |
 | 31 | Stroke smoothing | §23 smoothing | M | High | — |
 | 32 | Overnight monkey test | Leah, 2026-10-29 | M | High | all |
+| 33 | Code reviews | Leah, 2026-10-31 | — | High | 32 |
 
 All Opus. FR-8.6 is already built, so it has no stage.
 

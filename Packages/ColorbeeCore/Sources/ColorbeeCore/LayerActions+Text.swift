@@ -8,6 +8,7 @@ extension LayerActions {
             let text = TextLayer(spec: spec)
             let layer = Layer(name: text.name, buffer: text.drawn(size: canvas.size, colorSpace: canvas.colorSpace))
             layer.text = text
+            layer.nameFromWords = true
             canvas.insertLayerAboveActive(layer)
             return true
         }
@@ -21,16 +22,21 @@ extension LayerActions {
         let layer = canvas.layers[index]
         guard canEditText(of: layer, in: canvas), let old = layer.text, spec != old.spec else { return false }
         if spec.text.isEmpty {
-            guard canvas.layers.count > 1 else { return false }
+            // Its "Only the layer below" layers go with it, as with Delete Layer (review X, finding 10).
+            let going = deletedRange(ofLayerAt: index, in: canvas)
+            guard going.count < canvas.layers.count else { return false }
             return change("Delete Text", canvas: canvas, history: history, context: context) {
-                canvas.removeLayer(at: index)
+                for at in going.reversed() { canvas.removeLayer(at: at) }
                 canvas.activeLayerIndex = min(max(0, index - 1), canvas.layers.count - 1)
                 return true
             }
         }
         return change("Edit Text", canvas: canvas, history: history, context: context) {
             let text = TextLayer(spec: spec)
-            if layer.name == old.name { layer.name = text.name }
+            if layer.nameFromWords {
+                layer.name = text.name
+                layer.nameFromWords = true
+            }
             layer.buffer = text.drawn(size: canvas.size, colorSpace: canvas.colorSpace)
             layer.text = text
             canvas.activeLayerIndex = index

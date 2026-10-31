@@ -10,7 +10,10 @@ public struct LayerID: Hashable, Sendable {
 
 public final class Layer {
     public let id: LayerID
-    public var name: String
+    /// Any rename forgets that the name came from words; Colorbee sets `nameFromWords` again after naming from words.
+    public var name: String {
+        didSet { nameFromWords = false }
+    }
     public var isVisible: Bool
     public var opacity: Double
     public var blendMode: BlendMode = .normal
@@ -47,6 +50,9 @@ public final class Layer {
     /// A text layer (FR-6.3, stage 29): its pixels are always exactly `text` drawn, so the words can be edited again.
     /// Any pixel change turns it into plain pixels first (`Edit.willModify`), so redaction always wins.
     public var text: TextLayer?
+    /// Its name was made from its words (a text layer's first line), so a redaction renames it (review Y, finding 1).
+    /// Copied with the layer; any rename clears it.
+    public var nameFromWords = false
 
     /// A layer with pixels of its own: not an adjustment layer or a group.
     public var isPixelLayer: Bool { adjustment == nil && !isGroup }
@@ -88,6 +94,7 @@ public final class Layer {
         copy.takeSettings(from: self)
         copy.mask = mask
         copy.text = text
+        copy.nameFromWords = nameFromWords
         return copy
     }
 

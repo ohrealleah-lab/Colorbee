@@ -85,8 +85,8 @@ struct TextFit {
 
 extension Canvas {
     /// After a geometry change replaced the buffers: each text layer follows `fit` and is drawn again, crisp. Without a
-    /// fit, turned or with its font missing (when it must be scaled), it becomes plain pixels, kept as the change made
-    /// them.
+    /// fit, turned, cut off by the new edges, or with its font missing (when it must be scaled), it becomes plain pixels,
+    /// kept as the change made them.
     func fitText(_ fit: TextFit?, edit: Edit) {
         for layer in layers {
             guard let text = layer.text else { continue }
@@ -96,6 +96,12 @@ extension Canvas {
                 continue
             }
             let fitted = text.fitted(scale: fit.scale, dx: fit.dx, dy: fit.dy)
+            // Words the change cuts off would stay in the layer and come back later, out of Auto-Redact's sight
+            // (Leah, 2026-10-31; review Y, finding 6): such a layer becomes pixels, as the change left them.
+            guard bounds.contains(TextRenderer.box(for: fitted.spec)) else {
+                layer.text = nil
+                continue
+            }
             if fitted.hasFont {
                 layer.buffer = fitted.drawn(size: size, colorSpace: colorSpace)
             } else if fit.scale != 1 {

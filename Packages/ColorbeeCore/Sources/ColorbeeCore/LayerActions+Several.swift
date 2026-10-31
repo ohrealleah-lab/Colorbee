@@ -13,7 +13,8 @@ extension LayerActions {
             let merging = mergedIndices(ids, in: canvas)
             let stack = merging.map { canvas.layers[$0] }
             let going = Set(merging.flatMap { [$0] + clipIndices(onLayerAt: $0, in: canvas) }.map { canvas.layers[$0].id })
-            let name = stack.last { ids.contains($0.id) }!.name
+            let named = stack.last { ids.contains($0.id) }!
+            let name = named.name, nameFromWords = named.nameFromWords
             // Above the merge, where the result goes.
             let anchor = canvas.layers.suffix(from: merging.last! + 1).first { !going.contains($0.id) }
             // The lowest pixel layer holds the result, so a merge that starts at the background keeps it the background.
@@ -25,6 +26,7 @@ extension LayerActions {
             holder.buffer = merged
             holder.text = nil
             holder.name = name
+            holder.nameFromWords = nameFromWords
             holder.opacity = 1
             holder.blendMode = .normal
             holder.isVisible = true

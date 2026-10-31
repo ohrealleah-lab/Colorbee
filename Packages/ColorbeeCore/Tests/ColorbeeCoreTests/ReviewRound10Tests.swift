@@ -128,4 +128,90 @@ struct ReviewRound10Tests {
         LayerActions.deleteMask(canvas: canvas, history: history, context: context)
         #expect(history.byteCount >= before + canvas.size.width * canvas.size.height * MemoryLayout<Pixel>.stride)
     }
+
+    // MARK: Text layers and redaction safety
+
+    private func textPicture(_ words: String = "Card 4111") -> (Canvas, History) {
+        let canvas = Canvas(size: IntSize(width: 90, height: 40), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max)
+        LayerActions.addText(TextSpec(text: words, origin: Point2D(x: 4, y: 4), fontFamily: "Helvetica Neue", fontSize: 14, color: .black),
+                             canvas: canvas, history: history, context: context)
+        return (canvas, history)
+    }
+
+    private func redactEverything(_ canvas: Canvas, _ history: History) {
+        let all = SelectionMask.rectangle(canvas.bounds, clippedTo: canvas.bounds)!
+        AutoRedact.apply(.solidFill(.black), in: all, canvas: canvas, history: history)
+    }
+
+    @Test func noRedactedWordsSurviveInAName() throws {
+        // A copy, a layer made pixels first, and a mask's name.
+        for way in 0..<3 {
+            let (canvas, history) = textPicture()
+            switch way {
+            case 0: LayerActions.duplicate(canvas: canvas, history: history, context: context)
+            case 1: LayerActions.rasterizeText(canvas: canvas, history: history, context: context)
+            default:
+                LayerActions.addMask(.revealAll, canvas: canvas, history: history, context: context)
+                canvas.editsMask = false
+            }
+            redactEverything(canvas, history)
+            let names = canvas.layers.flatMap { [$0.name] + ($0.mask.map { [$0.name] } ?? []) }
+            #expect(!names.contains { $0.contains("4111") }, "way \(way): \(names)")
+            #expect(try ProjectFile.encode(canvas).range(of: Data("4111".utf8)) == nil, "way \(way)")
+            history.undo(on: canvas)
+            #expect(canvas.layers.last?.name.contains("4111") == true, "way \(way)")
+        }
+        // A name typed by hand is the person's own, and other pixel changes never rename.
+        let (canvas, history) = textPicture()
+        LayerActions.update("Rename", layerAt: 1, canvas: canvas, history: history) { $0.name = "Mine" }
+        redactEverything(canvas, history)
+        #expect(canvas.layers[1].name == "Mine")
+        let (other, otherHistory) = textPicture()
+        let edit = otherHistory.beginEdit("Brush", on: other)
+        edit.willModify(IntRect(x: 0, y: 0, width: 4, height: 4), in: other.layers[1])
+        otherHistory.commit(edit)
+        #expect(other.layers[1].text == nil && other.layers[1].name == "Card 4111")
+    }
+
+    @Test func aCancelledRedactionPreviewPutsTheTextBack() {
+        let (canvas, history) = textPicture()
+        let layer = canvas.layers[1]
+        let edit = history.beginEdit("Blur", on: canvas)
+        edit.isRedaction = true
+        edit.willModify(canvas.bounds, in: layer)
+        #expect(layer.text == nil && layer.name == "Text")
+        edit.restoreOriginals()
+        #expect(layer.text?.spec.text == "Card 4111" && layer.name == "Card 4111" && layer.nameFromWords)
+    }
+
+    @Test func aCropThatCutsTextOffMakesItPixels() {
+        let (canvas, history) = textPicture()
+        #expect(ImageActions.crop(to: IntRect(x: 0, y: 0, width: 30, height: 40), canvas: canvas, history: history, context: context))
+        #expect(canvas.layers[1].text == nil)
+        #expect(ImageActions.resizeCanvas(to: IntSize(width: 120, height: 40), canvas: canvas, history: history, context: context))
+        #expect(canvas.layers[1].text == nil)
+        history.undo(on: canvas)
+        history.undo(on: canvas)
+        #expect(canvas.layers[1].text?.spec.text == "Card 4111")
+    }
+
+    @Test func redactionIgnoresLockTransparentPixels() {
+        let (canvas, history) = textPicture()
+        canvas.layers[1].locksTransparency = true
+        redactEverything(canvas, history)
+        // No letter's outline is left: the whole layer is solid.
+        #expect(canvas.layers[1].buffer.pixels(in: canvas.bounds).allSatisfy { $0.a == 255 })
+    }
+
+    @Test func deletingEveryWordTakesTheTextsClippedLayersAlong() {
+        let (canvas, history) = textPicture()
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        canvas.activeLayer.clipsToLayerBelow = true
+        let look = Canvas(size: canvas.size, colorSpace: canvas.colorSpace, background: .white).flattened().contentHash()
+        var empty = canvas.layers[1].text!.spec
+        empty.text = ""
+        #expect(LayerActions.setText(empty, layerAt: 1, canvas: canvas, history: history, context: context))
+        #expect(canvas.layers.count == 1 && canvas.flattened().contentHash() == look)
+    }
 }

@@ -84,6 +84,8 @@ public enum ProjectFile {
         var group: UUID?
         /// A text layer's words and settings (stage 29). Older versions skip it and see the drawn pixels.
         var text: TextEntry?
+        /// Its name was made from its words; missing means no.
+        var nameFromWords: Bool?
     }
 
     /// A text layer's `TextLayer`, spelled out so the format doesn't depend on Swift's names.
@@ -178,6 +180,7 @@ public enum ProjectFile {
             entry.group = layer.groupID?.rawValue
             // A floating piece stamped into its pixels would no longer match its words.
             if saved[layer.id] === layer.buffer { entry.text = layer.text.map(TextEntry.init) }
+            if layer.nameFromWords { entry.nameFromWords = true }
             if layer.isGroup {
                 groups.append(GroupEntry(at: index, layer: entry, passesThrough: layer.passesThrough ? nil : false))
                 continue
@@ -469,6 +472,8 @@ public enum ProjectFile {
         layer.groupID = entry.group.map { LayerID(rawValue: $0) }
         layer.passesThrough = group?.passesThrough ?? true
         layer.text = group == nil && layer.adjustment == nil ? entry.text?.textLayer : nil
+        // Text layers saved before the flag existed were named after their words if the names still match.
+        layer.nameFromWords = entry.nameFromWords ?? (layer.text.map { $0.name == entry.name } ?? false)
         return layer
     }
 

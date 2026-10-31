@@ -326,6 +326,7 @@ public final class Canvas {
             layer.mask = record.mask
             layer.maskEnabled = record.maskEnabled
             layer.text = record.text
+            layer.nameFromWords = record.nameFromWords
             layer.buffer = record.buffer
             return layer
         }
@@ -606,6 +607,7 @@ struct LayerStackState {
         var mask: Layer?
         var maskEnabled = true
         var text: TextLayer?
+        var nameFromWords = false
         let buffer: PixelBuffer
 
         /// `layer` as it is now.
@@ -616,6 +618,7 @@ struct LayerStackState {
             mask = layer.mask
             maskEnabled = layer.maskEnabled
             text = layer.text
+            nameFromWords = layer.nameFromWords
         }
 
         init(layer: Layer, name: String, isVisible: Bool, opacity: Double, blendMode: BlendMode, isLocked: Bool, locksTransparency: Bool,
@@ -642,7 +645,7 @@ struct LayerStackState {
             name == other.name && isVisible == other.isVisible && opacity == other.opacity && blendMode == other.blendMode
                 && isLocked == other.isLocked && locksTransparency == other.locksTransparency && adjustment == other.adjustment && clipsToLayerBelow == other.clipsToLayerBelow
                 && groupID == other.groupID && passesThrough == other.passesThrough && buffer === other.buffer
-                && mask === other.mask && maskEnabled == other.maskEnabled && text == other.text
+                && mask === other.mask && maskEnabled == other.maskEnabled && text == other.text && nameFromWords == other.nameFromWords
         }
     }
 

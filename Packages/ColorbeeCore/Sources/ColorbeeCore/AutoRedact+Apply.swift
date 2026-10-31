@@ -32,6 +32,7 @@ extension AutoRedact {
         if let locked { return .locked(layerName: locked.name) }
         guard !layers.isEmpty else { return .nothingChanged }
         let edit = history.beginEdit(name ?? effect.name, on: canvas)
+        edit.isRedaction = true
         for layer in layers {
             Effects.apply(effect, to: layer, selection: selection, edit: edit)
         }
@@ -47,6 +48,7 @@ extension AutoRedact {
         let boxes = boxes(of: matches, canvas: canvas)
         let pixelLayers = canvas.layers.filter(\.isPixelLayer)
         let edit = history.beginEdit("Auto-Redact", on: canvas)
+        edit.isRedaction = true
         for box in boxes {
             let strength = max(6, Double(box.height) / 3)
             let effect: Effect = switch treatment {

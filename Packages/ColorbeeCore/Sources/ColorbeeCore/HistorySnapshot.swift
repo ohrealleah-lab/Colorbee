@@ -40,6 +40,7 @@ public final class HistorySnapshot: Identifiable {
         var maskEnabled = true
         /// A text layer's words and settings (stage 29).
         var text: TextLayer?
+        var nameFromWords = false
         /// One band of rows each (`GeometryChange.bands`); nil for a layer with no pixels (empty or an adjustment).
         var pixels: [SpillStore.Location]?
     }

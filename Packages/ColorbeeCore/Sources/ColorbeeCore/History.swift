@@ -52,8 +52,11 @@ public final class Edit {
     private(set) var orientation: Orientation?
     private(set) var layersBefore: LayerStackState?
     private(set) var snapshots: [TileKey: TileSnapshot] = [:]
-    /// Text layers this edit changed or turned into pixels, as they were, with their names.
-    private(set) var textsBefore: [LayerID: (text: TextLayer, name: String)] = [:]
+    /// Text layers this edit changed or turned into pixels, and layers it renamed, as they were.
+    private(set) var textsBefore: [LayerID: TextChange] = [:]
+    /// A redaction: it renames a layer whose name came from its words, and that layer's mask, so the words don't
+    /// survive in a name (stage 29; review Y, findings 1 and 2, X, finding 7). Nothing else renames (Y, finding 9).
+    public var isRedaction = false
     public private(set) var dirtyRect: IntRect = .zero
     /// Areas written on layers that lock their transparency, not yet put back (`keepLockedTransparency`).
     private var lockedPending: [(layer: Layer, rect: IntRect)] = []
@@ -71,11 +74,16 @@ public final class Edit {
     public func willModify(_ rect: IntRect, in layer: Layer) {
         precondition(layersBefore == nil, "Pixel edits can't be mixed with layer changes in one step")
         // Its pixels no longer match its words, so it's plain pixels from here: redaction always wins (Q29.2).
-        if let text = layer.text {
+        if layer.text != nil {
             willChangeText(of: layer)
             layer.text = nil
-            // A name made from the words would give them away under a redaction.
-            if layer.name == text.name { layer.name = "Text" }
+        }
+        // A name made from the words would give them away under a redaction, even after the layer became pixels.
+        if isRedaction, layer.nameFromWords {
+            willChangeText(of: layer)
+            layer.name = "Text"
+            layer.nameFromWords = false
+            layer.mask?.name = "Text Mask"
         }
         let bounds = layer.buffer.bounds
         let target = rect.intersection(bounds)
@@ -88,7 +96,9 @@ public final class Edit {
             let tileRect = TileGrid.rect(column: cell.column, row: cell.row, clippedTo: bounds)
             snapshots[key] = TileSnapshot(rect: tileRect, pixels: layer.buffer.pixels(in: tileRect))
         }
-        if canvas.locksTransparency(layer) {
+        // Redaction ignores Lock Transparent Pixels, or the letters' outline would survive it (Leah, 2026-10-31; review AA,
+        // finding 2).
+        if canvas.locksTransparency(layer), !isRedaction {
             if lockedPending.isEmpty { canvas.noteLockedEdit(self) }
             lockedPending.append((layer, target))
         }
@@ -152,14 +162,19 @@ public final class Edit {
 
     /// Call before changing a text layer's `text` in a pixel or geometry step (a layer step keeps it with the layer).
     public func willChangeText(of layer: Layer) {
-        if textsBefore[layer.id] == nil, let text = layer.text { textsBefore[layer.id] = (text, layer.name) }
+        if textsBefore[layer.id] == nil { textsBefore[layer.id] = TextChange(layer) }
     }
 
-    /// Puts back every pixel this edit has changed so far. Used for live previews that are recomputed.
+    /// Puts back every pixel this edit has changed so far, and any text layer it turned into pixels. Used for live
+    /// previews that are recomputed or cancelled (review Y, finding 3).
     public func restoreOriginals() {
         for (key, snapshot) in snapshots {
             canvas.layer(withID: key.layer)?.buffer.setPixels(snapshot.pixels, in: snapshot.rect)
         }
+        for (id, before) in textsBefore {
+            if let layer = canvas.layer(withID: id) { before.apply(to: layer) }
+        }
+        textsBefore = [:]
     }
 }
 
@@ -202,10 +217,28 @@ final class GeometryChange {
     }
 }
 
-struct TextChange {
+/// A layer's words and the names that can carry them, as they were before a step.
+struct TextChange: Equatable {
     let layer: LayerID
     var text: TextLayer?
     var name: String
+    var nameFromWords: Bool
+    var maskName: String?
+
+    init(_ layer: Layer) {
+        self.layer = layer.id
+        text = layer.text
+        name = layer.name
+        nameFromWords = layer.nameFromWords
+        maskName = layer.mask?.name
+    }
+
+    func apply(to layer: Layer) {
+        layer.text = text
+        layer.name = name
+        layer.nameFromWords = nameFromWords
+        if let maskName { layer.mask?.name = maskName }
+    }
 }
 
 final class HistoryEntry {
@@ -370,8 +403,8 @@ public final class History {
         }
         let selectionChanged = edit.recordsSelectionChange && !edit.selectionBefore.isSame(as: selectionAfter)
         let texts = edit.textsBefore.compactMap { id, before -> TextChange? in
-            guard let layer = edit.canvas.layer(withID: id), layer.text != before.text || layer.name != before.name else { return nil }
-            return TextChange(layer: id, text: before.text, name: before.name)
+            guard let layer = edit.canvas.layer(withID: id), TextChange(layer) != before else { return nil }
+            return before
         }
         if let layers = edit.layersBefore {
             guard !layers.isSame(as: edit.canvas.layerStackState) else { return false }
@@ -465,11 +498,8 @@ public final class History {
     private func swapPixels(_ entry: HistoryEntry, on canvas: Canvas) -> IntRect {
         entry.texts = entry.texts.map { change in
             guard let layer = canvas.layer(withID: change.layer) else { return change }
-            defer {
-                layer.text = change.text
-                layer.name = change.name
-            }
-            return TextChange(layer: change.layer, text: layer.text, name: layer.name)
+            defer { change.apply(to: layer) }
+            return TextChange(layer)
         }
         if let layers = entry.layers {
             let current = canvas.layerStackState
@@ -565,6 +595,7 @@ public final class History {
             target.clipsToLayerBelow = record.clipsToLayerBelow
             target.passesThrough = record.passesThrough
             target.text = record.text
+            target.nameFromWords = record.nameFromWords
             // Undoing Delete Mask or Apply Mask on one layer brings the mask back (review X, finding 2).
             target.mask = record.mask
             target.maskEnabled = record.maskEnabled

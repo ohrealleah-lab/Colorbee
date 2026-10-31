@@ -585,20 +585,10 @@ public final class History {
         if let state = entry.layers, let record = state.records.first(where: { $0.layer.id == layer }), let target = canvas.layer(withID: layer) {
             // Put back only this layer's settings and pixels; the step before keeps the rest of the stack as it is now.
             let current = canvas.layerStackState
-            target.name = record.name
-            target.isVisible = record.isVisible
-            target.opacity = record.opacity
-            target.blendMode = record.blendMode
-            target.isLocked = record.isLocked
-            target.locksTransparency = record.locksTransparency
-            target.adjustment = record.adjustment
-            target.clipsToLayerBelow = record.clipsToLayerBelow
-            target.passesThrough = record.passesThrough
-            target.text = record.text
-            target.nameFromWords = record.nameFromWords
+            // Its group is the same: `candidate` refuses a step that moved it into or out of one.
+            target.settings = record.settings
             // Undoing Delete Mask or Apply Mask on one layer brings the mask back (review X, finding 2).
             target.mask = record.mask
-            target.maskEnabled = record.maskEnabled
             target.buffer = record.buffer
             reversal.layers = current
         } else {
@@ -634,7 +624,7 @@ public final class History {
                 let changedThisLayer = !record.matches(currentRecord)
                 guard changedThisLayer else { continue }
                 // Going into or out of a group changes the stack's shape, not just this layer (stage 26).
-                guard record.groupID == currentRecord.groupID else { return nil }
+                guard record.settings.groupID == currentRecord.settings.groupID else { return nil }
                 // Only a step that changed just this layer, and kept the same layers in the same order, stands alone.
                 let others = zip(before.records, now.records).allSatisfy { a, b in
                     a.layer === b.layer && (a.layer.id == layer || a.matches(b))

@@ -337,20 +337,8 @@ public final class Canvas {
     func restore(_ state: LayerStackState) {
         layers = state.records.map { record in
             let layer = record.layer
-            layer.name = record.name
-            layer.isVisible = record.isVisible
-            layer.opacity = record.opacity
-            layer.blendMode = record.blendMode
-            layer.isLocked = record.isLocked
-            layer.locksTransparency = record.locksTransparency
-            layer.adjustment = record.adjustment
-            layer.clipsToLayerBelow = record.clipsToLayerBelow
-            layer.groupID = record.groupID
-            layer.passesThrough = record.passesThrough
+            layer.settings = record.settings
             layer.mask = record.mask
-            layer.maskEnabled = record.maskEnabled
-            layer.text = record.text
-            layer.nameFromWords = record.nameFromWords
             layer.buffer = record.buffer
             return layer
         }
@@ -632,46 +620,19 @@ public final class Canvas {
 struct LayerStackState {
     struct Record {
         let layer: Layer
-        let name: String
-        let isVisible: Bool
-        let opacity: Double
-        let blendMode: BlendMode
-        let isLocked: Bool
-        let locksTransparency: Bool
-        let adjustment: Effect?
-        let clipsToLayerBelow: Bool
-        var groupID: LayerID?
-        var passesThrough = true
-        var mask: Layer?
-        var maskEnabled = true
-        var text: TextLayer?
-        var nameFromWords = false
+        let settings: LayerSettings
+        let mask: Layer?
         let buffer: PixelBuffer
 
         /// `layer` as it is now.
         init(_ layer: Layer) {
-            self.init(layer: layer, name: layer.name, isVisible: layer.isVisible, opacity: layer.opacity, blendMode: layer.blendMode,
-                      isLocked: layer.isLocked, locksTransparency: layer.locksTransparency, adjustment: layer.adjustment,
-                      clipsToLayerBelow: layer.clipsToLayerBelow, groupID: layer.groupID, passesThrough: layer.passesThrough, buffer: layer.buffer)
-            mask = layer.mask
-            maskEnabled = layer.maskEnabled
-            text = layer.text
-            nameFromWords = layer.nameFromWords
+            self.init(layer: layer, settings: layer.settings, mask: layer.mask, buffer: layer.buffer)
         }
 
-        init(layer: Layer, name: String, isVisible: Bool, opacity: Double, blendMode: BlendMode, isLocked: Bool, locksTransparency: Bool,
-             adjustment: Effect?, clipsToLayerBelow: Bool, groupID: LayerID? = nil, passesThrough: Bool = true, buffer: PixelBuffer) {
+        init(layer: Layer, settings: LayerSettings, mask: Layer?, buffer: PixelBuffer) {
             self.layer = layer
-            self.name = name
-            self.isVisible = isVisible
-            self.opacity = opacity
-            self.blendMode = blendMode
-            self.isLocked = isLocked
-            self.locksTransparency = locksTransparency
-            self.adjustment = adjustment
-            self.clipsToLayerBelow = clipsToLayerBelow
-            self.groupID = groupID
-            self.passesThrough = passesThrough
+            self.settings = settings
+            self.mask = mask
             self.buffer = buffer
         }
 
@@ -680,10 +641,7 @@ struct LayerStackState {
 
         /// The same settings and pixels as `other`.
         func matches(_ other: Record) -> Bool {
-            name == other.name && isVisible == other.isVisible && opacity == other.opacity && blendMode == other.blendMode
-                && isLocked == other.isLocked && locksTransparency == other.locksTransparency && adjustment == other.adjustment && clipsToLayerBelow == other.clipsToLayerBelow
-                && groupID == other.groupID && passesThrough == other.passesThrough && buffer === other.buffer
-                && mask === other.mask && maskEnabled == other.maskEnabled && text == other.text && nameFromWords == other.nameFromWords
+            settings == other.settings && buffer === other.buffer && mask === other.mask
         }
     }
 

@@ -22,25 +22,12 @@ public final class HistorySnapshot: Identifiable {
         /// (review U, finding 8). Once it's gone, going back makes a new layer with the same id.
         weak var layer: Layer?
         let id: LayerID
-        let name: String
-        let isVisible: Bool
-        let opacity: Double
-        let blendMode: BlendMode
-        let isLocked: Bool
-        let locksTransparency: Bool
-        let adjustment: Effect?
-        let clipsToLayerBelow: Bool
-        var isGroup = false
-        var groupID: LayerID?
-        var passesThrough = true
-        /// Its mask (stage 27): whether it had one, its name, its bands, and whether it's on.
-        var maskID: LayerID?
-        var maskName = ""
+        let isGroup: Bool
+        let settings: LayerSettings
+        /// Its mask (stage 27): whether it had one, its name and its bands. Whether it's on is in `settings`.
+        let maskID: LayerID?
+        let maskName: String
         var maskPixels: [SpillStore.Location]?
-        var maskEnabled = true
-        /// A text layer's words and settings (stage 29).
-        var text: TextLayer?
-        var nameFromWords = false
         /// One band of rows each (`GeometryChange.bands`); nil for a layer with no pixels (empty or an adjustment).
         var pixels: [SpillStore.Location]?
     }

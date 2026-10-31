@@ -28,13 +28,10 @@ extension History {
         }
         for layer in canvas.layers {
             let written = try stored(layer)
-            layers.append(HistorySnapshot.StoredLayer(layer: layer, id: layer.id, name: layer.name, isVisible: layer.isVisible,
-                                                      opacity: layer.opacity, blendMode: layer.blendMode, isLocked: layer.isLocked,
-                                                      locksTransparency: layer.locksTransparency, adjustment: layer.adjustment,
-                                                      clipsToLayerBelow: layer.clipsToLayerBelow, isGroup: layer.isGroup, groupID: layer.groupID,
-                                                      passesThrough: layer.passesThrough, maskID: layer.mask?.id,
-                                                      maskName: layer.mask?.name ?? "", maskPixels: try layer.mask.flatMap { mask throws(HistorySnapshot.Failure) in try stored(mask) },
-                                                      maskEnabled: layer.maskEnabled, text: layer.text, nameFromWords: layer.nameFromWords, pixels: written))
+            layers.append(HistorySnapshot.StoredLayer(layer: layer, id: layer.id, isGroup: layer.isGroup, settings: layer.settings,
+                                                      maskID: layer.mask?.id, maskName: layer.mask?.name ?? "",
+                                                      maskPixels: try layer.mask.flatMap { mask throws(HistorySnapshot.Failure) in try stored(mask) },
+                                                      pixels: written))
         }
         let selection: SelectionState = canvas.selection.marquee.map { .marquee($0) } ?? .none
         let snapshot = HistorySnapshot(name: name, thumbnail: makeThumbnail?(canvas), size: canvas.size, layers: layers,
@@ -85,15 +82,8 @@ extension History {
         edit.replacesPicture = true
         let records = zip(zip(snapshot.layers, buffers), masks).map { pair, mask in
             let (stored, buffer) = pair
-            var record = LayerStackState.Record(layer: stored.layer ?? Layer(name: stored.name, buffer: buffer, id: stored.id, isGroup: stored.isGroup),
-                                   name: stored.name, isVisible: stored.isVisible, opacity: stored.opacity,
-                                   blendMode: stored.blendMode, isLocked: stored.isLocked, locksTransparency: stored.locksTransparency, adjustment: stored.adjustment,
-                                   clipsToLayerBelow: stored.clipsToLayerBelow, groupID: stored.groupID, passesThrough: stored.passesThrough, buffer: buffer)
-            record.mask = mask
-            record.maskEnabled = stored.maskEnabled
-            record.text = stored.text
-            record.nameFromWords = stored.nameFromWords
-            return record
+            let layer = stored.layer ?? Layer(name: stored.settings.name, buffer: buffer, id: stored.id, isGroup: stored.isGroup)
+            return LayerStackState.Record(layer: layer, settings: stored.settings, mask: mask, buffer: buffer)
         }
         canvas.restore(LayerStackState(records: records, activeIndex: snapshot.activeIndex,
                                        hasTransparentBackground: snapshot.hasTransparentBackground, size: snapshot.size))

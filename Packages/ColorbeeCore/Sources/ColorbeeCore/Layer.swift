@@ -91,10 +91,10 @@ public final class Layer {
     /// that outlives this moment gives it a mask of its own (`withOwnMask`).
     public func copy(buffer: PixelBuffer, id: LayerID? = nil, name: String? = nil) -> Layer {
         let copy = Layer(name: name ?? self.name, buffer: buffer, id: id ?? self.id, isGroup: isGroup)
-        copy.takeSettings(from: self)
+        var settings = self.settings
+        settings.name = copy.name
+        copy.settings = settings
         copy.mask = mask
-        copy.text = text
-        copy.nameFromWords = nameFromWords
         return copy
     }
 
@@ -105,17 +105,4 @@ public final class Layer {
         return self
     }
 
-    /// Every setting of `other` but its name, id, kind and pixels.
-    public func takeSettings(from other: Layer) {
-        isVisible = other.isVisible
-        opacity = other.opacity
-        blendMode = other.blendMode
-        isLocked = other.isLocked
-        locksTransparency = other.locksTransparency
-        adjustment = other.adjustment
-        clipsToLayerBelow = other.clipsToLayerBelow
-        groupID = other.groupID
-        passesThrough = other.passesThrough
-        maskEnabled = other.maskEnabled
-    }
 }

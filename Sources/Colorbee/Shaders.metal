@@ -20,7 +20,17 @@ struct QuadUniforms {
     float4 detailParams;  // Adjust Photo (DetailAmounts): color noise, luminance and color detail scales, halo damping
     float4 detailParams2; // fine boost, Masking's threshold, 1 to show the Masking mask
     float clipWarnings;   // the composite's clipping warnings: 1 highlights, 2 shadows, 3 both
+    float4 maskParams;    // x: 1 when a layer mask is in texture 10; y: 1 to blend only where the backdrop has pixels
 };
+
+// How much a layer mask lets show at uv, 0...1, as Compositing.reveal: black ink over white paper (stage 27).
+static float mask_reveal(texture2d<float> mask, float2 uv, constant QuadUniforms &u) {
+    if (u.maskParams.x < 0.5) return 1;
+    constexpr sampler nearest(filter::nearest, address::clamp_to_edge);
+    constexpr sampler linear(filter::linear, address::clamp_to_edge);
+    float4 m = u.smooth > 0.5 ? mask.sample(linear, uv) : mask.sample(nearest, uv);
+    return 1 - m.a * (1 - (m.r + m.g + m.b) / 3);
+}
 
 struct QuadOut {
     float4 position [[position]];
@@ -220,6 +230,7 @@ fragment float4 blend_layer_fragment(QuadOut in [[stage_in]],
                                      texture2d<float> layer [[texture(0)]],
                                      sampler layerSampler [[sampler(0)]],
                                      constant QuadUniforms &u [[buffer(0)]],
+                                     texture2d<float> mask [[texture(10)]],
                                      float4 backdrop [[color(0)]]) {
     float4 color = sampleLayer(layer, layerSampler, in.uv, u.smooth);
     // A selection floating over a layer that locks its transparency, already placed on its patch of that layer,
@@ -228,8 +239,16 @@ fragment float4 blend_layer_fragment(QuadOut in [[stage_in]],
     if (u.keyEnabled > 0.5 && color.a > 0 && all(abs(color.rgb - u.keyColor.rgb) < 0.5 / 255.0)) {
         discard_fragment();
     }
-    float sourceAlpha = color.a * u.opacity;
+    float sourceAlpha = color.a * u.opacity * mask_reveal(mask, in.uv, u);
     if (sourceAlpha <= 0) discard_fragment();
+    // A pixel layer set to "Only the layer below" (stage 28b): onto the layer it sits on only where that has pixels,
+    // keeping its opacity, as Compositing.blendAtop.
+    if (u.maskParams.y > 0.5) {
+        if (backdrop.a <= 0) discard_fragment();
+        float3 b = backdrop.rgb / backdrop.a;
+        float3 mixed = b + (blendColor(int(u.blendMode + 0.5), b, color.rgb) - b) * sourceAlpha;
+        return float4(mixed * backdrop.a, backdrop.a);
+    }
     return blendOnto(backdrop, color.rgb, sourceAlpha, int(u.blendMode + 0.5));
 }
 
@@ -238,10 +257,12 @@ fragment float4 blend_layer_fragment(QuadOut in [[stage_in]],
 fragment float4 blend_isolated_fragment(QuadOut in [[stage_in]],
                                         texture2d<float> isolated [[texture(0)]],
                                         constant QuadUniforms &u [[buffer(0)]],
+                                        texture2d<float> mask [[texture(10)]],
                                         float4 backdrop [[color(0)]]) {
     float4 premultiplied = isolated.read(uint2(in.position.xy));
     if (premultiplied.a <= 0) discard_fragment();
-    return blendOnto(backdrop, premultiplied.rgb / premultiplied.a, premultiplied.a * u.opacity, int(u.blendMode + 0.5));
+    float alpha = premultiplied.a * u.opacity * mask_reveal(mask, in.uv, u);
+    return blendOnto(backdrop, premultiplied.rgb / premultiplied.a, alpha, int(u.blendMode + 0.5));
 }
 
 // A Pass Through group below 100% (stage 25): what its layers drew, faded in by its opacity over a copy of what was
@@ -249,9 +270,20 @@ fragment float4 blend_isolated_fragment(QuadOut in [[stage_in]],
 fragment float4 fade_backdrop_fragment(QuadOut in [[stage_in]],
                                        texture2d<float> before [[texture(0)]],
                                        constant QuadUniforms &u [[buffer(0)]],
+                                       texture2d<float> mask [[texture(10)]],
                                        float4 backdrop [[color(0)]]) {
     float4 earlier = before.read(uint2(in.position.xy));
-    return earlier + (backdrop - earlier) * u.opacity;
+    return earlier + (backdrop - earlier) * u.opacity * mask_reveal(mask, in.uv, u);
+}
+
+// A layer mask on its own (stage 28a): white where the layer shows, black where it's hidden, opaque.
+fragment float4 mask_alone_fragment(QuadOut in [[stage_in]],
+                                    texture2d<float> mask [[texture(0)]],
+                                    sampler layerSampler [[sampler(0)]],
+                                    constant QuadUniforms &u [[buffer(0)]]) {
+    float4 m = mask.sample(layerSampler, in.uv);
+    float shown = 1 - m.a * (1 - (m.r + m.g + m.b) / 3);
+    return float4(shown, shown, shown, 1);
 }
 
 // The composited layers, already premultiplied, drawn 1:1 over the checkerboard.
@@ -312,21 +344,23 @@ static float3 pointAdjustment(int kind, float4 p, float3 c) {
 }
 
 // The adjusted color mixed by the blend mode and faded in by opacity, as Compositing.adjust does.
-static float4 fadeIn(float4 backdrop, float3 adjusted, float adjustedAlpha, constant QuadUniforms &u) {
+static float4 fadeIn(float4 backdrop, float3 adjusted, float adjustedAlpha, constant QuadUniforms &u, float reveal) {
     int mode = int(u.blendMode + 0.5);
     float3 color = adjusted;
     if (mode != 0 && backdrop.a > 0) color = blendColor(mode, backdrop.rgb / backdrop.a, adjusted);
     float4 goal = float4(color * adjustedAlpha, adjustedAlpha);
-    return backdrop + (goal - backdrop) * u.opacity;
+    return backdrop + (goal - backdrop) * u.opacity * reveal;
 }
 
 // Invert, Desaturate, Brightness/Contrast and Hue/Saturation: each pixel on its own.
 fragment float4 adjust_point_fragment(QuadOut in [[stage_in]],
                                       constant QuadUniforms &u [[buffer(0)]],
+                                      texture2d<float> mask [[texture(10)]],
                                       float4 backdrop [[color(0)]]) {
+    float reveal = mask_reveal(mask, in.uv, u);
     if (backdrop.a <= 0) return backdrop;
     float3 straight = backdrop.rgb / backdrop.a;
-    return fadeIn(backdrop, pointAdjustment(int(u.adjustKind + 0.5), u.adjustParams, straight), backdrop.a, u);
+    return fadeIn(backdrop, pointAdjustment(int(u.adjustKind + 0.5), u.adjustParams, straight), backdrop.a, u, reveal);
 }
 
 // Color adjustments through a 3D table made from the same per-pixel function exports use (ColorLookup).
@@ -334,13 +368,15 @@ fragment float4 adjust_point_fragment(QuadOut in [[stage_in]],
 fragment float4 adjust_lookup_fragment(QuadOut in [[stage_in]],
                                        texture3d<float> lookup [[texture(0)]],
                                        constant QuadUniforms &u [[buffer(0)]],
+                                       texture2d<float> mask [[texture(10)]],
                                        float4 backdrop [[color(0)]]) {
+    float reveal = mask_reveal(mask, in.uv, u);
     constexpr sampler tableSampler(filter::linear, address::clamp_to_edge);
     if (backdrop.a <= 0) return backdrop;
     float3 straight = clamp(backdrop.rgb / backdrop.a, 0.0, 1.0);
     float size = u.adjustParams.x;
     float3 adjusted = lookup.sample(tableSampler, (straight * (size - 1) + 0.5) / size).rgb;
-    return fadeIn(backdrop, adjusted, backdrop.a, u);
+    return fadeIn(backdrop, adjusted, backdrop.a, u, reveal);
 }
 
 // Levels, Curves and Posterize: one entry per 8-bit value for each channel (ChannelTable), read without
@@ -348,11 +384,13 @@ fragment float4 adjust_lookup_fragment(QuadOut in [[stage_in]],
 fragment float4 adjust_channel_fragment(QuadOut in [[stage_in]],
                                         texture2d<float> table [[texture(0)]],
                                         constant QuadUniforms &u [[buffer(0)]],
+                                        texture2d<float> mask [[texture(10)]],
                                         float4 backdrop [[color(0)]]) {
+    float reveal = mask_reveal(mask, in.uv, u);
     if (backdrop.a <= 0) return backdrop;
     uint3 index = uint3(rint(clamp(backdrop.rgb / backdrop.a, 0.0, 1.0) * 255.0));
     float3 adjusted = float3(table.read(uint2(index.r, 0)).r, table.read(uint2(index.g, 0)).g, table.read(uint2(index.b, 0)).b);
-    return fadeIn(backdrop, adjusted, backdrop.a, u);
+    return fadeIn(backdrop, adjusted, backdrop.a, u, reveal);
 }
 
 // Adjust Photo (PhotoAdjustments in ColorbeeCore): detail from blurred copies of what's below, then the color
@@ -436,7 +474,9 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
                                       texture2d<float> sharpCoverage [[texture(8)]],
                                       constant QuadUniforms &u [[buffer(0)]],
                                       constant float4 *effects [[buffer(1)]],
+                                      texture2d<float> layerMask [[texture(10)]],
                                       float4 backdrop [[color(0)]]) {
+    float reveal = mask_reveal(layerMask, in.uv, u);
     constexpr sampler tableSampler(filter::linear, address::clamp_to_edge);
     if (backdrop.a <= 0) return backdrop;
     float3 c = clamp(backdrop.rgb / backdrop.a, 0.0, 1.0);
@@ -454,7 +494,7 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
         float3 middle = needsMedium ? unblurred(medium, mediumCoverage, pixel, original) : original;
         float3 fromMiddle = abs(original - middle);
         float mask = maskThreshold > 0 ? smoothstep(maskThreshold * 0.5, maskThreshold * 1.5, max(fromMiddle.r, max(fromMiddle.g, fromMiddle.b))) : 1;
-        if (showsMask) return fadeIn(backdrop, float3(mask), backdrop.a, u);
+        if (showsMask) return fadeIn(backdrop, float3(mask), backdrop.a, u, reveal);
         if (noiseReduction > 0) {
             float3 difference = abs(original - soft);
             float s = u.detailParams.y;
@@ -497,7 +537,7 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
             c = clamp(c + grain_offset(pixel, effects[vignetteCount + i].xyz), 0.0, 1.0);
         }
     }
-    return fadeIn(backdrop, c, backdrop.a, u);
+    return fadeIn(backdrop, c, backdrop.a, u, reveal);
 }
 
 // Blur and Sharpen read a blurred copy of the layers beneath, made on the GPU. Dividing by the blurred
@@ -506,18 +546,20 @@ fragment float4 adjust_blur_fragment(QuadOut in [[stage_in]],
                                      texture2d<float> blurred [[texture(0)]],
                                      texture2d<float> coverage [[texture(1)]],
                                      constant QuadUniforms &u [[buffer(0)]],
+                                     texture2d<float> mask [[texture(10)]],
                                      float4 backdrop [[color(0)]]) {
+    float reveal = mask_reveal(mask, in.uv, u);
     uint2 pixel = uint2(in.position.xy);
     float4 soft = blurred.read(pixel);
     float weight = coverage.read(pixel).r;
     if (weight > 0.001) soft /= weight;
     if (int(u.adjustKind + 0.5) == 5) {
-        if (soft.a <= 0) return backdrop + (float4(0) - backdrop) * u.opacity;
-        return fadeIn(backdrop, clamp(soft.rgb / soft.a, 0.0, 1.0), min(soft.a, 1.0), u);
+        if (soft.a <= 0) return backdrop + (float4(0) - backdrop) * u.opacity * reveal;
+        return fadeIn(backdrop, clamp(soft.rgb / soft.a, 0.0, 1.0), min(soft.a, 1.0), u, reveal);
     }
     if (backdrop.a <= 0) return backdrop;
     float3 original = backdrop.rgb / backdrop.a;
     float3 softColor = soft.a > 0 ? soft.rgb / soft.a : original;
     float3 sharp = clamp(original + u.adjustParams.x / 100 * (original - softColor), 0.0, 1.0);
-    return fadeIn(backdrop, sharp, backdrop.a, u);
+    return fadeIn(backdrop, sharp, backdrop.a, u, reveal);
 }

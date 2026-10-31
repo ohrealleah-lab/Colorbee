@@ -13,7 +13,7 @@ _Last updated: 2026-10-30 · 771 core tests and 264 app tests passing (stages 25
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing is waiting (2026-10-30).
+- [Stages 27, 28a and 28b: Layer masks](#test-stages-27-28a-and-28b-layer-masks) (2026-10-30)
 
 ---
 
@@ -84,6 +84,9 @@ Nothing is waiting (2026-10-30).
 | 14 · 24. Align and Distribute | ✅ Done; passed Leah's test 2026-10-29 | High |
 | 14 · 25. Layer groups 1: groups in the document | ✅ Done; passed Leah's test 2026-10-30 | High |
 | 14 · 26. Layer groups 2: working with groups | ✅ Done; passed Leah's test 2026-10-30 | High |
+| 14 · 27. Layer masks 1: pixel layers | Built 2026-10-30; waiting for Leah's test (with 28a and 28b) | High |
+| 14 · 28a. Layer masks 2: adjustment layers, mask tools | Built 2026-10-30; waiting for Leah's test (with 27 and 28b) | High |
+| 14 · 28b. Masks on groups, clipping for pixel layers | Built 2026-10-30; waiting for Leah's test (with 27 and 28a) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -174,6 +177,12 @@ Nothing is waiting (2026-10-30).
   what's below (faded from a copy of the backdrop below 100%) and other groups on their own, one texture per depth.
   Projects keep groups in `Manifest.groups`, which beta 7 skips. Commands in `LayerActions+Groups.swift`; the panel
   indents, folds (`Editor.foldedGroups`) and drops with `LayerDrop`.
+- Stages 27, 28a and 28b (2026-10-30): layer masks and clipped pixel layers. A mask is a `Layer` of its own on its
+  layer (`Layer.mask`), black ink on white paper (`Compositing.reveal`, shader `mask_reveal`), so every tool paints
+  on it through `Canvas.paintLayer` while `Canvas.editsMask`; `Canvas.allLayers` and `layer(withID:)` include masks
+  for geometry, history and saving. Projects keep masks in `Manifest.masks`, which beta 7 skips. Every adjustment
+  shader fades by the mask (texture 10); a masked layer is drawn on its own first. A pixel layer set to "Only the
+  layer below" blends atop its layer (`Compositing.blendAtop`, `maskParams.y`). Commands in `LayerActions+Masks.swift`.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -341,6 +350,45 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stages 27, 28a and 28b: Layer masks
+
+Choose **Don't Save** when you close a test picture. Press ⌘L if the Layers panel isn't showing.
+
+**A. Masks on a layer** (`TestImages/Several Layers/Opacity Test.colorproj`)
+1. Click Blue, then Layer ▸ Layer Mask ▸ Add Mask. A white picture appears beside Blue's, outlined: you're painting on
+   the mask. The color wells and swatches turn gray.
+2. Press D (Color 1 white, Color 2 black), then X to swap, so Color 1 is black. Choose the Brush and paint across the
+   blue block: that part hides, and the stripes show through. Press X and paint over it with white: it's back.
+3. Paint a black stroke on the mask again. Choose Edit ▸ Undo on Active Layer: that stroke goes.
+4. Click Blue's own picture (left of the mask): its outline moves there. Paint: the paint lands on the layer itself
+   (in gray, since the colors stay gray). ⌘Z.
+5. Shift-click the mask: a red ✕, and all of Blue shows. Shift-click again: hidden again.
+6. Option-click the mask: the picture shows the mask alone in grays. Option-click again.
+7. Paint black on part of the mask, then Layer ▸ Layer Mask ▸ Apply Mask: that part of Blue is gone for real, and
+   the mask with it. ⌘Z.
+8. File ▸ Save As… a copy as a project wherever you like, close it and open the copy: the mask is there. Export a PNG:
+   it matches the screen.
+
+**B. One-layer picture** (`TestImages/Photo Editing/Dull Photo.png`)
+9. Layer ▸ Layer Mask ▸ Add Mask Hiding All: the picture disappears (the checkerboard shows). Paint white across the
+   middle: that part comes back. Press ⌘S: Colorbee saves a project (.colorproj), not over the PNG. Delete that
+   project afterwards.
+
+**C. Masks on adjustment layers** (`TestImages/Photo Editing/Color Chart.png`)
+10. Press M and drag a box around the top row of colors. Layer ▸ New Adjustment Layer ▸ Adjust Photo, then Layer ▸
+    Layer Mask ▸ Add Mask from Selection, then ⌘D. In the Adjustments panel set Saturation to −100: only the top row
+    turns gray.
+11. Layer ▸ Layer Mask ▸ Invert Mask: now the top row is in color and the rest is gray. ⌘Z.
+12. Layer ▸ Merge Adjustment: the picture looks the same, now as pixels. ⌘Z.
+
+**D. Masks on groups and "Only the layer below" for layers** (`Opacity Test.colorproj`, freshly opened)
+13. Click Red, ⌘-click Green, press ⌘G. With Group 1 active, Layer ▸ Layer Mask ▸ Add Mask, and paint black across
+    both squares: both hide there.
+14. Click Blue, then Layer ▸ New Layer (⇧⌘N). Paint wide strokes across the whole canvas. Turn on **Only the layer
+    below** at the top of the Layers panel: the paint shows only on the blue block.
+15. Drag Blue's row up above Yellow's: the new layer goes with it, and still shows only on Blue.
+16. Save As… a copy, close and reopen it: the same. Export a PNG: it matches the screen.
 
 ### Test: Stages 25 and 26: Layer groups
 

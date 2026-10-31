@@ -272,6 +272,12 @@ final class DocumentWindow: NSWindow {
     @objc func distributeVertically(_ sender: Any?) { editor?.distributeChosenLayers(.vertically) }
     @objc func selectAllLayers(_ sender: Any?) { editor?.selectAllLayers() }
     @objc func groupLayers(_ sender: Any?) { editor?.groupLayers() }
+    @objc func addLayerMask(_ sender: Any?) { editor?.addMask() }
+    @objc func addLayerMaskHidingAll(_ sender: Any?) { editor?.addMask(hidingAll: true) }
+    @objc func toggleLayerMask(_ sender: Any?) { editor?.toggleMaskEnabled() }
+    @objc func invertLayerMask(_ sender: Any?) { editor?.invertMask() }
+    @objc func applyLayerMask(_ sender: Any?) { editor?.applyMask() }
+    @objc func deleteLayerMask(_ sender: Any?) { editor?.deleteMask() }
     @objc func ungroupLayers(_ sender: Any?) { editor?.ungroupLayers() }
     /// With hidden layers, asks first: flattening keeps only what's visible (Leah, 2026-10-04).
     @objc func flattenImage(_ sender: Any?) {
@@ -530,6 +536,18 @@ final class DocumentWindow: NSWindow {
             return editor.canvas.layers.count > 1
         case #selector(groupLayers(_:)):
             return editor.canGroupLayers
+        case #selector(addLayerMask(_:)):
+            menuItem.title = editor.hasSelection ? "Add Mask from Selection" : "Add Mask"
+            return editor.canAddMask
+        case #selector(addLayerMaskHidingAll(_:)):
+            return editor.canAddMask
+        case #selector(toggleLayerMask(_:)):
+            menuItem.title = editor.canvas.activeLayer.maskEnabled ? "Turn Off Mask" : "Turn On Mask"
+            return editor.activeLayerHasMask
+        case #selector(invertLayerMask(_:)), #selector(deleteLayerMask(_:)):
+            return editor.activeLayerHasMask && !editor.canvas.isLocked(editor.canvas.activeLayer)
+        case #selector(applyLayerMask(_:)):
+            return editor.canApplyMask
         case #selector(ungroupLayers(_:)):
             return editor.canUngroupLayers
         case #selector(flattenImage(_:)):

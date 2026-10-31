@@ -75,6 +75,7 @@ struct PhotoDetailAppTests {
         #expect(MemoryLayout<QuadUniforms>.offset(of: \.detailParams) == 144)
         #expect(MemoryLayout<QuadUniforms>.offset(of: \.detailParams2) == 160)
         #expect(MemoryLayout<QuadUniforms>.offset(of: \.clipWarnings) == 176)
-        #expect(MemoryLayout<QuadUniforms>.stride == 192)
+        #expect(MemoryLayout<QuadUniforms>.offset(of: \.maskParams) == 192)
+        #expect(MemoryLayout<QuadUniforms>.stride == 208)
     }
 }

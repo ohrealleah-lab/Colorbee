@@ -6,7 +6,7 @@
     <title>Work with layers</title>
     <meta name="AppleTitle" content="Work with layers">
     <meta name="description" content="Keep parts of an image separate with layers: add, duplicate, merge and flatten them, set blend modes and opacity, lock them, and change their look with adjustment layers.">
-    <meta name="keywords" content="layer, layers, new layer, merge down, merge layers, several layers, choose several, shift-click, command-click, right-click, merge visible, flatten, blend mode, opacity, lock, hide, adjustment layer, only the layer below, clipping, merge adjustment, undo on active layer, revert layer, project, colorproj, group, groups, ungroup, folder, pass through, merge group">
+    <meta name="keywords" content="layer, layers, new layer, merge down, merge layers, several layers, choose several, shift-click, command-click, right-click, merge visible, flatten, blend mode, opacity, lock, hide, adjustment layer, only the layer below, clipping, merge adjustment, undo on active layer, revert layer, project, colorproj, group, groups, ungroup, folder, pass through, merge group, mask, layer mask, hide, reveal, apply mask, invert mask, clipping">
     <link rel="stylesheet" href="../shared/help.css">
 </head>
 <body>
@@ -70,6 +70,19 @@
     </ul>
     <p>Each of these is one undo step. A plain click goes back to one layer.</p>
 
+    <a name="masks"></a>
+    <h2>Masks</h2>
+    <p>A mask hides part of a layer without erasing it, so you can bring it back any time. It works on ordinary layers, adjustment layers and groups.</p>
+    <ul>
+        <li><strong>Add one:</strong> choose the layer, then <strong>Layer ▸ Layer Mask ▸ Add Mask</strong>. With a selection, only the selection shows. <strong>Add Mask Hiding All</strong> hides the whole layer, to paint back the parts you want.</li>
+        <li><strong>Paint on it:</strong> the mask's picture appears beside the layer's in the Layers panel, outlined while you're painting on it. Black hides, white shows, grays partly; the colors turn to grays, and D gives white and black. Any tool works: brushes, the Fill, a Gradient for a soft fade, even Gaussian Blur to soften its edge. Click the layer's own picture to paint on the layer again.</li>
+        <li><strong>On an adjustment layer</strong> a mask makes the adjustment local: Adjust Photo only where you painted white. Select an area first (Color Range or Luminance Range work well), then add the adjustment layer and Add Mask.</li>
+        <li><strong>Shift-click</strong> the mask's picture to turn it off (a red ✕) and on again. <strong>Option-click</strong> it to see the mask alone in grays.</li>
+        <li><strong>Invert Mask</strong> swaps what shows and what's hidden. <strong>Apply Mask</strong> erases what it hides for good and removes the mask. <strong>Delete Mask</strong> shows the whole layer again.</li>
+        <li>Masks are saved in Colorbee projects, so a picture with a mask saves as a project. Undo on Active Layer and Revert Layer include the layer's mask. An older Colorbee shows the layer without its mask.</li>
+        <li>A mask only hides: what it hides is still in the project. Don't use one to hide a secret; redact it instead.</li>
+    </ul>
+
     <a name="groups"></a>
     <h2>Groups</h2>
     <p>A group keeps layers together, like a folder: you can fold it shut, hide it, fade it or move it as one.</p>
@@ -101,6 +114,7 @@
         <li>You can stack several of these on one layer, and they apply in order.</li>
         <li>If the layer under it is an ordinary adjustment layer, or there's nothing under it, it says "Layer below only: none" and changes nothing.</li>
         <li>These adjustments stay with their layer: a new layer added while it's selected goes above them, Merge Down keeps the look by merging them in, and Delete Layer deletes them too.</li>
+        <li>An ordinary layer can be set to <strong>Only the layer below</strong> too: it shows only where the layer under it has pixels, like a clipping mask. Paint a texture or a color on it and it stays inside that layer's shape.</li>
     </ul>
 
     <a name="merge-adjustment"></a>

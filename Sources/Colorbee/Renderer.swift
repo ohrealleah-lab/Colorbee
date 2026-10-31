@@ -28,6 +28,9 @@ struct QuadUniforms {
     /// Adjust Photo's clipping warnings, for the final composite: 1 shows blown highlights red, 2 crushed shadows
     /// blue, 3 both.
     var clipWarnings: Float = 0
+    /// x: 1 when a layer mask is bound (texture 10, stage 27); y: 1 to blend only where the backdrop has pixels, for a
+    /// pixel layer set to "Only the layer below" (stage 28b).
+    var maskParams: SIMD4<Float> = .zero
 }
 
 /// Everything needed to draw one frame of a document.
@@ -44,6 +47,8 @@ struct RenderScene {
     /// The Redact Brush's or Remove's painted area, drawn above every layer: it belongs to no one layer, and must
     /// show even when the active layer is an adjustment layer or hidden (review O, finding 10).
     var topOverlay: (pixels: PixelBuffer, origin: IntPoint)? = nil
+    /// Option-click on a mask (stage 28a): that mask shown alone, in grays, instead of the picture.
+    var maskAlone: PixelBuffer? = nil
     /// Handle positions in image coordinates.
     let handlePoints: [Point2D]
     /// Round handles (rotation), in image coordinates.
@@ -88,6 +93,7 @@ final class Renderer {
     private let fadeBackdropPipeline: MTLRenderPipelineState
     /// Draws the composited layers over the checkerboard.
     private let compositePipeline: MTLRenderPipelineState
+    private let maskAlonePipeline: MTLRenderPipelineState
     private let adjustPointPipeline: MTLRenderPipelineState
     private let adjustBlurPipeline: MTLRenderPipelineState
     /// Levels, Curves, Sepia, Posterize (and later photo adjustments) through a 3D color table.
@@ -114,6 +120,8 @@ final class Renderer {
     private let nearestSampler: MTLSamplerState
     private let linearSampler: MTLSamplerState
     private let maskSampler: MTLSamplerState
+    /// Bound as the layer mask when there's none, so every draw has one (texture 10).
+    private let noMask: MTLTexture
     private var pixelTextures: [ObjectIdentifier: PixelTexture] = [:]
     private var maskTexture: (revision: UInt64, texture: MTLTexture)?
 
@@ -166,6 +174,7 @@ final class Renderer {
         blendIsolatedPipeline = pipeline(fragment: "blend_isolated_fragment", blended: false, format: Self.layerTargetFormat)
         fadeBackdropPipeline = pipeline(fragment: "fade_backdrop_fragment", blended: false, format: Self.layerTargetFormat)
         compositePipeline = pipeline(fragment: "composite_fragment")
+        maskAlonePipeline = pipeline(fragment: "mask_alone_fragment", blended: false, format: Self.layerTargetFormat)
         adjustPointPipeline = pipeline(fragment: "adjust_point_fragment", blended: false, format: Self.layerTargetFormat)
         adjustBlurPipeline = pipeline(fragment: "adjust_blur_fragment", blended: false, format: Self.layerTargetFormat)
         adjustLookupPipeline = pipeline(fragment: "adjust_lookup_fragment", blended: false, format: Self.layerTargetFormat)
@@ -184,6 +193,9 @@ final class Renderer {
         nearestSampler = sampler(.nearest)
         linearSampler = sampler(.linear)
         maskSampler = sampler(.nearest, address: .clampToZero)
+        let blank = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: 1, height: 1, mipmapped: false)
+        guard let noMask = device.makeTexture(descriptor: blank) else { fatalError("Couldn't create the empty mask texture") }
+        self.noMask = noMask
     }
 
     /// Draws the scene and presents it. `onRendered` receives the host time the GPU finished;
@@ -237,7 +249,10 @@ final class Renderer {
         uniforms.rect = deviceRect(canvas.bounds)
         uniforms.imageSize = SIMD2(Float(canvas.size.width), Float(canvas.size.height))
 
+        // The layer mask the next draws use (stage 27); nil for none.
+        var maskTexture: MTLTexture?
         func draw(_ pipeline: MTLRenderPipelineState) {
+            encoder.setFragmentTexture(maskTexture ?? noMask, index: 10)
             encoder.setRenderPipelineState(pipeline)
             encoder.setVertexBytes(&uniforms, length: MemoryLayout<QuadUniforms>.stride, index: 0)
             encoder.setFragmentBytes(&uniforms, length: MemoryLayout<QuadUniforms>.stride, index: 0)
@@ -253,6 +268,11 @@ final class Renderer {
             uniforms.rect += SIMD4(-reach, drop - reach, 2 * reach, 2 * reach)
             draw(shadowPipeline)
             uniforms = saved
+        }
+        /// Gives the next draws `mask` as their layer mask, or none.
+        func masking(_ mask: PixelBuffer?) {
+            maskTexture = mask.map { texture(for: $0, live: &liveBuffers) }
+            uniforms.maskParams.x = mask == nil ? 0 : 1
         }
         func sampling(_ smooth: Bool) {
             encoder.setFragmentSamplerState(smooth ? linearSampler : nearestSampler, index: 0)
@@ -281,6 +301,8 @@ final class Renderer {
             uniforms.adjustKind = kind
             uniforms.adjustParams = params
             uniforms.blendMode = Float(layer.blendMode.rawValue)
+            masking(layer.activeMask)
+            defer { masking(nil) }
             if case .photo(let edit) = adjustment, let lookup = lookupTexture(for: adjustment) {
                 // Detail sliders need blurred copies of what's below: pause the layer pass, blur, resume.
                 let amounts = DetailAmounts(edit)
@@ -381,7 +403,7 @@ final class Renderer {
         /// `Canvas.composite` does. Each level of groups has its own pictures.
         func drawGroup(_ node: LayerNode, onto target: MTLTexture, depth: Int) -> Bool {
             let group = node.layer
-            if group.passesThrough, group.opacity >= 1 { return drawNodes(node.children, onto: target, depth: depth + 1) }
+            if group.passesThrough, group.opacity >= 1, group.activeMask == nil { return drawNodes(node.children, onto: target, depth: depth + 1) }
             let width = drawable.texture.width, height = drawable.texture.height
             if group.passesThrough {
                 let backdrop = groupTarget(depth: depth, backdrop: true, width: width, height: height)
@@ -401,7 +423,9 @@ final class Renderer {
                 uniforms.rect = deviceRect(canvas.bounds)
                 uniforms.opacity = Float(group.opacity)
                 encoder.setFragmentTexture(backdrop, index: 0)
+                masking(group.activeMask)
                 draw(fadeBackdropPipeline)
+                masking(nil)
                 return true
             }
             let inside = groupTarget(depth: depth, backdrop: false, width: width, height: height)
@@ -411,7 +435,9 @@ final class Renderer {
             uniforms.blendMode = Float(group.blendMode.rawValue)
             uniforms.opacity = Float(group.opacity)
             encoder.setFragmentTexture(inside, index: 0)
+            masking(group.activeMask)
             draw(blendIsolatedPipeline)
+            masking(nil)
             return true
         }
         /// Draws `nodes` onto `target`, which the encoder is drawing into. False if the GPU couldn't go on.
@@ -419,7 +445,7 @@ final class Renderer {
             for node in nodes {
                 let layer = node.layer
                 // A clipped adjustment is drawn with the layer it changes, or not at all when there's none.
-                if layer.adjustment != nil, layer.clipsToLayerBelow { continue }
+                if layer.clipsToLayerBelow, canvas.clipBaseIndex(forLayerAt: canvas.layers.firstIndex { $0 === layer } ?? 0) != nil { continue }
                 if layer.isGroup {
                     guard drawGroup(node, onto: target, depth: depth) else { return false }
                     continue
@@ -444,7 +470,9 @@ final class Renderer {
                 // at 100% they look as they will once placed (Leah; review F, finding 1).
                 // Its clipped adjustments change it alone, so it's drawn on its own first, then blended in.
                 let clips = canvas.clippedLayers(onLayerAt: index).filter { $0.isVisible && $0.opacity > 0 }
+                // A mask covers the layer with whatever is drawn into it, so a masked layer is drawn on its own too.
                 let isolated = ((hasFloating || overlay != nil) && (layer.blendMode != .normal || layer.opacity < 1)) || !clips.isEmpty
+                    || layer.activeMask != nil
                     || lockedPatch != nil || lockedOverlay != nil
                 // Made only when needed: it's the size of the window.
                 let isolatedTexture = isolated ? isolatedTarget(depth: depth, width: drawable.texture.width, height: drawable.texture.height) : nil
@@ -499,7 +527,21 @@ final class Renderer {
                 }
                 if isolated {
                     for clip in clips {
-                        guard let isolatedTexture, drawAdjustment(clip, clip.adjustment!, onto: isolatedTexture) else { return false }
+                        if let adjustment = clip.adjustment {
+                            guard let isolatedTexture, drawAdjustment(clip, adjustment, onto: isolatedTexture) else { return false }
+                            continue
+                        }
+                        // A pixel layer set to "Only the layer below" (stage 28b): onto this one only where it has pixels.
+                        uniforms.rect = deviceRect(canvas.bounds)
+                        uniforms.keyEnabled = 0
+                        uniforms.opacity = Float(clip.opacity)
+                        uniforms.blendMode = Float(clip.blendMode.rawValue)
+                        uniforms.maskParams.y = 1
+                        encoder.setFragmentTexture(texture(for: clip.buffer, live: &liveBuffers), index: 0)
+                        masking(clip.activeMask)
+                        draw(blendLayerPipeline)
+                        masking(nil)
+                        uniforms.maskParams.y = 0
                     }
                     guard resume(target) else { return false }
                     uniforms.rect = deviceRect(canvas.bounds)
@@ -507,13 +549,21 @@ final class Renderer {
                     uniforms.blendMode = Float(layer.blendMode.rawValue)
                     uniforms.opacity = Float(layer.opacity)
                     encoder.setFragmentTexture(isolatedTexture, index: 0)
+                    masking(layer.activeMask)
                     draw(blendIsolatedPipeline)
+                    masking(nil)
                 }
             }
             return true
         }
 
         guard drawNodes(canvas.tree(of: canvas.shownLayers), onto: layerPass.colorAttachments[0].texture!, depth: 0) else { return }
+        if let mask = scene.maskAlone {
+            uniforms.rect = deviceRect(canvas.bounds)
+            sampling(zoom < 1)
+            encoder.setFragmentTexture(texture(for: mask, live: &liveBuffers), index: 0)
+            draw(maskAlonePipeline)
+        }
         uniforms.blendMode = 0
         uniforms.opacity = 1
         uniforms.keyEnabled = 0

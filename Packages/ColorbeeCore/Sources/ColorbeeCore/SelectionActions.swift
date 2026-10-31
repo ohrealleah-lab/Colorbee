@@ -107,7 +107,7 @@ public enum SelectionActions {
         case .none:
             return nil
         case .marquee(let mask):
-            let layer = canvas.activeLayer
+            let layer = canvas.paintLayer
             let holeFill = duplicate ? nil : canvas.erasedFill(for: layer, color2: context.color2)
             guard let floating = FloatingSelection.lift(from: layer, selection: mask, holeFill: holeFill, edit: edit) else {
                 return nil
@@ -207,7 +207,7 @@ public enum SelectionActions {
         case .none:
             return false
         case .marquee(let mask):
-            let layer = canvas.activeLayer
+            let layer = canvas.paintLayer
             let fill = canvas.erasedFill(for: layer, color2: context.color2)
             // A marquee can reach past the canvas (a placed paste's outline); only the layer's pixels change
             // (Leah's crash, 2026-10-04).
@@ -238,7 +238,7 @@ public enum SelectionActions {
             guard let outline = canvas.selection.outline else { return nil }
             return crop(canvas.flattened(transparentKey: context.transparentKey), to: outline)
         case .marquee(let mask):
-            return crop(merged ? canvas.flattened() : canvas.activeLayer.buffer, to: mask)
+            return crop(merged ? canvas.flattened() : canvas.paintLayer.buffer, to: mask)
         }
     }
 
@@ -279,7 +279,7 @@ public enum SelectionActions {
         canvas.selection = .floating(FloatingSelection(
             pixels: image,
             destination: IntRect(x: origin.x, y: origin.y, width: image.width, height: image.height),
-            layerID: canvas.activeLayer.id
+            layerID: canvas.paintLayer.id
         ))
         history.commit(edit)
     }

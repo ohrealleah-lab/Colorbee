@@ -126,7 +126,7 @@ private struct LayersPanel: View {
             .padding(.bottom, 8)
             .disabled(layers[active].isLocked)
 
-            if layers[active].adjustment != nil {
+            if !layers[active].isGroup {
                 Toggle("Only the layer below", isOn: Binding(get: { layers[active].clipsToLayerBelow },
                                                              set: { editor.setClipsToLayerBelow($0) }))
                     .font(.system(size: 11.5))
@@ -134,7 +134,8 @@ private struct LayersPanel: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
                     .disabled(layers[active].isLocked || (!layers[active].clipsToLayerBelow && !editor.canvas.canClip(layerAt: active)))
-                    .help("On: this adjustment changes only the layer under it. Off: everything below it")
+                    .help(layers[active].adjustment != nil ? "On: this adjustment changes only the layer under it. Off: everything below it"
+                          : "On: this layer shows only where the layer under it has pixels")
             }
 
             ScrollView {
@@ -180,6 +181,43 @@ private struct LayersPanel: View {
             .padding(.vertical, 8)
         }
         .foregroundStyle(.primary)
+    }
+
+    /// A layer's mask (stage 27): click to paint on it, Shift-click to turn it off or on, Option-click to see it alone.
+    private func maskThumbnail(_ mask: Layer, of layer: Layer, index: Int, isTarget: Bool) -> some View {
+        Image(nsImage: LayerThumbnail.image(for: mask, revision: editor.layersRevision, colorSpace: editor.canvas.colorSpace))
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 40, height: 26)
+            .background(Color.white)
+            .overlay {
+                if !layer.maskEnabled {
+                    Image(systemName: "xmark").font(.system(size: 14, weight: .bold)).foregroundStyle(.red)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(isTarget ? Color.white : Color.gray.opacity(0.4), lineWidth: isTarget ? 2 : 0.5))
+            .contentShape(Rectangle())
+            .onTapGesture {
+                let flags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
+                if flags.contains(.shift) {
+                    editor.selectLayer(at: index)
+                    editor.toggleMaskEnabled()
+                } else if flags.contains(.option) {
+                    editor.toggleMaskAlone(at: index)
+                } else {
+                    editor.paint(onMask: true, at: index)
+                }
+            }
+            .help("Layer mask: click to paint on it (black hides, white shows) · Shift-click to turn it off · Option-click to see it alone")
+            .accessibilityElement()
+            .accessibilityLabel("\(layer.name) mask\(layer.maskEnabled ? "" : ", turned off")")
+            .accessibilityAddTraits(isTarget ? [.isSelected] : [])
+            .accessibilityAction { editor.paint(onMask: true, at: index) }
+            .accessibilityAction(named: layer.maskEnabled ? "Turn Off Mask" : "Turn On Mask") {
+                editor.selectLayer(at: index)
+                editor.toggleMaskEnabled()
+            }
     }
 
     /// The rows shown, top of the stack first: every layer but those inside a folded group.
@@ -230,7 +268,7 @@ private struct LayersPanel: View {
             .help(layer.isVisible ? "Hide this layer. Option-click to show only this layer." : "Show this layer. Option-click to show only this layer.")
             .accessibilityLabel(layer.isVisible ? "Hide \(layer.name)" : "Show \(layer.name)")
 
-            if layer.adjustment != nil, layer.clipsToLayerBelow {
+            if !layer.isGroup, layer.clipsToLayerBelow {
                 // Clipped: it belongs to the layer under it.
                 Image(systemName: "arrow.turn.left.down")
                     .font(.system(size: 10))
@@ -259,8 +297,16 @@ private struct LayersPanel: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 4))
-            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.gray.opacity(0.4), lineWidth: 0.5))
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(
+                isActive && layer.mask != nil && !editor.editsMask ? Color.white : Color.gray.opacity(0.4),
+                lineWidth: isActive && layer.mask != nil && !editor.editsMask ? 2 : 0.5))
+            // With a mask beside it, a click on this picture paints on the layer again (stage 27).
+            .onTapGesture { editor.paint(onMask: false, at: index) }
             .accessibilityHidden(true)
+
+            if let mask = layer.mask {
+                maskThumbnail(mask, of: layer, index: index, isTarget: isActive && editor.editsMask)
+            }
 
             VStack(alignment: .leading, spacing: 1) {
                 if renaming === layer {

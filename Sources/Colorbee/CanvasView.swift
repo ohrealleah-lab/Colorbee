@@ -261,6 +261,7 @@ final class CanvasView: NSView {
             smoothFloating: editor.smoothResize,
             overlay: comparing ? nil : editor.renderedPendingShape() ?? editor.renderedPendingText() ?? editor.renderedPendingBadge(),
             topOverlay: comparing ? nil : editor.areaStrokePicture(),
+            maskAlone: !comparing && editor.showsMaskAlone ? editor.canvas.activeLayer.mask?.buffer : nil,
             handlePoints: comparing ? [] : editor.activeEffect?.isCanvasTool == true ? editor.canvasToolHandles : handlePoints(selection),
             roundHandlePoints: comparing ? [] : [editor.pendingShapeRotateHandle].compactMap { $0 },
             showsPixelGrid: editor.showsPixelGrid,

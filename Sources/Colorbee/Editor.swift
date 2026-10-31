@@ -437,11 +437,18 @@ final class Editor {
     /// Brushes respond to trackpad and pen pressure (FR-4.2). Off, every brush draws at full size.
     var usesPressure = true
     // Colors show live in pending shapes and transparent selections.
+    /// While a mask is chosen, colors are grays (Q28.3): a mask holds how much shows, not a color.
     var color1: Pixel = .black {
-        didSet { renderSoon() }
+        didSet {
+            if canvas.editsMask, color1 != color1.maskGray { color1 = color1.maskGray }
+            renderSoon()
+        }
     }
     var color2: Pixel = .white {
-        didSet { renderSoon() }
+        didSet {
+            if canvas.editsMask, color2 != color2.maskGray { color2 = color2.maskGray }
+            renderSoon()
+        }
     }
     var brushDiameter: Double = 5
     /// The eraser's square outline follows the pointer, so it redraws when the size changes.
@@ -989,7 +996,8 @@ final class Editor {
             && saved.layerIDs.contains(layer.id)
     }
 
-    /// Revert Layer: the active layer's pixels go back to how they were at the last save, as one step.
+    /// Revert Layer: the active layer's pixels go back to how they were at the last save, as one step, and its mask's too
+    /// if it had that mask then (Q28.8).
     func revertLayer() {
         guard canRevertLayer, let saved = saved.layer(canvas.activeLayer.id) else {
             onRefused()
@@ -1001,6 +1009,10 @@ final class Editor {
         let edit = history.beginEdit("Revert Layer", on: canvas)
         edit.willModify(layer.buffer.bounds, in: layer)
         layer.buffer.setPixels(saved.pixels(in: saved.bounds), in: layer.buffer.bounds)
+        if let mask = layer.mask, let savedMask = self.saved.mask(mask.id), savedMask.size == mask.buffer.size {
+            edit.willModify(mask.buffer.bounds, in: mask)
+            mask.buffer.setPixels(savedMask.pixels(in: savedMask.bounds), in: mask.buffer.bounds)
+        }
         recordingChanges { history.commit(edit) }
         onRender()
     }
@@ -1170,7 +1182,7 @@ final class Editor {
         guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingSelection()
-        let layer = canvas.activeLayer
+        let layer = canvas.paintLayer
         let color = secondary ? color2 : color1
         let name: String
         // Each copy gets whether it's mirrored across one axis only (which turns a `/` nib into `\`), how its
@@ -1292,7 +1304,7 @@ final class Editor {
         let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
         let edit = history.beginEdit("Fill", on: canvas)
         FloodFill.fill(
-            layer: canvas.activeLayer,
+            layer: canvas.paintLayer,
             at: seed,
             with: secondary ? color2 : color1,
             tolerance: fillTolerance,
@@ -1323,7 +1335,7 @@ final class Editor {
             // As shown: blend modes and adjustment layers included (review I, finding 8).
             picked = canvas.colorAsShown(in: area) ?? .clear
         } else {
-            picked = canvas.activeLayer.buffer.averagedPixel(in: area)
+            picked = canvas.paintLayer.buffer.averagedPixel(in: area)
         }
         if secondary { color2 = picked } else { color1 = picked }
     }
@@ -1410,7 +1422,7 @@ final class Editor {
             to: drag.end,
             startColor: drag.reversed ? color2 : color1,
             endColor: drag.reversed ? color1 : color2,
-            onto: canvas.activeLayer,
+            onto: canvas.paintLayer,
             selection: drag.selection,
             edit: drag.edit
         )
@@ -1744,7 +1756,7 @@ final class Editor {
         forgetShapeRender()
         if let rendered {
             let edit = history.beginEdit(spec.kind.name, on: canvas)
-            Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.activeLayer, edit: edit)
+            Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.paintLayer, edit: edit)
             recordingChanges { history.commit(edit) }
         }
         onRender()
@@ -1838,7 +1850,7 @@ final class Editor {
         }
         finishInteractions()
         placeFloatingSelection()
-        let layer = canvas.activeLayer
+        let layer = canvas.paintLayer
         let edit = history.beginEdit(kind.name, on: canvas)
         let stroke: Stroke
         if kind == .smudge {
@@ -1884,7 +1896,7 @@ final class Editor {
         // A dab or a short stroke is matched at once, as part of its step, so quick dabs never miss it; only a big
         // stroke goes to the background.
         if let match = tone, ToneMatch.readArea(for: match.mask, in: canvas.bounds).area < Self.backgroundToneArea {
-            ToneMatch.apply(to: canvas.activeLayer, in: match.mask, reference: match.reference, edit: brush.edit)
+            ToneMatch.apply(to: canvas.paintLayer, in: match.mask, reference: match.reference, edit: brush.edit)
             tone = nil
         }
         recordingChanges { history.commit(brush.edit) }
@@ -1900,7 +1912,7 @@ final class Editor {
     /// first waits for it and lands it (`finishPendingTone`), so it never lands in the middle of another edit, where
     /// that edit's undo or Cancel would lose it (review R, finding 1).
     private func matchTone(in mask: SelectionMask, reference: ToneMatch.Reference?) {
-        let layer = canvas.activeLayer
+        let layer = canvas.paintLayer
         let area = ToneMatch.readArea(for: mask, in: layer.buffer.bounds)
         guard !area.isEmpty else { return }
         // With a reference the plan needs only the edge's before and copied pixels, not a copy of the area.
@@ -1930,12 +1942,12 @@ final class Editor {
         guard let plan = pending.plan?.value else { return }
         // Every new edit lands the tone first, so these hold unless something changed the image without that; then
         // the stroke keeps its own tone rather than the tone landing in another edit.
-        guard history.revision == pending.revision, page.id == pending.page, canvas.activeLayer.id == pending.layer,
+        guard history.revision == pending.revision, page.id == pending.page, canvas.paintLayer.id == pending.layer,
               !isEditInProgress else {
             return showNotice("The image changed before Match Tone finished, so the stroke kept its own tone.")
         }
         let edit = history.beginEdit(RetouchKind.cloneStamp.name, on: canvas)
-        ToneMatch.apply(plan, to: canvas.activeLayer, edit: edit)
+        ToneMatch.apply(plan, to: canvas.paintLayer, edit: edit)
         recordingChanges { history.commit(edit, mergingIntoPrevious: true) }
         onRender()
     }
@@ -1983,7 +1995,7 @@ final class Editor {
     func endRetouchStroke() {
         guard let stroke = retouchStroke else { return }
         retouchStroke = nil
-        let layer = canvas.activeLayer
+        let layer = canvas.paintLayer
         let healing = stroke.kind == .spotHeal
         let image = retouchSamplesAllLayers ? canvas.composited(through: canvas.activeLayerIndex) : layer.buffer
         guard let mask = stroke.area.mask,
@@ -2012,13 +2024,13 @@ final class Editor {
                 self.showNotice("There isn't enough picture around that area to fill it from.")
             }
             guard case .success(let fill) = outcome else { return self.onRender() }
-            guard self.history.revision == revision, self.page.id == pageID, self.canvas.activeLayer.id == layerID,
+            guard self.history.revision == revision, self.page.id == pageID, self.canvas.paintLayer.id == layerID,
                   self.activeLayerTakesEdits else {
                 self.showNotice("The image changed while filling. Try again.")
                 return self.onRender()
             }
             let edit = self.history.beginEdit(stroke.kind.name, on: self.canvas)
-            fill.apply(to: self.canvas.activeLayer, edit: edit)
+            fill.apply(to: self.canvas.paintLayer, edit: edit)
             self.recordingChanges { self.history.commit(edit) }
             self.onRender()
         }
@@ -2107,7 +2119,7 @@ final class Editor {
             return
         }
         let edit = history.beginEdit("Step Badge", on: canvas)
-        Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.activeLayer, edit: edit)
+        Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.paintLayer, edit: edit)
         recordingChanges { history.commit(edit) }
         if let step = history.undoStepID { badgeSteps[step] = (badge.style, badge.value) }
         onRender()
@@ -2271,7 +2283,7 @@ final class Editor {
         pendingText = nil
         if let rendered = TextRenderer.render(textSpec(for: text), colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) {
             let edit = history.beginEdit("Text", on: canvas)
-            Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.activeLayer, edit: edit)
+            Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.paintLayer, edit: edit)
             recordingChanges { history.commit(edit) }
         }
         onRender()
@@ -2334,7 +2346,7 @@ final class Editor {
             // A floating paste is placed first, so the wand sees it rather than what's under it (review I, finding 2).
             placeFloatingKeepingOutline()
             let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-            let sampled = wandSamplesAllLayers ? canvas.flattened() : canvas.activeLayer.buffer
+            let sampled = wandSamplesAllLayers ? canvas.flattened() : canvas.paintLayer.buffer
             let mask = SelectionMask.magicWand(in: sampled, at: seed, tolerance: wandTolerance, contiguous: wandContiguous)
             recordingChanges {
                 SelectionActions.select(mask, mode: mode, canvas: canvas, history: history, context: selectionContext)
@@ -2696,8 +2708,8 @@ final class Editor {
     private func rangeSampled() -> PixelBuffer {
         if let rangeSource { return rangeSource }
         // A graduated selection reads no pixels, only the canvas's size.
-        if activeEffect == .graduatedSelection { return canvas.activeLayer.buffer }
-        let source = rangeSamplesAllLayers ? canvas.flattened() : canvas.activeLayer.buffer
+        if activeEffect == .graduatedSelection { return canvas.paintLayer.buffer }
+        let source = rangeSamplesAllLayers ? canvas.flattened() : canvas.paintLayer.buffer
         rangeSource = source
         return source
     }
@@ -2955,7 +2967,7 @@ final class Editor {
         photoEdit = PhotoEdit()
         photoAutoMoved = []
         if kind == .adjustPhoto { isSidebarOpen = true }
-        effectHistogram = kind == .levels ? Histogram(canvas.activeLayer.buffer, selection: canvas.selection.marquee) : nil
+        effectHistogram = kind == .levels ? Histogram(canvas.paintLayer.buffer, selection: canvas.selection.marquee) : nil
         decorationPreviewed = false
         if kind == .crop {
             cropShape = .free
@@ -2994,7 +3006,7 @@ final class Editor {
         shownEffect = nil
         if kind.choosesSelection { beginRange() }
         // Batch Redact previews several layers, so it's worked out here rather than from a copy of one.
-        effectSource = effectEdit == nil || coveringAllLayers ? nil : canvas.activeLayer.buffer.copy()
+        effectSource = effectEdit == nil || coveringAllLayers ? nil : canvas.paintLayer.buffer.copy()
         if effectSource != nil { previewEffect() } else { renderEffectPreview() }
     }
 
@@ -3291,13 +3303,13 @@ final class Editor {
         placeFloatingKeepingOutline()
         if let mask = canvas.selection.marquee {
             let edit = history.beginEdit("Remove Red-Eye", on: canvas)
-            RedEye.fix(in: mask, layer: canvas.activeLayer, edit: edit)
+            RedEye.fix(in: mask, layer: canvas.paintLayer, edit: edit)
             var changed = false
             recordingChanges { changed = history.commit(edit) }
             if !changed { showNotice("No red-eye found") }
             return onRender()
         }
-        let layer = canvas.activeLayer
+        let layer = canvas.paintLayer
         guard let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
         let revision = history.revision
         isFindingEyes = true
@@ -3306,11 +3318,11 @@ final class Editor {
             guard let self else { return }
             self.isFindingEyes = false
             // Something changed meanwhile, so the eyes may no longer be where they were found.
-            guard self.history.revision == revision, self.canvas.activeLayer.id == layer.id, self.activeLayerTakesEdits else {
+            guard self.history.revision == revision, self.canvas.paintLayer.id == layer.id, self.activeLayerTakesEdits else {
                 return self.showNotice("The image changed while finding eyes. Try again.")
             }
             let edit = self.history.beginEdit("Remove Red-Eye", on: self.canvas)
-            RedEye.fix(eyes, in: self.canvas.activeLayer, edit: edit)
+            RedEye.fix(eyes, in: self.canvas.paintLayer, edit: edit)
             var changed = false
             self.recordingChanges { changed = self.history.commit(edit) }
             if !changed { self.showNotice(eyes.isEmpty ? "No eyes found. Select the red pupils and try again." : "No red-eye found") }
@@ -3343,7 +3355,7 @@ final class Editor {
         if action != .select, refusedBecauseLocked() { return }
         finishInteractions()
         placeFloatingKeepingOutline()
-        let layer = canvas.activeLayer
+        let layer = canvas.paintLayer
         guard layer.isPixelLayer, let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
         let revision = history.revision
         isFindingSubject = true
@@ -3354,7 +3366,7 @@ final class Editor {
             // Something changed the image meanwhile (a step, an undo, or a stroke still being drawn), so the
             // masks may no longer fit it (review B, finding 2).
             guard self.history.revision == revision, self.activeStroke == nil, self.gradientDrag == nil,
-                  self.canvas.activeLayer.id == layer.id, self.activeEffect == nil else {
+                  self.canvas.paintLayer.id == layer.id, self.activeEffect == nil else {
                 self.subjectMessage = "The image changed while Colorbee was looking for the subject. Try again."
                 return
             }
@@ -3550,7 +3562,7 @@ final class Editor {
         previewRunning = false
         guard let edit = effectEdit else { return }
         edit.restoreOriginals()
-        preview?.write(into: canvas.activeLayer, edit: edit)
+        preview?.write(into: canvas.paintLayer, edit: edit)
         shownEffect = effect
         onRender()
         if activeEffect == .adjustPhoto { refreshPhotoHistogram() }
@@ -3569,7 +3581,7 @@ final class Editor {
         guard let edit = effectEdit else { return }
         edit.restoreOriginals()
         let effect = kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
-        for layer in effectCoversAllLayers ? effectLayers : [canvas.activeLayer] {
+        for layer in effectCoversAllLayers ? effectLayers : [canvas.paintLayer] {
             if let regions = effectRegions {
                 Effects.apply(effect, to: layer, regions: regions, edit: edit)
             } else {
@@ -3844,8 +3856,8 @@ final class Editor {
         finishInteractions()
         placeFloatingKeepingOutline()
         let effect = Effect.photo(last), selection = canvas.selection.marquee
-        let source = UnsafeTransfer(canvas.activeLayer.buffer.copy())
-        let revision = history.revision, layerID = canvas.activeLayer.id, pageID = page.id
+        let source = UnsafeTransfer(canvas.paintLayer.buffer.copy())
+        let revision = history.revision, layerID = canvas.paintLayer.id, pageID = page.id
         sameAsLastRunning = true
         Task { @MainActor [weak self] in
             let preview = await Task.detached(priority: .userInitiated) {
@@ -3853,12 +3865,12 @@ final class Editor {
             }.value
             guard let self else { return }
             self.sameAsLastRunning = false
-            guard self.history.revision == revision, self.page.id == pageID, self.canvas.activeLayer.id == layerID else {
+            guard self.history.revision == revision, self.page.id == pageID, self.canvas.paintLayer.id == layerID else {
                 return self.showNotice("The image changed while Same as Last was working. Try again.")
             }
             guard let preview else { return }
             let edit = self.history.beginEdit(effect.name, on: self.canvas)
-            preview.write(into: self.canvas.activeLayer, edit: edit)
+            preview.write(into: self.canvas.paintLayer, edit: edit)
             self.recordingChanges { self.history.commit(edit) }
             self.onRender()
         }
@@ -3973,10 +3985,10 @@ final class Editor {
         finishInteractions()
         placeFloatingKeepingOutline()
         let selection = canvas.selection.marquee
-        let levels = Levels.auto(from: Histogram(canvas.activeLayer.buffer, selection: selection))
+        let levels = Levels.auto(from: Histogram(canvas.paintLayer.buffer, selection: selection))
         guard levels != .identity else { return }
         let edit = history.beginEdit("Auto Contrast", on: canvas)
-        Effects.apply(.levels(levels), to: canvas.activeLayer, selection: selection, edit: edit)
+        Effects.apply(.levels(levels), to: canvas.paintLayer, selection: selection, edit: edit)
         recordingChanges { history.commit(edit) }
         onRender()
     }
@@ -3993,7 +4005,7 @@ final class Editor {
         finishInteractions()
         placeFloatingKeepingOutline()
         let edit = history.beginEdit(effect.name, on: canvas)
-        Effects.apply(effect, to: canvas.activeLayer, selection: canvas.selection.marquee, edit: edit)
+        Effects.apply(effect, to: canvas.paintLayer, selection: canvas.selection.marquee, edit: edit)
         recordingChanges { history.commit(edit) }
         onRender()
     }
@@ -4042,9 +4054,10 @@ final class Editor {
     }
 
     /// The D key: Color 1 black, Color 2 white.
+    /// D: black and white, or on a mask white and black, as in Photoshop (Q28.3).
     func resetColors() {
-        color1 = .black
-        color2 = .white
+        color1 = canvas.editsMask ? .white : .black
+        color2 = canvas.editsMask ? .black : .white
     }
 
     /// Batch redaction with a solid color: every selected region becomes Color 1 in one step (FR-9.4).
@@ -4319,7 +4332,7 @@ final class Editor {
     /// group, with no pixels.
     var activeLayerIsLocked: Bool {
         _ = layersRevision
-        return canvas.isLocked(canvas.activeLayer) || !canvas.activeLayer.isPixelLayer
+        return canvas.isLocked(canvas.activeLayer) || !canvas.paintLayer.isPixelLayer
     }
 
     /// Makes another layer active, and the only one chosen. Moved pixels are placed on their own layer first; the
@@ -4339,6 +4352,9 @@ final class Editor {
         finishInteractions()
         placeFloatingKeepingOutline()
         canvas.activeLayerIndex = index
+        // Another layer: tools paint on it, not on a mask (stage 27).
+        canvas.editsMask = false
+        showsMaskAlone = false
         layersRevision += 1
         onRender()
     }
@@ -4475,6 +4491,89 @@ final class Editor {
             several ? LayerActions.mergeLayers(ids, canvas: canvas, history: history, context: selectionContext)
                 : LayerActions.mergeDown(canvas: canvas, history: history, context: selectionContext)
         }
+    }
+
+    // MARK: Layer masks (stages 27 to 28b)
+
+    /// Whether tools paint on the active layer's mask: true after Add Mask or a click on the mask's thumbnail.
+    var editsMask: Bool {
+        _ = layersRevision
+        return canvas.editsMask && canvas.activeLayer.mask != nil
+    }
+
+    /// Option-click on a mask's thumbnail (stage 28a): the picture shows the mask alone, in grays. Only a view.
+    var showsMaskAlone = false {
+        didSet { renderSoon() }
+    }
+
+    /// A click on a layer's thumbnail (`mask` false) or its mask's: that layer becomes active, and tools paint there.
+    func paint(onMask mask: Bool, at index: Int) {
+        guard canvas.layers.indices.contains(index) else { return }
+        selectLayer(at: index)
+        let editsMask = mask && canvas.activeLayer.mask != nil
+        guard editsMask != canvas.editsMask else { return }
+        finishInteractions()
+        placeFloatingKeepingOutline()
+        canvas.editsMask = editsMask
+        if editsMask {
+            color1 = color1.maskGray
+            color2 = color2.maskGray
+        } else {
+            showsMaskAlone = false
+        }
+        layersRevision += 1
+        onRender()
+    }
+
+    /// Layer ▸ Layer Mask ▸ Add Mask: from the selection if there is one (Q28.6), otherwise showing everything.
+    func addMask(hidingAll: Bool = false) {
+        let start: MaskStart = hidingAll ? .hideAll : canvas.selection.marquee != nil ? .selection : .revealAll
+        layerCommand(keepingChoice: true) { LayerActions.addMask(start, canvas: canvas, history: history, context: selectionContext) }
+        color1 = color1.maskGray
+        color2 = color2.maskGray
+    }
+
+    func deleteMask() {
+        layerCommand(keepingChoice: true) { LayerActions.deleteMask(canvas: canvas, history: history, context: selectionContext) }
+        showsMaskAlone = false
+    }
+
+    func applyMask() {
+        layerCommand(keepingChoice: true) { LayerActions.applyMask(canvas: canvas, history: history, context: selectionContext) }
+        showsMaskAlone = false
+    }
+
+    func invertMask() {
+        guard !refusedBecauseLocked() || editsMask else { return }
+        layerCommand(keepingChoice: true) { LayerActions.invertMask(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    /// Shift-click on the mask, or Layer ▸ Layer Mask ▸ Turn Off Mask: the layer shows everywhere until it's turned on.
+    func toggleMaskEnabled() {
+        let enabled = !canvas.activeLayer.maskEnabled
+        layerCommand(keepingChoice: true) { LayerActions.setMaskEnabled(enabled, canvas: canvas, history: history) }
+    }
+
+    /// Option-click on the mask: see it alone in grays, or the picture again.
+    func toggleMaskAlone(at index: Int) {
+        guard canvas.layers.indices.contains(index), canvas.layers[index].mask != nil else { return }
+        if index != canvas.activeLayerIndex { selectLayer(at: index) }
+        showsMaskAlone.toggle()
+    }
+
+    var canAddMask: Bool {
+        _ = layersRevision
+        return LayerActions.canAddMask(canvas)
+    }
+
+    var activeLayerHasMask: Bool {
+        _ = layersRevision
+        return canvas.activeLayer.mask != nil
+    }
+
+    var canApplyMask: Bool {
+        _ = layersRevision
+        return LayerActions.canApplyMask(canvas)
     }
 
     // MARK: Layer groups (stages 25 and 26)
@@ -4647,8 +4746,9 @@ final class Editor {
     }
 
     /// An adjustment layer: change only the layer below it, or everything below (Leah, 2026-10-10).
+    /// An adjustment layer, or since stage 28b a pixel layer: only on the layer below it, or everything below.
     func setClipsToLayerBelow(_ clips: Bool) {
-        guard canvas.activeLayer.adjustment != nil else { return }
+        guard !canvas.activeLayer.isGroup else { return }
         layerSetting(clips ? "Only the Layer Below" : "All Layers Below", at: canvas.activeLayerIndex) { $0.clipsToLayerBelow = clips }
     }
 
@@ -4787,12 +4887,13 @@ final class Editor {
     }
 
     /// Whether pixel-changing commands work on the active layer (see `refusedBecauseLocked`).
-    var activeLayerTakesEdits: Bool { !canvas.isLocked(canvas.activeLayer) && canvas.activeLayer.isPixelLayer }
+    /// Its pixels can change: it isn't locked, and it has pixels, or its mask is chosen (stage 27).
+    var activeLayerTakesEdits: Bool { !canvas.isLocked(canvas.activeLayer) && canvas.paintLayer.isPixelLayer }
 
     /// Pixel-changing commands call this first. A locked layer refuses them (FR-8.2), and so does an
     /// adjustment layer, which has no pixels to change.
     private func refusedBecauseLocked() -> Bool {
-        guard canvas.isLocked(canvas.activeLayer) || !canvas.activeLayer.isPixelLayer else { return false }
+        guard canvas.isLocked(canvas.activeLayer) || !canvas.paintLayer.isPixelLayer else { return false }
         onRefused()
         return true
     }
@@ -5319,7 +5420,8 @@ final class Editor {
     /// More than one layer, or an adjustment layer: something only a project file can keep.
     /// More than one layer, an adjustment layer, or more than one page: something only a project file can keep.
     var isLayered: Bool {
-        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains { !$0.isPixelLayer }
+        // A mask too: a picture saved as a PNG would lose it (stage 27).
+        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains { !$0.isPixelLayer || $0.mask != nil }
     }
 
     /// An effect's live preview is drawn into the layer before it's applied; an autosave in the
@@ -5336,7 +5438,7 @@ final class Editor {
         // The preview's pixels are put back as they were, not worked out again on the main thread
         // (review B, finding 3).
         let shown = edit.dirtyRect
-        let layers = effectCoversAllLayers ? effectLayers : [canvas.activeLayer]
+        let layers = effectCoversAllLayers ? effectLayers : [canvas.paintLayer]
         let pixels = layers.map { $0.buffer.pixels(in: shown) }
         edit.restoreOriginals()
         defer { for (layer, values) in zip(layers, pixels) { layer.buffer.setPixels(values, in: shown) } }

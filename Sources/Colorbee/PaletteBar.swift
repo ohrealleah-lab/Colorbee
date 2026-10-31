@@ -10,9 +10,12 @@ struct PaletteBar<Options: View>: View {
 
     var body: some View {
         HStack(spacing: 16) {
+            // While a mask is chosen, the colors are grays (Q28.3), and the palette shows them so.
             ColorWells(editor: editor)
+                .saturation(editor.editsMask ? 0 : 1)
             SwatchGrid(editor: editor, swatches: PaletteStore.shared.swatches, custom: CustomColors.shared.slots)
                 .frame(width: SwatchGridView.size.width, height: SwatchGridView.size.height)
+                .saturation(editor.editsMask ? 0 : 1)
             divider
             HStack(spacing: 10) {
                 Text("Alpha").foregroundStyle(Theme.secondaryInk)

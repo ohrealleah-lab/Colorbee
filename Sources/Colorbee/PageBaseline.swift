@@ -52,6 +52,11 @@ final class PageBaseline {
         decoded?.layers.first { $0.id == id && $0.isPixelLayer }?.buffer
     }
 
+    /// A layer mask's pixels as saved, by the mask's id, for Revert Layer (Q28.8).
+    func mask(_ id: LayerID) -> PixelBuffer? {
+        decoded?.layers.lazy.compactMap(\.mask).first { $0.id == id }?.buffer
+    }
+
     /// Back to compressed form, for when the page is hidden.
     func pack() {
         if data == nil, let canvas { data = try? ProjectFile.encode(canvas) }

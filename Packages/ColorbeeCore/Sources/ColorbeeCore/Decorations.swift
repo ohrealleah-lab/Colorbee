@@ -70,7 +70,8 @@ public enum Decorations {
                                  make: (Shape) -> (extent: IntRect, coverage: (Int, Int) -> Float, color: Pixel)) -> Bool {
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let layer = canvas.activeLayer
-        guard layer.isPixelLayer, !canvas.isLocked(layer) else { return false }
+        // A shadow or border belongs to the picture, not a mask.
+        guard layer.isPixelLayer, !canvas.isLocked(layer), !canvas.editsMask else { return false }
         let selection = canvas.selection.marquee
         guard let shape = Shape(layer.buffer, selection: selection) else { return false }
         let (extent, coverage, color) = make(shape)

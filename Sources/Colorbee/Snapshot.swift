@@ -42,6 +42,14 @@ enum Snapshot {
             editor.setBlendMode(.multiply)
             editor.showsAdjustmentsPanel = false
         }
+        // `-ColorbeeSnapshotMask YES` gives the active layer a mask hiding its left half, chosen for painting, and sets
+        // the layer below it to "Only the layer below", to check the Layers panel's masks (stage 27).
+        if defaults.bool(forKey: "ColorbeeSnapshotMask") {
+            editor.addMask()
+            let size = editor.canvas.size
+            editor.canvas.activeLayer.mask?.buffer.fill(.black, in: IntRect(x: 0, y: 0, width: size.width / 2, height: size.height))
+            editor.showsAdjustmentsPanel = false
+        }
         // `-ColorbeeSnapshotInfo YES` shows the Info panel on its own.
         if defaults.bool(forKey: "ColorbeeSnapshotInfo") {
             editor.showsLayersPanel = false

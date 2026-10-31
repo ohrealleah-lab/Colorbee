@@ -106,6 +106,12 @@ enum MainMenu {
         "distributeVertically:": "Space three or more chosen layers with equal gaps down.",
         "stampVisible:": "Add a layer holding everything visible, merged, and keep the layers as they are.",
         "selectAllLayers:": "Choose every layer, to change or move them together.",
+        "addLayerMask:": "Add a mask to the active layer, to hide parts of it without erasing them. With a selection, only the selection shows.",
+        "addLayerMaskHidingAll:": "Add a mask that hides the whole layer, to paint back the parts you want with white.",
+        "toggleLayerMask:": "Turn the active layer's mask off, so the whole layer shows, or on again.",
+        "invertLayerMask:": "Swap what the mask shows and hides.",
+        "applyLayerMask:": "Make the mask permanent: what it hides is erased from the layer, and the mask goes.",
+        "deleteLayerMask:": "Remove the mask; the whole layer shows again.",
         "groupLayers:": "Put the chosen layers in a new group, to fold, hide, fade or move them together.",
         "ungroupLayers:": "Take the layers out of the active group, leaving them where they are.",
         "flattenImage:": "Combine all visible layers into one and drop hidden layers.",
@@ -365,6 +371,7 @@ enum MainMenu {
         menu.addItem(item("Flatten", "flattenImage:"))
         menu.addItem(.separator())
         menu.addItem(submenu(alignMenu()))
+        menu.addItem(submenu(maskMenu()))
         menu.addItem(.separator())
         menu.addItem(submenu(adjustmentLayerMenu()))
         menu.addItem(item("Merge Adjustment", "applyAdjustment:"))
@@ -378,6 +385,20 @@ enum MainMenu {
     }
 
     /// Layer ▸ Align (stage 24): each its own command, so each can have a key in the shortcut editor.
+    /// Layer ▸ Layer Mask (stages 27 and 28a); no default keys (Q28.7).
+    private static func maskMenu() -> NSMenu {
+        let menu = NSMenu(title: "Layer Mask")
+        menu.addItem(item("Add Mask", "addLayerMask:"))
+        menu.addItem(item("Add Mask Hiding All", "addLayerMaskHidingAll:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Turn Off Mask", "toggleLayerMask:"))
+        menu.addItem(item("Invert Mask", "invertLayerMask:"))
+        menu.addItem(.separator())
+        menu.addItem(item("Apply Mask", "applyLayerMask:"))
+        menu.addItem(item("Delete Mask", "deleteLayerMask:"))
+        return menu
+    }
+
     private static func alignMenu() -> NSMenu {
         let menu = NSMenu(title: "Align")
         menu.addItem(item("Left", "alignLeft:"))

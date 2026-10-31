@@ -16,3 +16,12 @@ public struct Pixel: Hashable, Sendable {
     public static let white = Pixel(r: 255, g: 255, b: 255)
     public static let clear = Pixel(r: 0, g: 0, b: 0, a: 0)
 }
+
+extension Pixel {
+    /// The gray a mask uses for this color (Q28.3): its brightness, at the same opacity.
+    public var maskGray: Pixel {
+        let red: Double = 0.2126 * Double(r), green: Double = 0.7152 * Double(g), blue: Double = 0.0722 * Double(b)
+        let gray = UInt8((red + green + blue).rounded())
+        return Pixel(r: gray, g: gray, b: gray, a: a)
+    }
+}

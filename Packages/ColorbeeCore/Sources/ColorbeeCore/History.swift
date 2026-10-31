@@ -52,6 +52,8 @@ public final class Edit {
     private(set) var orientation: Orientation?
     private(set) var layersBefore: LayerStackState?
     private(set) var snapshots: [TileKey: TileSnapshot] = [:]
+    /// Text layers this edit changed or turned into pixels, as they were, with their names.
+    private(set) var textsBefore: [LayerID: (text: TextLayer, name: String)] = [:]
     public private(set) var dirtyRect: IntRect = .zero
     /// Areas written on layers that lock their transparency, not yet put back (`keepLockedTransparency`).
     private var lockedPending: [(layer: Layer, rect: IntRect)] = []
@@ -68,6 +70,13 @@ public final class Edit {
 
     public func willModify(_ rect: IntRect, in layer: Layer) {
         precondition(layersBefore == nil, "Pixel edits can't be mixed with layer changes in one step")
+        // Its pixels no longer match its words, so it's plain pixels from here: redaction always wins (Q29.2).
+        if let text = layer.text {
+            willChangeText(of: layer)
+            layer.text = nil
+            // A name made from the words would give them away under a redaction.
+            if layer.name == text.name { layer.name = "Text" }
+        }
         let bounds = layer.buffer.bounds
         let target = rect.intersection(bounds)
         guard !target.isEmpty else { return }
@@ -141,6 +150,11 @@ public final class Edit {
         if layersBefore == nil { layersBefore = canvas.layerStackState }
     }
 
+    /// Call before changing a text layer's `text` in a pixel or geometry step (a layer step keeps it with the layer).
+    public func willChangeText(of layer: Layer) {
+        if textsBefore[layer.id] == nil, let text = layer.text { textsBefore[layer.id] = (text, layer.name) }
+    }
+
     /// Puts back every pixel this edit has changed so far. Used for live previews that are recomputed.
     public func restoreOriginals() {
         for (key, snapshot) in snapshots {
@@ -188,6 +202,12 @@ final class GeometryChange {
     }
 }
 
+struct TextChange {
+    let layer: LayerID
+    var text: TextLayer?
+    var name: String
+}
+
 final class HistoryEntry {
     let id = UUID()
     let name: String
@@ -196,6 +216,8 @@ final class HistoryEntry {
     /// For a rotation or flip: what the next undo or redo applies to every layer.
     var transform: Orientation?
     var layers: LayerStackState?
+    /// Text layers' `text` and name to put back on the next undo or redo; swapped each time.
+    var texts: [TextChange] = []
     /// See `Edit.replacesPicture`.
     var replacesPicture = false
     /// How the image looked after this step, for the History panel.
@@ -347,6 +369,10 @@ public final class History {
             }
         }
         let selectionChanged = edit.recordsSelectionChange && !edit.selectionBefore.isSame(as: selectionAfter)
+        let texts = edit.textsBefore.compactMap { id, before -> TextChange? in
+            guard let layer = edit.canvas.layer(withID: id), layer.text != before.text || layer.name != before.name else { return nil }
+            return TextChange(layer: id, text: before.text, name: before.name)
+        }
         if let layers = edit.layersBefore {
             guard !layers.isSame(as: edit.canvas.layerStackState) else { return false }
             discardRedo()
@@ -370,13 +396,14 @@ public final class History {
             discardRedo()
             let entry = HistoryEntry(name: edit.name, changes: [], selectionBefore: edit.selectionBefore, selectionAfter: selectionAfter)
             entry.geometry = geometry
+            entry.texts = texts
             undoStack.append(entry)
             tileBytes += entry.byteCount
             revision += 1
             spillToBudget(canvas: edit.canvas)
             return true
         }
-        guard !changes.isEmpty || selectionChanged else { return false }
+        guard !changes.isEmpty || selectionChanged || !texts.isEmpty else { return false }
 
         // Tile changes can only join a step that undoes tiles: a layer, geometry or transform step undoes
         // something else and would never put those pixels back (review A, finding 1).
@@ -386,12 +413,14 @@ public final class History {
             let touched = Set(previous.changes.map(\.key))
             let added = changes.filter { !touched.contains($0.key) }
             previous.changes += added
+            previous.texts += texts.filter { text in !previous.texts.contains { $0.layer == text.layer } }
             previous.selectionAfter = selectionAfter
             tileBytes += added.reduce(0) { $0 + $1.byteCount }
             revision += 1
         } else {
             discardRedo()
             let entry = HistoryEntry(name: edit.name, changes: changes, selectionBefore: edit.selectionBefore, selectionAfter: selectionAfter)
+            entry.texts = texts
             undoStack.append(entry)
             tileBytes += entry.byteCount
             revision += 1
@@ -434,6 +463,14 @@ public final class History {
     }
 
     private func swapPixels(_ entry: HistoryEntry, on canvas: Canvas) -> IntRect {
+        entry.texts = entry.texts.map { change in
+            guard let layer = canvas.layer(withID: change.layer) else { return change }
+            defer {
+                layer.text = change.text
+                layer.name = change.name
+            }
+            return TextChange(layer: change.layer, text: layer.text, name: layer.name)
+        }
         if let layers = entry.layers {
             let current = canvas.layerStackState
             canvas.restore(layers)
@@ -527,12 +564,14 @@ public final class History {
             target.adjustment = record.adjustment
             target.clipsToLayerBelow = record.clipsToLayerBelow
             target.passesThrough = record.passesThrough
+            target.text = record.text
             target.buffer = record.buffer
             reversal.layers = current
         } else {
             // Swapping writes the old pixels back and leaves the newer ones in the entry: the reversal's undo.
             _ = swapPixels(entry, on: canvas)
             reversal.changes = entry.changes
+            reversal.texts = entry.texts
         }
         tileBytes -= entry.byteCount
         undoStack.remove(at: index)
@@ -570,9 +609,10 @@ public final class History {
             }
             // Its mask's strokes are the layer's too (Q28.8).
             let own = Set([layer] + (canvas.layer(withID: layer)?.mask.map { [$0.id] } ?? []))
-            let touched = entry.changes.contains { own.contains($0.key.layer) }
+            let touched = entry.changes.contains { own.contains($0.key.layer) } || entry.texts.contains { own.contains($0.layer) }
             guard touched else { continue }
-            return entry.changes.allSatisfy { own.contains($0.key.layer) } ? index : nil
+            let alone = entry.changes.allSatisfy { own.contains($0.key.layer) } && entry.texts.allSatisfy { own.contains($0.layer) }
+            return alone ? index : nil
         }
         return nil
     }

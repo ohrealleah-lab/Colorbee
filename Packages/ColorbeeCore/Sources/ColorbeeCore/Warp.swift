@@ -232,7 +232,8 @@ extension ImageActions {
         guard !target.isEmpty else { return false }
         let finalSize = size ?? target.size
         guard target != canvas.bounds || finalSize != canvas.size else { return false }
-        return replaceEveryLayer(size == nil ? "Crop" : "Crop and Resize", size: finalSize, canvas: canvas, history: history, context: context) { layer in
+        let fit = TextFit.resized(from: target.size, to: finalSize).map { TextFit(scale: $0.scale, dx: -Double(target.minX) * $0.scale, dy: -Double(target.minY) * $0.scale) }
+        return replaceEveryLayer(size == nil ? "Crop" : "Crop and Resize", size: finalSize, textFit: fit, canvas: canvas, history: history, context: context) { layer in
             let cropped = PixelBuffer(width: target.width, height: target.height)
             cropped.setPixels(layer.buffer.pixels(in: target), in: cropped.bounds)
             return cropped.resampled(to: finalSize, using: .smooth)
@@ -240,7 +241,8 @@ extension ImageActions {
     }
 
     /// A geometry step that gives every layer a new buffer of `size`. Layers with no pixels get an empty one.
-    private static func replaceEveryLayer(_ name: String, size: IntSize, canvas: Canvas, history: History, context: SelectionContext,
+    /// Text layers follow `textFit`, or become plain pixels without one.
+    private static func replaceEveryLayer(_ name: String, size: IntSize, textFit: TextFit? = nil, canvas: Canvas, history: History, context: SelectionContext,
                                           drawsEmptyLayer: (Layer) -> Bool = { _ in false }, _ make: (Layer) -> PixelBuffer) -> Bool {
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let edit = history.beginEdit(name, on: canvas)
@@ -250,6 +252,7 @@ extension ImageActions {
             buffers[layer.id] = layer.holdsNoPixels && !drawsEmptyLayer(layer) ? PixelBuffer(size: size) : make(layer)
         }
         canvas.replaceContents(size: size, buffers: buffers)
+        canvas.fitText(textFit, edit: edit)
         canvas.selection = .none
         return history.commit(edit)
     }

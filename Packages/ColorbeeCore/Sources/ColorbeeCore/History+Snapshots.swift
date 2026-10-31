@@ -34,7 +34,7 @@ extension History {
                                                       clipsToLayerBelow: layer.clipsToLayerBelow, isGroup: layer.isGroup, groupID: layer.groupID,
                                                       passesThrough: layer.passesThrough, maskID: layer.mask?.id,
                                                       maskName: layer.mask?.name ?? "", maskPixels: try layer.mask.flatMap { mask throws(HistorySnapshot.Failure) in try stored(mask) },
-                                                      maskEnabled: layer.maskEnabled, pixels: written))
+                                                      maskEnabled: layer.maskEnabled, text: layer.text, pixels: written))
         }
         let selection: SelectionState = canvas.selection.marquee.map { .marquee($0) } ?? .none
         let snapshot = HistorySnapshot(name: name, thumbnail: makeThumbnail?(canvas), size: canvas.size, layers: layers,
@@ -91,6 +91,7 @@ extension History {
                                    clipsToLayerBelow: stored.clipsToLayerBelow, groupID: stored.groupID, passesThrough: stored.passesThrough, buffer: buffer)
             record.mask = mask
             record.maskEnabled = stored.maskEnabled
+            record.text = stored.text
             return record
         }
         canvas.restore(LayerStackState(records: records, activeIndex: snapshot.activeIndex,

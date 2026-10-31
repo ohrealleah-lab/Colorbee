@@ -34,6 +34,7 @@ public enum LayerActions {
             let merged = canvas.layers.prefix(canvas.activeLayerIndex + 1).filter(canvas.isShown)
             guard let target = merged.first(where: \.isPixelLayer) else { return false }
             target.buffer = canvas.composite(merged)
+            target.text = nil
             target.opacity = 1
             target.blendMode = .normal
             target.adjustment = nil
@@ -59,6 +60,7 @@ public enum LayerActions {
             for clip in merged {
                 base.buffer = Compositing.adjust(base.buffer, by: clip.adjustment!, opacity: clip.opacity, mode: clip.blendMode)
             }
+            base.text = nil
             for clip in merged {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === clip }!)
             }
@@ -172,6 +174,7 @@ public enum LayerActions {
             // Its clipped adjustments are baked in, so the picture keeps its look (Leah, 2026-10-13).
             let clips = canvas.clippedLayers(onLayerAt: index)
             lower.buffer = canvas.composite([upper] + clips.filter(\.isVisible), onto: lower.buffer)
+            lower.text = nil
             for _ in 0...clips.count { canvas.removeLayer(at: index) }
             canvas.activeLayerIndex = index - 1
             return true
@@ -199,6 +202,7 @@ public enum LayerActions {
             let visible = canvas.shownLayers
             guard let target = visible.first(where: \.isPixelLayer) else { return false }
             target.buffer = canvas.composite(visible)
+            target.text = nil
             target.opacity = 1
             target.blendMode = .normal
             target.adjustment = nil
@@ -255,6 +259,7 @@ public enum LayerActions {
             }
             let bottom = canvas.layers[0]
             bottom.buffer = flat
+            bottom.text = nil
             bottom.opacity = 1
             bottom.blendMode = .normal
             bottom.isVisible = true

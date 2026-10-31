@@ -44,6 +44,10 @@ public final class Layer {
     /// The mask in force: nil when there's none or it's turned off.
     public var activeMask: PixelBuffer? { maskEnabled ? mask?.buffer : nil }
 
+    /// A text layer (FR-6.3, stage 29): its pixels are always exactly `text` drawn, so the words can be edited again.
+    /// Any pixel change turns it into plain pixels first (`Edit.willModify`), so redaction always wins.
+    public var text: TextLayer?
+
     /// A layer with pixels of its own: not an adjustment layer or a group.
     public var isPixelLayer: Bool { adjustment == nil && !isGroup }
 
@@ -83,6 +87,7 @@ public final class Layer {
         let copy = Layer(name: name ?? self.name, buffer: buffer, id: id ?? self.id, isGroup: isGroup)
         copy.takeSettings(from: self)
         copy.mask = mask
+        copy.text = text
         return copy
     }
 

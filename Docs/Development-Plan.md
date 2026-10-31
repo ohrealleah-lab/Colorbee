@@ -1549,6 +1549,8 @@ _Added after the review (2026-10-27):_
 
 ### Before stage 29
 
+Answered (Leah, 2026-10-31): all as recommended. Recorded in FRD §23.
+
 - **Q29.1** Does every text become its own layer (as in Photoshop), or only with an "Editable" switch in the Text
   options, off by default? Every-text-a-layer means an annotated screenshot saves as a .colorproj instead of a PNG
   (§23, 2026-10-03). *Recommend the switch, off by default:* the quick screenshot flow stays as it is, and you turn

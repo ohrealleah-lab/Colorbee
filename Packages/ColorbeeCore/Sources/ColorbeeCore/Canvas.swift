@@ -141,6 +141,7 @@ public final class Canvas {
             } else {
                 layer.buffer.swapContents(with: layer.buffer.transformed(orientation))
             }
+            layer.text?.turn(orientation)
         }
         size = newSize
     }
@@ -324,6 +325,7 @@ public final class Canvas {
             layer.passesThrough = record.passesThrough
             layer.mask = record.mask
             layer.maskEnabled = record.maskEnabled
+            layer.text = record.text
             layer.buffer = record.buffer
             return layer
         }
@@ -603,6 +605,7 @@ struct LayerStackState {
         var passesThrough = true
         var mask: Layer?
         var maskEnabled = true
+        var text: TextLayer?
         let buffer: PixelBuffer
 
         /// `layer` as it is now.
@@ -612,6 +615,7 @@ struct LayerStackState {
                       clipsToLayerBelow: layer.clipsToLayerBelow, groupID: layer.groupID, passesThrough: layer.passesThrough, buffer: layer.buffer)
             mask = layer.mask
             maskEnabled = layer.maskEnabled
+            text = layer.text
         }
 
         init(layer: Layer, name: String, isVisible: Bool, opacity: Double, blendMode: BlendMode, isLocked: Bool, locksTransparency: Bool,
@@ -635,7 +639,7 @@ struct LayerStackState {
             name == other.name && isVisible == other.isVisible && opacity == other.opacity && blendMode == other.blendMode
                 && isLocked == other.isLocked && locksTransparency == other.locksTransparency && adjustment == other.adjustment && clipsToLayerBelow == other.clipsToLayerBelow
                 && groupID == other.groupID && passesThrough == other.passesThrough && buffer === other.buffer
-                && mask === other.mask && maskEnabled == other.maskEnabled
+                && mask === other.mask && maskEnabled == other.maskEnabled && text == other.text
         }
     }
 

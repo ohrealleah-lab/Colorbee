@@ -82,6 +82,66 @@ public enum ProjectFile {
         var clipped: Bool?
         /// The group it's in (stage 25); missing at the top.
         var group: UUID?
+        /// A text layer's words and settings (stage 29). Older versions skip it and see the drawn pixels.
+        var text: TextEntry?
+    }
+
+    /// A text layer's `TextLayer`, spelled out so the format doesn't depend on Swift's names.
+    struct TextEntry: Codable {
+        var text: String
+        var x: Double
+        var y: Double
+        var wrapWidth: Double?
+        var minimumHeight: Double
+        var fontFamily: String
+        var fontSize: Double
+        var bold: Bool
+        var italic: Bool
+        var underline: Bool
+        var strikethrough: Bool
+        var alignment: String
+        /// Red, green, blue and alpha.
+        var color: [UInt8]
+        var background: [UInt8]?
+        var quarterTurns: Int?
+        var mirrored: Bool?
+
+        init(_ layer: TextLayer) {
+            let spec = layer.spec
+            text = spec.text
+            x = spec.origin.x
+            y = spec.origin.y
+            wrapWidth = spec.wrapWidth
+            minimumHeight = spec.minimumHeight
+            fontFamily = spec.fontFamily
+            fontSize = spec.fontSize
+            bold = spec.bold
+            italic = spec.italic
+            underline = spec.underline
+            strikethrough = spec.strikethrough
+            alignment = spec.alignment.rawValue
+            color = [spec.color.r, spec.color.g, spec.color.b, spec.color.a]
+            background = spec.background.map { [$0.r, $0.g, $0.b, $0.a] }
+            quarterTurns = layer.quarterTurns == 0 ? nil : layer.quarterTurns
+            mirrored = layer.mirrored ? true : nil
+        }
+
+        /// Nil if it doesn't make sense (a damaged file): the layer is then plain pixels.
+        var textLayer: TextLayer? {
+            func pixel(_ values: [UInt8]) -> Pixel? {
+                values.count == 4 ? Pixel(r: values[0], g: values[1], b: values[2], a: values[3]) : nil
+            }
+            guard let color = pixel(color), fontSize.isFinite, fontSize > 0, x.isFinite, y.isFinite else { return nil }
+            var spec = TextSpec(text: text, origin: Point2D(x: x, y: y), wrapWidth: wrapWidth.flatMap { $0.isFinite && $0 > 0 ? $0 : nil },
+                                fontFamily: fontFamily, fontSize: fontSize, color: color, background: background.flatMap(pixel))
+            spec.minimumHeight = minimumHeight.isFinite ? max(0, minimumHeight) : 0
+            spec.bold = bold
+            spec.italic = italic
+            spec.underline = underline
+            spec.strikethrough = strikethrough
+            spec.alignment = TextAlignment(rawValue: alignment) ?? .left
+            return TextLayer(spec: spec, quarterTurns: quarterTurns ?? 0, mirrored: mirrored ?? false)
+        }
     }
 
     /// An adjustment that reads back as none if it's of a kind this version doesn't know.
@@ -116,6 +176,8 @@ public enum ProjectFile {
             if layer.clipsToLayerBelow { entry.clipped = true }
             if layer.locksTransparency { entry.locksTransparency = true }
             entry.group = layer.groupID?.rawValue
+            // A floating piece stamped into its pixels would no longer match its words.
+            if saved[layer.id] === layer.buffer { entry.text = layer.text.map(TextEntry.init) }
             if layer.isGroup {
                 groups.append(GroupEntry(at: index, layer: entry, passesThrough: layer.passesThrough ? nil : false))
                 continue
@@ -406,6 +468,7 @@ public enum ProjectFile {
         layer.clipsToLayerBelow = entry.clipped == true && group == nil
         layer.groupID = entry.group.map { LayerID(rawValue: $0) }
         layer.passesThrough = group?.passesThrough ?? true
+        layer.text = group == nil && layer.adjustment == nil ? entry.text?.textLayer : nil
         return layer
     }
 

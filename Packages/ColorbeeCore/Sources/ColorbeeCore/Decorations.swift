@@ -144,7 +144,11 @@ public enum Decorations {
             }
             buffers[layer.id] = active
             let moved = selection?.translatedBy(dx: left, dy: top)
+            // The decoration is drawn into the layer's pixels, so a text layer becomes plain pixels.
+            edit.willChangeText(of: layer)
+            layer.text = nil
             canvas.replaceContents(size: size, buffers: buffers)
+            canvas.fitText(.moved(dx: left, dy: top), edit: edit)
             canvas.selection = moved.map(SelectionState.marquee) ?? .none
         }
         return history.commit(edit)

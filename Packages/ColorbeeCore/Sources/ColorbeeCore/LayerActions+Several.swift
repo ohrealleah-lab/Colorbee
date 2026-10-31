@@ -23,6 +23,7 @@ extension LayerActions {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
             }
             holder.buffer = merged
+            holder.text = nil
             holder.name = name
             holder.opacity = 1
             holder.blendMode = .normal

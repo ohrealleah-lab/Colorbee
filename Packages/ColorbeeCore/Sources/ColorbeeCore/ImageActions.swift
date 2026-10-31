@@ -18,6 +18,7 @@ public enum ImageActions {
             buffers[layer.id] = cropped
         }
         canvas.replaceContents(size: target.size, buffers: buffers)
+        canvas.fitText(.moved(dx: -target.minX, dy: -target.minY), edit: edit)
         canvas.selection = .none
         return history.commit(edit)
     }
@@ -59,7 +60,10 @@ public enum ImageActions {
             }
             buffers[layer.id] = result
         }
+        let skewed = settings.horizontalSkew != 0 || settings.verticalSkew != 0
+        let fit = skewed ? nil : TextFit.resized(from: canvas.size, to: settings.resultSize)
         canvas.replaceContents(size: settings.resultSize, buffers: buffers)
+        canvas.fitText(fit, edit: edit)
         canvas.selection = .none
         return history.commit(edit)
     }
@@ -89,6 +93,7 @@ public enum ImageActions {
             buffers[layer.id] = buffer
         }
         canvas.replaceContents(size: size, buffers: buffers)
+        canvas.fitText(.moved(dx: offset.x, dy: offset.y), edit: edit)
         // The selection moves with the picture, losing any part that's cut off.
         let moved = canvas.selection.marquee.map { $0.translatedBy(dx: offset.x, dy: offset.y) }
         let onCanvas = SelectionMask.combine(moved, with: .rectangle(canvas.bounds, clippedTo: canvas.bounds), mode: .intersect)

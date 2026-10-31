@@ -103,6 +103,11 @@ public enum TextRenderer {
         return CTFontCreateWithFontDescriptor(descriptor, spec.fontSize, nil)
     }
 
+    /// Whether Core Text finds the spec's font family, rather than standing another in for it.
+    public static func hasFont(for spec: TextSpec) -> Bool {
+        (CTFontCopyFamilyName(font(for: spec)) as String) == spec.fontFamily
+    }
+
     private static func layoutSize(of spec: TextSpec, colorSpace: CGColorSpace?) -> Size2D {
         let space = colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
         let text = spec.text.isEmpty ? " " : spec.text

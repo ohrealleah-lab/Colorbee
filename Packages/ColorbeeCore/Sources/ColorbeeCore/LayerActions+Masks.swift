@@ -93,6 +93,7 @@ extension LayerActions {
             }
         }
         layer.buffer = baked
+        layer.text = nil
         layer.mask = nil
     }
 

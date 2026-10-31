@@ -57,8 +57,14 @@ public enum LayerActions {
             guard let baseIndex = canvas.clipBaseIndex(forLayerAt: index) else { return false }
             let base = canvas.layers[baseIndex]
             let merged = canvas.layers[(baseIndex + 1)...index].filter(canvas.isShown)
+            // As `Canvas.clipped` draws them: adjustments through their masks, pixel layers blended on where the base has
+            // pixels (stage 28b; review X, findings 1 and 5).
             for clip in merged {
-                base.buffer = Compositing.adjust(base.buffer, by: clip.adjustment!, opacity: clip.opacity, mode: clip.blendMode)
+                if let adjustment = clip.adjustment {
+                    base.buffer = Compositing.adjust(base.buffer, by: adjustment, opacity: clip.opacity, mode: clip.blendMode, mask: clip.activeMask)
+                } else {
+                    base.buffer = Compositing.blendAtop(base.buffer, clip.buffer, opacity: clip.opacity, mode: clip.blendMode, mask: clip.activeMask)
+                }
             }
             base.text = nil
             for clip in merged {
@@ -171,6 +177,23 @@ public enum LayerActions {
             let upper = canvas.layers[index], lower = canvas.layers[index - 1]
             // The lower layer's mask goes into its pixels first, so the merge keeps the look (stage 27).
             bakeMask(of: lower)
+            let clippedUpper = upper.clipsToLayerBelow && canvas.clipBaseIndex(forLayerAt: index) != nil
+            if clippedUpper {
+                // A layer shown only on the layer below (stage 28b) keeps showing only there (review X, finding 3): blended
+                // atop its base, or, onto another layer clipped to the same base, as an ordinary layer.
+                if lower.clipsToLayerBelow {
+                    let loose = upper.copy(buffer: upper.buffer, id: LayerID())
+                    loose.clipsToLayerBelow = false
+                    loose.groupID = nil
+                    lower.buffer = canvas.composite([loose], onto: lower.buffer)
+                } else {
+                    lower.buffer = Compositing.blendAtop(lower.buffer, upper.buffer, opacity: upper.opacity, mode: upper.blendMode, mask: upper.activeMask)
+                }
+                lower.text = nil
+                canvas.removeLayer(at: index)
+                canvas.activeLayerIndex = index - 1
+                return true
+            }
             // Its clipped adjustments are baked in, so the picture keeps its look (Leah, 2026-10-13).
             let clips = canvas.clippedLayers(onLayerAt: index)
             lower.buffer = canvas.composite([upper] + clips.filter(\.isVisible), onto: lower.buffer)

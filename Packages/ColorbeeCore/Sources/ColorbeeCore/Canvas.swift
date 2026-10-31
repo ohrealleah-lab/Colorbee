@@ -634,6 +634,9 @@ struct LayerStackState {
             self.buffer = buffer
         }
 
+        /// The pixels it holds: the layer's, and its mask's.
+        var buffers: [PixelBuffer] { [buffer] + (mask.map { [$0.buffer] } ?? []) }
+
         /// The same settings and pixels as `other`.
         func matches(_ other: Record) -> Bool {
             name == other.name && isVisible == other.isVisible && opacity == other.opacity && blendMode == other.blendMode

@@ -565,6 +565,9 @@ public final class History {
             target.clipsToLayerBelow = record.clipsToLayerBelow
             target.passesThrough = record.passesThrough
             target.text = record.text
+            // Undoing Delete Mask or Apply Mask on one layer brings the mask back (review X, finding 2).
+            target.mask = record.mask
+            target.maskEnabled = record.maskEnabled
             target.buffer = record.buffer
             reversal.layers = current
         } else {
@@ -640,11 +643,12 @@ public final class History {
         var seen = Set<ObjectIdentifier>()
         var buffers: [PixelBuffer] = []
         for entry in entries {
-            for record in entry.layers?.records ?? [] {
-                let id = ObjectIdentifier(record.buffer)
-                guard !inCanvas.contains(id), !isEvicted(record.buffer), evicting[id] == nil, seen.insert(id).inserted,
-                      !record.buffer.isUntouched else { continue }
-                buffers.append(record.buffer)
+            // A layer's mask too: a deleted or applied mask is held only here (review X, finding 11).
+            for buffer in (entry.layers?.records ?? []).flatMap(\.buffers) {
+                let id = ObjectIdentifier(buffer)
+                guard !inCanvas.contains(id), !isEvicted(buffer), evicting[id] == nil, seen.insert(id).inserted,
+                      !buffer.isUntouched else { continue }
+                buffers.append(buffer)
             }
         }
         return buffers
@@ -801,7 +805,7 @@ public final class History {
     /// Brings a spilled entry back into memory. Returns false if its data can't be read.
     private func load(_ entry: HistoryEntry) -> Bool {
         // A layer step and a crop or resize can share a buffer, so either may find it written out.
-        let shared = (entry.layers?.records.map(\.buffer) ?? []) + (entry.geometry?.buffers.map { Array($0.values) } ?? [])
+        let shared = (entry.layers?.records.flatMap(\.buffers) ?? []) + (entry.geometry?.buffers.map { Array($0.values) } ?? [])
         for buffer in shared {
             guard restore(buffer) else { return false }
         }

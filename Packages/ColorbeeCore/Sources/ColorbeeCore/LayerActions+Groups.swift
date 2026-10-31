@@ -74,8 +74,9 @@ extension LayerActions {
             // The group's mask stays a mask, on the layer that takes its place.
             merged.mask = group.mask
             merged.maskEnabled = group.maskEnabled
-            for at in span.reversed() { canvas.removeLayer(at: at) }
+            // In first, so a group holding every layer never leaves the canvas without one (the monkey test, 2026-10-31).
             canvas.insertLayer(merged, at: span.lowerBound)
+            for at in span.reversed() { canvas.removeLayer(at: at + 1) }
             canvas.activeLayerIndex = span.lowerBound
             return true
         }
@@ -118,15 +119,25 @@ extension LayerActions {
         let at = rest.firstIndex { $0 === targetLayer }!
         let parent: LayerID?
         let index: Int
+        // A layer with "Only the layer below" layers on it moves as a set: a drop beside it goes past them, unless what's
+        // moving is itself clipped and means to join them (review X, finding 9).
+        let keepsSets = !moving.allSatisfy { $0.clipsToLayerBelow && !$0.isGroup }
+        func clipped(_ index: Int) -> Bool {
+            rest.indices.contains(index) && rest[index].clipsToLayerBelow && !rest[index].isGroup && rest[index].groupID == targetLayer.groupID
+        }
         switch drop {
         case .above:
             parent = targetLayer.groupID
-            index = at + 1
+            var end = at + 1
+            if keepsSets { while clipped(end) { end += 1 } }
+            index = end
         case .below:
             parent = targetLayer.groupID
             var start = at
             if targetLayer.isGroup {
                 while start > 0, canvas.ancestors(of: rest[start - 1]).contains(where: { $0 === targetLayer }) { start -= 1 }
+            } else if keepsSets {
+                while start > 0, clipped(start) { start -= 1 }
             }
             index = start
         case .into:

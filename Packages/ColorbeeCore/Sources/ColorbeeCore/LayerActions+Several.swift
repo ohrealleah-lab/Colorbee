@@ -56,10 +56,12 @@ extension LayerActions {
     static func mergedIndices(_ ids: Set<LayerID>, in canvas: Canvas) -> [Int] {
         var result = Set<Int>()
         for (index, layer) in canvas.layers.enumerated() where ids.contains(layer.id) && canvas.isShown(layer) && !layer.isGroup {
+            // A layer shown only on the layer below goes with its base, or stays (review X, finding 3).
+            if layer.clipsToLayerBelow, canvas.clipBaseIndex(forLayerAt: index) != nil { continue }
             if layer.isPixelLayer {
                 result.insert(index)
                 result.formUnion(clipIndices(onLayerAt: index, in: canvas).filter { canvas.layers[$0].isVisible })
-            } else if !layer.clipsToLayerBelow {
+            } else {
                 result.insert(index)
             }
         }

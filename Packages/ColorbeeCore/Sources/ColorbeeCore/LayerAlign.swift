@@ -36,6 +36,8 @@ public enum LayerAlign {
     /// What moves as one: a chosen pixel layer, or a chosen group's pixel layers together (stage 26).
     public struct Unit {
         public let layers: [Layer]
+        /// The chosen group they're in, whose mask moves with them (review X, finding 8).
+        public var group: Layer? = nil
 
         /// The box around all their visible pixels.
         public var box: IntRect? {
@@ -51,7 +53,7 @@ public enum LayerAlign {
             ids.contains(layer.id) && (layer.isPixelLayer || layer.isGroup) && !canvas.ancestors(of: layer).contains { ids.contains($0.id) }
         }.map { layer in
             guard layer.isGroup, let index = canvas.layers.firstIndex(where: { $0 === layer }) else { return Unit(layers: [layer]) }
-            return Unit(layers: canvas.layers[canvas.memberRange(ofGroupAt: index)].filter(\.isPixelLayer))
+            return Unit(layers: canvas.layers[canvas.memberRange(ofGroupAt: index)].filter(\.isPixelLayer), group: layer)
         }.filter { !$0.layers.isEmpty }
     }
 
@@ -75,7 +77,7 @@ public enum LayerAlign {
             case .bottom: (dx, dy) = (0, reference.maxY - box.maxY)
             case .middle: (dx, dy) = (0, (reference.minY + reference.maxY - box.minY - box.maxY) / 2)
             }
-            for layer in unit.layers { offsets[layer.id] = IntPoint(x: dx, y: dy) }
+            for layer in unit.layers + [unit.group].compactMap({ $0 }) { offsets[layer.id] = IntPoint(x: dx, y: dy) }
         }
         return offsets
     }
@@ -87,7 +89,7 @@ public enum LayerAlign {
     }
 
     public static func offsets(distributing units: [Unit], _ distribution: LayerDistribution) -> [LayerID: IntPoint] {
-        let boxes = units.compactMap { unit in unit.box.map { (unit.layers, $0) } }
+        let boxes = units.compactMap { unit in unit.box.map { (unit.layers + [unit.group].compactMap { $0 }, $0) } }
         guard boxes.count >= 3 else { return [:] }
         let across = distribution == .horizontally
         let sorted = boxes.sorted { across ? $0.1.minX < $1.1.minX : $0.1.minY < $1.1.minY }
@@ -118,12 +120,30 @@ public enum LayerAlign {
         }
         guard !moving.isEmpty else { return nil }
         _ = LayerActions.change(name, canvas: canvas, history: history, context: context) {
-            for layer in moving {
-                let offset = offsets[layer.id]!
+            func shifted(_ buffer: PixelBuffer, by offset: IntPoint) -> PixelBuffer {
                 let moved = PixelBuffer(width: canvas.size.width, height: canvas.size.height)
                 let kept = canvas.bounds.intersection(canvas.bounds.offsetBy(dx: -offset.x, dy: -offset.y))
-                moved.setPixels(layer.buffer.pixels(in: kept), in: kept.offsetBy(dx: offset.x, dy: offset.y))
-                layer.buffer = moved
+                moved.setPixels(buffer.pixels(in: kept), in: kept.offsetBy(dx: offset.x, dy: offset.y))
+                return moved
+            }
+            for layer in moving {
+                let offset = offsets[layer.id]!
+                if layer.isPixelLayer { layer.buffer = shifted(layer.buffer, by: offset) }
+                // The mask moves with its layer, as in Photoshop (review X, finding 8).
+                if let mask = layer.mask, !mask.buffer.isUntouched {
+                    layer.mask = mask.copy(buffer: shifted(mask.buffer, by: offset))
+                }
+                // A text layer's words move with its pixels, and are drawn again if words past the edge came on
+                // (review X, finding 4; Y, finding 4).
+                if let text = layer.text {
+                    guard text.isUpright else {
+                        layer.text = nil
+                        continue
+                    }
+                    let fitted = text.fitted(scale: 1, dx: Double(offset.x), dy: Double(offset.y))
+                    if fitted.hasFont { layer.buffer = fitted.drawn(size: canvas.size, colorSpace: canvas.colorSpace) }
+                    layer.text = fitted
+                }
             }
             return true
         }

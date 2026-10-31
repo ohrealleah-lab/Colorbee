@@ -78,7 +78,7 @@ public enum ProjectFile {
         var pieces: [Int]?
         /// Lock Transparent Pixels (stage 23); missing means no, so older versions open such a layer unlocked.
         var locksTransparency: Bool?
-        /// An adjustment that changes only the layer below; missing means no.
+        /// An adjustment or pixel layer (stage 28b) that shows only on the layer below; missing means no.
         var clipped: Bool?
         /// The group it's in (stage 25); missing at the top.
         var group: UUID?
@@ -113,7 +113,7 @@ public enum ProjectFile {
                 blendMode: layer.blendMode.rawValue, isLocked: layer.isLocked,
                 adjustment: layer.adjustment.map(AdjustmentEntry.init), pixels: nil
             )
-            if layer.adjustment != nil, layer.clipsToLayerBelow { entry.clipped = true }
+            if layer.clipsToLayerBelow { entry.clipped = true }
             if layer.locksTransparency { entry.locksTransparency = true }
             entry.group = layer.groupID?.rawValue
             if layer.isGroup {
@@ -403,7 +403,7 @@ public enum ProjectFile {
         layer.isLocked = entry.isLocked
         layer.adjustment = group == nil ? entry.adjustment?.effect : nil
         layer.locksTransparency = entry.locksTransparency == true && layer.adjustment == nil
-        layer.clipsToLayerBelow = entry.clipped == true && layer.adjustment != nil
+        layer.clipsToLayerBelow = entry.clipped == true && group == nil
         layer.groupID = entry.group.map { LayerID(rawValue: $0) }
         layer.passesThrough = group?.passesThrough ?? true
         return layer

@@ -161,7 +161,7 @@ struct LayerMaskTests {
         }
     }
 
-    @Test func aClippedPixelLayerShowsOnlyOnTheLayerBelow() {
+    @Test func aClippedPixelLayerShowsOnlyOnTheLayerBelow() throws {
         let (canvas, history) = picture()
         LayerActions.add(canvas: canvas, history: history, context: context)
         canvas.activeLayer.buffer.fill(Pixel(r: 0, g: 0, b: 200), in: canvas.bounds)
@@ -170,6 +170,9 @@ struct LayerMaskTests {
         let flat = canvas.flattened()
         #expect(flat[2, 2] == Pixel(r: 0, g: 0, b: 200) && flat[15, 2] == .white)
         #expect(canvas.thumbnail(maxSide: 20).pixels == flat.pixels(in: canvas.bounds))
+        // A project keeps it (it was lost on saving until 2026-10-31).
+        let reopened = try ProjectFile.decode(try ProjectFile.encode(canvas))
+        #expect(reopened.layers[2].clipsToLayerBelow && reopened.flattened().contentHash() == flat.contentHash())
         // It belongs to the layer: deleting the layer takes it too.
         canvas.activeLayerIndex = 1
         #expect(LayerActions.delete(canvas: canvas, history: history, context: context))

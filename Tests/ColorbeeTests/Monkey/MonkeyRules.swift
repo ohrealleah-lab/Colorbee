@@ -45,7 +45,8 @@ enum MonkeyRules {
     static func state(of layer: Layer, pixels: Bool) -> String {
         var words = "\(layer.name)|\(layer.isVisible)|\(layer.opacity)|\(layer.blendMode.rawValue)|\(layer.isLocked)|\(layer.locksTransparency)"
         words += "|\(layer.clipsToLayerBelow)|\(layer.passesThrough)|\(layer.groupID.map { "\($0.rawValue)" } ?? "-")|\(layer.adjustment.map { "\($0)" } ?? "-")"
-        words += "|\(layer.text.map { "\($0)" } ?? "-")|\(layer.maskEnabled)"
+        // Whether a mask is on means nothing without one, and isn't saved then.
+        words += "|\(layer.text.map { "\($0)" } ?? "-")|\(layer.mask == nil || layer.maskEnabled)"
         if pixels {
             words += "|\(layer.isPixelLayer ? layer.buffer.contentHash() : 0)|\(layer.mask.map { $0.buffer.contentHash() } ?? 0)"
         } else {

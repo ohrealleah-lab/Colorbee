@@ -354,14 +354,7 @@ final class Renderer {
                     if amounts.needsSharpenBlur {
                         blur(source, canvasRect: canvasRect, sigma: Float(amounts.radius * zoom * scale), slot: 3, commandBuffer: commandBuffer)
                     }
-                    let resume = MTLRenderPassDescriptor()
-                    resume.colorAttachments[0].texture = source
-                    resume.colorAttachments[0].loadAction = .load
-                    resume.colorAttachments[0].storeAction = .store
-                    guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume) else { return false }
-                    encoder = resumed
-                    encoder.setScissorRect(canvasScissor)
-                    sampling(zoom < 1)
+                    guard startPass(on: source) else { return false }
                 }
                 let targets = preparedBlurTargets(width: source.width, height: source.height, count: sharpSlot + 1)
                 encoder.setFragmentTexture(lookup, index: 0)
@@ -400,18 +393,11 @@ final class Renderer {
                 let radius = kind == 5 ? Double(params.x) : 1
                 let canvasRect = uniforms.rect
                 blur(target, canvasRect: canvasRect, sigma: Float(radius * zoom * scale), slot: 0, commandBuffer: commandBuffer)
-                let resume = MTLRenderPassDescriptor()
-                resume.colorAttachments[0].texture = target
-                resume.colorAttachments[0].loadAction = .load
-                resume.colorAttachments[0].storeAction = .store
-                guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume), let targets = blurTargets.first else { return false }
-                encoder = resumed
-                encoder.setScissorRect(canvasScissor)
+                guard startPass(on: target), let targets = blurTargets.first else { return false }
                 encoder.setFragmentTexture(targets.blurred, index: 0)
                 encoder.setFragmentTexture(targets.coverageBlurred, index: 1)
                 uniforms.rect = canvasRect
                 draw(adjustBlurPipeline)
-                sampling(zoom < 1)
             } else {
                 draw(adjustPointPipeline)
             }
@@ -422,6 +408,11 @@ final class Renderer {
         /// Ends the current pass and starts one drawing on over `texture`, cleared first if asked.
         func resume(_ texture: MTLTexture, clearing: Bool = false) -> Bool {
             encoder.endEncoding()
+            return startPass(on: texture, clearing: clearing)
+        }
+        /// Starts a pass drawing on over `texture`, cleared first if asked, once the last one has ended. Every pass
+        /// keeps to the canvas and samples as the zoom asks.
+        func startPass(on texture: MTLTexture, clearing: Bool = false) -> Bool {
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = texture
             pass.colorAttachments[0].loadAction = clearing ? .clear : .load
@@ -446,15 +437,7 @@ final class Renderer {
                 guard let blit = commandBuffer.makeBlitCommandEncoder() else { return false }
                 blit.copy(from: target, to: backdrop)
                 blit.endEncoding()
-                let copy = MTLRenderPassDescriptor()
-                copy.colorAttachments[0].texture = target
-                copy.colorAttachments[0].loadAction = .load
-                copy.colorAttachments[0].storeAction = .store
-                guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: copy) else { return false }
-                encoder = resumed
-                encoder.setScissorRect(canvasScissor)
-                sampling(zoom < 1)
-                guard drawNodes(node.children, onto: target, depth: depth + 1) else { return false }
+                guard startPass(on: target), drawNodes(node.children, onto: target, depth: depth + 1) else { return false }
                 uniforms.rect = deviceRect(canvas.bounds)
                 uniforms.opacity = Float(group.opacity)
                 encoder.setFragmentTexture(backdrop, index: 0)
@@ -464,13 +447,18 @@ final class Renderer {
                 return true
             }
             let inside = groupTarget(depth: depth, backdrop: false, width: width, height: height)
-            guard resume(inside, clearing: true), drawNodes(node.children, onto: inside, depth: depth + 1), resume(target) else { return false }
+            guard resume(inside, clearing: true), drawNodes(node.children, onto: inside, depth: depth + 1) else { return false }
+            return blendBack(inside, as: group, onto: target)
+        }
+        /// Blends `picture`, drawn on its own, onto `target` with `layer`'s blend mode, opacity and mask.
+        func blendBack(_ picture: MTLTexture, as layer: Layer, onto target: MTLTexture) -> Bool {
+            guard resume(target) else { return false }
             uniforms.rect = deviceRect(canvas.bounds)
             uniforms.keyEnabled = 0
-            uniforms.blendMode = Float(group.blendMode.rawValue)
-            uniforms.opacity = Float(group.opacity)
-            encoder.setFragmentTexture(inside, index: 0)
-            masking(group.activeMask)
+            uniforms.blendMode = Float(layer.blendMode.rawValue)
+            uniforms.opacity = Float(layer.opacity)
+            encoder.setFragmentTexture(picture, index: 0)
+            masking(layer.activeMask)
             draw(blendIsolatedPipeline)
             masking(nil)
             return true
@@ -512,17 +500,8 @@ final class Renderer {
                     || lockedPatch != nil || lockedOverlay != nil
                 // Made only when needed: it's the size of the window.
                 let isolatedTexture = isolated ? isolatedTarget(depth: depth, width: output.width, height: output.height) : nil
-                if isolated {
-                    encoder.endEncoding()
-                    let isolatedPass = MTLRenderPassDescriptor()
-                    isolatedPass.colorAttachments[0].texture = isolatedTexture
-                    isolatedPass.colorAttachments[0].loadAction = .clear
-                    isolatedPass.colorAttachments[0].storeAction = .store
-                    isolatedPass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
-                    guard let isolatedEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: isolatedPass) else { return false }
-                    encoder = isolatedEncoder
-                    encoder.setScissorRect(canvasScissor)
-                    sampling(zoom < 1)
+                if let isolatedTexture {
+                    guard resume(isolatedTexture, clearing: true) else { return false }
                     uniforms.opacity = 1
                 }
                 uniforms.blendMode = isolated ? 0 : Float(layer.blendMode.rawValue)
@@ -581,15 +560,7 @@ final class Renderer {
                         masking(nil)
                         uniforms.maskParams.y = 0
                     }
-                    guard resume(target) else { return false }
-                    uniforms.rect = deviceRect(canvas.bounds)
-                    uniforms.keyEnabled = 0
-                    uniforms.blendMode = Float(layer.blendMode.rawValue)
-                    uniforms.opacity = Float(layer.opacity)
-                    encoder.setFragmentTexture(isolatedTexture, index: 0)
-                    masking(layer.activeMask)
-                    draw(blendIsolatedPipeline)
-                    masking(nil)
+                    guard let isolatedTexture, blendBack(isolatedTexture, as: layer, onto: target) else { return false }
                 }
             }
             return true

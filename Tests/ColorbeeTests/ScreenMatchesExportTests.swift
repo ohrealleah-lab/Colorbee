@@ -228,6 +228,27 @@ struct ScreenMatchesExportTests {
         Self.expectShowsAsExported(editor.canvas, before: before, looksAtNeighbors: true, "Only the layer below")
     }
 
+    /// The renderer's other passes (review round 11, AC 2): a Pass Through group below 100% (a copy of its backdrop),
+    /// a masked pixel layer (drawn on its own and blended back), and a Gaussian Blur layer (blurred on the GPU).
+    @Test func groupsMasksAndBlursShowAsTheyExport() {
+        let editor = Self.picture()
+        editor.addLayer()
+        let patch = editor.canvas.activeLayer.buffer
+        for y in 4..<40 { for x in 8..<64 { patch.row(y)[x] = Pixel(r: 40, g: UInt8(x * 3), b: UInt8(220 - y * 3)) } }
+        editor.selectTool(.rectangleSelect)
+        editor.selectionDrag(from: pt(20, 10), to: pt(50, 30))
+        editor.addMask()
+        editor.deselect()
+        let before = editor.canvas.flattened()
+        editor.addAdjustmentLayer(.gaussianBlur(radius: 2), named: "Blur")
+        editor.chooseLayer(at: editor.canvas.activeLayerIndex - 1, extending: true, toggling: false)
+        editor.groupLayers()
+        #expect(editor.canvas.activeLayer.isGroup && editor.canvas.activeLayer.passesThrough)
+        editor.previewOpacity(0.6)
+        editor.finishLayerSettings()
+        Self.expectShowsAsExported(editor.canvas, before: before, looksAtNeighbors: true, "Pass Through at 60%, masked layer, blur")
+    }
+
     /// In a group of its own (stage 25) it changes only the group's layers, drawn into a picture of their own.
     @Test func insideAGroupItShowsAsItExports() {
         let editor = Self.picture()

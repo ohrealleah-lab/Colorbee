@@ -14,7 +14,6 @@ _Last updated: 2026-10-31 · 799 core tests and 284 app tests passing (stage 31 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
-- [Stage 33: Review round 10 fixes](#test-stage-33-review-round-10-fixes) (2026-10-31)
 
 ---
 
@@ -92,7 +91,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 30. Re-editable text 2: when text becomes pixels | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 31. Stroke smoothing | ✅ Done; passed Leah's test 2026-10-31 ("feels great") | High |
 | 14 · 32. Overnight monkey test | Built 2026-10-31; waiting for Leah's first overnight run | High |
-| 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done and fixed ([Review/RESULTS.md](Review/RESULTS.md)); waiting for Leah's test | High |
+| 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done, fixed, and passed Leah's test 2026-10-31 ([Review/RESULTS.md](Review/RESULTS.md)); the stricter monkey's new reports are being sorted | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -371,6 +370,8 @@ Logs in `build/soak-results*.txt` (not committed).
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
 ### Test: Stage 33: Review round 10 fixes
+
+**Passed Leah's hand test on 2026-10-31.**
 
 Close each picture with **Don't Save** unless a step says otherwise. ⌘L shows the Layers panel.
 

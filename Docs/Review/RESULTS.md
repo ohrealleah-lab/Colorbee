@@ -459,7 +459,7 @@ check it, but they weren't each re-run against the old code; the ones marked "by
 | 6 | Low | Copy Color as Hex chosen with the mouse always beeped | **Fixed.** Greyed out unless the pointer is on the picture; ⌃⌘C works. By hand. |
 | 7 | Low | Opening Perspective Correction flattened the picture on the main thread | **Fixed.** Flattened from a copy in the background, as Auto-Redact does. Covered by the corner-search test. |
 
-# Code review round 10 ([PLAN-11.md](PLAN-11.md)), stage 33, 2026-10-31 (waiting for Leah's test)
+# Code review round 10 ([PLAN-11.md](PLAN-11.md)), stage 33, 2026-10-31 (passed Leah's test 2026-10-31)
 
 All fixed (Leah, all recommended). The monkey test's first trial and its second, stricter run found two more, also fixed.
 

@@ -388,6 +388,9 @@ final class CanvasView: NSView {
             view.editingLayer = pending.layerID
             view.string = pending.string
             appliedTextStyle = nil
+            // The double-click's second click gave the keyboard to the canvas; typing goes to the box, after the words.
+            window?.makeFirstResponder(view)
+            view.setSelectedRange(NSRange(location: (view.string as NSString).length, length: 0))
         }
         var style = editor.textSpec(for: pending)
         style.text = ""

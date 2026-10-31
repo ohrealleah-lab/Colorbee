@@ -8,7 +8,7 @@ BENCH   := $(DERIVED)/Build/Products/Release/Colorbee.app/Contents/MacOS/Colorbe
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 FORGET_DEBUG := status=$$?; $(LSREGISTER) -u "$(CURDIR)/$(APP)" 2>/dev/null; exit $$status
 
-.PHONY: gen build test core app-test coverage perf run bench beta help help-index help-shots open clean
+.PHONY: monkey gen build test core app-test coverage perf run bench beta help help-index help-shots open clean
 
 gen:
 	xcodegen generate --quiet
@@ -29,6 +29,22 @@ app-test: gen
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug \
 		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -parallel-testing-enabled NO -quiet test; \
 	$(FORGET_DEBUG)
+
+# The overnight monkey test (stage 32): random edits to small pictures, checking the rules after each, for 8 hours or
+# MINUTES. The report goes to build/Monkey. Debug, so Swift's own safety checks stay on. caffeinate keeps the Mac from
+# sleeping until it's done. SEED=n EPISODES=1 replays one episode from a report or a crash.
+MINUTES ?= 480
+monkey: gen
+	@mkdir -p $(DERIVED)/Monkey
+	TEST_RUNNER_COLORBEE_MONKEY_MINUTES=$(MINUTES) TEST_RUNNER_COLORBEE_MONKEY_REPORT="$(CURDIR)/$(DERIVED)/Monkey" \
+	$(if $(SEED),TEST_RUNNER_COLORBEE_MONKEY_SEED=$(SEED)) $(if $(EPISODES),TEST_RUNNER_COLORBEE_MONKEY_EPISODES=$(EPISODES)) \
+	caffeinate -i xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug \
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -parallel-testing-enabled NO -quiet test \
+		'-only-testing:ColorbeeTests/MonkeyTests/overnight()'; \
+	status=$$?; $(LSREGISTER) -u "$(CURDIR)/$(APP)" 2>/dev/null; \
+	echo "Report: $$(ls -t $(DERIVED)/Monkey/Monkey\ Report*.md 2>/dev/null | head -1)"; \
+	if [ -f "$(DERIVED)/Monkey/Monkey In Progress.txt" ]; then echo "It stopped early:"; cat "$(DERIVED)/Monkey/Monkey In Progress.txt"; fi; \
+	exit $$status
 
 # Line coverage of the core and the app (the app tests run with coverage on). Separate from `make test`: slower.
 COVERAGE := $(DERIVED)/Coverage.xcresult

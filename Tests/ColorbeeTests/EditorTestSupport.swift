@@ -9,7 +9,12 @@ let paper = Pixel(r: 200, g: 200, b: 200, a: 255)
 /// A small canvas: Debug pixel loops are slow, and every behavior here shows at this size.
 @MainActor
 func makeEditor(width: Int = 64, height: Int = 64, background: Pixel = paper) -> Editor {
-    Editor(canvas: Canvas(size: IntSize(width: width, height: height), colorSpace: Canvas.defaultColorSpace, background: background))
+    let editor = Editor(canvas: Canvas(size: IntSize(width: width, height: height), colorSpace: Canvas.defaultColorSpace, background: background))
+    // Leah's own Smoothing and Editable settings are shared with the tests; every test starts from the defaults, set
+    // here without saving.
+    editor.smoothing = 0
+    editor.textIsEditable = false
+    return editor
 }
 
 func pt(_ x: Double, _ y: Double) -> Point2D {

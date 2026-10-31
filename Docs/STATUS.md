@@ -13,7 +13,7 @@ _Last updated: 2026-10-31 · 799 core tests and 284 app tests passing (stage 31 
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
 
 ---
 
@@ -90,8 +90,8 @@ Nothing waiting right now.
 | 14 · 29. Re-editable text 1: text layers | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 30. Re-editable text 2: when text becomes pixels | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 31. Stroke smoothing | ✅ Done; passed Leah's test 2026-10-31 ("feels great") | High |
-| 14 · 32. Overnight monkey test | Not started | High |
-| 14 · 33. Code reviews (Leah, 2026-10-31) | Not started | High |
+| 14 · 32. Overnight monkey test | Built 2026-10-31; waiting for Leah's first overnight run | High |
+| 14 · 33. Code reviews (Leah, 2026-10-31) | Plan written ([Review/PLAN-11.md](Review/PLAN-11.md)); waiting for the four review sessions | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -182,6 +182,13 @@ Nothing waiting right now.
   what's below (faded from a copy of the backdrop below 100%) and other groups on their own, one texture per depth.
   Projects keep groups in `Manifest.groups`, which beta 7 skips. Commands in `LayerActions+Groups.swift`; the panel
   indents, folds (`Editor.foldedGroups`) and drops with `LayerDrop`.
+- Stage 32 (2026-10-31): the overnight monkey test, `Tests/ColorbeeTests/Monkey`. It drives the real `Editor` inside
+  the hosted test app, on small pictures: `MonkeyGenerator` picks steps (`MonkeyStep`, data, so they replay exactly),
+  `MonkeyRules` checks the document after each and saving at the end, and `UndoTracker` checks that every undo and redo
+  gives back the exact picture recorded for that point in history and that no picture change bypasses history.
+  Failures are grouped by rule and step kind and shrunk by removing steps one at a time. `aShortRunBreaksNoRules` runs
+  four short episodes in every `make test`. Nothing that saves preferences, uses the clipboard or runs in the background
+  is included.
 - Stages 29 and 30 (2026-10-31): text layers. `Layer.text` (`TextLayer`: a `TextSpec` laid out upright, plus quarter
   turns and a mirror from Rotate and Flip) holds the words; the layer's pixels are always that text drawn. Any pixel
   change (`Edit.willModify`) makes it plain pixels first and history puts the text back on undo (`HistoryEntry.texts`),
@@ -361,6 +368,17 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 32: Overnight monkey test
+
+No hand testing: it runs on its own while you sleep. Leave Colorbee closed, so nothing else competes.
+
+1. At bedtime, run `make monkey` in Terminal. It keeps the Mac awake for 8 hours, then stops by itself.
+   (For a shorter try: `MINUTES=30 make monkey`.)
+2. In the morning, the last line Terminal shows is where the report is (in `build/Monkey`). Open it.
+   - It says how many small pictures and steps it ran, and either "No rule was broken" or each problem as numbered
+     steps.
+3. Tell me it's there. I'll read it, turn each problem into a test, and ask you before fixing anything.
 
 ### Test: Stage 31: Stroke smoothing
 

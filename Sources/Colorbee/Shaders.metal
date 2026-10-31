@@ -244,6 +244,16 @@ fragment float4 blend_isolated_fragment(QuadOut in [[stage_in]],
     return blendOnto(backdrop, premultiplied.rgb / premultiplied.a, premultiplied.a * u.opacity, int(u.blendMode + 0.5));
 }
 
+// A Pass Through group below 100% (stage 25): what its layers drew, faded in by its opacity over a copy of what was
+// there before them, as Canvas.composite mixes them.
+fragment float4 fade_backdrop_fragment(QuadOut in [[stage_in]],
+                                       texture2d<float> before [[texture(0)]],
+                                       constant QuadUniforms &u [[buffer(0)]],
+                                       float4 backdrop [[color(0)]]) {
+    float4 earlier = before.read(uint2(in.position.xy));
+    return earlier + (backdrop - earlier) * u.opacity;
+}
+
 // The composited layers, already premultiplied, drawn 1:1 over the checkerboard.
 fragment float4 composite_fragment(QuadOut in [[stage_in]],
                                    texture2d<float> layers [[texture(0)]],

@@ -17,14 +17,14 @@ final class PageBaseline {
     /// From compressed bytes (a parked page's, or a page as it was saved), described by `page` as it is then.
     init(data: Data, describing canvas: Canvas) {
         self.data = data
-        layerIDs = Set(canvas.layers.filter { $0.adjustment == nil }.map(\.id))
+        layerIDs = Set(canvas.layers.filter(\.isPixelLayer).map(\.id))
         size = canvas.size
     }
 
     /// From a canvas nothing else changes (a copy).
     init(canvas: Canvas) {
         self.canvas = canvas
-        layerIDs = Set(canvas.layers.filter { $0.adjustment == nil }.map(\.id))
+        layerIDs = Set(canvas.layers.filter(\.isPixelLayer).map(\.id))
         size = canvas.size
     }
 
@@ -49,7 +49,7 @@ final class PageBaseline {
 
     /// One pixel layer's pixels, for Revert Layer.
     func layer(_ id: LayerID) -> PixelBuffer? {
-        decoded?.layers.first { $0.id == id && $0.adjustment == nil }?.buffer
+        decoded?.layers.first { $0.id == id && $0.isPixelLayer }?.buffer
     }
 
     /// Back to compressed form, for when the page is hidden.

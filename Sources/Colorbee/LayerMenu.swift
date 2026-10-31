@@ -25,6 +25,10 @@ enum LayerMenu {
         menu.addItem(ClosureMenuItem("Duplicate \(layers)") { editor.duplicateLayer() })
         menu.addItem(ClosureMenuItem("Delete \(layers)", enabled: editor.canDeleteLayers) { editor.deleteLayer() })
         menu.addItem(.separator())
+        // Approved for stage 26: grouping right where the layers are chosen.
+        menu.addItem(ClosureMenuItem(editor.hasSeveralChosenLayers ? "Group Chosen Layers" : "Group Layer", enabled: editor.canGroupLayers) { editor.groupLayers() })
+        if active.isGroup { menu.addItem(ClosureMenuItem("Ungroup", enabled: editor.canUngroupLayers) { editor.ungroupLayers() }) }
+        menu.addItem(.separator())
         menu.addItem(ClosureMenuItem((active.isVisible ? "Hide " : "Show ") + layers) { editor.toggleChosenLayersVisible() })
         menu.addItem(ClosureMenuItem((active.isLocked ? "Unlock " : "Lock ") + layers) { editor.toggleChosenLayersLocked() })
         menu.addItem(.separator())

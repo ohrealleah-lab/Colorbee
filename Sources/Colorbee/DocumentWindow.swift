@@ -92,9 +92,9 @@ final class DocumentWindow: NSWindow {
     /// Copies the selection, or the whole image when nothing is selected (FR-10.3).
     @objc func copy(_ sender: Any?) {
         guard let editor else { return }
-        // An adjustment layer has no pixels of its own, so copying it alone pasted as nothing. It copies what you see
-        // instead, like Copy Merged (Leah, 2026-10-09).
-        let isAdjustment = editor.canvas.activeLayer.adjustment != nil
+        // An adjustment layer (or a group) has no pixels of its own, so copying it alone pasted as nothing. It copies
+        // what you see instead, like Copy Merged (Leah, 2026-10-09).
+        let isAdjustment = !editor.canvas.activeLayer.isPixelLayer
         copyToClipboard(selected: isAdjustment ? editor.selectedMergedPixels() : editor.selectedPixels(), merged: isAdjustment, editor: editor)
     }
 
@@ -271,10 +271,12 @@ final class DocumentWindow: NSWindow {
     @objc func distributeHorizontally(_ sender: Any?) { editor?.distributeChosenLayers(.horizontally) }
     @objc func distributeVertically(_ sender: Any?) { editor?.distributeChosenLayers(.vertically) }
     @objc func selectAllLayers(_ sender: Any?) { editor?.selectAllLayers() }
+    @objc func groupLayers(_ sender: Any?) { editor?.groupLayers() }
+    @objc func ungroupLayers(_ sender: Any?) { editor?.ungroupLayers() }
     /// With hidden layers, asks first: flattening keeps only what's visible (Leah, 2026-10-04).
     @objc func flattenImage(_ sender: Any?) {
         guard let editor else { return }
-        let hidden = editor.canvas.layers.filter { !$0.isVisible }.count
+        let hidden = editor.canvas.layers.filter { !editor.canvas.isShown($0) }.count
         guard hidden > 0 else { return editor.flatten() }
         let alert = NSAlert()
         alert.messageText = "Discard hidden layers?"
@@ -437,7 +439,7 @@ final class DocumentWindow: NSWindow {
             return !editor.isFindingEyes && editor.activeLayerTakesEdits
         case #selector(selectSubject(_:)), #selector(removeBackground(_:)), #selector(liftSubject(_:)):
             // One search at a time, and an adjustment layer has no picture to search (review D, finding 6).
-            return !editor.isFindingSubject && editor.canvas.activeLayer.adjustment == nil
+            return !editor.isFindingSubject && editor.canvas.activeLayer.isPixelLayer
         case #selector(undo(_:)) where textUndoManager != nil:
             menuItem.title = textUndoManager!.undoMenuItemTitle
             return textUndoManager!.canUndo
@@ -523,9 +525,13 @@ final class DocumentWindow: NSWindow {
         case #selector(distributeHorizontally(_:)), #selector(distributeVertically(_:)):
             return editor.canDistributeChosenLayers
         case #selector(stampVisible(_:)):
-            return editor.canvas.layers.contains(where: \.isVisible)
+            return editor.canvas.layers.contains(where: editor.canvas.isShown)
         case #selector(selectAllLayers(_:)):
             return editor.canvas.layers.count > 1
+        case #selector(groupLayers(_:)):
+            return editor.canGroupLayers
+        case #selector(ungroupLayers(_:)):
+            return editor.canUngroupLayers
         case #selector(flattenImage(_:)):
             return LayerActions.canFlatten(editor.canvas)
         case #selector(deletePage(_:)):

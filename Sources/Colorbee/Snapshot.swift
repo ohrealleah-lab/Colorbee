@@ -30,6 +30,18 @@ enum Snapshot {
             editor.showsClipboardPanel = true
             editor.showsRulers = true
         }
+        // `-ColorbeeSnapshotGroups YES` (with an open project of several layers) groups the two lowest layers above the
+        // bottom one, nests the next one with them, and folds nothing, to check the Layers panel's groups (stage 25).
+        if defaults.bool(forKey: "ColorbeeSnapshotGroups"), editor.canvas.layers.count >= 4 {
+            editor.chooseLayer(at: 1, extending: false, toggling: false)
+            editor.chooseLayer(at: 2, extending: false, toggling: true)
+            editor.groupLayers()
+            editor.chooseLayer(at: 3, extending: false, toggling: false)
+            editor.chooseLayer(at: 4, extending: false, toggling: true)
+            editor.groupLayers()
+            editor.setBlendMode(.multiply)
+            editor.showsAdjustmentsPanel = false
+        }
         // `-ColorbeeSnapshotInfo YES` shows the Info panel on its own.
         if defaults.bool(forKey: "ColorbeeSnapshotInfo") {
             editor.showsLayersPanel = false

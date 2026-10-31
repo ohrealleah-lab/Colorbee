@@ -387,7 +387,7 @@ private struct EffectBar: View {
                 Toggle(isOn: Binding(get: { editor.rangeSamplesAllLayers }, set: { editor.rangeSamplesAllLayers = $0 })) {
                     Text("Sample All Layers").fixedSize()
                 }
-                    .disabled(editor.canvas.activeLayer.adjustment != nil)
+                    .disabled(!editor.canvas.activeLayer.isPixelLayer)
                     .help("Read every visible layer together, as the Magic Wand's Sample All Layers does")
                     .fixedSize()
             }

@@ -985,7 +985,7 @@ final class Editor {
     var canRevertLayer: Bool {
         let layer = canvas.activeLayer
         // After a flip or rotation since the save, the saved pixels would come back unturned (review G, finding 4).
-        return layer.adjustment == nil && !layer.isLocked && canvas.size == saved.size && history.geometrySteps == savedGeometrySteps
+        return layer.isPixelLayer && !canvas.isLocked(layer) && canvas.size == saved.size && history.geometrySteps == savedGeometrySteps
             && saved.layerIDs.contains(layer.id)
     }
 
@@ -2662,7 +2662,7 @@ final class Editor {
     /// Whether the range reads everything shown. An adjustment layer has no pixels of its own to read, so on one it
     /// always does (my choice, §23).
     var rangeSamplesAllLayers: Bool {
-        get { wandSamplesAllLayers || canvas.activeLayer.adjustment != nil }
+        get { wandSamplesAllLayers || !canvas.activeLayer.isPixelLayer }
         set {
             wandSamplesAllLayers = newValue
             guard activeEffect?.choosesSelection == true else { return }
@@ -3344,7 +3344,7 @@ final class Editor {
         finishInteractions()
         placeFloatingKeepingOutline()
         let layer = canvas.activeLayer
-        guard layer.adjustment == nil, let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
+        guard layer.isPixelLayer, let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
         let revision = history.revision
         isFindingSubject = true
         Task { @MainActor [weak self] in
@@ -3962,7 +3962,7 @@ final class Editor {
     /// Save Filter from Layers: the visible adjustment layers, bottom to top, each with what a filter may hold.
     /// False when there are none to save.
     func saveFilterFromLayers(named name: String) -> Bool {
-        guard let filter = PhotoFilter.fromLayers(canvas.layers, name: name) else { return false }
+        guard let filter = PhotoFilter.fromLayers(canvas.shownLayers, name: name) else { return false }
         FilterStore.shared.add(filter)
         return true
     }
@@ -4315,10 +4315,11 @@ final class Editor {
         return canvas.activeLayerIndex
     }
 
-    /// Whether the active layer refuses pixel changes: it's locked, or it's an adjustment layer with no pixels.
+    /// Whether the active layer refuses pixel changes: it's locked (or its group is), or it's an adjustment layer or a
+    /// group, with no pixels.
     var activeLayerIsLocked: Bool {
         _ = layersRevision
-        return canvas.activeLayer.isLocked || canvas.activeLayer.adjustment != nil
+        return canvas.isLocked(canvas.activeLayer) || !canvas.activeLayer.isPixelLayer
     }
 
     /// Makes another layer active, and the only one chosen. Moved pixels are placed on their own layer first; the
@@ -4396,7 +4397,10 @@ final class Editor {
     }
 
     /// With several layers chosen, Merge Down is Merge Layers.
-    var mergeCommandTitle: String { hasSeveralChosenLayers ? "Merge Layers" : "Merge Down" }
+    var mergeCommandTitle: String {
+        _ = layersRevision
+        return hasSeveralChosenLayers ? "Merge Layers" : canvas.activeLayer.isGroup ? "Merge Group" : "Merge Down"
+    }
 
     var canMerge: Bool {
         hasSeveralChosenLayers ? LayerActions.canMergeLayers(chosenLayerIDs, in: canvas) : LayerActions.canMergeDown(canvas)
@@ -4432,7 +4436,7 @@ final class Editor {
 
     /// A settings change on every chosen layer as one step. Locked layers keep their opacity and blend mode.
     private func chosenLayerSetting(_ name: String, includingLocked: Bool = false, _ body: (Layer) -> Void) {
-        let ids = Set(canvas.layers.filter { chosenLayerIDs.contains($0.id) && (includingLocked || !$0.isLocked) }.map(\.id))
+        let ids = Set(canvas.layers.filter { chosenLayerIDs.contains($0.id) && (includingLocked || !canvas.isLocked($0)) }.map(\.id))
         finishInteractions()
         recordingChanges { LayerActions.update(name, layersWithIDs: ids, canvas: canvas, history: history, body) }
         layersRevision += 1
@@ -4471,6 +4475,42 @@ final class Editor {
             several ? LayerActions.mergeLayers(ids, canvas: canvas, history: history, context: selectionContext)
                 : LayerActions.mergeDown(canvas: canvas, history: history, context: selectionContext)
         }
+    }
+
+    // MARK: Layer groups (stages 25 and 26)
+
+    /// Layer ▸ Group (⌘G): the chosen layers into a new group, which becomes active.
+    func groupLayers() {
+        let ids = chosenLayerIDs
+        layerCommand { LayerActions.group(ids, canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    /// Layer ▸ Ungroup (⇧⌘G).
+    func ungroupLayers() {
+        layerCommand { LayerActions.ungroup(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    var canGroupLayers: Bool {
+        _ = layersRevision
+        return LayerActions.canGroup(chosenLayerIDs, in: canvas)
+    }
+
+    var canUngroupLayers: Bool {
+        _ = layersRevision
+        return LayerActions.canUngroup(canvas)
+    }
+
+    /// Moves the layer `id`, with the other chosen layers if it's one of them, to `drop` (stage 26).
+    func moveLayer(_ id: LayerID, to drop: LayerDrop) {
+        let ids: Set<LayerID> = chosenLayerIDs.count > 1 && chosenLayerIDs.contains(id) ? chosenLayerIDs : [id]
+        layerCommand(keepingChoice: true) { LayerActions.moveLayers(ids, to: drop, canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    /// Groups folded shut in the Layers panel. Only a view: not saved, and not an undo step.
+    var foldedGroups: Set<LayerID> = []
+
+    func toggleFold(_ group: LayerID) {
+        if foldedGroups.contains(group) { foldedGroups.remove(group) } else { foldedGroups.insert(group) }
     }
 
     func mergeVisible() {
@@ -4560,7 +4600,11 @@ final class Editor {
             self.isolation = nil
             recordingChanges { LayerActions.setVisibility(restored, named: "Show Layers", canvas: canvas, history: history) }
         } else {
-            let alone = now.mapValues { _ in false }.merging([layer.id: true]) { $1 }
+            // Its groups show too, or it couldn't; inside a group, its own layers keep theirs (stage 25).
+            let inside = layer.isGroup ? canvas.layers[canvas.memberRange(ofGroupAt: index)].map(\.id) : []
+            let alone = now.mapValues { _ in false }
+                .merging(Dictionary(uniqueKeysWithValues: ([layer] + canvas.ancestors(of: layer)).map { ($0.id, true) })) { $1 }
+                .merging(Dictionary(uniqueKeysWithValues: inside.map { ($0, now[$0] ?? true) })) { $1 }
             // Already showing alone, with nothing to go back to: everything shows, as in Photoshop.
             if now == alone {
                 isolation = nil
@@ -4609,8 +4653,19 @@ final class Editor {
     }
 
     /// On every chosen layer (FR-8.6).
+    /// On a group, a blend mode means it's no longer Pass Through (Q25.2).
     func setBlendMode(_ mode: BlendMode) {
-        chosenLayerSetting("Blend Mode") { $0.blendMode = mode }
+        chosenLayerSetting("Blend Mode") { layer in
+            layer.blendMode = mode
+            if layer.isGroup { layer.passesThrough = false }
+        }
+    }
+
+    /// A group's Pass Through (Q25.2): its layers blend with everything below.
+    func setPassesThrough() {
+        chosenLayerSetting("Blend Mode") { layer in
+            if layer.isGroup { layer.passesThrough = true }
+        }
     }
 
     /// Opacity while its slider is dragged, on every chosen layer: shown live, recorded as one step by
@@ -4644,7 +4699,7 @@ final class Editor {
         }
         if onChosen {
             let ids = chosenLayerIDs
-            canvas.layers.filter { ids.contains($0.id) && ($0 === canvas.activeLayer || !$0.isLocked) }.forEach(change)
+            canvas.layers.filter { ids.contains($0.id) && ($0 === canvas.activeLayer || !canvas.isLocked($0)) }.forEach(change)
         } else {
             change(canvas.activeLayer)
         }
@@ -4684,6 +4739,8 @@ final class Editor {
             hasher.combine(layer.opacity)
             hasher.combine(layer.blendMode)
             hasher.combine(layer.adjustment)
+            hasher.combine(layer.groupID?.rawValue)
+            hasher.combine(layer.passesThrough)
         }
         return hasher.finalize()
     }
@@ -4730,12 +4787,12 @@ final class Editor {
     }
 
     /// Whether pixel-changing commands work on the active layer (see `refusedBecauseLocked`).
-    var activeLayerTakesEdits: Bool { !canvas.activeLayer.isLocked && canvas.activeLayer.adjustment == nil }
+    var activeLayerTakesEdits: Bool { !canvas.isLocked(canvas.activeLayer) && canvas.activeLayer.isPixelLayer }
 
     /// Pixel-changing commands call this first. A locked layer refuses them (FR-8.2), and so does an
     /// adjustment layer, which has no pixels to change.
     private func refusedBecauseLocked() -> Bool {
-        guard canvas.activeLayer.isLocked || canvas.activeLayer.adjustment != nil else { return false }
+        guard canvas.isLocked(canvas.activeLayer) || !canvas.activeLayer.isPixelLayer else { return false }
         onRefused()
         return true
     }
@@ -5098,7 +5155,7 @@ final class Editor {
     /// The first locked layer with pixels under `matches` on `page`. A parked page with no locked layer at all
     /// isn't brought back to look.
     private func lockedLayer(under matches: [RedactionMatch], on page: Page) throws -> Layer? {
-        guard page.canvas.layers.contains(where: { $0.isLocked && $0.adjustment == nil }) else { return nil }
+        guard page.canvas.layers.contains(where: { page.canvas.isLocked($0) && $0.isPixelLayer }) else { return nil }
         guard page.isParked else { return AutoRedact.lockedLayer(under: matches, canvas: page.canvas) }
         try page.unpark()
         defer { try? page.park() }
@@ -5262,7 +5319,7 @@ final class Editor {
     /// More than one layer, or an adjustment layer: something only a project file can keep.
     /// More than one layer, an adjustment layer, or more than one page: something only a project file can keep.
     var isLayered: Bool {
-        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains { $0.adjustment != nil }
+        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains { !$0.isPixelLayer }
     }
 
     /// An effect's live preview is drawn into the layer before it's applied; an autosave in the

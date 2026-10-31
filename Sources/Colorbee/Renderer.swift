@@ -85,6 +85,7 @@ final class Renderer {
     /// Composites one layer onto the layers below it with its blend mode, reading them in the shader.
     private let blendLayerPipeline: MTLRenderPipelineState
     private let blendIsolatedPipeline: MTLRenderPipelineState
+    private let fadeBackdropPipeline: MTLRenderPipelineState
     /// Draws the composited layers over the checkerboard.
     private let compositePipeline: MTLRenderPipelineState
     private let adjustPointPipeline: MTLRenderPipelineState
@@ -105,7 +106,10 @@ final class Renderer {
     /// below and never the checkerboard. Half floats keep a deep stack from losing precision.
     private var layerTarget: MTLTexture?
     /// One layer with its unplaced objects drawn in, before it's blended.
-    private var isolatedTarget: MTLTexture?
+    /// One picture per level of groups for a layer drawn on its own (stage 25), and per level a group's own picture and
+    /// a copy of its backdrop.
+    private var isolatedTargets: [Int: MTLTexture] = [:]
+    private var groupTargets: [Int: MTLTexture] = [:]
     private static let layerTargetFormat = MTLPixelFormat.rgba16Float
     private let nearestSampler: MTLSamplerState
     private let linearSampler: MTLSamplerState
@@ -160,6 +164,7 @@ final class Renderer {
         discPipeline = pipeline(fragment: "disc_fragment")
         blendLayerPipeline = pipeline(fragment: "blend_layer_fragment", blended: false, format: Self.layerTargetFormat)
         blendIsolatedPipeline = pipeline(fragment: "blend_isolated_fragment", blended: false, format: Self.layerTargetFormat)
+        fadeBackdropPipeline = pipeline(fragment: "fade_backdrop_fragment", blended: false, format: Self.layerTargetFormat)
         compositePipeline = pipeline(fragment: "composite_fragment")
         adjustPointPipeline = pipeline(fragment: "adjust_point_fragment", blended: false, format: Self.layerTargetFormat)
         adjustBlurPipeline = pipeline(fragment: "adjust_blur_fragment", blended: false, format: Self.layerTargetFormat)
@@ -357,100 +362,158 @@ final class Renderer {
             return true
         }
 
-        for (index, layer) in canvas.layers.enumerated() where layer.isVisible && layer.opacity > 0 {
-            // A clipped adjustment is drawn with the layer it changes, or not at all when there's none.
-            if layer.adjustment != nil, layer.clipsToLayerBelow { continue }
-            uniforms.opacity = Float(layer.opacity)
-            uniforms.rect = deviceRect(canvas.bounds)
-            uniforms.keyEnabled = 0
-            if let adjustment = layer.adjustment {
-                guard drawAdjustment(layer, adjustment, onto: layerPass.colorAttachments[0].texture!) else { return }
-                continue
-            }
-            let overlay = layer.id == canvas.activeLayer.id ? scene.overlay : nil
-            let hasFloating = floating?.layerID == layer.id
-            // On a layer that locks its transparency it shows clipped to the layer's shape, as placing will leave it.
-            let lockedPatch = hasFloating && layer.locksTransparency
-                ? floating?.placedPatch(on: layer, resampling: scene.smoothFloating ? .smooth : .nearestNeighbor, transparentKey: scene.transparentKey)
-                : nil
-            // A shape or text not yet placed likewise shows only where the lock will keep it.
-            let lockedOverlay = layer.locksTransparency ? overlay.flatMap { Compositing.lockedPatch(of: layer, under: $0.pixels, at: $0.origin) } : nil
-            // Objects not yet placed go into their layer before it's blended, so on a layer that isn't Normal
-            // at 100% they look as they will once placed (Leah; review F, finding 1).
-            // Its clipped adjustments change it alone, so it's drawn on its own first, then blended in.
-            let clips = canvas.clippedAdjustments(onLayerAt: index).filter { $0.isVisible && $0.opacity > 0 }
-            let isolated = ((hasFloating || overlay != nil) && (layer.blendMode != .normal || layer.opacity < 1)) || !clips.isEmpty
-                || lockedPatch != nil || lockedOverlay != nil
-            if isolated {
+        /// Ends the current pass and starts one drawing on over `texture`, cleared first if asked.
+        func resume(_ texture: MTLTexture, clearing: Bool = false) -> Bool {
+            encoder.endEncoding()
+            let pass = MTLRenderPassDescriptor()
+            pass.colorAttachments[0].texture = texture
+            pass.colorAttachments[0].loadAction = clearing ? .clear : .load
+            pass.colorAttachments[0].storeAction = .store
+            pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+            guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return false }
+            encoder = resumed
+            encoder.setScissorRect(canvasScissor)
+            sampling(zoom < 1)
+            return true
+        }
+        /// A group (stage 25): Pass Through draws its layers straight onto what's below, faded in by its opacity from a
+        /// copy of the backdrop; any other draws them into a picture of their own, then blends that in, as
+        /// `Canvas.composite` does. Each level of groups has its own pictures.
+        func drawGroup(_ node: LayerNode, onto target: MTLTexture, depth: Int) -> Bool {
+            let group = node.layer
+            if group.passesThrough, group.opacity >= 1 { return drawNodes(node.children, onto: target, depth: depth + 1) }
+            let width = drawable.texture.width, height = drawable.texture.height
+            if group.passesThrough {
+                let backdrop = groupTarget(depth: depth, backdrop: true, width: width, height: height)
                 encoder.endEncoding()
-                let isolatedPass = MTLRenderPassDescriptor()
-                isolatedPass.colorAttachments[0].texture = isolatedTarget(width: drawable.texture.width, height: drawable.texture.height)
-                isolatedPass.colorAttachments[0].loadAction = .clear
-                isolatedPass.colorAttachments[0].storeAction = .store
-                isolatedPass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
-                guard let isolatedEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: isolatedPass) else { return }
-                encoder = isolatedEncoder
-                encoder.setScissorRect(canvasScissor)
-                sampling(zoom < 1)
-                uniforms.opacity = 1
-            }
-            uniforms.blendMode = isolated ? 0 : Float(layer.blendMode.rawValue)
-            encoder.setFragmentTexture(texture(for: layer.buffer, live: &liveBuffers), index: 0)
-            draw(blendLayerPipeline)
-
-            if let lockedPatch {
-                uniforms.rect = deviceRect(lockedPatch.area)
-                uniforms.blendMode = -1
-                encoder.setFragmentTexture(texture(for: lockedPatch.pixels, live: &liveBuffers), index: 0)
-                draw(blendLayerPipeline)
-                uniforms.blendMode = 0
-            } else if let floating, hasFloating {
-                uniforms.rect = deviceRect(floating.destination)
-                let stretched = floating.destination.size != floating.pixels.size
-                sampling(stretched && scene.smoothFloating)
-                if let key = scene.transparentKey {
-                    uniforms.keyEnabled = 1
-                    uniforms.keyColor = SIMD4(Float(key.r) / 255, Float(key.g) / 255, Float(key.b) / 255, 1)
-                }
-                encoder.setFragmentTexture(texture(for: floating.pixels, live: &liveBuffers), index: 0)
-                draw(blendLayerPipeline)
-                sampling(zoom < 1)
-            }
-            if let lockedOverlay {
-                uniforms.rect = deviceRect(lockedOverlay.area)
-                uniforms.keyEnabled = 0
-                uniforms.blendMode = -1
-                encoder.setFragmentTexture(texture(for: lockedOverlay.pixels, live: &liveBuffers), index: 0)
-                draw(blendLayerPipeline)
-                uniforms.blendMode = 0
-            } else if let overlay {
-                uniforms.rect = deviceRect(IntRect(x: overlay.origin.x, y: overlay.origin.y, width: overlay.pixels.width, height: overlay.pixels.height))
-                uniforms.keyEnabled = 0
-                uniforms.blendMode = 0
-                encoder.setFragmentTexture(texture(for: overlay.pixels, live: &liveBuffers), index: 0)
-                draw(blendLayerPipeline)
-            }
-            if isolated {
-                for clip in clips {
-                    guard let target = isolatedTarget, drawAdjustment(clip, clip.adjustment!, onto: target) else { return }
-                }
-                encoder.endEncoding()
-                let resume = MTLRenderPassDescriptor()
-                resume.colorAttachments[0].texture = layerPass.colorAttachments[0].texture
-                resume.colorAttachments[0].loadAction = .load
-                resume.colorAttachments[0].storeAction = .store
-                guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: resume) else { return }
+                guard let blit = commandBuffer.makeBlitCommandEncoder() else { return false }
+                blit.copy(from: target, to: backdrop)
+                blit.endEncoding()
+                let copy = MTLRenderPassDescriptor()
+                copy.colorAttachments[0].texture = target
+                copy.colorAttachments[0].loadAction = .load
+                copy.colorAttachments[0].storeAction = .store
+                guard let resumed = commandBuffer.makeRenderCommandEncoder(descriptor: copy) else { return false }
                 encoder = resumed
                 encoder.setScissorRect(canvasScissor)
                 sampling(zoom < 1)
+                guard drawNodes(node.children, onto: target, depth: depth + 1) else { return false }
+                uniforms.rect = deviceRect(canvas.bounds)
+                uniforms.opacity = Float(group.opacity)
+                encoder.setFragmentTexture(backdrop, index: 0)
+                draw(fadeBackdropPipeline)
+                return true
+            }
+            let inside = groupTarget(depth: depth, backdrop: false, width: width, height: height)
+            guard resume(inside, clearing: true), drawNodes(node.children, onto: inside, depth: depth + 1), resume(target) else { return false }
+            uniforms.rect = deviceRect(canvas.bounds)
+            uniforms.keyEnabled = 0
+            uniforms.blendMode = Float(group.blendMode.rawValue)
+            uniforms.opacity = Float(group.opacity)
+            encoder.setFragmentTexture(inside, index: 0)
+            draw(blendIsolatedPipeline)
+            return true
+        }
+        /// Draws `nodes` onto `target`, which the encoder is drawing into. False if the GPU couldn't go on.
+        func drawNodes(_ nodes: [LayerNode], onto target: MTLTexture, depth: Int) -> Bool {
+            for node in nodes {
+                let layer = node.layer
+                // A clipped adjustment is drawn with the layer it changes, or not at all when there's none.
+                if layer.adjustment != nil, layer.clipsToLayerBelow { continue }
+                if layer.isGroup {
+                    guard drawGroup(node, onto: target, depth: depth) else { return false }
+                    continue
+                }
+                let index = canvas.layers.firstIndex { $0 === layer } ?? 0
+                uniforms.opacity = Float(layer.opacity)
                 uniforms.rect = deviceRect(canvas.bounds)
                 uniforms.keyEnabled = 0
-                uniforms.blendMode = Float(layer.blendMode.rawValue)
-                uniforms.opacity = Float(layer.opacity)
-                encoder.setFragmentTexture(isolatedTarget, index: 0)
-                draw(blendIsolatedPipeline)
+                if let adjustment = layer.adjustment {
+                    guard drawAdjustment(layer, adjustment, onto: target) else { return false }
+                    continue
+                }
+                let overlay = layer.id == canvas.activeLayer.id ? scene.overlay : nil
+                let hasFloating = floating?.layerID == layer.id
+                // On a layer that locks its transparency it shows clipped to the layer's shape, as placing will leave it.
+                let lockedPatch = hasFloating && canvas.locksTransparency(layer)
+                    ? floating?.placedPatch(on: layer, resampling: scene.smoothFloating ? .smooth : .nearestNeighbor, transparentKey: scene.transparentKey)
+                    : nil
+                // A shape or text not yet placed likewise shows only where the lock will keep it.
+                let lockedOverlay = canvas.locksTransparency(layer) ? overlay.flatMap { Compositing.lockedPatch(of: layer, under: $0.pixels, at: $0.origin) } : nil
+                // Objects not yet placed go into their layer before it's blended, so on a layer that isn't Normal
+                // at 100% they look as they will once placed (Leah; review F, finding 1).
+                // Its clipped adjustments change it alone, so it's drawn on its own first, then blended in.
+                let clips = canvas.clippedAdjustments(onLayerAt: index).filter { $0.isVisible && $0.opacity > 0 }
+                let isolated = ((hasFloating || overlay != nil) && (layer.blendMode != .normal || layer.opacity < 1)) || !clips.isEmpty
+                    || lockedPatch != nil || lockedOverlay != nil
+                // Made only when needed: it's the size of the window.
+                let isolatedTexture = isolated ? isolatedTarget(depth: depth, width: drawable.texture.width, height: drawable.texture.height) : nil
+                if isolated {
+                    encoder.endEncoding()
+                    let isolatedPass = MTLRenderPassDescriptor()
+                    isolatedPass.colorAttachments[0].texture = isolatedTexture
+                    isolatedPass.colorAttachments[0].loadAction = .clear
+                    isolatedPass.colorAttachments[0].storeAction = .store
+                    isolatedPass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+                    guard let isolatedEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: isolatedPass) else { return false }
+                    encoder = isolatedEncoder
+                    encoder.setScissorRect(canvasScissor)
+                    sampling(zoom < 1)
+                    uniforms.opacity = 1
+                }
+                uniforms.blendMode = isolated ? 0 : Float(layer.blendMode.rawValue)
+                encoder.setFragmentTexture(texture(for: layer.buffer, live: &liveBuffers), index: 0)
+                draw(blendLayerPipeline)
+
+                if let lockedPatch {
+                    uniforms.rect = deviceRect(lockedPatch.area)
+                    uniforms.blendMode = -1
+                    encoder.setFragmentTexture(texture(for: lockedPatch.pixels, live: &liveBuffers), index: 0)
+                    draw(blendLayerPipeline)
+                    uniforms.blendMode = 0
+                } else if let floating, hasFloating {
+                    uniforms.rect = deviceRect(floating.destination)
+                    let stretched = floating.destination.size != floating.pixels.size
+                    sampling(stretched && scene.smoothFloating)
+                    if let key = scene.transparentKey {
+                        uniforms.keyEnabled = 1
+                        uniforms.keyColor = SIMD4(Float(key.r) / 255, Float(key.g) / 255, Float(key.b) / 255, 1)
+                    }
+                    encoder.setFragmentTexture(texture(for: floating.pixels, live: &liveBuffers), index: 0)
+                    draw(blendLayerPipeline)
+                    sampling(zoom < 1)
+                }
+                if let lockedOverlay {
+                    uniforms.rect = deviceRect(lockedOverlay.area)
+                    uniforms.keyEnabled = 0
+                    uniforms.blendMode = -1
+                    encoder.setFragmentTexture(texture(for: lockedOverlay.pixels, live: &liveBuffers), index: 0)
+                    draw(blendLayerPipeline)
+                    uniforms.blendMode = 0
+                } else if let overlay {
+                    uniforms.rect = deviceRect(IntRect(x: overlay.origin.x, y: overlay.origin.y, width: overlay.pixels.width, height: overlay.pixels.height))
+                    uniforms.keyEnabled = 0
+                    uniforms.blendMode = 0
+                    encoder.setFragmentTexture(texture(for: overlay.pixels, live: &liveBuffers), index: 0)
+                    draw(blendLayerPipeline)
+                }
+                if isolated {
+                    for clip in clips {
+                        guard let isolatedTexture, drawAdjustment(clip, clip.adjustment!, onto: isolatedTexture) else { return false }
+                    }
+                    guard resume(target) else { return false }
+                    uniforms.rect = deviceRect(canvas.bounds)
+                    uniforms.keyEnabled = 0
+                    uniforms.blendMode = Float(layer.blendMode.rawValue)
+                    uniforms.opacity = Float(layer.opacity)
+                    encoder.setFragmentTexture(isolatedTexture, index: 0)
+                    draw(blendIsolatedPipeline)
+                }
             }
+            return true
         }
+
+        guard drawNodes(canvas.tree(of: canvas.shownLayers), onto: layerPass.colorAttachments[0].texture!, depth: 0) else { return }
         uniforms.blendMode = 0
         uniforms.opacity = 1
         uniforms.keyEnabled = 0
@@ -715,22 +778,33 @@ final class Renderer {
         kernel.encode(commandBuffer: commandBuffer, sourceTexture: targets.coverage, destinationTexture: targets.coverageBlurred)
     }
 
-    private func isolatedTarget(width: Int, height: Int) -> MTLTexture {
-        if let isolatedTarget, isolatedTarget.width == width, isolatedTarget.height == height { return isolatedTarget }
+    private func isolatedTarget(depth: Int, width: Int, height: Int) -> MTLTexture {
+        if let target = isolatedTargets[depth], target.width == width, target.height == height { return target }
+        let texture = makeLayerTarget(width: width, height: height)
+        isolatedTargets[depth] = texture
+        return texture
+    }
+
+    /// A group's own picture at `depth`, or the copy of what's below a Pass Through group there (`backdrop`).
+    private func groupTarget(depth: Int, backdrop: Bool, width: Int, height: Int) -> MTLTexture {
+        let key = depth * 2 + (backdrop ? 1 : 0)
+        if let target = groupTargets[key], target.width == width, target.height == height { return target }
+        let texture = makeLayerTarget(width: width, height: height)
+        groupTargets[key] = texture
+        return texture
+    }
+
+    private func makeLayerTarget(width: Int, height: Int) -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: Self.layerTargetFormat, width: width, height: height, mipmapped: false)
         descriptor.usage = [.renderTarget, .shaderRead]
         descriptor.storageMode = .private
-        guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create the isolated layer target") }
-        isolatedTarget = texture
+        guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create a layer target") }
         return texture
     }
 
     private func layerTarget(width: Int, height: Int) -> MTLTexture {
         if let layerTarget, layerTarget.width == width, layerTarget.height == height { return layerTarget }
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: Self.layerTargetFormat, width: width, height: height, mipmapped: false)
-        descriptor.usage = [.renderTarget, .shaderRead]
-        descriptor.storageMode = .private
-        guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create the layer target") }
+        let texture = makeLayerTarget(width: width, height: height)
         layerTarget = texture
         return texture
     }

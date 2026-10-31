@@ -118,7 +118,8 @@ private struct LayersPanel: View {
             SectionHeader(title: "Layers", detail: "\(layers.count)")
 
             HStack(spacing: 6) {
-                BlendModeMenu(editor: editor, mode: layers[active].blendMode)
+                BlendModeMenu(editor: editor, mode: layers[active].blendMode,
+                              passesThrough: layers[active].isGroup ? layers[active].passesThrough : nil)
                 OpacityControl(editor: editor, opacity: layers[active].opacity)
             }
             .padding(.horizontal, 12)
@@ -138,8 +139,10 @@ private struct LayersPanel: View {
 
             ScrollView {
                 VStack(spacing: 2) {
-                    // Top of the stack first, as it's seen.
-                    ForEach(Array(layers.enumerated().reversed()), id: \.element.id) { index, layer in
+                    // Top of the stack first, as it's seen; a folded group's layers are left out.
+                    let rows = Self.rows(layers, canvas: editor.canvas, folded: editor.foldedGroups)
+                    ForEach(Array(rows.enumerated()), id: \.element.layer.id) { position, entry in
+                        let (index, layer) = entry
                         // The row itself follows the pointer and lands where it's let go. The system drag never
                         // reached the drop target over the canvas (Leah, 2026-10-04).
                         let isDragged = dragged?.id == layer.id || (movesChosen && chosen.contains(layer.id))
@@ -151,10 +154,11 @@ private struct LayersPanel: View {
                                 .onChanged { dragged = (layer.id, $0.translation.height) }
                                 .onEnded { value in
                                     dragged = nil
-                                    // Rows are listed top of the stack first, so moving down the list moves down the stack.
                                     let steps = Int((value.translation.height / Self.rowPitch).rounded())
-                                    let destination = min(max(index - steps, 0), layers.count - 1)
-                                    if destination != index { editor.moveLayer(from: index, to: destination) }
+                                    let target = min(max(position + steps, 0), rows.count - 1)
+                                    guard target != position else { return }
+                                    editor.moveLayer(layer.id, to: Self.drop(onto: rows[target].layer, movingDown: steps > 0,
+                                                                             folded: editor.foldedGroups))
                                 })
                     }
                 }
@@ -178,8 +182,37 @@ private struct LayersPanel: View {
         .foregroundStyle(.primary)
     }
 
+    /// The rows shown, top of the stack first: every layer but those inside a folded group.
+    private static func rows(_ layers: [Layer], canvas: ColorbeeCore.Canvas, folded: Set<LayerID>) -> [(index: Int, layer: Layer)] {
+        layers.enumerated().reversed().filter { _, layer in !canvas.ancestors(of: layer).contains { folded.contains($0.id) } }
+            .map { ($0.offset, $0.element) }
+    }
+
+    /// Where a row let go over `target` lands (stage 26). Dragged down onto an open group, it goes in at the top;
+    /// otherwise it takes the target's place, beside it in the target's group: below it going down, above it going up.
+    private static func drop(onto target: Layer, movingDown: Bool, folded: Set<LayerID>) -> LayerDrop {
+        if movingDown, target.isGroup, !folded.contains(target.id) { return .into(target.id) }
+        return movingDown ? .below(target.id) : .above(target.id)
+    }
+
     private func row(_ layer: Layer, index: Int, isActive: Bool, isChosen: Bool) -> some View {
-        HStack(spacing: 8) {
+        let depth = editor.canvas.depth(of: layer)
+        // Inside a hidden group it can't show, whatever its own eye says.
+        let groupsShow = editor.canvas.ancestors(of: layer).allSatisfy(\.isVisible)
+        return HStack(spacing: 8) {
+            if layer.isGroup {
+                Button { editor.toggleFold(layer.id) } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .rotationEffect(.degrees(editor.foldedGroups.contains(layer.id) ? 0 : 90))
+                        .frame(width: 12, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, -4)
+                .help(editor.foldedGroups.contains(layer.id) ? "Show the layers in this group" : "Hide the layers in this group")
+                .accessibilityLabel(editor.foldedGroups.contains(layer.id) ? "Open \(layer.name)" : "Close \(layer.name)")
+            }
             Button {
                 // Option-click shows only this layer, and again brings back what was showing (FR-8.6).
                 if NSEvent.modifierFlags.contains(.option) {
@@ -206,7 +239,12 @@ private struct LayersPanel: View {
                     .accessibilityHidden(true)
             }
             Group {
-                if let choice = layer.adjustment.flatMap(AdjustmentChoice.init) {
+                if layer.isGroup {
+                    Image(systemName: editor.foldedGroups.contains(layer.id) ? "folder.fill" : "folder")
+                        .font(.system(size: 14))
+                        .frame(width: 40, height: 26)
+                        .background(isActive ? Color.white.opacity(0.18) : Theme.field)
+                } else if let choice = layer.adjustment.flatMap(AdjustmentChoice.init) {
                     // An adjustment layer has no pixels to show; its icon says what it does.
                     Image(systemName: choice.symbol)
                         .font(.system(size: 13))
@@ -234,7 +272,9 @@ private struct LayersPanel: View {
                 } else {
                     Text(layer.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
                 }
-                Text(layer.adjustment == nil
+                Text(layer.isGroup
+                     ? "\(layer.passesThrough ? "Pass Through" : layer.blendMode.name) · \(Int((layer.opacity * 100).rounded()))%"
+                     : layer.adjustment == nil
                      ? "\(layer.blendMode.name) · \(Int((layer.opacity * 100).rounded()))%"
                      : layer.clipsToLayerBelow
                         ? (editor.canvas.clipBaseIndex(forLayerAt: index) == nil ? "Layer below only: none"
@@ -266,7 +306,8 @@ private struct LayersPanel: View {
                   : "Lock this layer, or just its transparent pixels")
             .accessibilityLabel(layer.isLocked ? "\(layer.name), locked" : layer.locksTransparency ? "\(layer.name), transparent pixels locked" : "Lock \(layer.name)")
         }
-        .padding(.leading, 6)
+        .opacity(groupsShow ? 1 : 0.55)
+        .padding(.leading, 6 + CGFloat(depth) * 14)
         .padding(.trailing, 8)
         .frame(height: 40)
         .foregroundStyle(isActive ? Color.white : Color.primary)
@@ -288,16 +329,26 @@ private struct LayersPanel: View {
                 renaming = layer
             }
         }))
-        .help("Click to make active · Shift- or ⌘-click to choose several · double-click to rename · drag to reorder")
+        .help(layer.isGroup ? "Click to make active · double-click to rename · drag to reorder · drag a layer down onto it to put it inside"
+              : "Click to make active · Shift- or ⌘-click to choose several · double-click to rename · drag to reorder")
         .accessibilityAddTraits(isActive || isChosen ? [.isSelected] : [])
         .accessibilityAction(named: "Make Active") { editor.selectLayer(at: index) }
         // Reordering without dragging (review J, finding 29: A6).
-        .accessibilityAction(named: "Move Up") { if index + 1 < editor.layers.count { editor.moveLayer(from: index, to: index + 1) } }
-        .accessibilityAction(named: "Move Down") { if index > 0 { editor.moveLayer(from: index, to: index - 1) } }
+        .accessibilityAction(named: "Move Up") { moveOneRow(layer, down: false) }
+        .accessibilityAction(named: "Move Down") { moveOneRow(layer, down: true) }
         .accessibilityAction(named: "Rename") {
             newName = layer.name
             renaming = layer
         }
+    }
+
+    /// One row up or down, as a drag of one row would move it.
+    private func moveOneRow(_ layer: Layer, down: Bool) {
+        let rows = Self.rows(editor.layers, canvas: editor.canvas, folded: editor.foldedGroups)
+        guard let position = rows.firstIndex(where: { $0.layer === layer }) else { return }
+        let target = position + (down ? 1 : -1)
+        guard rows.indices.contains(target) else { return }
+        editor.moveLayer(layer.id, to: Self.drop(onto: rows[target].layer, movingDown: down, folded: editor.foldedGroups))
     }
 
     private func finishRenaming(_ index: Int) {
@@ -323,18 +374,24 @@ private struct LayersPanel: View {
 private struct BlendModeMenu: View {
     let editor: Editor
     let mode: ColorbeeCore.BlendMode
+    /// For a group: whether it's Pass Through, which comes first in its menu (Q25.2). Nil for a layer.
+    var passesThrough: Bool?
 
     var body: some View {
         Menu {
+            if let passesThrough {
+                Toggle("Pass Through", isOn: Binding(get: { passesThrough }, set: { _ in editor.setPassesThrough() }))
+                Divider()
+            }
             ForEach(Array(ColorbeeCore.BlendMode.groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Divider() }
                 ForEach(group, id: \.self) { candidate in
-                    Toggle(candidate.name, isOn: Binding(get: { candidate == mode }, set: { _ in editor.setBlendMode(candidate) }))
+                    Toggle(candidate.name, isOn: Binding(get: { passesThrough != true && candidate == mode }, set: { _ in editor.setBlendMode(candidate) }))
                 }
             }
         } label: {
             HStack {
-                Text(mode.name)
+                Text(passesThrough == true ? "Pass Through" : mode.name)
                 Spacer()
                 Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).opacity(0.7)
             }

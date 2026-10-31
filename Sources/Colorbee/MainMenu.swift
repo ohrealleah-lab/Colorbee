@@ -106,6 +106,8 @@ enum MainMenu {
         "distributeVertically:": "Space three or more chosen layers with equal gaps down.",
         "stampVisible:": "Add a layer holding everything visible, merged, and keep the layers as they are.",
         "selectAllLayers:": "Choose every layer, to change or move them together.",
+        "groupLayers:": "Put the chosen layers in a new group, to fold, hide, fade or move them together.",
+        "ungroupLayers:": "Take the layers out of the active group, leaving them where they are.",
         "flattenImage:": "Combine all visible layers into one and drop hidden layers.",
         "toggleLayerVisibility:": "Hide or show the active layer, or every chosen layer.",
         "toggleLayerLock:": "Lock the active layer (or every chosen layer) against changes, or unlock it.",
@@ -353,6 +355,9 @@ enum MainMenu {
         menu.addItem(item("Delete Layer", "deleteLayer:", "\u{8}"))
         menu.addItem(item("Lift Subject to New Layer", "liftSubject:"))
         menu.addItem(item("Select All Layers", "selectAllLayers:", "a", [.command, .option]))
+        menu.addItem(.separator())
+        menu.addItem(item("Group Layers", "groupLayers:", "g"))
+        menu.addItem(item("Ungroup", "ungroupLayers:", "g", [.command, .shift]))
         menu.addItem(.separator())
         menu.addItem(item("Merge Down", "mergeDown:", "e", [.command, .shift]))
         menu.addItem(item("Merge Visible", "mergeVisible:", "e", [.command, .option, .shift]))

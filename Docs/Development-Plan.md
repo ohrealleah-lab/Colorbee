@@ -1146,8 +1146,12 @@ running, to find the complicated bugs a hand test can miss.
 
 ### Stage 33. Code reviews (Leah, 2026-10-31)
 
-Last of all, after the monkey test: code reviews of the finished app. Its scope, rounds and how findings are handled
-are to be settled with Leah before it starts.
+Last of all, after the monkey test: code reviews of the finished app.
+
+Answered (Leah, 2026-10-31, all recommended; FRD §23): review round 10, [Review/PLAN-11.md](Review/PLAN-11.md). Sessions
+X, Y and Z cover stages 25 to 32 and the fixes from hand tests; session AA reads the whole app for the worst risks only.
+Each is a separate local session that only reads code and writes a findings file; Leah answers the findings together,
+then they're fixed, tested and recorded in `Review/RESULTS.md`.
 
 ---
 

@@ -13,7 +13,7 @@ _Last updated: 2026-10-30 · 771 core tests and 264 app tests passing (stages 25
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Stages 25 and 26: Layer groups](#test-stages-25-and-26-layer-groups) (2026-10-30)
+Nothing is waiting (2026-10-30).
 
 ---
 
@@ -82,8 +82,8 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 22. Select All Layers, isolate a layer, Stamp Visible | ✅ Done; passed Leah's test 2026-10-29 | Medium |
 | 14 · 23. Lock transparent pixels | ✅ Done; passed Leah's test 2026-10-29 | High |
 | 14 · 24. Align and Distribute | ✅ Done; passed Leah's test 2026-10-29 | High |
-| 14 · 25. Layer groups 1: groups in the document | Built 2026-10-30; waiting for Leah's test (with stage 26) | High |
-| 14 · 26. Layer groups 2: working with groups | Built 2026-10-30; waiting for Leah's test (with stage 25) | High |
+| 14 · 25. Layer groups 1: groups in the document | ✅ Done; passed Leah's test 2026-10-30 | High |
+| 14 · 26. Layer groups 2: working with groups | ✅ Done; passed Leah's test 2026-10-30 | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -343,6 +343,8 @@ Logs in `build/soak-results*.txt` (not committed).
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
 ### Test: Stages 25 and 26: Layer groups
+
+**Passed Leah's hand test on 2026-10-30.**
 
 Use `TestImages/Several Layers/Opacity Test.colorproj` (layers Background, Red, Green, Blue, Yellow). When you close
 it, choose **Don't Save**. Press ⌘L if the Layers panel isn't showing.

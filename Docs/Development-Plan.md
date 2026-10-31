@@ -1572,6 +1572,8 @@ Answered (Leah, 2026-10-31): all as recommended. Recorded in FRD §23.
 
 ### Before stage 31
 
+Answered (Leah, 2026-10-31): all as recommended. Recorded in FRD §23.
+
 - **Q31.1** Which tools: the Brushes, Eraser, Redact Brush and Retouch brushes, but not the Pencil (pixel art wants
   exact pixels)? *Recommend yes.*
 - **Q31.2** One shared Smoothing value, remembered? *Recommend yes.*

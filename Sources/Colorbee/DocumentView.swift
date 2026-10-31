@@ -149,6 +149,27 @@ private struct CanvasHost: NSViewRepresentable {
     func updateNSView(_ nsView: CanvasView, context: Context) {}
 }
 
+/// Smoothing (stage 31): one value for every tool that has it (Q31.2), remembered; only this slider saves it.
+private struct SmoothingControl: View {
+    @Bindable var editor: Editor
+
+    var body: some View {
+        let smoothing = Binding(get: { editor.smoothing }, set: {
+            editor.smoothing = $0
+            UserDefaults.standard.set($0, forKey: Editor.smoothingKey)
+        })
+        Text("Smoothing")
+        Slider(value: smoothing, in: 0...1)
+            .frame(width: 70)
+            .accessibilityLabel("Smoothing")
+            .help("Steadies the line: it follows the pointer on a string and ignores small wobbles, then catches up when you let go. 0% is off.")
+        Text("\(Int((editor.smoothing * 100).rounded()))%")
+            .monospacedDigit()
+            .frame(width: 36, alignment: .trailing)
+            .scrubs(smoothing, in: 0...1, step: 0.01)
+    }
+}
+
 /// Settings for the active tool.
 private struct ToolOptions: View {
     @Bindable var editor: Editor
@@ -156,8 +177,10 @@ private struct ToolOptions: View {
     var body: some View {
         switch editor.tool {
         case .brush:
+            SmoothingControl(editor: editor)
             hint("\(editor.brush.name) · Shift keeps the stroke straight · pressure \(editor.usesPressure ? "on" : "off")")
         case .eraser:
+            SmoothingControl(editor: editor)
             Toggle("Color Eraser", isOn: $editor.colorEraserMode)
                 .help("On: dragging replaces only Color 1 with Color 2. Right-drag always does.")
             Text("Tolerance")
@@ -246,6 +269,7 @@ private struct ToolOptions: View {
             hint("1 px · Shift draws straight lines")
         case .retouch:
             let kind = editor.retouchKind
+            SmoothingControl(editor: editor)
             if kind.hasRange {
                 Picker("Range", selection: $editor.toneRange) {
                     Text("Shadows").tag(ToneRange.shadows)
@@ -279,6 +303,7 @@ private struct ToolOptions: View {
             }
             if kind.canSampleAllLayers {
                 Toggle("Sample All Layers", isOn: $editor.retouchSamplesAllLayers)
+                    .fixedSize()
                     .help("Read what all visible layers show and write into this one, so you can retouch on an empty layer above")
             }
             hint(kind.hint)
@@ -294,6 +319,7 @@ private struct ToolOptions: View {
             .labelsHidden()
             .fixedSize()
             .help("How what you paint over is hidden. Solid Fill (Color 1) is the safest")
+            SmoothingControl(editor: editor)
             hint("Applied when you let go, on every layer · Shift paints a straight line")
         case .stepBadge:
             Picker("Badges", selection: $editor.badgeStyle) {

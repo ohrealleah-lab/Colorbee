@@ -217,6 +217,11 @@ These let you build several separate regions for batch redaction (FR-9.4).
 - **Pressure:** on a Force Touch trackpad or a pen tablet, pressure changes brush size (and opacity where it makes sense). Other devices draw at full pressure.
 - Brushes follow Symmetry (FR-7.3).
 - **Shift** keeps the stroke on one horizontal or vertical line from where it started, as for the Pencil, for highlighting a line of text (Leah, 2026-10-10).
+- **Smoothing** (stage 31; Leah, 2026-10-31): a slider in the palette bar, 0% (off) by default, one value shared by
+  the Brushes, Eraser, Redact Brush and Retouch tools and remembered. The line follows the pointer on a "pulled
+  string": it moves only once the pointer is a little way ahead (up to 36 points on screen at 100%), so small wobbles
+  never reach the picture, and it catches up to the pointer when you let go. Shift's straight line wins over it;
+  Symmetry copies the smoothed line. The Pencil is never smoothed.
 
 ### FR-4.3 Eraser
 - Square eraser. Sizes every 2px from 2 to 20px, plus 30 and 40px, or custom. **[** and **]** change the size.
@@ -920,6 +925,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-10-31 | **Stroke smoothing, stage 31** (Leah, all recommended). Q31.1: the Brushes, Eraser, Redact Brush and Retouch brushes get it, not the Pencil (pixel art wants exact pixels). Q31.2: one shared Smoothing value, remembered between launches; 0% (off) by default. Q31.3: when you let go, the line catches up to where the pointer is. Q31.4: a "pulled string" feel: the line moves only once the pointer pulls a little way ahead, so small wobbles are ignored. |
 | 2026-10-31 | **Toolbar space** (Leah): while Size or Outline/Fill is hidden, its empty space moves the window when dragged, and a double-click there does what System Settings says for a title bar, as anywhere else in the toolbar. |
 | 2026-10-31 | **Shape fill color** (Leah): a shape with only one part draws it in Color 1, so with Outline set to None the fill is Color 1 (right-click: Color 2). With both, the outline is Color 1 and the fill Color 2, as in Paint. FR-5.1 updated. |
 | 2026-10-31 | **Text layers, my choices (veto any).** (1) The Editable switch is remembered between launches, unlike the other text settings, so you set it once. (2) After Rotate or Flip a text layer stays sharp and stays a text layer, but it can be edited only once the image is turned back; a crop or resize while it's turned makes it pixels. (3) Deleting every word of a text layer removes the layer. (4) Opening a text layer sets the Text options and Color 1 (and Color 2, for an opaque background) to the text's own. (5) A text layer is named after its first line, and the name follows the words unless you rename it; a redaction renames such a layer "Text", so the words don't survive in its name. (6) On a text layer, commands that change pixels are greyed out in the menus, as on a locked layer (Cut and Paste too), and tools show "choose Layer ▸ Rasterize Text first". (7) With Editable off, placing text on a text layer is refused the same way. (8) A stretched (non-uniform) resize makes text pixels. (9) Revert Layer on a text layer brings back its saved look as plain pixels. (10) The Layers panel marks a text layer with a small "Aa" badge, and its right-click menu has Edit Text and Rasterize Text. |

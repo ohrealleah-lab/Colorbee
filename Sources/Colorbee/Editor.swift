@@ -535,7 +535,7 @@ final class Editor {
     var redactBrushSize = 24.0 {
         didSet { renderSoon() }
     }
-    @ObservationIgnored private var redactStroke: (area: RedactBrushArea, lock: AxisLock, secondary: Bool)?
+    @ObservationIgnored private var redactStroke: (area: RedactBrushArea, path: StrokePath, secondary: Bool)?
     // Retouching (FR-4.6).
     var retouchKind: RetouchKind = .remove {
         didSet { renderSoon() }
@@ -562,10 +562,10 @@ final class Editor {
     var cloneMatchesTone = false
     /// From where you paint to where it copies from, once the first stroke after picking the source started.
     @ObservationIgnored private var cloneOffset: IntPoint?
-    @ObservationIgnored private var retouchBrush: (stroke: Stroke, edit: Edit, kind: RetouchKind, lock: AxisLock, offset: IntPoint?)?
+    @ObservationIgnored private var retouchBrush: (stroke: Stroke, edit: Edit, kind: RetouchKind, path: StrokePath, offset: IntPoint?, pressure: Double)?
     /// Where the Clone Stamp is copying from now, for the crosshair.
     private(set) var cloneCrosshair: Point2D?
-    @ObservationIgnored private var retouchStroke: (area: RedactBrushArea, lock: AxisLock, kind: RetouchKind)?
+    @ObservationIgnored private var retouchStroke: (area: RedactBrushArea, path: StrokePath, kind: RetouchKind)?
     /// The area being filled, shown until the fill is done.
     @ObservationIgnored private var fillingArea: RedactBrushArea?
     /// How far the fill has got, while one runs.
@@ -591,6 +591,13 @@ final class Editor {
     /// it (`editableTextKey`), so tests never save it.
     var textIsEditable = UserDefaults.standard.bool(forKey: Editor.editableTextKey)
     static let editableTextKey = "EditableText"
+    /// Smoothing (stage 31), 0 (off) to 1, shared by the Brushes, Eraser, Redact Brush and Retouch tools (Q31.2). The
+    /// palette bar's slider remembers it (`smoothingKey`), so tests never save it.
+    var smoothing = min(1, max(0, UserDefaults.standard.double(forKey: Editor.smoothingKey)))
+    static let smoothingKey = "Smoothing"
+    /// How far the pointer pulls ahead before a smoothed line follows, in image pixels: up to 36 points on screen at full
+    /// Smoothing, so it feels the same at any zoom.
+    private var smoothingReach: Double { smoothing * 36 / viewport.zoom }
     private(set) var pendingText: PendingText?
     /// Non-nil while Before/After is showing. The view is read-only while it's on.
     var comparison: Comparison? {
@@ -693,9 +700,11 @@ final class Editor {
         let edit: Edit
         /// One stroke per mirror image when Symmetry is on.
         let strokes: [Stroke]
-        var axisLock: AxisLock
+        var path: StrokePath
         /// The lightest and firmest pressure seen, logged when the stroke ends to tune pressure response.
         var pressureRange: ClosedRange<Double>
+        /// The latest pressure, for the line catching up on release.
+        var pressure: Double
     }
 
     private enum SelectionDrag {
@@ -1232,7 +1241,9 @@ final class Editor {
             let mirror = pixelToolMirrors && (copy.flipsX || copy.flipsY) ? StrokeMirror(canvasSize: size, flipsX: copy.flipsX, flipsY: copy.flipsY) : nil
             strokes.append(makeStroke(edit, copy.mirroredOnce, mirror, strokes.first))
         }
-        activeStroke = ActiveStroke(edit: edit, strokes: strokes, axisLock: AxisLock(start: point), pressureRange: pressure...pressure)
+        // Pixel art wants exact pixels: the Pencil is never smoothed (Q31.1).
+        activeStroke = ActiveStroke(edit: edit, strokes: strokes, path: StrokePath(start: point, reach: tool == .pencil ? 0 : smoothingReach),
+                                    pressureRange: pressure...pressure, pressure: pressure)
         moveStrokes(strokes, to: point, pressure: pressure)
     }
 
@@ -1275,14 +1286,12 @@ final class Editor {
     }
 
     /// With `constrain`, the pencil, brush or eraser stays on one horizontal or vertical line from where it started
-    /// (`AxisLock`), for highlighting a line of text (Leah, 2026-10-10).
+    /// (`AxisLock`), for highlighting a line of text (Leah, 2026-10-10). Otherwise Smoothing steadies it (`StrokePath`).
     func continueStroke(to point: Point2D, constrain: Bool, pressure: Double = 1) {
         guard var active = activeStroke else { return }
-        var target = point
-        if constrain {
-            target = active.axisLock.constrain(point)
-        }
+        let target = active.path.next(point, constrain: constrain)
         active.pressureRange = min(active.pressureRange.lowerBound, pressure)...max(active.pressureRange.upperBound, pressure)
+        active.pressure = pressure
         activeStroke = active
         moveStrokes(active.strokes, to: target, pressure: pressure)
     }
@@ -1294,6 +1303,8 @@ final class Editor {
 
     func endStroke() {
         guard let active = activeStroke else { return }
+        // A smoothed line ends where you let go (Q31.3).
+        if let point = active.path.catchUp { moveStrokes(active.strokes, to: point, pressure: active.pressure) }
         activeStroke = nil
         if active.strokes.contains(where: { !$0.finish().isEmpty }) { onRender() }
         if tool == .brush {
@@ -1791,15 +1802,14 @@ final class Editor {
         placeFloatingSelection()
         let area = RedactBrushArea(diameter: redactBrushSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 120))
         area.move(to: point)
-        redactStroke = (area, AxisLock(start: point), secondary)
+        redactStroke = (area, StrokePath(start: point, reach: smoothingReach), secondary)
         onRender()
     }
 
     /// Shift keeps the stroke on one horizontal or vertical line, for a line of text.
     func continueRedactStroke(to point: Point2D, constrain: Bool) {
         guard var stroke = redactStroke else { return }
-        let target = constrain ? stroke.lock.constrain(point) : point
-        stroke.area.move(to: target)
+        stroke.area.move(to: stroke.path.next(point, constrain: constrain))
         redactStroke = stroke
         onRender()
     }
@@ -1810,6 +1820,7 @@ final class Editor {
     func endRedactStroke() {
         guard let stroke = redactStroke else { return }
         redactStroke = nil
+        if let point = stroke.path.catchUp { stroke.area.move(to: point) }
         guard let mask = stroke.area.mask else { return onRender() }
         let strength = max(6, stroke.area.diameter / 3)
         let effect: Effect = switch redactTreatment {
@@ -1879,13 +1890,14 @@ final class Editor {
         } else {
             return
         }
-        retouchBrush = (stroke, edit, kind, AxisLock(start: point), offset)
+        retouchBrush = (stroke, edit, kind, StrokePath(start: point, reach: smoothingReach), offset, pressure)
         moveRetouchBrush(to: point, pressure: pressure)
     }
 
     func continueRetouchBrush(to point: Point2D, constrain: Bool, pressure: Double) {
         guard var brush = retouchBrush else { return }
-        let target = constrain ? brush.lock.constrain(point) : point
+        let target = brush.path.next(point, constrain: constrain)
+        brush.pressure = pressure
         retouchBrush = brush
         moveRetouchBrush(to: target, pressure: pressure)
     }
@@ -1899,6 +1911,7 @@ final class Editor {
     /// Ends the stroke as one step; the Clone Stamp's Match Tone evens out what it copied first, in the same step.
     func endRetouchBrush() {
         guard let brush = retouchBrush else { return }
+        if let point = brush.path.catchUp { moveRetouchBrush(to: point, pressure: brush.pressure) }
         retouchBrush = nil
         brush.stroke.finish()
         let stroke = brush.stroke as? RetouchStroke
@@ -1991,13 +2004,13 @@ final class Editor {
         placeFloatingSelection()
         let area = RedactBrushArea(diameter: retouchSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 110))
         area.move(to: point)
-        retouchStroke = (area, AxisLock(start: point), retouchKind)
+        retouchStroke = (area, StrokePath(start: point, reach: smoothingReach), retouchKind)
         onRender()
     }
 
     func continueRetouchStroke(to point: Point2D, constrain: Bool) {
         guard var stroke = retouchStroke else { return }
-        stroke.area.move(to: constrain ? stroke.lock.constrain(point) : point)
+        stroke.area.move(to: stroke.path.next(point, constrain: constrain))
         retouchStroke = stroke
         onRender()
     }
@@ -2008,6 +2021,7 @@ final class Editor {
     func endRetouchStroke() {
         guard let stroke = retouchStroke else { return }
         retouchStroke = nil
+        if let point = stroke.path.catchUp { stroke.area.move(to: point) }
         let layer = canvas.paintLayer
         let healing = stroke.kind == .spotHeal
         let image = retouchSamplesAllLayers ? canvas.composited(through: canvas.activeLayerIndex) : layer.buffer

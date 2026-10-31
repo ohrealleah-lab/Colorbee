@@ -606,6 +606,17 @@ public final class Canvas {
     /// All visible layers composited bottom to top with their blend modes, in straight alpha, with any
     /// floating selection shown above its layer. This is what's exported.
     public func flattened(transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) -> PixelBuffer {
+        // A piece moved on a mask is drawn as placed, as a save keeps it (the monkey test, 2026-10-31): in a stand-in
+        // canvas sharing every other layer, so nothing here changes.
+        if let floating = selection.floating, let index = layers.firstIndex(where: { $0.mask?.id == floating.layerID }), let mask = layers[index].mask {
+            let owner = layers[index].copy(buffer: layers[index].buffer)
+            owner.mask = mask.copy(buffer: floating.placedCopy(of: mask, locked: false, resampling: resampling, transparentKey: transparentKey))
+            var standIns = layers
+            standIns[index] = owner
+            let canvas = Canvas(colorSpace: colorSpace, layers: standIns, hasTransparentBackground: hasTransparentBackground,
+                                backgroundLayerID: backgroundLayerID, activeLayerIndex: activeLayerIndex)
+            return canvas.flattened(transparentKey: transparentKey, resampling: resampling)
+        }
         let visible = shownLayers
         // Not for a layer shown only on a hidden layer below: it shows nowhere, as on screen (the monkey test, 2026-10-31).
         if selection.floating == nil, visible.count == 1, visible[0].isPixelLayer, visible[0].opacity >= 1, visible[0].activeMask == nil,

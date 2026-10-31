@@ -255,4 +255,17 @@ struct MonkeyThumbnailTests {
         canvas.layers[0].isVisible = false
         #expect(canvas.flattened().pixels(in: canvas.bounds).allSatisfy { $0.a == 0 })
     }
+
+    @Test func mergeAdjustmentOverAnAdjustmentAtTheBottomDoesntCrash() {
+        let canvas = Canvas(size: IntSize(width: 8, height: 8), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max)
+        LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.buffer.fill(Pixel(r: 200, g: 30, b: 30), in: IntRect(x: 0, y: 0, width: 4, height: 8))
+        LayerActions.addAdjustment(.desaturate, named: "Desaturate", canvas: canvas, history: history, context: context)
+        canvas.layers[0].isVisible = false
+        let look = canvas.flattened().contentHash()
+        #expect(LayerActions.applyAdjustment(canvas: canvas, history: history, context: context))
+        #expect(canvas.flattened().contentHash() == look)
+    }
 }

@@ -41,7 +41,9 @@ public enum LayerActions {
             target.clipsToLayerBelow = false
             target.groupID = nil
             target.mask = nil
-            for layer in merged.dropFirst() {
+            // The lowest shown layer may be an adjustment; the layer holding the result stays whatever its place (the monkey
+            // test, 2026-10-31).
+            for layer in merged where layer !== target {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
             }
             canvas.activeLayerIndex = canvas.layers.firstIndex { $0 === target }!

@@ -71,9 +71,13 @@ enum MonkeyRules {
         if !sketched {
             let thumbnail = canvas.thumbnail(maxSide: max(canvas.size.width, canvas.size.height))
             let exported = flat.pixels(in: canvas.bounds)
-            let apart = zip(thumbnail.pixels, exported).contains { a, b in
-                max(abs(Int(a.r) - Int(b.r)), abs(Int(a.g) - Int(b.g)), abs(Int(a.b) - Int(b.b)), abs(Int(a.a) - Int(b.a))) > 6
-            }
+            // Clear pixels' colors don't show, and a hue shift can magnify a lone pixel's rounding: a few are allowed.
+            let apart = zip(thumbnail.pixels, exported).filter { a, b in
+                let alphaA = Int(a.a), alphaB = Int(b.a)
+                func shown(_ value: UInt8, _ alpha: Int) -> Int { Int(value) * alpha / 255 }
+                return max(abs(shown(a.r, alphaA) - shown(b.r, alphaB)), abs(shown(a.g, alphaA) - shown(b.g, alphaB)),
+                           abs(shown(a.b, alphaA) - shown(b.b, alphaB)), abs(alphaA - alphaB)) > 6
+            }.count > 3
             guard !apart else {
                 throw MonkeyFailure(rule: "The thumbnail doesn't match the export", detail: "The History and Layers thumbnails would show a different picture than Export writes.")
             }

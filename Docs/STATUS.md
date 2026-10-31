@@ -14,6 +14,7 @@ _Last updated: 2026-10-31 · 799 core tests and 284 app tests passing (stage 31 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
+- [The monkey's thumbnail and export fixes](#test-the-monkeys-thumbnail-and-export-fixes) (2026-10-31)
 
 ---
 
@@ -368,6 +369,28 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: The monkey's thumbnail and export fixes
+
+Close each picture with **Don't Save**. ⌘L shows the Layers panel.
+
+1. Open `TestImages/Magic Wand Practice.png`.
+   - Press M. Drag a box over most of the picture.
+   - Image > Crop to Selection.
+   - Layer > Layer Mask > Add Mask.
+   - Edit > Undo on Active Layer.
+   - Press ⌘Z. Press ⌘Z again.
+   - Expected: no crash. The picture is back to full size.
+2. Open `TestImages/Stage 9 Practice Photo.png`.
+   - Layer > New Adjustment Layer > Invert.
+   - In the Layers panel, set its blend mode to Difference.
+   - Open the History panel.
+   - Expected: the newest thumbnail looks like the picture.
+3. Layer > New Layer. Press B. Paint a big stroke.
+   - Check "Only the layer below".
+   - Click the eye on Background to hide it.
+   - File > Export. Save a PNG anywhere.
+   - Expected: the PNG is empty, like the screen. Delete it after.
 
 ### Test: Stage 33: Review round 10 fixes
 

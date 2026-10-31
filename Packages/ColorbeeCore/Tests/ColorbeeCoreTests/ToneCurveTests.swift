@@ -102,4 +102,22 @@ struct ToneCurveTests {
         let after = Histogram(canvas.thumbnail(maxSide: 20))
         #expect((after.highestValue ?? 0) > (before.highestValue ?? 0))
     }
+
+    /// Dragging on the picture picks the region its brightness falls in (FR-9.7 item 6), by luma rather than the
+    /// brightest channel.
+    @Test func aPixelBelongsToTheRegionItsBrightnessFallsIn() {
+        let curve = ToneCurve()
+        #expect(curve.region(for: .black) == .shadows)
+        #expect(curve.region(for: Pixel(r: 100, g: 100, b: 100)) == .darks)
+        #expect(curve.region(for: Pixel(r: 160, g: 160, b: 160)) == .lights)
+        #expect(curve.region(for: .white) == .highlights)
+        #expect(curve.region(for: Pixel(r: 0, g: 0, b: 255)) == .shadows)
+        #expect(curve.region(for: Pixel(r: 0, g: 255, b: 0)) == .lights)
+    }
+
+    @Test func movingTheSplitsMovesWhichRegionAPixelIsIn() {
+        let gray = Pixel(r: 100, g: 100, b: 100)
+        #expect(curve([:], splits: [40, 60, 80]).region(for: gray) == .shadows)
+        #expect(curve([:], splits: [10, 20, 30]).region(for: gray) == .highlights)
+    }
 }

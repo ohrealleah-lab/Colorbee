@@ -181,4 +181,19 @@ struct HistorySnapshotTests {
         #expect(look(canvas) == kept)
         #expect(canvas.layers[1].buffer[200, 200] == red)
     }
+
+    /// Deleting the last snapshot lets its scratch file go; a new one makes a fresh file and still goes back.
+    @Test func afterTheLastSnapshotIsDeletedANewOneStillWorks() throws {
+        let canvas = canvas(40), history = History(byteBudget: .max)
+        let first = try history.takeSnapshot(named: "First", of: canvas)
+        history.deleteSnapshot(first.id)
+        #expect(history.snapshots.isEmpty && history.snapshotStore == nil)
+        fill(IntRect(x: 0, y: 0, width: 20, height: 20), with: red, on: canvas, history: history)
+        let marked = look(canvas)
+        let second = try history.takeSnapshot(named: "Second", of: canvas)
+        #expect(history.snapshotStore != nil)
+        fill(IntRect(x: 10, y: 10, width: 30, height: 30), with: .black, on: canvas, history: history)
+        try history.goToSnapshot(second.id, on: canvas)
+        #expect(look(canvas) == marked)
+    }
 }

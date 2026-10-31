@@ -108,6 +108,22 @@ struct AdjustPhotoTests {
         let input = Pixel(r: UInt8((8 * step).rounded()), g: UInt8((16 * step).rounded()), b: UInt8((24 * step).rounded()))
         #expect(lookup.values[((24 * 33 + 16) * 33 + 8) * 4] == Float(transform(input).r) / 255)
     }
+
+    /// Finer settings put back to where they start are dropped, so an edit that's back at the start equals a new one
+    /// (Same as Last, filters and saved files compare them).
+    @Test func finerSettingsBackAtTheStartAreDropped() {
+        var edit = PhotoEdit()
+        var effects = PhotoEffects()
+        effects.roundness = 30
+        edit.effects = effects
+        var detail = PhotoDetail()
+        detail.masking = 40
+        edit.detail = detail
+        #expect(edit.effects == effects && edit.detail == detail && edit != PhotoEdit())
+        edit.effects = PhotoEffects()
+        edit.detail = PhotoDetail()
+        #expect(edit.effects == nil && edit.detail == nil && edit == PhotoEdit())
+    }
 }
 
 struct PhotoFilterTests {

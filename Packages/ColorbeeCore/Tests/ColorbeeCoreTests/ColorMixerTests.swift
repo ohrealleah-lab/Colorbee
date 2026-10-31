@@ -92,4 +92,21 @@ struct ColorMixerTests {
         #expect(viaFilter.needsFineColorTable)
         for pixel in chart { #expect(viaFilter.colorTransform(pixel) == edit.colorTransform(pixel)) }
     }
+
+    /// Dragging on the picture picks the range that owns most of the pixel's hue (FR-9.7 item 6).
+    @Test func aPixelBelongsToTheRangeNearestItsHue() {
+        let ranges: [(Pixel, ColorMixer.Range)] = [
+            (Pixel(r: 220, g: 30, b: 30), .red), (Pixel(r: 230, g: 140, b: 30), .orange), (Pixel(r: 220, g: 220, b: 30), .yellow),
+            (Pixel(r: 40, g: 200, b: 40), .green), (Pixel(r: 30, g: 200, b: 200), .aqua), (Pixel(r: 40, g: 70, b: 220), .blue),
+            (Pixel(r: 140, g: 40, b: 220), .purple), (Pixel(r: 220, g: 40, b: 160), .magenta),
+        ]
+        for (pixel, range) in ranges { #expect(ColorMixer.range(for: pixel) == range, "\(pixel)") }
+    }
+
+    @Test func aNearGrayPixelHasNoRange() {
+        #expect(ColorMixer.range(for: Pixel(r: 120, g: 125, b: 127)) == nil)
+        #expect(ColorMixer.range(for: .white) == nil && ColorMixer.range(for: .black) == nil)
+        // Eight levels apart is just enough color.
+        #expect(ColorMixer.range(for: Pixel(r: 120, g: 128, b: 120)) == .green)
+    }
 }

@@ -124,4 +124,20 @@ struct CubeFileTests {
             try CubeFile.read(Data(contentsOf: folder.appending(path: "Curve 1D.cube")), fallbackName: "Curve 1D")
         }
     }
+
+    /// Some programs give the domain as one range for all three channels.
+    @Test func aSingleInputRangeStretchesEveryChannel() throws {
+        let halved = try look(cube(size: 9, header: ["LUT_3D_INPUT_RANGE 0 2"]) { ($0, $1, $2) }).transform
+        let white = halved(Pixel(r: 255, g: 255, b: 255))
+        #expect(abs(Int(white.r) - 128) <= 1 && white.r == white.g && white.g == white.b)
+        for header in ["LUT_3D_INPUT_RANGE 0", "LUT_3D_INPUT_RANGE 0 two", "DOMAIN_MAX 1 1", "DOMAIN_MIN 0 0 nan"] {
+            #expect(throws: CubeFile.ReadError.damaged) { try look(cube(size: 2, header: [header]) { ($0, $1, $2) }) }
+        }
+    }
+
+    @Test func eachProblemSaysNothingWasAdded() {
+        for error in [CubeFile.ReadError.damaged, .oneDimensional, .tooLarge] {
+            #expect(error.recoverySuggestion?.hasSuffix("Nothing was added.") == true)
+        }
+    }
 }

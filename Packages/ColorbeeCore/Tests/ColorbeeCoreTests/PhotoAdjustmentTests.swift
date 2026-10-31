@@ -84,6 +84,12 @@ struct CurvesTests {
         let pixel = Effect.curves(curves).pointwise!(Pixel(r: 0, g: 255, b: 255))
         #expect(pixel.r == 128 && pixel.g == 128 && pixel.b == 128)
     }
+
+    @Test func noPointsChangeNothingAndOnePointIsFlat() {
+        #expect(Curves.table([]) == (0..<256).map { UInt8($0) })
+        #expect(Curves.table([Curves.Point(x: 100, y: 180)]) == [UInt8](repeating: 180, count: 256))
+        #expect(Curves.table([Curves.Point(x: 100, y: 300)]) == [UInt8](repeating: 255, count: 256))
+    }
 }
 
 struct ToneEffectTests {

@@ -228,3 +228,31 @@ struct ReviewRound10Tests {
         #expect(canvas.flattened().contentHash() == look)
     }
 }
+
+/// The monkey test's thumbnail and export finds (2026-10-31).
+struct MonkeyThumbnailTests {
+    private let context = SelectionContext(color2: .white)
+
+    @Test func thumbnailsBlendAdjustmentsAsTheExportDoes() {
+        for mode in [BlendMode.luminosity, .softLight, .difference, .darken, .colorBurn] {
+            let canvas = Canvas(size: IntSize(width: 12, height: 8), colorSpace: Canvas.defaultColorSpace, background: Pixel(r: 30, g: 40, b: 60))
+            let history = History(byteBudget: .max)
+            canvas.layers[0].buffer.fill(Pixel(r: 200, g: 120, b: 40), in: IntRect(x: 0, y: 0, width: 6, height: 8))
+            LayerActions.addAdjustment(.invert, named: "Invert", canvas: canvas, history: history, context: context)
+            canvas.activeLayer.blendMode = mode
+            let flat = canvas.flattened().pixels(in: canvas.bounds), thumbnail = canvas.thumbnail(maxSide: 12).pixels
+            let apart = zip(flat, thumbnail).map { a, b in max(abs(Int(a.r) - Int(b.r)), abs(Int(a.g) - Int(b.g)), abs(Int(a.b) - Int(b.b))) }.max()!
+            #expect(apart <= 2, "\(mode)")
+        }
+    }
+
+    @Test func aLayerShownOnlyOnAHiddenLayerShowsNowhere() {
+        let canvas = Canvas(size: IntSize(width: 8, height: 8), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let history = History(byteBudget: .max)
+        LayerActions.add(canvas: canvas, history: history, context: context)
+        canvas.activeLayer.buffer.fill(.black, in: canvas.bounds)
+        canvas.activeLayer.clipsToLayerBelow = true
+        canvas.layers[0].isVisible = false
+        #expect(canvas.flattened().pixels(in: canvas.bounds).allSatisfy { $0.a == 0 })
+    }
+}

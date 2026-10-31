@@ -469,6 +469,11 @@ All fixed (Leah, all recommended). The monkey test's first trial and its second,
 |---|---|---|---|
 | 1 | Critical | Merge Down on a group holding every layer crashed | **Fixed.** The merged layer goes in before the group's layers come out. Core test. |
 | 2 | Medium | Grouping a clipped layer without its layer split it off, and the export, thumbnails and screen disagreed | **Fixed.** A clipped layer stays with its layer when grouped or dragged (Leah). Monkey test. |
+| 3 | Critical | Crop, Add Mask, Undo on Active Layer, then ⌘Z twice crashed | **Fixed.** A mask brought back out of order gets an empty buffer of the old size. Core test. |
+| 4 | Medium | Export showed a layer set to "Only the layer below" whose base layer was hidden | **Fixed.** It shows nowhere, as on screen. Core test. |
+| 5 | Low | History and Layers thumbnails ignored an adjustment layer's blend mode | **Fixed.** They blend it as the export does. Core test. |
+
+The stricter monkey's other reports were its own mistakes, now fixed: after Undo on Active Layer the start can't come back by design; one action can add two steps; a layer with no mask keeps an unsaved mask-on setting; and Posterize magnifies a one-level rounding difference in a thumbnail into a whole step.
 
 ## Session X: groups and masks in the model ([findings](findings-X.md))
 

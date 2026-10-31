@@ -282,7 +282,14 @@ public final class Canvas {
                             let below = Compositing.pixel(color)
                             var adjusted = transform(below)
                             adjusted.a = below.a
-                            let goal = Compositing.premultiplied(adjusted)
+                            // Blended as `Compositing.mixed` does for the export (the monkey test, 2026-10-31).
+                            var goal = Compositing.premultiplied(adjusted)
+                            if layer.blendMode != .normal, color.w > 0 {
+                                let alpha = Float(adjusted.a) / 255
+                                let mixed = layer.blendMode.blend(SIMD3(color.x, color.y, color.z) / color.w,
+                                                                  SIMD3(Float(adjusted.r), Float(adjusted.g), Float(adjusted.b)) / 255)
+                                goal = SIMD4(mixed * alpha, alpha)
+                            }
                             color += (goal - color) * Float(layer.opacity) * (layer.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1)
                         } else {
                             var pixel = layer.buffer[x, y]
@@ -295,6 +302,11 @@ public final class Canvas {
                                 guard let transform = transforms[ObjectIdentifier(clip)] else { continue }
                                 var adjusted = transform(pixel)
                                 adjusted.a = pixel.a
+                                if clip.blendMode != .normal {
+                                    let mixed = clip.blendMode.blend(SIMD3(Float(pixel.r), Float(pixel.g), Float(pixel.b)) / 255,
+                                                                     SIMD3(Float(adjusted.r), Float(adjusted.g), Float(adjusted.b)) / 255) * 255
+                                    adjusted = Pixel(r: UInt8(mixed.x.rounded()), g: UInt8(mixed.y.rounded()), b: UInt8(mixed.z.rounded()), a: pixel.a)
+                                }
                                 pixel = Compositing.lerp(pixel, adjusted, Float(clip.opacity) * reveal)
                             }
                             Compositing.blend(&color, pixel, opacity: Float(layer.opacity) * (layer.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1), mode: layer.blendMode)
@@ -595,7 +607,9 @@ public final class Canvas {
     /// floating selection shown above its layer. This is what's exported.
     public func flattened(transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) -> PixelBuffer {
         let visible = shownLayers
-        if selection.floating == nil, visible.count == 1, visible[0].isPixelLayer, visible[0].opacity >= 1, visible[0].activeMask == nil {
+        // Not for a layer shown only on a hidden layer below: it shows nowhere, as on screen (the monkey test, 2026-10-31).
+        if selection.floating == nil, visible.count == 1, visible[0].isPixelLayer, visible[0].opacity >= 1, visible[0].activeMask == nil,
+           !visible[0].clipsToLayerBelow {
             return visible[0].buffer.copy()
         }
         return composite(visible, transparentKey: transparentKey, resampling: resampling)

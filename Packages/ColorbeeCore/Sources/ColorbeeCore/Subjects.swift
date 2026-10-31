@@ -117,7 +117,7 @@ public enum SubjectActions {
     public static func removeBackground(_ mask: [UInt8], canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let layer = canvas.activeLayer
-        guard layer.adjustment == nil, !layer.isLocked, mask.count == canvas.size.width * canvas.size.height else { return false }
+        guard layer.isPixelLayer, !canvas.isLocked(layer), mask.count == canvas.size.width * canvas.size.height else { return false }
         let edit = history.beginEdit("Remove Background", on: canvas)
         edit.willModify(canvas.bounds, in: layer)
         apply(mask, to: layer.buffer)
@@ -129,14 +129,16 @@ public enum SubjectActions {
     public static func liftToNewLayer(_ mask: [UInt8], canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let source = canvas.activeLayer
-        guard source.adjustment == nil, mask.count == canvas.size.width * canvas.size.height else { return false }
+        guard source.isPixelLayer, mask.count == canvas.size.width * canvas.size.height else { return false }
         let lifted = source.buffer.copy()
         apply(mask, to: lifted)
         let edit = history.beginEdit("Lift Subject", on: canvas)
         edit.willChangeLayers()
         // The picture's layer stays active, so the next lift finds subjects in the picture, not in this one
         // (Leah, 2026-10-28).
-        canvas.insertLayer(Layer(name: "Subject", buffer: lifted), at: canvas.indexAboveActiveLayer)
+        let subject = Layer(name: "Subject", buffer: lifted)
+        subject.groupID = source.groupID
+        canvas.insertLayer(subject, at: canvas.indexAboveActiveLayer)
         return history.commit(edit)
     }
 

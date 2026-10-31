@@ -33,12 +33,39 @@ public enum LayerAlign {
         case offCanvas(String)
     }
 
+    /// What moves as one: a chosen pixel layer, or a chosen group's pixel layers together (stage 26).
+    public struct Unit {
+        public let layers: [Layer]
+
+        /// The box around all their visible pixels.
+        public var box: IntRect? {
+            let boxes = layers.compactMap(\.buffer.visibleBounds)
+            return boxes.dropFirst().reduce(boxes.first) { $0?.union($1) }
+        }
+    }
+
+    /// The chosen layers as units: each pixel layer on its own, and each group with its pixel layers, a layer inside a
+    /// chosen group going with the group.
+    public static func units(_ ids: Set<LayerID>, in canvas: Canvas) -> [Unit] {
+        canvas.layers.filter { layer in
+            ids.contains(layer.id) && (layer.isPixelLayer || layer.isGroup) && !canvas.ancestors(of: layer).contains { ids.contains($0.id) }
+        }.map { layer in
+            guard layer.isGroup, let index = canvas.layers.firstIndex(where: { $0 === layer }) else { return Unit(layers: [layer]) }
+            return Unit(layers: canvas.layers[canvas.memberRange(ofGroupAt: index)].filter(\.isPixelLayer))
+        }.filter { !$0.layers.isEmpty }
+    }
+
     /// Where `layers` move: each one's box set against `reference` (the canvas, the selection, or the box around them
     /// all). Layers with no visible pixels stay put.
     public static func offsets(aligning layers: [Layer], to alignment: LayerAlignment, reference: IntRect) -> [LayerID: IntPoint] {
+        offsets(aligning: layers.map { Unit(layers: [$0]) }, to: alignment, reference: reference)
+    }
+
+    /// Where `units` move: each one's box set against `reference`, every layer in it by the same amount.
+    public static func offsets(aligning units: [Unit], to alignment: LayerAlignment, reference: IntRect) -> [LayerID: IntPoint] {
         var offsets: [LayerID: IntPoint] = [:]
-        for layer in layers {
-            guard let box = layer.buffer.visibleBounds else { continue }
+        for unit in units {
+            guard let box = unit.box else { continue }
             let dx: Int, dy: Int
             switch alignment {
             case .left: (dx, dy) = (reference.minX - box.minX, 0)
@@ -48,7 +75,7 @@ public enum LayerAlign {
             case .bottom: (dx, dy) = (0, reference.maxY - box.maxY)
             case .middle: (dx, dy) = (0, (reference.minY + reference.maxY - box.minY - box.maxY) / 2)
             }
-            offsets[layer.id] = IntPoint(x: dx, y: dy)
+            for layer in unit.layers { offsets[layer.id] = IntPoint(x: dx, y: dy) }
         }
         return offsets
     }
@@ -56,7 +83,11 @@ public enum LayerAlign {
     /// Equal gaps between the layers' boxes, in their order across (or down) the picture: the first and last stay
     /// where they are.
     public static func offsets(distributing layers: [Layer], _ distribution: LayerDistribution) -> [LayerID: IntPoint] {
-        let boxes = layers.compactMap { layer in layer.buffer.visibleBounds.map { (layer.id, $0) } }
+        offsets(distributing: layers.map { Unit(layers: [$0]) }, distribution)
+    }
+
+    public static func offsets(distributing units: [Unit], _ distribution: LayerDistribution) -> [LayerID: IntPoint] {
+        let boxes = units.compactMap { unit in unit.box.map { (unit.layers, $0) } }
         guard boxes.count >= 3 else { return [:] }
         let across = distribution == .horizontally
         let sorted = boxes.sorted { across ? $0.1.minX < $1.1.minX : $0.1.minY < $1.1.minY }
@@ -67,9 +98,9 @@ public enum LayerAlign {
         let gap = Double(span - sorted.map { length($0.1) }.reduce(0, +)) / Double(sorted.count - 1)
         var offsets: [LayerID: IntPoint] = [:]
         var position = Double(start(first))
-        for (id, box) in sorted {
+        for (layers, box) in sorted {
             let move = Int(position.rounded()) - start(box)
-            offsets[id] = across ? IntPoint(x: move, y: 0) : IntPoint(x: 0, y: move)
+            for layer in layers { offsets[layer.id] = across ? IntPoint(x: move, y: 0) : IntPoint(x: 0, y: move) }
             position += Double(length(box)) + gap
         }
         return offsets

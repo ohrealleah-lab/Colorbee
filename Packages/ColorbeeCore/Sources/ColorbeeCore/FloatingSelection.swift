@@ -79,7 +79,7 @@ public struct FloatingSelection {
     public func stamp(onto layer: Layer, edit: Edit, resampling: Resampling, transparentKey: Pixel?) -> IntRect {
         let pixels = rendered(using: resampling, transparentKey: transparentKey)
         let origin = IntPoint(x: destination.minX, y: destination.minY)
-        guard layer.locksTransparency else { return Compositing.draw(pixels, at: origin, onto: layer, edit: edit) }
+        guard edit.canvas.locksTransparency(layer) else { return Compositing.draw(pixels, at: origin, onto: layer, edit: edit) }
         let area = IntRect(x: origin.x, y: origin.y, width: pixels.width, height: pixels.height).intersection(layer.buffer.bounds)
         guard !area.isEmpty else { return .zero }
         edit.willModify(area, in: layer)
@@ -89,12 +89,12 @@ public struct FloatingSelection {
 
     /// The layer's buffer, copied, with these pixels placed on it as `stamp` would: for the screen and saves while a
     /// selection floats over a layer that locks its transparency (review U, finding 3).
-    public func placedCopy(of layer: Layer, resampling: Resampling, transparentKey: Pixel?) -> PixelBuffer {
+    public func placedCopy(of layer: Layer, locked: Bool, resampling: Resampling, transparentKey: Pixel?) -> PixelBuffer {
         let buffer = layer.buffer.copy()
         let pixels = rendered(using: resampling, transparentKey: transparentKey)
         let origin = IntPoint(x: destination.minX, y: destination.minY)
         let area = IntRect(x: origin.x, y: origin.y, width: pixels.width, height: pixels.height).intersection(buffer.bounds)
-        if layer.locksTransparency {
+        if locked {
             place(pixels, at: origin, onto: buffer, in: area)
         } else {
             for y in area.minY..<area.maxY {

@@ -79,7 +79,7 @@ public final class Edit {
             let tileRect = TileGrid.rect(column: cell.column, row: cell.row, clippedTo: bounds)
             snapshots[key] = TileSnapshot(rect: tileRect, pixels: layer.buffer.pixels(in: tileRect))
         }
-        if layer.locksTransparency {
+        if canvas.locksTransparency(layer) {
             if lockedPending.isEmpty { canvas.noteLockedEdit(self) }
             lockedPending.append((layer, target))
         }
@@ -93,7 +93,7 @@ public final class Edit {
         guard !lockedPending.isEmpty else { return }
         let pending = lockedPending
         lockedPending = []
-        for (layer, rect) in pending where layer.locksTransparency && canvas.layer(withID: layer.id) === layer {
+        for (layer, rect) in pending where canvas.locksTransparency(layer) && canvas.layer(withID: layer.id) === layer {
             for cell in TileGrid.cells(covering: rect) {
                 guard let snapshot = snapshots[TileKey(layer: layer.id, column: cell.column, row: cell.row)] else { continue }
                 let area = rect.intersection(snapshot.rect), tile = snapshot.rect
@@ -526,6 +526,7 @@ public final class History {
             target.locksTransparency = record.locksTransparency
             target.adjustment = record.adjustment
             target.clipsToLayerBelow = record.clipsToLayerBelow
+            target.passesThrough = record.passesThrough
             target.buffer = record.buffer
             reversal.layers = current
         } else {
@@ -559,6 +560,8 @@ public final class History {
                 guard let record = before.records.first(where: { $0.layer.id == layer }) else { return nil }
                 let changedThisLayer = !record.matches(currentRecord)
                 guard changedThisLayer else { continue }
+                // Going into or out of a group changes the stack's shape, not just this layer (stage 26).
+                guard record.groupID == currentRecord.groupID else { return nil }
                 // Only a step that changed just this layer, and kept the same layers in the same order, stands alone.
                 let others = zip(before.records, now.records).allSatisfy { a, b in
                     a.layer === b.layer && (a.layer.id == layer || a.matches(b))

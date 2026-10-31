@@ -5,7 +5,12 @@ extension Compositing {
     /// layer's blend mode, then faded in by its opacity. `Shaders.metal` does the same for the display.
     static func adjust(_ below: PixelBuffer, by adjustment: Effect, opacity: Double, mode: BlendMode,
                        placement: Effects.Placement? = nil) -> PixelBuffer {
-        let adjusted = Effects.adjusted(below, by: adjustment, placement: placement)
+        mixed(below, Effects.adjusted(below, by: adjustment, placement: placement), opacity: opacity, mode: mode)
+    }
+
+    /// `adjusted` over `below` by `mode`, faded in by `opacity`: an adjustment layer's result, and a Pass Through
+    /// group's (stage 25).
+    static func mixed(_ below: PixelBuffer, _ adjusted: PixelBuffer, opacity: Double, mode: BlendMode) -> PixelBuffer {
         let result = PixelBuffer(width: below.width, height: below.height)
         let fade = Float(min(1, max(0, opacity)))
         ParallelRows.forEach(0..<below.height) { rows in

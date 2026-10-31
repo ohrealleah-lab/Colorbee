@@ -43,7 +43,7 @@ public enum ImageActions {
         edit.willChangeGeometry()
         var buffers: [LayerID: PixelBuffer] = [:]
         for layer in canvas.layers {
-            guard layer.adjustment == nil else {
+            guard layer.isPixelLayer else {
                 buffers[layer.id] = PixelBuffer(size: settings.resultSize)
                 continue
             }
@@ -80,7 +80,7 @@ public enum ImageActions {
         let kept = IntRect(size: canvas.size).intersection(IntRect(x: -offset.x, y: -offset.y, width: size.width, height: size.height))
         let placed = IntRect(x: kept.minX + offset.x, y: kept.minY + offset.y, width: kept.width, height: kept.height)
         for layer in canvas.layers {
-            let fill = layer.adjustment == nil ? canvas.vacatedFill(for: layer, color2: context.color2) : .clear
+            let fill = layer.isPixelLayer ? canvas.vacatedFill(for: layer, color2: context.color2) : .clear
             let buffer = PixelBuffer(width: size.width, height: size.height, fill: fill)
             // A layer with no pixels has nothing to copy, unless the new area's fill would cover where they go.
             if !(layer.holdsNoPixels && fill == .clear), !kept.isEmpty {

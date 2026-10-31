@@ -5,10 +5,7 @@ public enum LayerActions {
     @discardableResult
     public static func add(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         change("New Layer", canvas: canvas, history: history, context: context) {
-            let layer = Layer(name: nextName(in: canvas), buffer: PixelBuffer(width: canvas.size.width, height: canvas.size.height))
-            let index = canvas.indexAboveActiveLayer
-            canvas.insertLayer(layer, at: index)
-            canvas.activeLayerIndex = index
+            canvas.insertLayerAboveActive(Layer(name: nextName(in: canvas), buffer: PixelBuffer(width: canvas.size.width, height: canvas.size.height)))
             return true
         }
     }
@@ -20,9 +17,7 @@ public enum LayerActions {
         return change("New Adjustment Layer", canvas: canvas, history: history, context: context) {
             let layer = Layer(name: name, buffer: PixelBuffer(width: canvas.size.width, height: canvas.size.height))
             layer.adjustment = adjustment
-            let index = canvas.indexAboveActiveLayer
-            canvas.insertLayer(layer, at: index)
-            canvas.activeLayerIndex = index
+            canvas.insertLayerAboveActive(layer)
             return true
         }
     }
@@ -36,13 +31,14 @@ public enum LayerActions {
         guard canApplyAdjustment(canvas) else { return false }
         if canvas.activeLayer.clipsToLayerBelow { return applyClippedAdjustment(canvas: canvas, history: history, context: context) }
         return change("Merge Adjustment", canvas: canvas, history: history, context: context) {
-            let merged = canvas.layers.prefix(canvas.activeLayerIndex + 1).filter(\.isVisible)
-            let target = merged[0]
+            let merged = canvas.layers.prefix(canvas.activeLayerIndex + 1).filter(canvas.isShown)
+            guard let target = merged.first(where: \.isPixelLayer) else { return false }
             target.buffer = canvas.composite(merged)
             target.opacity = 1
             target.blendMode = .normal
             target.adjustment = nil
             target.clipsToLayerBelow = false
+            target.groupID = nil
             for layer in merged.dropFirst() {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
             }
@@ -58,7 +54,7 @@ public enum LayerActions {
             let index = canvas.activeLayerIndex
             guard let baseIndex = canvas.clipBaseIndex(forLayerAt: index) else { return false }
             let base = canvas.layers[baseIndex]
-            let merged = canvas.layers[(baseIndex + 1)...index].filter(\.isVisible)
+            let merged = canvas.layers[(baseIndex + 1)...index].filter(canvas.isShown)
             for clip in merged {
                 base.buffer = Compositing.adjust(base.buffer, by: clip.adjustment!, opacity: clip.opacity, mode: clip.blendMode)
             }
@@ -70,17 +66,19 @@ public enum LayerActions {
         }
     }
 
-    /// A hidden adjustment changes nothing, so there's nothing to apply.
+    /// A hidden adjustment changes nothing, so there's nothing to apply. One inside a group (not clipped) waits: it
+    /// would have to merge layers outside the group into one inside it (stage 25).
     public static func canApplyAdjustment(_ canvas: Canvas) -> Bool {
         let index = canvas.activeLayerIndex
         let layer = canvas.layers[index]
-        guard index > 0, layer.adjustment != nil, layer.isVisible else { return false }
+        guard index > 0, layer.adjustment != nil, canvas.isShown(layer) else { return false }
         if layer.clipsToLayerBelow {
             guard let baseIndex = canvas.clipBaseIndex(forLayerAt: index) else { return false }
-            return !canvas.layers[baseIndex...index].contains { $0.isLocked && ($0.isVisible || $0 === canvas.layers[baseIndex]) }
+            return !canvas.layers[baseIndex...index].contains { canvas.isLocked($0) && (canvas.isShown($0) || $0 === canvas.layers[baseIndex]) }
         }
-        let merged = canvas.layers.prefix(index + 1).filter(\.isVisible)
-        return merged.count > 1 && !merged.contains(where: \.isLocked)
+        guard layer.groupID == nil else { return false }
+        let merged = canvas.layers.prefix(index + 1).filter(canvas.isShown)
+        return merged.count > 1 && merged.contains(where: \.isPixelLayer) && !merged.contains(where: canvas.isLocked)
     }
 
     /// A copy of the active layer, with its settings, just above it.
@@ -93,10 +91,18 @@ public enum LayerActions {
     }
 
     /// A copy of the active layer, with its settings, inserted just above it and made active. A copy of a clipped
-    /// adjustment stays in its group; anything else goes above the group.
+    /// adjustment stays with the layer it changes; anything else goes above that. A group is copied with everything in
+    /// it (stage 26).
     @discardableResult
     static func insertCopyOfActiveLayer(canvas: Canvas) -> Layer {
         let source = canvas.activeLayer
+        if source.isGroup {
+            let index = canvas.activeLayerIndex
+            let copies = copies(of: Array(canvas.layers[canvas.span(ofLayerAt: index)]))
+            for (offset, copy) in copies.enumerated() { canvas.insertLayer(copy, at: index + 1 + offset) }
+            canvas.activeLayerIndex = index + copies.count
+            return copies.last!
+        }
         let copy = copy(of: source)
         let index = source.clipsToLayerBelow ? canvas.activeLayerIndex + 1 : canvas.indexAboveActiveLayer
         canvas.insertLayer(copy, at: index)
@@ -104,27 +110,35 @@ public enum LayerActions {
         return copy
     }
 
-    /// "Name copy", with the same pixels and settings.
+    /// "Name copy", with the same pixels and settings, in the same group.
     static func copy(of source: Layer) -> Layer {
-        let copy = Layer(name: "\(source.name) copy", buffer: source.buffer.copy())
-        copy.isVisible = source.isVisible
-        copy.opacity = source.opacity
-        copy.blendMode = source.blendMode
-        copy.locksTransparency = source.locksTransparency
-        copy.adjustment = source.adjustment
-        copy.clipsToLayerBelow = source.clipsToLayerBelow
-        return copy
+        source.copy(buffer: source.isPixelLayer ? source.buffer.copy() : PixelBuffer(size: source.buffer.size), id: LayerID(),
+                    name: "\(source.name) copy")
+    }
+
+    /// Copies of `span` (a group and everything in it, in canvas order), the groups inside pointing to their copies.
+    /// Only the top one is named "copy".
+    static func copies(of span: [Layer]) -> [Layer] {
+        var newIDs: [LayerID: LayerID] = [:]
+        for layer in span where layer.isGroup { newIDs[layer.id] = LayerID() }
+        return span.enumerated().map { offset, layer in
+            let top = offset == span.count - 1
+            let copy = layer.copy(buffer: layer.isPixelLayer ? layer.buffer.copy() : PixelBuffer(size: layer.buffer.size),
+                                  id: newIDs[layer.id] ?? LayerID(), name: top ? "\(layer.name) copy" : layer.name)
+            if let group = layer.groupID, let renamed = newIDs[group] { copy.groupID = renamed }
+            return copy
+        }
     }
 
     /// Deletes the active layer unless it's locked or the only one, with its clipped adjustments, which belonged to it
-    /// (Leah, 2026-10-13). The layer below becomes active.
+    /// (Leah, 2026-10-13), or a group with everything in it. The layer below becomes active.
     @discardableResult
     public static func delete(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard canDelete(canvas) else { return false }
         return change("Delete Layer", canvas: canvas, history: history, context: context) {
-            let index = canvas.activeLayerIndex
-            for _ in 0...canvas.clippedAdjustments(onLayerAt: index).count { canvas.removeLayer(at: index) }
-            canvas.activeLayerIndex = max(0, index - 1)
+            let going = deletedRange(ofLayerAt: canvas.activeLayerIndex, in: canvas)
+            for index in going.reversed() { canvas.removeLayer(at: index) }
+            canvas.activeLayerIndex = max(0, going.lowerBound - 1)
             return true
         }
     }
@@ -133,8 +147,13 @@ public enum LayerActions {
     public static func canDelete(_ canvas: Canvas, layerAt index: Int? = nil) -> Bool {
         let index = index ?? canvas.activeLayerIndex
         guard canvas.layers.indices.contains(index) else { return false }
-        let going = [canvas.layers[index]] + canvas.clippedAdjustments(onLayerAt: index)
-        return canvas.layers.count > going.count && !going.contains(where: \.isLocked)
+        let going = deletedRange(ofLayerAt: index, in: canvas)
+        return canvas.layers.count > going.count && !canvas.layers[going].contains(where: canvas.isLocked)
+    }
+
+    /// What deleting the layer at `index` takes: a group with everything in it, or a layer with its clipped adjustments.
+    static func deletedRange(ofLayerAt index: Int, in canvas: Canvas) -> Range<Int> {
+        canvas.layers[index].isGroup ? canvas.span(ofLayerAt: index) : index..<(index + 1 + canvas.clippedAdjustments(onLayerAt: index).count)
     }
 
     /// Combines the active layer into the one below, using its blend mode and opacity. The result keeps
@@ -142,6 +161,7 @@ public enum LayerActions {
     /// layer below: "Down" should always mean the one layer below (Leah, 2026-10-10).
     @discardableResult
     public static func mergeDown(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
+        if canvas.activeLayer.isGroup { return mergeGroup(canvas: canvas, history: history, context: context) }
         guard canMergeDown(canvas) else { return false }
         return change("Merge Down", canvas: canvas, history: history, context: context) {
             let index = canvas.activeLayerIndex
@@ -158,10 +178,14 @@ public enum LayerActions {
     /// Whether the layer at `index` (the active one if nil) could be merged down.
     public static func canMergeDown(_ canvas: Canvas, layerAt index: Int? = nil) -> Bool {
         let index = index ?? canvas.activeLayerIndex
-        guard canvas.layers.indices.contains(index), canvas.layers[index].adjustment == nil else { return false }
-        // Pixels can't be merged into an adjustment layer, which has none.
-        return index > 0 && !canvas.layers[index].isLocked && !canvas.layers[index - 1].isLocked && canvas.layers[index - 1].adjustment == nil
-            && !canvas.clippedAdjustments(onLayerAt: index).contains(where: \.isLocked)
+        guard canvas.layers.indices.contains(index) else { return false }
+        if canvas.layers[index].isGroup { return canMergeGroup(canvas, at: index) }
+        guard canvas.layers[index].isPixelLayer, index > 0 else { return false }
+        // Pixels can't be merged into an adjustment layer or a group, which have none, nor out of a group.
+        let lower = canvas.layers[index - 1]
+        return !canvas.isLocked(canvas.layers[index]) && !canvas.isLocked(lower) && lower.isPixelLayer
+            && lower.groupID == canvas.layers[index].groupID
+            && !canvas.clippedAdjustments(onLayerAt: index).contains(where: canvas.isLocked)
     }
 
     /// Combines every visible layer into the lowest visible one, as they look together. Hidden layers stay.
@@ -169,18 +193,20 @@ public enum LayerActions {
     public static func mergeVisible(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard canMergeVisible(canvas) else { return false }
         return change("Merge Visible", canvas: canvas, history: history, context: context) {
-            let visible = canvas.layers.filter(\.isVisible)
-            let target = visible[0]
+            let visible = canvas.shownLayers
+            guard let target = visible.first(where: \.isPixelLayer) else { return false }
             target.buffer = canvas.composite(visible)
             target.opacity = 1
             target.blendMode = .normal
             target.adjustment = nil
             target.clipsToLayerBelow = false
+            target.groupID = nil
             let active = canvas.activeLayer
-            for layer in visible.dropFirst() {
+            let activeShown = canvas.isShown(active)
+            for layer in visible where layer !== target {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
             }
-            canvas.activeLayerIndex = canvas.layers.firstIndex { $0 === (active.isVisible ? target : active) } ?? 0
+            canvas.activeLayerIndex = canvas.layers.firstIndex { $0 === (activeShown ? target : active) } ?? 0
             return true
         }
     }
@@ -189,12 +215,9 @@ public enum LayerActions {
     /// visible merged as it looks, while the layers themselves stay. It becomes active.
     @discardableResult
     public static func stampVisible(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
-        guard canvas.layers.contains(where: \.isVisible) else { return false }
+        guard canvas.layers.contains(where: canvas.isShown) else { return false }
         return change("Stamp Visible", canvas: canvas, history: history, context: context) {
-            let stamp = Layer(name: "Stamp", buffer: canvas.composite(canvas.layers.filter(\.isVisible)))
-            let index = canvas.indexAboveActiveLayer
-            canvas.insertLayer(stamp, at: index)
-            canvas.activeLayerIndex = index
+            canvas.insertLayerAboveActive(Layer(name: "Stamp", buffer: canvas.composite(canvas.shownLayers)))
             return true
         }
     }
@@ -212,8 +235,8 @@ public enum LayerActions {
     }
 
     public static func canMergeVisible(_ canvas: Canvas) -> Bool {
-        let visible = canvas.layers.filter(\.isVisible)
-        return visible.count > 1 && !visible.contains(where: \.isLocked)
+        let visible = canvas.shownLayers
+        return visible.count > 1 && visible.contains(where: \.isPixelLayer) && !visible.contains(where: canvas.isLocked)
     }
 
     /// Combines all visible layers into one; hidden layers are dropped.
@@ -221,14 +244,19 @@ public enum LayerActions {
     public static func flatten(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard canFlatten(canvas) else { return false }
         return change("Flatten", canvas: canvas, history: history, context: context) {
-            let visible = canvas.layers.filter(\.isVisible)
+            let flat = canvas.composite(canvas.shownLayers)
+            // The bottom layer holds the result, unless it's an empty group: then a new layer does.
+            if !canvas.layers[0].isPixelLayer, canvas.layers[0].isGroup {
+                canvas.insertLayer(Layer(name: "Background", buffer: PixelBuffer(size: canvas.size)), at: 0)
+            }
             let bottom = canvas.layers[0]
-            bottom.buffer = canvas.composite(visible)
+            bottom.buffer = flat
             bottom.opacity = 1
             bottom.blendMode = .normal
             bottom.isVisible = true
             bottom.adjustment = nil
             bottom.clipsToLayerBelow = false
+            bottom.groupID = nil
             while canvas.layers.count > 1 { canvas.removeLayer(at: 1) }
             canvas.activeLayerIndex = 0
             return true
@@ -236,9 +264,9 @@ public enum LayerActions {
     }
 
     public static func canFlatten(_ canvas: Canvas) -> Bool {
-        guard !canvas.layers.contains(where: \.isLocked) else { return false }
+        guard !canvas.layers.contains(where: canvas.isLocked) else { return false }
         let only = canvas.layers[0]
-        return canvas.layers.count > 1 || !only.isVisible || only.opacity < 1 || only.blendMode != .normal
+        return canvas.layers.count > 1 || !only.isVisible || only.opacity < 1 || only.blendMode != .normal || !only.isPixelLayer
     }
 
     /// Moves a layer to a new position in the stack (0 is the bottom). The active layer stays active.
@@ -277,6 +305,7 @@ public enum LayerActions {
         let edit = history.beginEdit(name, on: canvas)
         edit.willChangeLayers()
         guard body() else { return false }
+        canvas.keepGroupsTogether()
         return history.commit(edit)
     }
 }

@@ -70,7 +70,7 @@ public enum Decorations {
                                  make: (Shape) -> (extent: IntRect, coverage: (Int, Int) -> Float, color: Pixel)) -> Bool {
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let layer = canvas.activeLayer
-        guard layer.adjustment == nil, !layer.isLocked else { return false }
+        guard layer.isPixelLayer, !canvas.isLocked(layer) else { return false }
         let selection = canvas.selection.marquee
         guard let shape = Shape(layer.buffer, selection: selection) else { return false }
         let (extent, coverage, color) = make(shape)
@@ -113,7 +113,7 @@ public enum Decorations {
             edit.willChangeGeometry()
             var buffers: [LayerID: PixelBuffer] = [:]
             for other in canvas.layers where other !== layer {
-                let otherFill = other.adjustment == nil ? canvas.vacatedFill(for: other, color2: context.color2) : .clear
+                let otherFill = other.isPixelLayer ? canvas.vacatedFill(for: other, color2: context.color2) : .clear
                 let buffer = PixelBuffer(width: size.width, height: size.height, fill: otherFill)
                 if !(other.holdsNoPixels && otherFill == .clear) {
                     buffer.setPixels(other.buffer.pixels(in: canvas.bounds), in: canvas.bounds.offsetBy(dx: left, dy: top))
@@ -124,7 +124,7 @@ public enum Decorations {
             // A layer that locks its transparency keeps its outline, as the fitting case does through its edit: what
             // was clear stays exactly so, every pixel keeps its opacity, and the new space stays clear (review U,
             // finding 2).
-            let locked = layer.locksTransparency
+            let locked = canvas.locksTransparency(layer)
             ParallelRows.forEach(0..<size.height) { rows in
                 for y in rows {
                     let target = active.row(y)

@@ -73,17 +73,7 @@ public final class Canvas {
     /// An independent copy with the same layers, settings and selection, for saving in the background
     /// while editing carries on. A floating selection's pixels are never modified, so they're shared.
     public func copy() -> Canvas {
-        let copies = layers.map { layer in
-            let copy = Layer(name: layer.name, buffer: layer.adjustment == nil ? layer.buffer.copy() : layer.buffer, id: layer.id)
-            copy.isVisible = layer.isVisible
-            copy.opacity = layer.opacity
-            copy.blendMode = layer.blendMode
-            copy.isLocked = layer.isLocked
-            copy.locksTransparency = layer.locksTransparency
-            copy.adjustment = layer.adjustment
-            copy.clipsToLayerBelow = layer.clipsToLayerBelow
-            return copy
-        }
+        let copies = layers.map { $0.copy(buffer: $0.isPixelLayer ? $0.buffer.copy() : $0.buffer) }
         let canvas = Canvas(colorSpace: colorSpace, layers: copies, hasTransparentBackground: hasTransparentBackground,
                             backgroundLayerID: backgroundLayerID, activeLayerIndex: activeLayerIndex)
         canvas.selection = selection
@@ -102,6 +92,14 @@ public final class Canvas {
     public func insertLayer(_ layer: Layer, at index: Int) {
         precondition(layer.buffer.size == size, "Layer size doesn't match the canvas")
         layers.insert(layer, at: index)
+    }
+
+    /// Puts `layer` "above the active one" (`indexAboveActiveLayer`), in the active layer's group, and makes it active.
+    func insertLayerAboveActive(_ layer: Layer) {
+        layer.groupID = activeLayer.groupID
+        let index = indexAboveActiveLayer
+        insertLayer(layer, at: index)
+        activeLayerIndex = index
     }
 
     /// Swaps in new pixel buffers of `size` for every layer. Used by geometry changes and their undo.
@@ -135,7 +133,7 @@ public final class Canvas {
     /// get holes, so they paint Color 2 inside its shape (Q23.2). New canvas space and moved edges use `vacatedFill`,
     /// since those move the layer's outline rather than paint on it (Q23.4).
     public func erasedFill(for layer: Layer, color2: Pixel) -> Pixel {
-        layer.locksTransparency ? Pixel(r: color2.r, g: color2.g, b: color2.b) : vacatedFill(for: layer, color2: color2)
+        locksTransparency(layer) ? Pixel(r: color2.r, g: color2.g, b: color2.b) : vacatedFill(for: layer, color2: color2)
     }
 
     /// What erasing or lifting pixels leaves behind on `layer`: Color 2 on a solid background, otherwise transparency.
@@ -146,12 +144,14 @@ public final class Canvas {
     // MARK: Clipped adjustments
 
     /// The pixel layer a clipped adjustment at `index` changes: the nearest layer below that isn't itself a clipped
-    /// adjustment, if that's a pixel layer. Nil (no effect) when it's an adjustment or there's nothing below.
+    /// adjustment, if that's a pixel layer in the same group. Nil (no effect) when it's an adjustment, a group or
+    /// there's nothing below.
     public func clipBaseIndex(forLayerAt index: Int) -> Int? {
         guard layers.indices.contains(index) else { return nil }
+        let parent = layers[index].groupID
         var below = index - 1
-        while below >= 0, layers[below].adjustment != nil, layers[below].clipsToLayerBelow { below -= 1 }
-        return below >= 0 && layers[below].adjustment == nil ? below : nil
+        while below >= 0, layers[below].adjustment != nil, layers[below].clipsToLayerBelow, layers[below].groupID == parent { below -= 1 }
+        return below >= 0 && layers[below].isPixelLayer && layers[below].groupID == parent ? below : nil
     }
 
     /// Whether the adjustment layer at `index` could be set to change only the layer below.
@@ -163,17 +163,18 @@ public final class Canvas {
     /// changing the layer they're on (Leah, 2026-10-13). On a clipped adjustment, above its whole group.
     public var indexAboveActiveLayer: Int {
         let active = activeLayerIndex
-        let base = layers[active].adjustment == nil ? active : layers[active].clipsToLayerBelow ? clipBaseIndex(forLayerAt: active) : nil
+        let base = layers[active].isPixelLayer ? active : layers[active].adjustment != nil && layers[active].clipsToLayerBelow ? clipBaseIndex(forLayerAt: active) : nil
         guard let base else { return active + 1 }
         return base + 1 + clippedAdjustments(onLayerAt: base).count
     }
 
     /// The clipped adjustment layers on the pixel layer at `index`, bottom to top.
     public func clippedAdjustments(onLayerAt index: Int) -> [Layer] {
-        guard layers.indices.contains(index), layers[index].adjustment == nil else { return [] }
+        guard layers.indices.contains(index), layers[index].isPixelLayer else { return [] }
+        let parent = layers[index].groupID
         var result: [Layer] = []
         var above = index + 1
-        while above < layers.count, layers[above].adjustment != nil, layers[above].clipsToLayerBelow {
+        while above < layers.count, layers[above].adjustment != nil, layers[above].clipsToLayerBelow, layers[above].groupID == parent {
             result.append(layers[above])
             above += 1
         }
@@ -193,10 +194,7 @@ public final class Canvas {
             for clip in clips {
                 buffer = Compositing.adjust(buffer, by: clip.adjustment!, opacity: clip.opacity, mode: clip.blendMode, placement: placement)
             }
-            let standIn = Layer(name: layer.name, buffer: buffer, id: layer.id)
-            standIn.opacity = layer.opacity
-            standIn.blendMode = layer.blendMode
-            return standIn
+            return layer.copy(buffer: buffer)
         }
     }
 
@@ -209,7 +207,8 @@ public final class Canvas {
         let width = max(1, Int(Double(size.width) * scale)), height = max(1, Int(Double(size.height) * scale))
         var pixels: [Pixel] = []
         pixels.reserveCapacity(width * height)
-        let visible = layers.filter { $0.isVisible && $0.opacity > 0 }
+        let visible = shownLayers
+        let nodes = tree(of: visible)
         // A pixel layer's clipped adjustments change its own pixels before it's blended.
         let clips = Dictionary(uniqueKeysWithValues: visible.map { layer in
             (ObjectIdentifier(layer), layers.firstIndex { $0 === layer }.map { clippedAdjustments(onLayerAt: $0).filter { clip in visible.contains { $0 === clip } } } ?? [])
@@ -223,27 +222,38 @@ public final class Canvas {
             let y = min(size.height - 1, Int((Double(ty) + 0.5) / scale))
             for tx in 0..<width {
                 let x = min(size.width - 1, Int((Double(tx) + 0.5) / scale))
-                var color = SIMD4<Float>.zero
-                for layer in visible {
-                    if layer.adjustment != nil {
-                        guard !layer.clipsToLayerBelow, let transform = transforms[ObjectIdentifier(layer)] else { continue }
-                        let below = Compositing.pixel(color)
-                        var adjusted = transform(below)
-                        adjusted.a = below.a
-                        let goal = Compositing.premultiplied(adjusted)
-                        color += (goal - color) * Float(layer.opacity)
-                    } else {
-                        var pixel = layer.buffer[x, y]
-                        for clip in clips[ObjectIdentifier(layer)] ?? [] {
-                            guard let transform = transforms[ObjectIdentifier(clip)] else { continue }
-                            var adjusted = transform(pixel)
-                            adjusted.a = pixel.a
-                            pixel = Compositing.lerp(pixel, adjusted, Float(clip.opacity))
+                // Groups as `composite` does them: Pass Through over what's below, any other on their own first.
+                func shade(_ nodes: [LayerNode], onto start: SIMD4<Float>) -> SIMD4<Float> {
+                    var color = start
+                    for node in nodes {
+                        let layer = node.layer
+                        if layer.isGroup {
+                            if layer.passesThrough {
+                                color += (shade(node.children, onto: color) - color) * Float(layer.opacity)
+                            } else {
+                                Compositing.blend(&color, Compositing.pixel(shade(node.children, onto: .zero)), opacity: Float(layer.opacity), mode: layer.blendMode)
+                            }
+                        } else if layer.adjustment != nil {
+                            guard !layer.clipsToLayerBelow, let transform = transforms[ObjectIdentifier(layer)] else { continue }
+                            let below = Compositing.pixel(color)
+                            var adjusted = transform(below)
+                            adjusted.a = below.a
+                            let goal = Compositing.premultiplied(adjusted)
+                            color += (goal - color) * Float(layer.opacity)
+                        } else {
+                            var pixel = layer.buffer[x, y]
+                            for clip in clips[ObjectIdentifier(layer)] ?? [] {
+                                guard let transform = transforms[ObjectIdentifier(clip)] else { continue }
+                                var adjusted = transform(pixel)
+                                adjusted.a = pixel.a
+                                pixel = Compositing.lerp(pixel, adjusted, Float(clip.opacity))
+                            }
+                            Compositing.blend(&color, pixel, opacity: Float(layer.opacity), mode: layer.blendMode)
                         }
-                        Compositing.blend(&color, pixel, opacity: Float(layer.opacity), mode: layer.blendMode)
                     }
+                    return color
                 }
-                pixels.append(Compositing.pixel(color))
+                pixels.append(Compositing.pixel(shade(nodes, onto: .zero)))
             }
         }
         return Thumbnail(width: width, height: height, pixels: pixels)
@@ -255,9 +265,7 @@ public final class Canvas {
     var layerStackState: LayerStackState {
         LayerStackState(
             records: layers.map {
-                LayerStackState.Record(layer: $0, name: $0.name, isVisible: $0.isVisible, opacity: $0.opacity,
-                                       blendMode: $0.blendMode, isLocked: $0.isLocked, locksTransparency: $0.locksTransparency, adjustment: $0.adjustment,
-                                       clipsToLayerBelow: $0.clipsToLayerBelow, buffer: $0.buffer)
+                LayerStackState.Record($0)
             },
             activeIndex: activeLayerIndex,
             hasTransparentBackground: hasTransparentBackground,
@@ -276,6 +284,8 @@ public final class Canvas {
             layer.locksTransparency = record.locksTransparency
             layer.adjustment = record.adjustment
             layer.clipsToLayerBelow = record.clipsToLayerBelow
+            layer.groupID = record.groupID
+            layer.passesThrough = record.passesThrough
             layer.buffer = record.buffer
             return layer
         }
@@ -284,10 +294,22 @@ public final class Canvas {
         size = state.size
     }
 
+    /// Removing a group leaves the layers in it in the group it was in.
     func removeLayer(at index: Int) {
         precondition(layers.count > 1, "A canvas needs at least one layer")
-        layers.remove(at: index)
+        let removed = layers.remove(at: index)
+        if removed.isGroup {
+            for layer in layers where layer.groupID == removed.id { layer.groupID = removed.groupID }
+        }
         activeLayerIndex = min(activeLayerIndex, layers.count - 1)
+    }
+
+    /// The same layers in a new order. The active layer stays active.
+    func reorder(_ order: [Layer]) {
+        precondition(order.count == layers.count && order.allSatisfy { layer in layers.contains { $0 === layer } }, "Only the order may change")
+        let active = activeLayer
+        layers = order
+        activeLayerIndex = layers.firstIndex { $0 === active }!
     }
 
     func moveLayer(from source: Int, to destination: Int) {
@@ -299,14 +321,36 @@ public final class Canvas {
     /// An adjustment layer changes everything composited so far. The floating selection is drawn into its
     /// layer before the layer is blended, as it will be once placed (review F, finding 1), at `resampling`
     /// when it's stretched.
+    /// A group in `stack` is put together as the screen shows it (stage 25): a Pass Through group's layers go straight
+    /// onto what's below, faded in by its opacity; any other group's layers are composited on their own, then blended
+    /// in like one layer.
     func composite(_ stack: [Layer], onto base: PixelBuffer? = nil, transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) -> PixelBuffer {
+        composite(tree(of: clipped(stack)), onto: base, transparentKey: transparentKey, resampling: resampling)
+    }
+
+    private func composite(_ nodes: [LayerNode], onto base: PixelBuffer?, transparentKey: Pixel?, resampling: Resampling) -> PixelBuffer {
         var current = base
         var segment: [Layer] = []
-        for layer in clipped(stack) {
-            if let adjustment = layer.adjustment {
-                let below = segment.isEmpty && current != nil ? current! : compositePixels(segment, onto: current, transparentKey: transparentKey, resampling: resampling)
-                current = Compositing.adjust(below, by: adjustment, opacity: layer.opacity, mode: layer.blendMode, placement: placement)
-                segment = []
+        func below() -> PixelBuffer {
+            defer { segment = [] }
+            return segment.isEmpty && current != nil ? current! : compositePixels(segment, onto: current, transparentKey: transparentKey, resampling: resampling)
+        }
+        for node in nodes {
+            let layer = node.layer
+            if layer.isGroup {
+                if layer.passesThrough {
+                    let backdrop = below()
+                    let inside = composite(node.children, onto: backdrop, transparentKey: transparentKey, resampling: resampling)
+                    current = layer.opacity >= 1 ? inside : Compositing.mixed(backdrop, inside, opacity: layer.opacity, mode: .normal)
+                } else {
+                    let inside = composite(node.children, onto: nil, transparentKey: transparentKey, resampling: resampling)
+                    let standIn = Layer(name: layer.name, buffer: inside, id: layer.id)
+                    standIn.opacity = layer.opacity
+                    standIn.blendMode = layer.blendMode
+                    segment.append(standIn)
+                }
+            } else if let adjustment = layer.adjustment {
+                current = Compositing.adjust(below(), by: adjustment, opacity: layer.opacity, mode: layer.blendMode, placement: placement)
             } else {
                 segment.append(layer)
             }
@@ -353,7 +397,7 @@ public final class Canvas {
                         for x in 0..<floatingSpan.lowerBound {
                             Compositing.blend(&row[x], source[x], opacity: opacity, mode: mode)
                         }
-                        let locked = layer.locksTransparency
+                        let locked = locksTransparency(layer)
                         for x in floatingSpan {
                             let placed = locked ? Pixel.placedOnLocked(source[x], floatingRow[x]) : Compositing.over(source[x], floatingRow[x])
                             Compositing.blend(&row[x], placed, opacity: opacity, mode: mode)
@@ -426,14 +470,12 @@ public final class Canvas {
                     (buffer.row(y)).update(from: layer.buffer.row(padded.minY + y) + padded.minX, count: padded.width)
                 }
             }
-            let copy = Layer(name: layer.name, buffer: buffer, id: layer.id)
-            let shownAlone = alone && offset == 0
-            copy.isVisible = shownAlone || layer.isVisible
-            copy.opacity = shownAlone ? 1 : layer.opacity
-            copy.blendMode = shownAlone ? .normal : layer.blendMode
-            copy.adjustment = layer.adjustment
-            copy.clipsToLayerBelow = layer.clipsToLayerBelow
-            copy.locksTransparency = layer.locksTransparency
+            let copy = layer.copy(buffer: buffer)
+            if alone && offset == 0 {
+                copy.isVisible = true
+                copy.opacity = 1
+                copy.blendMode = .normal
+            }
             return copy
         }
         let canvas = Canvas(colorSpace: colorSpace, layers: patch.isEmpty ? [Layer(name: "Empty", buffer: PixelBuffer(width: padded.width, height: padded.height))] : Array(patch),
@@ -460,7 +502,7 @@ public final class Canvas {
                 buffers[layer.id] = layer.buffer
                 continue
             }
-            buffers[layer.id] = floating.placedCopy(of: layer, resampling: resampling, transparentKey: transparentKey)
+            buffers[layer.id] = floating.placedCopy(of: layer, locked: locksTransparency(layer), resampling: resampling, transparentKey: transparentKey)
         }
         return buffers
     }
@@ -468,14 +510,14 @@ public final class Canvas {
     /// The visible layers from the bottom up to and including `index`, as they look together.
     /// What an adjustment layer added above `index` would see.
     public func composited(through index: Int) -> PixelBuffer {
-        composite(layers.prefix(index + 1).filter { $0.isVisible && $0.opacity > 0 })
+        composite(layers.prefix(index + 1).filter(isShown))
     }
 
     /// All visible layers composited bottom to top with their blend modes, in straight alpha, with any
     /// floating selection shown above its layer. This is what's exported.
     public func flattened(transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) -> PixelBuffer {
-        let visible = layers.filter { $0.isVisible && $0.opacity > 0 }
-        if selection.floating == nil, visible.count == 1, visible[0].opacity >= 1 {
+        let visible = shownLayers
+        if selection.floating == nil, visible.count == 1, visible[0].isPixelLayer, visible[0].opacity >= 1 {
             return visible[0].buffer.copy()
         }
         return composite(visible, transparentKey: transparentKey, resampling: resampling)
@@ -495,13 +537,38 @@ struct LayerStackState {
         let locksTransparency: Bool
         let adjustment: Effect?
         let clipsToLayerBelow: Bool
+        var groupID: LayerID?
+        var passesThrough = true
         let buffer: PixelBuffer
+
+        /// `layer` as it is now.
+        init(_ layer: Layer) {
+            self.init(layer: layer, name: layer.name, isVisible: layer.isVisible, opacity: layer.opacity, blendMode: layer.blendMode,
+                      isLocked: layer.isLocked, locksTransparency: layer.locksTransparency, adjustment: layer.adjustment,
+                      clipsToLayerBelow: layer.clipsToLayerBelow, groupID: layer.groupID, passesThrough: layer.passesThrough, buffer: layer.buffer)
+        }
+
+        init(layer: Layer, name: String, isVisible: Bool, opacity: Double, blendMode: BlendMode, isLocked: Bool, locksTransparency: Bool,
+             adjustment: Effect?, clipsToLayerBelow: Bool, groupID: LayerID? = nil, passesThrough: Bool = true, buffer: PixelBuffer) {
+            self.layer = layer
+            self.name = name
+            self.isVisible = isVisible
+            self.opacity = opacity
+            self.blendMode = blendMode
+            self.isLocked = isLocked
+            self.locksTransparency = locksTransparency
+            self.adjustment = adjustment
+            self.clipsToLayerBelow = clipsToLayerBelow
+            self.groupID = groupID
+            self.passesThrough = passesThrough
+            self.buffer = buffer
+        }
 
         /// The same settings and pixels as `other`.
         func matches(_ other: Record) -> Bool {
             name == other.name && isVisible == other.isVisible && opacity == other.opacity && blendMode == other.blendMode
                 && isLocked == other.isLocked && locksTransparency == other.locksTransparency && adjustment == other.adjustment && clipsToLayerBelow == other.clipsToLayerBelow
-                && buffer === other.buffer
+                && groupID == other.groupID && passesThrough == other.passesThrough && buffer === other.buffer
         }
     }
 

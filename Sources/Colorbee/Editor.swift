@@ -4485,16 +4485,17 @@ final class Editor {
     // MARK: Align and Distribute (stage 24)
 
     /// The chosen layers with pixels to line up: adjustment layers have none.
-    private var chosenPixelLayers: [Layer] {
-        canvas.layers.filter { chosenLayerIDs.contains($0.id) && $0.adjustment == nil }
+    /// The chosen pixel layers, and each chosen group's, a group's moving together (stage 26).
+    private var chosenAlignUnits: [LayerAlign.Unit] {
+        LayerAlign.units(chosenLayerIDs, in: canvas)
     }
 
     var canAlignChosenLayers: Bool {
-        let layers = chosenPixelLayers
-        return !layers.isEmpty && !canvas.layers.contains { chosenLayerIDs.contains($0.id) && $0.isLocked }
+        let units = chosenAlignUnits
+        return !units.isEmpty && !units.contains { $0.layers.contains(where: canvas.isLocked) }
     }
 
-    var canDistributeChosenLayers: Bool { canAlignChosenLayers && chosenPixelLayers.count >= 3 }
+    var canDistributeChosenLayers: Bool { canAlignChosenLayers && chosenAlignUnits.count >= 3 }
 
     /// Layer ▸ Align: the chosen layers' visible pixels lined up, as one step. They line up with the selection if
     /// there is one; otherwise one layer lines up with the canvas, and several with the box around them all (Q24.3).
@@ -4502,11 +4503,11 @@ final class Editor {
         guard canAlignChosenLayers else { return onRefused() }
         finishInteractions()
         placeFloatingKeepingOutline()
-        let layers = chosenPixelLayers
-        let boxes = layers.compactMap(\.buffer.visibleBounds)
+        let units = chosenAlignUnits
+        let boxes = units.compactMap(\.box)
         let reference = canvas.selection.marquee.map { $0.bounds.intersection(canvas.bounds) }
-            ?? (layers.count == 1 ? canvas.bounds : boxes.dropFirst().reduce(boxes.first ?? canvas.bounds) { $0.union($1) })
-        moveChosenLayers(LayerAlign.offsets(aligning: layers, to: alignment, reference: reference), named: "Align \(alignment.title)")
+            ?? (units.count == 1 ? canvas.bounds : boxes.dropFirst().reduce(boxes.first ?? canvas.bounds) { $0.union($1) })
+        moveChosenLayers(LayerAlign.offsets(aligning: units, to: alignment, reference: reference), named: "Align \(alignment.title)")
     }
 
     /// Layer ▸ Align ▸ Distribute: equal gaps between three or more chosen layers, as one step.
@@ -4514,7 +4515,7 @@ final class Editor {
         guard canDistributeChosenLayers else { return onRefused() }
         finishInteractions()
         placeFloatingKeepingOutline()
-        moveChosenLayers(LayerAlign.offsets(distributing: chosenPixelLayers, distribution), named: distribution.title)
+        moveChosenLayers(LayerAlign.offsets(distributing: chosenAlignUnits, distribution), named: distribution.title)
     }
 
     private func moveChosenLayers(_ offsets: [LayerID: IntPoint], named name: String) {

@@ -30,7 +30,8 @@ extension History {
             layers.append(HistorySnapshot.StoredLayer(layer: layer, id: layer.id, name: layer.name, isVisible: layer.isVisible,
                                                       opacity: layer.opacity, blendMode: layer.blendMode, isLocked: layer.isLocked,
                                                       locksTransparency: layer.locksTransparency, adjustment: layer.adjustment,
-                                                      clipsToLayerBelow: layer.clipsToLayerBelow, pixels: written))
+                                                      clipsToLayerBelow: layer.clipsToLayerBelow, isGroup: layer.isGroup, groupID: layer.groupID,
+                                                      passesThrough: layer.passesThrough, pixels: written))
         }
         let selection: SelectionState = canvas.selection.marquee.map { .marquee($0) } ?? .none
         let snapshot = HistorySnapshot(name: name, thumbnail: makeThumbnail?(canvas), size: canvas.size, layers: layers,
@@ -69,9 +70,10 @@ extension History {
         edit.willChangeLayers()
         edit.replacesPicture = true
         let records = zip(snapshot.layers, buffers).map { stored, buffer in
-            LayerStackState.Record(layer: stored.layer ?? Layer(name: stored.name, buffer: buffer, id: stored.id), name: stored.name, isVisible: stored.isVisible, opacity: stored.opacity,
+            LayerStackState.Record(layer: stored.layer ?? Layer(name: stored.name, buffer: buffer, id: stored.id, isGroup: stored.isGroup),
+                                   name: stored.name, isVisible: stored.isVisible, opacity: stored.opacity,
                                    blendMode: stored.blendMode, isLocked: stored.isLocked, locksTransparency: stored.locksTransparency, adjustment: stored.adjustment,
-                                   clipsToLayerBelow: stored.clipsToLayerBelow, buffer: buffer)
+                                   clipsToLayerBelow: stored.clipsToLayerBelow, groupID: stored.groupID, passesThrough: stored.passesThrough, buffer: buffer)
         }
         canvas.restore(LayerStackState(records: records, activeIndex: snapshot.activeIndex,
                                        hasTransparentBackground: snapshot.hasTransparentBackground, size: snapshot.size))

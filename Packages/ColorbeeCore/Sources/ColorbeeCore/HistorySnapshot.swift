@@ -30,6 +30,9 @@ public final class HistorySnapshot: Identifiable {
         let locksTransparency: Bool
         let adjustment: Effect?
         let clipsToLayerBelow: Bool
+        var isGroup = false
+        var groupID: LayerID?
+        var passesThrough = true
         /// One band of rows each (`GeometryChange.bands`); nil for a layer with no pixels (empty or an adjustment).
         var pixels: [SpillStore.Location]?
     }

@@ -37,6 +37,19 @@ public enum ProjectFile {
         /// A one-page project's resolution (a PDF page's), in pixels per inch. Several pages keep theirs in the page
         /// list; missing means the default (review K, finding 6).
         var resolution: Double?
+        /// Layer groups (stage 25), kept apart from `layers` so beta 7, which doesn't know them, opens every layer in
+        /// order, just not grouped (Q25.5). Missing when there are none.
+        var groups: [GroupEntry]?
+        /// With groups, the active layer's place counting them; `activeLayerIndex` counts only `layers`, for beta 7.
+        var activeIndexWithGroups: Int?
+    }
+
+    /// A group's row and where it goes in the full list of layers.
+    struct GroupEntry: Codable {
+        var at: Int
+        var layer: LayerEntry
+        /// Missing means Pass Through.
+        var passesThrough: Bool?
     }
 
     struct LayerEntry: Codable {
@@ -57,6 +70,8 @@ public enum ProjectFile {
         var locksTransparency: Bool?
         /// An adjustment that changes only the layer below; missing means no.
         var clipped: Bool?
+        /// The group it's in (stage 25); missing at the top.
+        var group: UUID?
     }
 
     /// An adjustment that reads back as none if it's of a kind this version doesn't know.
@@ -77,9 +92,10 @@ public enum ProjectFile {
         var entries: [LayerEntry] = []
         let saved = stampingFloating ? canvas.layerBuffersAsSaved(transparentKey: transparentKey, resampling: resampling)
             : Dictionary(uniqueKeysWithValues: canvas.layers.filter { $0.adjustment == nil }.map { ($0.id, $0.buffer) })
-        let pixelLayers = canvas.layers.filter { $0.adjustment == nil && saved[$0.id] != nil }
+        let pixelLayers = canvas.layers.filter { $0.isPixelLayer && saved[$0.id] != nil }
         let compressed = Dictionary(uniqueKeysWithValues: zip(pixelLayers.map(\.id), try LayerPixels.compress(pixelLayers.map { saved[$0.id]! })))
-        for layer in canvas.layers {
+        var groups: [GroupEntry] = []
+        for (index, layer) in canvas.layers.enumerated() {
             var entry = LayerEntry(
                 id: layer.id.rawValue, name: layer.name, isVisible: layer.isVisible, opacity: layer.opacity,
                 blendMode: layer.blendMode.rawValue, isLocked: layer.isLocked,
@@ -87,6 +103,11 @@ public enum ProjectFile {
             )
             if layer.adjustment != nil, layer.clipsToLayerBelow { entry.clipped = true }
             if layer.locksTransparency { entry.locksTransparency = true }
+            entry.group = layer.groupID?.rawValue
+            if layer.isGroup {
+                groups.append(GroupEntry(at: index, layer: entry, passesThrough: layer.passesThrough ? nil : false))
+                continue
+            }
             if let pixels = compressed[layer.id] {
                 entry.pixels = blobs.count..<(blobs.count + pixels.data.count)
                 entry.pieceRows = pixels.pieceRows
@@ -95,14 +116,17 @@ public enum ProjectFile {
             }
             entries.append(entry)
         }
+        let active = canvas.activeLayerIndex
         let manifest = Manifest(
             width: canvas.size.width, height: canvas.size.height,
             iccProfile: canvas.colorSpace.copyICCData() as Data?, colorSpaceName: canvas.colorSpace.name as String?,
             hasTransparentBackground: canvas.hasTransparentBackground,
             backgroundLayerID: canvas.backgroundLayerID?.rawValue,
-            activeLayerIndex: canvas.activeLayerIndex, layers: entries, cameraDetails: canvas.cameraDetails,
+            activeLayerIndex: max(0, canvas.layers[..<active].filter { !$0.isGroup }.count - (canvas.activeLayer.isGroup ? 1 : 0)),
+            layers: entries, cameraDetails: canvas.cameraDetails,
             locationRemoved: canvas.locationRemoved ? true : nil,
-            resolution: resolution == Page.defaultResolution ? nil : resolution
+            resolution: resolution == Page.defaultResolution ? nil : resolution,
+            groups: groups.isEmpty ? nil : groups, activeIndexWithGroups: groups.isEmpty ? nil : active
         )
         let json = try JSONEncoder().encode(manifest)
         var data = magic
@@ -119,7 +143,7 @@ public enum ProjectFile {
     @discardableResult
     static func restore(_ data: Data, into canvas: Canvas, layers: Set<LayerID>) throws -> Bool {
         let (manifest, blobs) = try manifestAndBlobs(data)
-        guard manifest.layers.map(\.id) == canvas.layers.map(\.id.rawValue) else { throw Failure.damaged }
+        guard allEntries(manifest).map(\.entry.id) == canvas.layers.map(\.id.rawValue) else { throw Failure.damaged }
         var stored: [LayerPixels.Stored] = []
         for (entry, layer) in zip(manifest.layers, canvas.layers) where layers.contains(layer.id) {
             guard let range = entry.pixels, range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
@@ -272,70 +296,78 @@ public enum ProjectFile {
     /// A one-page project's layers and settings with empty buffers, and which layers hold pixels: a parked page.
     static func decodeParked(_ data: Data) throws -> (canvas: Canvas, pixelLayers: Set<LayerID>) {
         let (manifest, _) = try manifestAndBlobs(data)
-        guard Set(manifest.layers.map(\.id)).count == manifest.layers.count,
-              manifest.width > 0, manifest.height > 0, manifest.width <= ResizeSkew.maxSide, manifest.height <= ResizeSkew.maxSide,
-              manifest.width * manifest.height <= ResizeSkew.maxArea, !manifest.layers.isEmpty else { throw Failure.damaged }
-        let colorSpace = [manifest.iccProfile.flatMap { CGColorSpace(iccData: $0 as CFData) },
-                          manifest.colorSpaceName.flatMap { CGColorSpace(name: $0 as CFString) }]
-            .compactMap { $0 }.first { $0.model == .rgb } ?? Canvas.defaultColorSpace
-        let layers = manifest.layers.map { entry -> Layer in
-            let layer = Layer(name: entry.name, buffer: PixelBuffer(width: manifest.width, height: manifest.height), id: LayerID(rawValue: entry.id))
-            layer.isVisible = entry.isVisible
-            layer.opacity = min(1, max(0, entry.opacity))
-            layer.blendMode = BlendMode(rawValue: entry.blendMode) ?? .normal
-            layer.isLocked = entry.isLocked
-            layer.locksTransparency = entry.locksTransparency == true && entry.adjustment == nil
-            layer.adjustment = entry.adjustment?.effect
-            layer.clipsToLayerBelow = entry.clipped == true && layer.adjustment != nil
-            return layer
-        }
-        let canvas = Canvas(colorSpace: colorSpace, layers: layers, hasTransparentBackground: manifest.hasTransparentBackground,
-                            backgroundLayerID: manifest.backgroundLayerID.map { LayerID(rawValue: $0) }, activeLayerIndex: manifest.activeLayerIndex)
-        canvas.cameraDetails = manifest.cameraDetails
-        canvas.locationRemoved = manifest.locationRemoved == true
-        let pixelLayers = Set(zip(manifest.layers, layers).filter { $0.0.pixels != nil && $0.1.adjustment == nil }.map(\.1.id))
+        let entries = try checkedEntries(manifest)
+        let layers = entries.map { layer(from: $0.entry, group: $0.group, buffer: PixelBuffer(width: manifest.width, height: manifest.height)) }
+        let canvas = makeCanvas(manifest, layers: layers)
+        let pixelLayers = Set(zip(entries, layers).filter { $0.0.entry.pixels != nil && $0.1.isPixelLayer }.map(\.1.id))
         return (canvas, pixelLayers)
     }
 
     public static func decode(_ data: Data) throws -> Canvas {
         let (manifest, blobs) = try manifestAndBlobs(data)
-        // Repeated layer ids would make two layers one (review J, finding 19).
-        guard Set(manifest.layers.map(\.id)).count == manifest.layers.count else { throw Failure.damaged }
-        guard manifest.width > 0, manifest.height > 0, manifest.width <= ResizeSkew.maxSide, manifest.height <= ResizeSkew.maxSide,
-              manifest.width * manifest.height <= ResizeSkew.maxArea, !manifest.layers.isEmpty else { throw Failure.damaged }
-
-        // Pixels are RGB, so a profile of another kind (gray or CMYK, from a damaged or edited file) is
-        // ignored; drawing text or shapes in one would fail (local sweep after review round 1).
-        let colorSpace = [manifest.iccProfile.flatMap { CGColorSpace(iccData: $0 as CFData) },
-                          manifest.colorSpaceName.flatMap { CGColorSpace(name: $0 as CFString) }]
-            .compactMap { $0 }.first { $0.model == .rgb } ?? Canvas.defaultColorSpace
         var stored: [LayerPixels.Stored] = []
-        let layers = try manifest.layers.map { entry -> Layer in
+        let layers = try checkedEntries(manifest).map { entry, group -> Layer in
             let buffer = PixelBuffer(width: manifest.width, height: manifest.height)
-            if let range = entry.pixels {
+            if let range = entry.pixels, group == nil {
                 // Checked against the size before adding, so a huge offset can't overflow (review J, finding 20).
                 guard range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
                 let start = blobs.startIndex + range.lowerBound, end = blobs.startIndex + range.upperBound
                 stored.append(LayerPixels.Stored(data: blobs[start..<end], pieceRows: entry.pieceRows, pieces: entry.pieces, buffer: buffer))
             }
-            let layer = Layer(name: entry.name, buffer: buffer, id: LayerID(rawValue: entry.id))
-            layer.isVisible = entry.isVisible
-            layer.opacity = min(1, max(0, entry.opacity))
-            layer.blendMode = BlendMode(rawValue: entry.blendMode) ?? .normal
-            layer.isLocked = entry.isLocked
-            layer.locksTransparency = entry.locksTransparency == true && entry.adjustment == nil
-            layer.adjustment = entry.adjustment?.effect
-            layer.clipsToLayerBelow = entry.clipped == true && layer.adjustment != nil
-            return layer
+            return layer(from: entry, group: group, buffer: buffer)
         }
         try LayerPixels.decompress(stored)
+        return makeCanvas(manifest, layers: layers)
+    }
+
+    /// Every layer and group, in order: the groups put back at their places among the layers (stage 25).
+    static func allEntries(_ manifest: Manifest) -> [(entry: LayerEntry, group: GroupEntry?)] {
+        var result: [(entry: LayerEntry, group: GroupEntry?)] = manifest.layers.map { ($0, nil) }
+        for group in (manifest.groups ?? []).sorted(by: { $0.at < $1.at }) {
+            result.insert((group.layer, group), at: min(max(0, group.at), result.count))
+        }
+        return result
+    }
+
+    /// `allEntries`, refusing a damaged manifest.
+    private static func checkedEntries(_ manifest: Manifest) throws -> [(entry: LayerEntry, group: GroupEntry?)] {
+        let entries = allEntries(manifest)
+        // Repeated layer ids would make two layers one (review J, finding 19).
+        guard Set(entries.map(\.entry.id)).count == entries.count,
+              manifest.width > 0, manifest.height > 0, manifest.width <= ResizeSkew.maxSide, manifest.height <= ResizeSkew.maxSide,
+              manifest.width * manifest.height <= ResizeSkew.maxArea, !entries.isEmpty else { throw Failure.damaged }
+        return entries
+    }
+
+    private static func layer(from entry: LayerEntry, group: GroupEntry?, buffer: PixelBuffer) -> Layer {
+        let layer = Layer(name: entry.name, buffer: buffer, id: LayerID(rawValue: entry.id), isGroup: group != nil)
+        layer.isVisible = entry.isVisible
+        layer.opacity = min(1, max(0, entry.opacity))
+        layer.blendMode = BlendMode(rawValue: entry.blendMode) ?? .normal
+        layer.isLocked = entry.isLocked
+        layer.adjustment = group == nil ? entry.adjustment?.effect : nil
+        layer.locksTransparency = entry.locksTransparency == true && layer.adjustment == nil
+        layer.clipsToLayerBelow = entry.clipped == true && layer.adjustment != nil
+        layer.groupID = entry.group.map { LayerID(rawValue: $0) }
+        layer.passesThrough = group?.passesThrough ?? true
+        return layer
+    }
+
+    private static func makeCanvas(_ manifest: Manifest, layers: [Layer]) -> Canvas {
+        // Pixels are RGB, so a profile of another kind (gray or CMYK, from a damaged or edited file) is
+        // ignored; drawing text or shapes in one would fail (local sweep after review round 1).
+        let colorSpace = [manifest.iccProfile.flatMap { CGColorSpace(iccData: $0 as CFData) },
+                          manifest.colorSpaceName.flatMap { CGColorSpace(name: $0 as CFString) }]
+            .compactMap { $0 }.first { $0.model == .rgb } ?? Canvas.defaultColorSpace
         let canvas = Canvas(
             colorSpace: colorSpace, layers: layers, hasTransparentBackground: manifest.hasTransparentBackground,
             backgroundLayerID: manifest.backgroundLayerID.map { LayerID(rawValue: $0) },
-            activeLayerIndex: manifest.activeLayerIndex
+            activeLayerIndex: manifest.activeIndexWithGroups ?? manifest.activeLayerIndex
         )
         canvas.cameraDetails = manifest.cameraDetails
         canvas.locationRemoved = manifest.locationRemoved == true
+        // A damaged or hand-edited file can't leave a group torn apart.
+        canvas.keepGroupsTogether()
         return canvas
     }
 }

@@ -24,6 +24,18 @@ public final class Layer {
     /// For an adjustment layer: it changes only the pixel layer it sits on, not everything below (a clipping mask;
     /// Leah, 2026-10-10). See `Canvas.clipBaseIndex(forLayerAt:)`.
     public var clipsToLayerBelow = false
+    /// A group (FR-8.7, stage 25): a row holding no pixels. The layers in it sit just below it in `Canvas.layers` and
+    /// name it as their `groupID`, so the list stays flat.
+    public let isGroup: Bool
+    /// The group this layer is in; nil at the top.
+    public var groupID: LayerID?
+    /// For a group: its layers blend with everything below as if they weren't grouped (Pass Through, the default,
+    /// Q25.2). Off, they're put together on their own first and the group is blended in with its blend mode, so an
+    /// adjustment inside changes only the group.
+    public var passesThrough = true
+
+    /// A layer with pixels of its own: not an adjustment layer or a group.
+    public var isPixelLayer: Bool { adjustment == nil && !isGroup }
 
     /// The adjustments an adjustment layer can be.
     public static func isAdjustable(_ effect: Effect) -> Bool {
@@ -36,16 +48,42 @@ public final class Layer {
     }
     /// An adjustment layer, or a layer never painted on: its buffer is all clear and takes no memory,
     /// so whole-image changes give it a new empty buffer rather than touching (and filling) every page.
-    var holdsNoPixels: Bool { adjustment != nil || buffer.isUntouched }
+    var holdsNoPixels: Bool { !isPixelLayer || buffer.isUntouched }
 
     /// Replaced (never resized in place) when the canvas size changes.
     public internal(set) var buffer: PixelBuffer
 
-    public init(name: String, buffer: PixelBuffer, id: LayerID = LayerID()) {
+    public init(name: String, buffer: PixelBuffer, id: LayerID = LayerID(), isGroup: Bool = false) {
         self.id = id
         self.name = name
         self.buffer = buffer
+        self.isGroup = isGroup
         isVisible = true
         opacity = 1
+    }
+
+    /// A new, empty group of `size` (its buffer stays clear and takes no memory).
+    public static func group(named name: String, size: IntSize, id: LayerID = LayerID()) -> Layer {
+        Layer(name: name, buffer: PixelBuffer(size: size), id: id, isGroup: true)
+    }
+
+    /// A layer of the same kind, with every setting of this one, holding `buffer`.
+    public func copy(buffer: PixelBuffer, id: LayerID? = nil, name: String? = nil) -> Layer {
+        let copy = Layer(name: name ?? self.name, buffer: buffer, id: id ?? self.id, isGroup: isGroup)
+        copy.takeSettings(from: self)
+        return copy
+    }
+
+    /// Every setting of `other` but its name, id, kind and pixels.
+    public func takeSettings(from other: Layer) {
+        isVisible = other.isVisible
+        opacity = other.opacity
+        blendMode = other.blendMode
+        isLocked = other.isLocked
+        locksTransparency = other.locksTransparency
+        adjustment = other.adjustment
+        clipsToLayerBelow = other.clipsToLayerBelow
+        groupID = other.groupID
+        passesThrough = other.passesThrough
     }
 }

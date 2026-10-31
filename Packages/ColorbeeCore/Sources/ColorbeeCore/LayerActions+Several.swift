@@ -17,7 +17,7 @@ extension LayerActions {
             // Above the merge, where the result goes.
             let anchor = canvas.layers.suffix(from: merging.last! + 1).first { !going.contains($0.id) }
             // The lowest pixel layer holds the result, so a merge that starts at the background keeps it the background.
-            let holder = stack.first { $0.adjustment == nil }!
+            let holder = stack.first(where: \.isPixelLayer)!
             let merged = canvas.composite(stack)
             for layer in canvas.layers where going.contains(layer.id) && layer !== holder {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
@@ -38,20 +38,23 @@ extension LayerActions {
     }
 
     /// At least two visible chosen layers, one with pixels, and nothing locked among the chosen layers or what goes
-    /// with them (locked layers can't be merged into).
+    /// with them (locked layers can't be merged into). Groups merge by Merge Down instead, and layers in different
+    /// groups wait: where the result would go is unclear (stage 25).
     public static func canMergeLayers(_ ids: Set<LayerID>, in canvas: Canvas) -> Bool {
+        let chosen = canvas.layers.filter { ids.contains($0.id) }
+        guard !chosen.contains(where: \.isGroup), Set(chosen.map(\.groupID)).count == 1 else { return false }
         let merging = mergedIndices(ids, in: canvas)
-        guard merging.count > 1, merging.contains(where: { canvas.layers[$0].adjustment == nil }) else { return false }
+        guard merging.count > 1, merging.contains(where: { canvas.layers[$0].isPixelLayer }) else { return false }
         let involved = merging.flatMap { [$0] + clipIndices(onLayerAt: $0, in: canvas) }.map { canvas.layers[$0] }
-        return !involved.contains(where: \.isLocked) && !canvas.layers.contains { ids.contains($0.id) && $0.isLocked }
+        return !involved.contains(where: canvas.isLocked) && !chosen.contains(where: canvas.isLocked)
     }
 
     /// The layers Merge Layers combines, bottom to top: the visible chosen ones, with each chosen pixel layer's visible
     /// clipped adjustments. A chosen clipped adjustment whose layer isn't merged stays as it is.
     static func mergedIndices(_ ids: Set<LayerID>, in canvas: Canvas) -> [Int] {
         var result = Set<Int>()
-        for (index, layer) in canvas.layers.enumerated() where ids.contains(layer.id) && layer.isVisible {
-            if layer.adjustment == nil {
+        for (index, layer) in canvas.layers.enumerated() where ids.contains(layer.id) && canvas.isShown(layer) && !layer.isGroup {
+            if layer.isPixelLayer {
                 result.insert(index)
                 result.formUnion(clipIndices(onLayerAt: index, in: canvas).filter { canvas.layers[$0].isVisible })
             } else if !layer.clipsToLayerBelow {
@@ -84,14 +87,14 @@ extension LayerActions {
     /// At least one layer must stay, and locked layers can't be deleted.
     public static func canDeleteLayers(_ ids: Set<LayerID>, in canvas: Canvas) -> Bool {
         let going = deletedIndices(ids, in: canvas)
-        return !going.isEmpty && going.count < canvas.layers.count && !going.contains { canvas.layers[$0].isLocked }
+        return !going.isEmpty && going.count < canvas.layers.count && !going.contains { canvas.isLocked(canvas.layers[$0]) }
     }
 
+    /// The chosen layers, each with its clipped adjustments, or a group with everything in it.
     private static func deletedIndices(_ ids: Set<LayerID>, in canvas: Canvas) -> [Int] {
         var result = Set<Int>()
         for (index, layer) in canvas.layers.enumerated() where ids.contains(layer.id) {
-            result.insert(index)
-            result.formUnion(clipIndices(onLayerAt: index, in: canvas))
+            result.formUnion(deletedRange(ofLayerAt: index, in: canvas))
         }
         return result.sorted()
     }
@@ -108,7 +111,14 @@ extension LayerActions {
             // Top down, so inserting a copy never moves a layer still to be copied.
             for source in canvas.layers.reversed() where ids.contains(source.id) {
                 let index = canvas.layers.firstIndex { $0 === source }!
-                if source.adjustment == nil {
+                // A layer inside a chosen group is copied with the group.
+                if canvas.ancestors(of: source).contains(where: { ids.contains($0.id) }) { continue }
+                if source.isGroup {
+                    canvas.activeLayerIndex = index
+                    let copy = insertCopyOfActiveLayer(canvas: canvas)
+                    copies.append(copy.id)
+                    if source === active { activeCopy = copy }
+                } else if source.isPixelLayer {
                     // The layer and its chosen clipped adjustments, as a group of their own above its group.
                     let clips = canvas.clippedAdjustments(onLayerAt: index)
                     var at = index + 1 + clips.count

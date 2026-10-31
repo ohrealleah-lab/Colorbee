@@ -18,8 +18,8 @@ extension AutoRedact {
             }
             return false
         }
-        let layers = canvas.layers.filter { $0.adjustment == nil && hasPixels($0) }
-        return (layers, layers.first(where: \.isLocked))
+        let layers = canvas.layers.filter { $0.isPixelLayer && hasPixels($0) }
+        return (layers, layers.first(where: canvas.isLocked))
     }
 
     /// Batch Redact (FR-9.4): `effect` in `selection` on every layer with pixels under it, as one step, like
@@ -45,7 +45,7 @@ extension AutoRedact {
                              canvas: Canvas, history: History) -> Outcome {
         if let locked = lockedLayer(under: matches, canvas: canvas) { return .locked(layerName: locked.name) }
         let boxes = boxes(of: matches, canvas: canvas)
-        let pixelLayers = canvas.layers.filter { $0.adjustment == nil }
+        let pixelLayers = canvas.layers.filter(\.isPixelLayer)
         let edit = history.beginEdit("Auto-Redact", on: canvas)
         for box in boxes {
             let strength = max(6, Double(box.height) / 3)
@@ -67,7 +67,7 @@ extension AutoRedact {
     public static func lockedLayer(under matches: [RedactionMatch], canvas: Canvas) -> Layer? {
         let boxes = boxes(of: matches, canvas: canvas)
         return canvas.layers.first { layer in
-            layer.adjustment == nil && layer.isLocked && boxes.contains { hasPixels(layer, in: $0) }
+            layer.isPixelLayer && canvas.isLocked(layer) && boxes.contains { hasPixels(layer, in: $0) }
         }
     }
 

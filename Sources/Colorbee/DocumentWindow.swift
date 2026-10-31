@@ -477,36 +477,18 @@ final class DocumentWindow: NSWindow {
         case #selector(selectAll(_:)), #selector(invertSelection(_:)),
              #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showAutoRedact(_:)),
              #selector(showSharpen(_:)), #selector(showHueSaturation(_:)),
-             #selector(invertColors(_:)), #selector(desaturate(_:)), #selector(applyOrientation(_:)), #selector(showResizeSkew(_:)):
-            return true
-        case #selector(setSymmetry(_:)):
-            return true
-        case #selector(toggleBeforeAfter(_:)):
-            return true
-        case #selector(togglePixelGrid(_:)):
-            return true
-        case #selector(toggleLayers(_:)):
+             #selector(invertColors(_:)), #selector(desaturate(_:)), #selector(applyOrientation(_:)), #selector(showResizeSkew(_:)),
+             #selector(setSymmetry(_:)), #selector(toggleBeforeAfter(_:)), #selector(togglePixelGrid(_:)), #selector(toggleLayers(_:)),
+             #selector(showCanvasProperties(_:)), #selector(toggleHistoryPanel(_:)), #selector(toggleClipboardPanel(_:)),
+             #selector(toggleInfoPanel(_:)), #selector(toggleRulers(_:)), #selector(toggleStatusBar(_:)),
+             #selector(toggleAdjustmentsPanel(_:)), #selector(newSnapshot(_:)), #selector(trim(_:)):
             return true
         case #selector(pasteIntoNewImage(_:)):
             return PasteboardImages.hasImage()
-        case #selector(showCanvasProperties(_:)):
-            return true
-        case #selector(toggleHistoryPanel(_:)):
-            return true
-        case #selector(toggleClipboardPanel(_:)), #selector(toggleInfoPanel(_:)):
-            return true
-        case #selector(toggleRulers(_:)):
-            return true
-        case #selector(toggleStatusBar(_:)):
-            return true
-        case #selector(toggleAdjustmentsPanel(_:)):
-            return true
         case #selector(applyAdjustment(_:)):
             return LayerActions.canApplyAdjustment(editor.canvas)
         case #selector(rasterizeText(_:)):
             return editor.canRasterizeText
-        case #selector(newSnapshot(_:)), #selector(trim(_:)):
-            return true
         case #selector(copyColorHex(_:)):
             // Only with the pointer on the picture: ⌃⌘C there, not the menu, which the pointer has left (review W,
             // finding 6).

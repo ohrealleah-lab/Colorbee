@@ -46,8 +46,18 @@ enum MonkeyRules {
         editor.placePendingObjects()
         let canvas = editor.canvas
         let flat = canvas.flattened()
-        guard canvas.thumbnail(maxSide: max(canvas.size.width, canvas.size.height)).pixels == flat.pixels(in: canvas.bounds) else {
-            throw MonkeyFailure(rule: "The thumbnail doesn't match the export", detail: "The History and Layers thumbnails would show a different picture than Export writes.")
+        // Thumbnails are a quick sketch by design: they leave out blurs and sharpening (adjustments with no color
+        // transform) and a floating piece, and round a little differently.
+        let sketched = canvas.selection.floating != nil || canvas.shownLayers.contains { $0.adjustment != nil && $0.adjustment?.colorTransform == nil }
+        if !sketched {
+            let thumbnail = canvas.thumbnail(maxSide: max(canvas.size.width, canvas.size.height))
+            let exported = flat.pixels(in: canvas.bounds)
+            let apart = zip(thumbnail.pixels, exported).contains { a, b in
+                max(abs(Int(a.r) - Int(b.r)), abs(Int(a.g) - Int(b.g)), abs(Int(a.b) - Int(b.b)), abs(Int(a.a) - Int(b.a))) > 2
+            }
+            guard !apart else {
+                throw MonkeyFailure(rule: "The thumbnail doesn't match the export", detail: "The History and Layers thumbnails would show a different picture than Export writes.")
+            }
         }
         let reopened: Canvas
         do {

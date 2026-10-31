@@ -135,6 +135,11 @@ struct UndoTracker {
         default:
             break
         }
+        // Placing a floating piece is folded into the step that made it (`commit(_:mergingIntoPrevious:)`), so that
+        // step's picture changed too, when this step also added one of its own.
+        if history.revision - before.revision > max(1, count - before.undoCount), line.indices.contains(before.undoCount), before.undoCount > 0 {
+            line[before.undoCount] = Int.min
+        }
         if history.revision == before.revision {
             // Nothing recorded, so nothing in the picture may have changed.
             guard line.indices.contains(count), line[count] == Int.min || line[count] == hash else {

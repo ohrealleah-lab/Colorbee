@@ -357,7 +357,8 @@ Choose **Don't Save** when you close a test picture. Press ⌘L if the Layers pa
 
 **A. Masks on a layer** (`TestImages/Several Layers/Opacity Test.colorproj`)
 1. Click Blue, then Layer ▸ Layer Mask ▸ Add Mask. A white picture appears beside Blue's, outlined: you're painting on
-   the mask. The color wells and swatches turn gray.
+   the mask. The swatches in the palette bar turn to grays. To see the change, click Red (the swatches come back in
+   color), then click Blue's white mask picture (grays again).
 2. Press D (Color 1 white, Color 2 black), then X to swap, so Color 1 is black. Choose the Brush and paint across the
    blue block: that part hides, and the stripes show through. Press X and paint over it with white: it's back.
 3. Paint a black stroke on the mask again. Choose Edit ▸ Undo on Active Layer: that stroke goes.

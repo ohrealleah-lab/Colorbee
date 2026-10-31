@@ -2314,11 +2314,17 @@ final class Editor {
         if let id = text.layerID {
             if let index = canvas.layers.firstIndex(where: { $0.id == id }) {
                 layerCommand { LayerActions.setText(spec, layerAt: index, canvas: canvas, history: history, context: selectionContext) }
+                // The last layer can't go (review Y, finding 8).
+                if spec.text.isEmpty, canvas.layers.contains(where: { $0.id == id }) {
+                    showNotice("The last layer can't be deleted, so the text stays.")
+                }
             }
             onRender()
             return
         }
-        if textIsEditable {
+        // Editable may have been turned off while the box was open on a layer that takes no pixels: the words go on a
+        // layer of their own rather than into it (review Y, finding 5).
+        if textIsEditable || !activeLayerTakesEdits {
             if !spec.text.isEmpty {
                 layerCommand { LayerActions.addText(spec, canvas: canvas, history: history, context: selectionContext) }
             }
@@ -2393,6 +2399,13 @@ final class Editor {
 
     /// The text layer whose box is open: its own pixels are hidden while the box shows it as it's typed.
     var editedTextLayerID: LayerID? { pendingText?.layerID }
+
+    /// New text that will be a layer of its own: shown on top while it's typed, not inside the active layer, so it looks
+    /// as it will once placed (review Y, finding 7).
+    var pendingTextMakesLayer: Bool {
+        guard let pendingText, pendingText.layerID == nil else { return false }
+        return textIsEditable || !activeLayerTakesEdits
+    }
 
     // MARK: Selection dragging
 
@@ -3099,6 +3112,8 @@ final class Editor {
             effectLayers = layers
         }
         effectEdit = kind.previewsAsStep || kind.isCanvasTool ? nil : history.beginEdit(kind.title, on: canvas)
+        // Batch Redact ▸ Blur… and Pixelate… rename a layer named after its words, as every redaction does (review Y).
+        effectEdit?.isRedaction = coveringAllLayers
         if kind == .spotlight {
             effectRegions = canvas.selection.marquee?.inverted(in: canvas.bounds).map { [$0] } ?? []
         } else if coveringAllLayers {
@@ -4249,7 +4264,9 @@ final class Editor {
     /// A redaction step to report: why one couldn't be done.
     var redactionMessage: String?
     /// Clipboard History items this document was pasted from, which still hold the image before redaction.
-    @ObservationIgnored private var clipboardSources: Set<ClipboardHistory.Item.ID> = []
+    /// The Clipboard History items the picture was pasted from, kept with its pages so they're saved and survive a
+    /// relaunch (review AA, finding 4).
+    private var clipboardSources: Set<ClipboardHistory.Item.ID> { Set(pages.pages.flatMap(\.canvas.pastedFrom)) }
     /// After a redaction, the Clipboard History items to offer to remove (Remove is the default).
     var clipboardCleanup: ClipboardCleanup?
     /// The clipboard's change count right after Copy Text put this document's text there; while it's unchanged, the
@@ -4282,7 +4299,7 @@ final class Editor {
     }
 
     func noteClipboardSource(_ id: ClipboardHistory.Item.ID?) {
-        if let id { clipboardSources.insert(id) }
+        if let id { canvas.pastedFrom.insert(id) }
     }
 
     private func noteRedaction() {
@@ -4296,7 +4313,7 @@ final class Editor {
     func removeClipboardSources() {
         guard let cleanup = clipboardCleanup else { return }
         cleanup.images.forEach { ClipboardHistory.shared.remove($0, clearingClipboard: true) }
-        clipboardSources.subtract(cleanup.images)
+        for page in pages.pages { page.canvas.pastedFrom.subtract(cleanup.images) }
         if cleanup.text, let count = copiedTextClipboardCount { ClipboardHistory.clearClipboard(ifUnchangedSince: count) }
         copiedTextClipboardCount = nil
         clipboardCleanup = nil
@@ -4649,7 +4666,9 @@ final class Editor {
     }
 
     func invertMask() {
-        guard !refusedBecauseLocked() || editsMask else { return }
+        // The mask is what changes, so an adjustment, group or text layer with its own picture chosen is fine (review Z,
+        // finding 4).
+        guard canvas.activeLayer.mask != nil, !canvas.isLocked(canvas.activeLayer) else { return onRefused() }
         layerCommand(keepingChoice: true) { LayerActions.invertMask(canvas: canvas, history: history, context: selectionContext) }
     }
 
@@ -4853,7 +4872,7 @@ final class Editor {
     /// An adjustment layer: change only the layer below it, or everything below (Leah, 2026-10-10).
     /// An adjustment layer, or since stage 28b a pixel layer: only on the layer below it, or everything below.
     func setClipsToLayerBelow(_ clips: Bool) {
-        guard !canvas.activeLayer.isGroup else { return }
+        guard !canvas.activeLayer.isGroup, !canvas.isLocked(canvas.activeLayer) else { return }
         layerSetting(clips ? "Only the Layer Below" : "All Layers Below", at: canvas.activeLayerIndex) { $0.clipsToLayerBelow = clips }
     }
 

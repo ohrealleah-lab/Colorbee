@@ -44,6 +44,8 @@ public enum ProjectFile {
         var activeIndexWithGroups: Int?
         /// Layer masks (stage 27), apart from `layers` like groups, so beta 7 shows the layers whole (Q28.5).
         var masks: [MaskEntry]?
+        /// The Clipboard History items the picture was pasted from (`Canvas.pastedFrom`); missing when none.
+        var pastedFrom: [UUID]?
     }
 
     /// A layer's mask: its own id, name and pixels, the layer it's on, and whether it's turned on.
@@ -166,7 +168,7 @@ public enum ProjectFile {
             : Dictionary(uniqueKeysWithValues: canvas.layers.filter { $0.adjustment == nil }.map { ($0.id, $0.buffer) })
         let pixelLayers = canvas.layers.filter { $0.isPixelLayer && saved[$0.id] != nil }
         let masked = canvas.layers.compactMap { layer in layer.mask.map { (owner: layer, mask: $0) } }
-        let buffers = pixelLayers.map { saved[$0.id]! } + masked.map(\.mask.buffer)
+        let buffers = pixelLayers.map { saved[$0.id]! } + masked.map { saved[$0.mask.id] ?? $0.mask.buffer }
         let compressed = Dictionary(uniqueKeysWithValues: zip(pixelLayers.map(\.id) + masked.map(\.mask.id), try LayerPixels.compress(buffers)))
         var groups: [GroupEntry] = []
         for (index, layer) in canvas.layers.enumerated() {
@@ -216,7 +218,8 @@ public enum ProjectFile {
             locationRemoved: canvas.locationRemoved ? true : nil,
             resolution: resolution == Page.defaultResolution ? nil : resolution,
             groups: groups.isEmpty ? nil : groups, activeIndexWithGroups: groups.isEmpty ? nil : active,
-            masks: masks.isEmpty ? nil : masks
+            masks: masks.isEmpty ? nil : masks,
+            pastedFrom: canvas.pastedFrom.isEmpty ? nil : canvas.pastedFrom.sorted { $0.uuidString < $1.uuidString }
         )
         let json = try JSONEncoder().encode(manifest)
         var data = magic
@@ -490,6 +493,7 @@ public enum ProjectFile {
         )
         canvas.cameraDetails = manifest.cameraDetails
         canvas.locationRemoved = manifest.locationRemoved == true
+        canvas.pastedFrom = Set(manifest.pastedFrom ?? [])
         // A damaged or hand-edited file can't leave a group torn apart.
         canvas.keepGroupsTogether()
         return canvas

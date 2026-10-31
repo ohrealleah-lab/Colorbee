@@ -52,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Quitting: each window with a redaction not yet saved with ⌘S is saved and gives the earlier-versions
     /// warning first, one at a time, then Colorbee quits (Leah, 2026-10-04).
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        for document in NSDocumentController.shared.documents.compactMap({ $0 as? ImageDocument }) { document.placePendingObjects() }
         let waiting = NSDocumentController.shared.documents.compactMap { $0 as? ImageDocument }.filter(\.wantsRedactionCheckBeforeClosing)
         guard !waiting.isEmpty else { return .terminateNow }
         func check(_ remaining: ArraySlice<ImageDocument>) {

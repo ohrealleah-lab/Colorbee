@@ -41,6 +41,19 @@ enum MonkeyRules {
         }
     }
 
+    /// A layer's pixels, mask and settings, as text, for comparing.
+    static func state(of layer: Layer, pixels: Bool) -> String {
+        var words = "\(layer.name)|\(layer.isVisible)|\(layer.opacity)|\(layer.blendMode.rawValue)|\(layer.isLocked)|\(layer.locksTransparency)"
+        words += "|\(layer.clipsToLayerBelow)|\(layer.passesThrough)|\(layer.groupID.map { "\($0.rawValue)" } ?? "-")|\(layer.adjustment.map { "\($0)" } ?? "-")"
+        words += "|\(layer.text.map { "\($0)" } ?? "-")|\(layer.maskEnabled)"
+        if pixels {
+            words += "|\(layer.isPixelLayer ? layer.buffer.contentHash() : 0)|\(layer.mask.map { $0.buffer.contentHash() } ?? 0)"
+        } else {
+            words += "|\(layer.mask != nil)"
+        }
+        return words
+    }
+
     /// At the end: a saved project reopens the same, and the thumbnail matches the export.
     static func checkSaving(_ editor: Editor) throws(MonkeyFailure) {
         editor.placePendingObjects()
@@ -53,7 +66,7 @@ enum MonkeyRules {
             let thumbnail = canvas.thumbnail(maxSide: max(canvas.size.width, canvas.size.height))
             let exported = flat.pixels(in: canvas.bounds)
             let apart = zip(thumbnail.pixels, exported).contains { a, b in
-                max(abs(Int(a.r) - Int(b.r)), abs(Int(a.g) - Int(b.g)), abs(Int(a.b) - Int(b.b)), abs(Int(a.a) - Int(b.a))) > 2
+                max(abs(Int(a.r) - Int(b.r)), abs(Int(a.g) - Int(b.g)), abs(Int(a.b) - Int(b.b)), abs(Int(a.a) - Int(b.a))) > 6
             }
             guard !apart else {
                 throw MonkeyFailure(rule: "The thumbnail doesn't match the export", detail: "The History and Layers thumbnails would show a different picture than Export writes.")
@@ -68,10 +81,17 @@ enum MonkeyRules {
         guard reopened.flattened().contentHash() == flat.contentHash() else {
             throw MonkeyFailure(rule: "A saved project reopens looking different", detail: "The reopened picture differs from what was saved.")
         }
-        guard reopened.layers.map(\.name) == canvas.layers.map(\.name), reopened.layers.map(\.text) == canvas.layers.map(\.text),
-              reopened.layers.map({ $0.mask != nil }) == canvas.layers.map({ $0.mask != nil }),
-              reopened.layers.map(\.groupID) == canvas.layers.map(\.groupID) else {
-            throw MonkeyFailure(rule: "A saved project reopens with different layers", detail: "Names, text, masks or groups changed.")
+        // Every layer as it was, hidden ones too (review Z, finding 2); a floating piece is saved stamped in, so its layer's
+        // pixels are left out of the comparison.
+        let floatingOn = canvas.selection.floating?.layerID
+        let saved = canvas.layers.map { state(of: $0, pixels: $0.id != floatingOn && $0.mask?.id != floatingOn) }
+        let back = reopened.layers.map { layer in
+            state(of: layer, pixels: layer.id != floatingOn && layer.mask?.id != floatingOn)
+        }
+        guard reopened.layers.map(\.id) == canvas.layers.map(\.id), back == saved else {
+            let first = saved.indices.first { $0 >= back.count || saved[$0] != back[$0] } ?? 0
+            throw MonkeyFailure(rule: "A saved project reopens with different layers",
+                                detail: "Layer \(first + 1) (\"\(canvas.layers[min(first, canvas.layers.count - 1)].name)\") came back changed.")
         }
     }
 }

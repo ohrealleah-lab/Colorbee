@@ -124,7 +124,8 @@ private struct LayersPanel: View {
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
-            .disabled(layers[active].isLocked)
+            // A layer in a locked group is locked too (Q25.4; review Z, finding 5).
+            .disabled(editor.canvas.isLocked(layers[active]))
 
             if !layers[active].isGroup {
                 Toggle("Only the layer below", isOn: Binding(get: { layers[active].clipsToLayerBelow },
@@ -133,7 +134,7 @@ private struct LayersPanel: View {
                     .controlSize(.small)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
-                    .disabled(layers[active].isLocked || (!layers[active].clipsToLayerBelow && !editor.canvas.canClip(layerAt: active)))
+                    .disabled(editor.canvas.isLocked(layers[active]) || (!layers[active].clipsToLayerBelow && !editor.canvas.canClip(layerAt: active)))
                     .help(layers[active].adjustment != nil ? "On: this adjustment changes only the layer under it. Off: everything below it"
                           : "On: this layer shows only where the layer under it has pixels")
             }

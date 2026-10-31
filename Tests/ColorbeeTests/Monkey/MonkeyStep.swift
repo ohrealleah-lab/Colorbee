@@ -36,7 +36,7 @@ enum MonkeyStep: CustomStringConvertible {
     case chooseLayer(Int)
     case group
     case ungroup
-    case moveLayer(from: Int, to: Int)
+    case moveLayer(Int, onto: Int, how: Int)
     case adjustmentLayer(Effect, name: String)
     case mergeAdjustment
     case effect(Effect)
@@ -101,7 +101,8 @@ enum MonkeyStep: CustomStringConvertible {
         case let .chooseLayer(index): return "Click layer \(index + 1) (counting from the bottom)"
         case .group: return "Group the active layer with the one below"
         case .ungroup: return "Ungroup the top group"
-        case let .moveLayer(from, to): return "Drag layer \(from + 1) to place \(to + 1)"
+        case let .moveLayer(layer, target, how):
+            return "Drag layer \(layer + 1) \(["above", "below", "into"][how % 3]) layer \(target + 1)"
         case let .adjustmentLayer(_, name): return "New Adjustment Layer: \(name)"
         case .mergeAdjustment: return "Merge Adjustment"
         case let .effect(effect): return "Effect: \(effect.name)"
@@ -224,19 +225,27 @@ enum MonkeyStep: CustomStringConvertible {
             guard let group = editor.canvas.layers.lastIndex(where: \.isGroup) else { return }
             editor.selectLayer(at: group)
             editor.ungroupLayers()
-        case let .moveLayer(from, to): editor.moveLayer(from: layer(from), to: layer(to))
+        case let .moveLayer(moving, target, how):
+            // As the Layers panel drops it (review Z, finding 3).
+            let id = editor.canvas.layers[layer(moving)].id, onto = editor.canvas.layers[layer(target)].id
+            editor.moveLayer(id, to: [LayerDrop.above(onto), .below(onto), .into(onto)][how % 3])
         case let .adjustmentLayer(effect, name): editor.addAdjustmentLayer(effect, named: name)
         case .mergeAdjustment: editor.applyAdjustmentLayer()
         case let .effect(effect): editor.applyAdjustment(effect)
         case let .blendMode(mode): editor.setBlendMode(mode)
         case let .opacity(opacity):
+            // Only where the panel allows it (review Z, finding 7).
+            guard !editor.canvas.isLocked(editor.canvas.activeLayer) else { return }
             editor.previewOpacity(opacity)
             editor.finishLayerSettings()
         case .toggleVisible: editor.setLayerVisible(!editor.canvas.activeLayer.isVisible, at: editor.activeLayerIndex)
         case .toggleLocked: editor.setLayerLocked(!editor.canvas.activeLayer.isLocked, at: editor.activeLayerIndex)
         case .toggleLockTransparency:
             editor.setLayerLocksTransparency(!editor.canvas.activeLayer.locksTransparency, at: editor.activeLayerIndex)
-        case let .clip(clips): editor.setClipsToLayerBelow(clips)
+        case let .clip(clips):
+            let active = editor.activeLayerIndex
+            guard !editor.canvas.isLocked(editor.canvas.activeLayer), !clips || editor.canvas.canClip(layerAt: active) else { return }
+            editor.setClipsToLayerBelow(clips)
         case let .addMask(hidingAll): editor.addMask(hidingAll: hidingAll)
         case let .paintOnMask(mask): editor.paint(onMask: mask, at: editor.activeLayerIndex)
         case .invertMask: editor.invertMask()

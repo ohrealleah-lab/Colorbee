@@ -10,8 +10,9 @@ public struct ResizeSkew: Equatable, Sendable {
     public var verticalSkew: Double
     public var resampling: Resampling
 
-    /// A steep skew can make an enormous image, so results past these limits are refused.
-    public static let maxSide = 30_000
+    /// A steep skew can make an enormous image, so results past these limits are refused. A side is at most what Mac
+    /// graphics chips can draw as one texture (Leah, 2026-10-31; review AA, finding 1); every size check uses this.
+    public static let maxSide = 16_384
     public static let maxArea = 256_000_000
 
     public init(size: IntSize, horizontalSkew: Double = 0, verticalSkew: Double = 0, resampling: Resampling) {

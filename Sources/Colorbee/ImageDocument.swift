@@ -10,6 +10,11 @@ extension UTType {
 
 final class ImageDocument: NSDocument {
     private var editor: Editor?
+
+    /// Quitting places an open text box, shape or step badge first, so the autosave keeps it (review AA, finding 3).
+    func placePendingObjects() {
+        editor?.placePendingObjects()
+    }
     /// An image that gained layers becomes an unsaved project so the original file is never flattened;
     /// this keeps its name in the title until the project is saved somewhere.
     private var projectName: String? {

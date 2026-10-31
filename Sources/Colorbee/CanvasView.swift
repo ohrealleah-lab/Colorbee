@@ -259,8 +259,10 @@ final class CanvasView: NSView {
             outline: outline,
             transparentKey: editor.selectionContext.transparentKey,
             smoothFloating: editor.smoothResize,
-            overlay: comparing ? nil : editor.renderedPendingShape() ?? editor.renderedPendingText() ?? editor.renderedPendingBadge(),
+            overlay: comparing ? nil : editor.renderedPendingShape() ?? (editor.pendingTextMakesLayer ? nil : editor.renderedPendingText())
+                ?? editor.renderedPendingBadge(),
             replacedLayer: comparing ? nil : editor.editedTextLayerID,
+            aboveLayers: comparing || !editor.pendingTextMakesLayer ? nil : editor.renderedPendingText(),
             topOverlay: comparing ? nil : editor.areaStrokePicture(),
             maskAlone: !comparing && editor.showsMaskAlone ? editor.canvas.activeLayer.mask?.buffer : nil,
             handlePoints: comparing ? [] : editor.activeEffect?.isCanvasTool == true ? editor.canvasToolHandles : handlePoints(selection),

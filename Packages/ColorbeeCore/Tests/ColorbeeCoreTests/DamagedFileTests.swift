@@ -68,8 +68,8 @@ struct OversizedImageTests {
     }
 
     @Test func aLargeButEditableSizeIsntRefusedForItsSize() throws {
-        let decoded = try ImageCodec.decode(png(claiming: 30_000, by: 2))
-        #expect(decoded.buffer.size == IntSize(width: 30_000, height: 2))
+        let decoded = try ImageCodec.decode(png(claiming: UInt32(ResizeSkew.maxSide), by: 2))
+        #expect(decoded.buffer.size == IntSize(width: ResizeSkew.maxSide, height: 2))
     }
 }
 

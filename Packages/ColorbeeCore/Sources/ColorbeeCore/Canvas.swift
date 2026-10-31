@@ -1,3 +1,4 @@
+import Foundation
 import CoreGraphics
 import simd
 
@@ -16,6 +17,9 @@ public final class Canvas {
     public var cameraDetails: CameraDetails?
     /// The file it came from had a GPS location, which Colorbee doesn't keep (FR-1.3, Info panel).
     public var locationRemoved = false
+    /// The Clipboard History items this picture was pasted from, kept with it so a redaction can still offer to remove
+    /// them after a relaunch (Leah, 2026-10-31; review AA, finding 4).
+    public var pastedFrom: Set<UUID> = []
     /// For a patch worked out on its own (`patchAsShown`): where it sits in the whole canvas.
     var placement: Effects.Placement?
     /// Edits that have written on a layer with locked transparency (stage 23), to finish before the canvas is shown.
@@ -79,6 +83,7 @@ public final class Canvas {
         canvas.selection = selection
         canvas.cameraDetails = cameraDetails
         canvas.locationRemoved = locationRemoved
+        canvas.pastedFrom = pastedFrom
         return canvas
     }
 
@@ -207,7 +212,7 @@ public final class Canvas {
     /// `stack` with each pixel layer's clipped layers put into its own pixels (in a stand-in with the same id, settings
     /// and mask): its adjustments applied, and its pixel layers blended on only where it has pixels (stage 28b). The
     /// clipped layers themselves are left out.
-    private func clipped(_ stack: [Layer]) -> [Layer] {
+    private func clipped(_ stack: [Layer], transparentKey: Pixel?, resampling: Resampling) -> [Layer] {
         guard stack.contains(where: { $0.clipsToLayerBelow && !$0.isGroup }) else { return stack }
         return stack.compactMap { layer in
             if layer.clipsToLayerBelow, !layer.isGroup, let index = layers.firstIndex(where: { $0 === layer }),
@@ -215,7 +220,11 @@ public final class Canvas {
             guard layer.isPixelLayer, let index = layers.firstIndex(where: { $0 === layer }) else { return layer }
             let clips = clippedLayers(onLayerAt: index).filter { clip in stack.contains { $0 === clip } }
             guard !clips.isEmpty else { return layer }
-            var buffer = layer.buffer
+            // A floating piece goes in before the clipped layers, as on screen and as placing will (review Z, finding 1);
+            // the stand-in then gets an id of its own, so it isn't drawn on top again.
+            let floating = selection.floating.flatMap { $0.layerID == layer.id ? $0 : nil }
+            var buffer = floating?.placedCopy(of: layer, locked: locksTransparency(layer), resampling: resampling, transparentKey: transparentKey)
+                ?? layer.buffer
             for clip in clips {
                 if let adjustment = clip.adjustment {
                     buffer = Compositing.adjust(buffer, by: adjustment, opacity: clip.opacity, mode: clip.blendMode, mask: clip.activeMask, placement: placement)
@@ -223,7 +232,7 @@ public final class Canvas {
                     buffer = Compositing.blendAtop(buffer, clip.buffer, opacity: clip.opacity, mode: clip.blendMode, mask: clip.activeMask)
                 }
             }
-            return layer.copy(buffer: buffer)
+            return layer.copy(buffer: buffer, id: floating == nil ? nil : LayerID())
         }
     }
 
@@ -366,7 +375,7 @@ public final class Canvas {
     /// onto what's below, faded in by its opacity; any other group's layers are composited on their own, then blended
     /// in like one layer.
     func composite(_ stack: [Layer], onto base: PixelBuffer? = nil, transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) -> PixelBuffer {
-        composite(tree(of: clipped(stack)), onto: base, transparentKey: transparentKey, resampling: resampling)
+        composite(tree(of: clipped(stack, transparentKey: transparentKey, resampling: resampling)), onto: base, transparentKey: transparentKey, resampling: resampling)
     }
 
     private func composite(_ nodes: [LayerNode], onto base: PixelBuffer?, transparentKey: Pixel?, resampling: Resampling) -> PixelBuffer {
@@ -562,7 +571,8 @@ public final class Canvas {
     /// are the layers' own.
     public func layerBuffersAsSaved(transparentKey: Pixel?, resampling: Resampling) -> [LayerID: PixelBuffer] {
         var buffers: [LayerID: PixelBuffer] = [:]
-        for layer in layers where layer.adjustment == nil {
+        // Masks too: a piece moved on a mask floats on the mask (review X, finding 6).
+        for layer in allLayers where layer.adjustment == nil {
             guard let floating = selection.floating, floating.layerID == layer.id else {
                 buffers[layer.id] = layer.buffer
                 continue

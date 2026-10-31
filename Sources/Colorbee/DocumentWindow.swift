@@ -28,6 +28,9 @@ final class DocumentWindow: NSWindow {
     /// ⌘W, File ▸ Close and the close button: an unsaved redaction is saved, and the earlier-versions warning
     /// shown, before the window goes (Leah, 2026-10-04).
     override func performClose(_ sender: Any?) {
+        // An open text box, shape or step badge is placed first, as a step, so closing saves it rather than throwing it
+        // away (Leah, 2026-10-31; review AA, finding 3).
+        editor?.placePendingObjects()
         guard let document = windowController?.document as? ImageDocument, document.wantsRedactionCheckBeforeClosing else {
             return super.performClose(sender)
         }

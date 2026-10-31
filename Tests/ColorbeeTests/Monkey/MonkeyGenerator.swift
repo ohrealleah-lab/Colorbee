@@ -66,7 +66,7 @@ enum MonkeyGenerator {
         case 63..<67: return .chooseLayer(random.int(0..<max(1, layers)))
         case 67..<69: return .group
         case 69: return .ungroup
-        case 70..<72: return .moveLayer(from: random.int(0..<max(1, layers)), to: random.int(0..<max(1, layers)))
+        case 70..<72: return .moveLayer(random.int(0..<max(1, layers)), onto: random.int(0..<max(1, layers)), how: random.int(0..<3))
         case 72..<74:
             let adjustment: (Effect, String) = random.pick([(.invert, "Invert"), (.desaturate, "Desaturate"), (.sepia(amount: 80), "Sepia"),
                                                             (.posterize(levels: 4), "Posterize"), (.hueSaturation(hue: 40, saturation: 20, lightness: 0), "Hue/Saturation"),

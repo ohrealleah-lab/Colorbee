@@ -46,6 +46,8 @@ struct RenderScene {
     let overlay: (pixels: PixelBuffer, origin: IntPoint)?
     /// A text layer whose box is open (stage 29): its own pixels give way to the text being typed, the overlay.
     var replacedLayer: LayerID? = nil
+    /// New text that will be a layer of its own, drawn at Normal 100% above the layers while it's typed.
+    var aboveLayers: (pixels: PixelBuffer, origin: IntPoint)? = nil
     /// The Redact Brush's or Remove's painted area, drawn above every layer: it belongs to no one layer, and must
     /// show even when the active layer is an adjustment layer or hidden (review O, finding 10).
     var topOverlay: (pixels: PixelBuffer, origin: IntPoint)? = nil
@@ -251,10 +253,11 @@ final class Renderer {
         uniforms.rect = deviceRect(canvas.bounds)
         uniforms.imageSize = SIMD2(Float(canvas.size.width), Float(canvas.size.height))
 
-        // The layer mask the next draws use (stage 27); nil for none.
-        var maskTexture: MTLTexture?
+        // The layer mask the next draws use (stage 27); nil for none. Not `maskTexture`, the selection outline's cache,
+        // which it once hid, so the outline's texture was never let go (review Z, finding 6).
+        var layerMaskTexture: MTLTexture?
         func draw(_ pipeline: MTLRenderPipelineState) {
-            encoder.setFragmentTexture(maskTexture ?? noMask, index: 10)
+            encoder.setFragmentTexture(layerMaskTexture ?? noMask, index: 10)
             encoder.setRenderPipelineState(pipeline)
             encoder.setVertexBytes(&uniforms, length: MemoryLayout<QuadUniforms>.stride, index: 0)
             encoder.setFragmentBytes(&uniforms, length: MemoryLayout<QuadUniforms>.stride, index: 0)
@@ -273,7 +276,7 @@ final class Renderer {
         }
         /// Gives the next draws `mask` as their layer mask, or none.
         func masking(_ mask: PixelBuffer?) {
-            maskTexture = mask.map { texture(for: $0, live: &liveBuffers) }
+            layerMaskTexture = mask.map { texture(for: $0, live: &liveBuffers) }
             uniforms.maskParams.x = mask == nil ? 0 : 1
         }
         func sampling(_ smooth: Bool) {
@@ -467,7 +470,8 @@ final class Renderer {
                     ? floating?.placedPatch(on: layer, resampling: scene.smoothFloating ? .smooth : .nearestNeighbor, transparentKey: scene.transparentKey)
                     : nil
                 // A shape or text not yet placed likewise shows only where the lock will keep it.
-                let lockedOverlay = canvas.locksTransparency(layer) ? overlay.flatMap { Compositing.lockedPatch(of: layer, under: $0.pixels, at: $0.origin) } : nil
+                // Not for a text layer being edited: placing redraws it whole (review Y, finding 7).
+                let lockedOverlay = canvas.locksTransparency(layer) && layer.id != scene.replacedLayer ? overlay.flatMap { Compositing.lockedPatch(of: layer, under: $0.pixels, at: $0.origin) } : nil
                 // Objects not yet placed go into their layer before it's blended, so on a layer that isn't Normal
                 // at 100% they look as they will once placed (Leah; review F, finding 1).
                 // Its clipped adjustments change it alone, so it's drawn on its own first, then blended in.
@@ -571,7 +575,7 @@ final class Renderer {
         uniforms.blendMode = 0
         uniforms.opacity = 1
         uniforms.keyEnabled = 0
-        if let top = scene.topOverlay {
+        for top in [scene.aboveLayers, scene.topOverlay].compactMap({ $0 }) {
             uniforms.rect = deviceRect(IntRect(x: top.origin.x, y: top.origin.y, width: top.pixels.width, height: top.pixels.height))
             sampling(zoom < 1)
             encoder.setFragmentTexture(texture(for: top.pixels, live: &liveBuffers), index: 0)

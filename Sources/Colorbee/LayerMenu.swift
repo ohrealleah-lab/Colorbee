@@ -1,4 +1,5 @@
 import AppKit
+import ColorbeeCore
 
 /// The Layers panel's right-click menu (FR-8.6), built once the right-clicked layer is chosen, so it speaks for what's
 /// chosen now.
@@ -32,7 +33,7 @@ enum LayerMenu {
         menu.addItem(ClosureMenuItem((active.isVisible ? "Hide " : "Show ") + layers) { editor.toggleChosenLayersVisible() })
         menu.addItem(ClosureMenuItem((active.isLocked ? "Unlock " : "Lock ") + layers) { editor.toggleChosenLayersLocked() })
         if active.text != nil {
-            menu.addItem(ClosureMenuItem("Edit Text") { editor.editText(layerAt: index) })
+            menu.addItem(ClosureMenuItem("Edit Text", enabled: LayerActions.canEditText(of: active, in: editor.canvas)) { editor.editText(layerAt: index) })
             menu.addItem(ClosureMenuItem("Rasterize Text", enabled: editor.canRasterizeText) { editor.rasterizeText() })
         }
         menu.addItem(.separator())

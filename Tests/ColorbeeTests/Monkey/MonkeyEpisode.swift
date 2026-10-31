@@ -115,13 +115,13 @@ struct UndoTracker {
 
     init(editor: Editor) {
         self.editor = editor
-        line = [editor.imageHash]
+        line = [editor.documentHash]
     }
 
     /// After a step: undo and redo must give back exactly what was there; a step that changed the picture must be in
     /// history; anything else starts a new line from here.
     mutating func note(_ step: MonkeyStep, before: (revision: Int, undoCount: Int)) throws(MonkeyFailure) {
-        let history = editor.history, count = history.undoCount, hash = editor.imageHash
+        let history = editor.history, count = history.undoCount, hash = editor.documentHash
         switch step {
         case .undo, .redo:
             guard count != before.undoCount else { break }
@@ -169,7 +169,7 @@ struct UndoTracker {
                 throw MonkeyFailure(rule: "Undo stopped working", detail: "Undo did nothing with \(count) steps still in History.")
             }
             let now = history.undoCount
-            if line.indices.contains(now), line[now] != Int.min, line[now] != editor.imageHash {
+            if line.indices.contains(now), line[now] != Int.min, line[now] != editor.documentHash {
                 throw MonkeyFailure(rule: "Undoing everything didn't give back each picture", detail: "Undoing back to step \(now) gave a different picture than step \(now) had.")
             }
         }
@@ -181,9 +181,24 @@ struct UndoTracker {
                 throw MonkeyFailure(rule: "Redo stopped working", detail: "Redo did nothing at step \(count) of \(end).")
             }
             let now = history.undoCount
-            if line.indices.contains(now), line[now] != Int.min, line[now] != editor.imageHash {
+            if line.indices.contains(now), line[now] != Int.min, line[now] != editor.documentHash {
                 throw MonkeyFailure(rule: "Redoing everything didn't give back each picture", detail: "Redoing to step \(now) gave a different picture than step \(now) had.")
             }
         }
+    }
+}
+
+extension Editor {
+    /// Everything undo and saving must keep, hidden or not (review Z, finding 2): each layer's pixels, mask and settings,
+    /// and the picture's size.
+    var documentHash: Int {
+        var hasher = Hasher()
+        hasher.combine(canvas.size.width)
+        hasher.combine(canvas.size.height)
+        for layer in canvas.layers {
+            hasher.combine(layer.id.rawValue)
+            hasher.combine(MonkeyRules.state(of: layer, pixels: true))
+        }
+        return hasher.finalize()
     }
 }

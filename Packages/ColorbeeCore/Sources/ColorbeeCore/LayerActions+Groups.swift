@@ -154,13 +154,15 @@ extension LayerActions {
     // MARK: Helpers
 
     /// The chosen layers that move as themselves, in canvas order: not those inside a chosen group (they come with it),
-    /// nor a clipped adjustment whose layer is chosen. A chosen pixel layer brings its clipped adjustments.
+    /// nor a layer shown only on the layer below (it stays with its layer). A chosen pixel layer brings its clipped
+    /// layers.
     static func movingLayers(_ ids: Set<LayerID>, in canvas: Canvas) -> [Layer] {
         var result: [Layer] = []
         for (index, layer) in canvas.layers.enumerated() where ids.contains(layer.id) {
             if canvas.ancestors(of: layer).contains(where: { ids.contains($0.id) }) { continue }
-            if layer.adjustment != nil, layer.clipsToLayerBelow, let base = canvas.clipBaseIndex(forLayerAt: index),
-               ids.contains(canvas.layers[base].id) { continue }
+            // A layer shown only on the layer below never leaves it (Leah, 2026-10-31, from the monkey test): it comes along
+            // when its layer is chosen, and otherwise stays.
+            if layer.clipsToLayerBelow, !layer.isGroup, canvas.clipBaseIndex(forLayerAt: index) != nil { continue }
             result.append(layer)
             if layer.isPixelLayer {
                 result += canvas.clippedLayers(onLayerAt: index).filter { clip in !result.contains { $0 === clip } }

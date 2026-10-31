@@ -16,22 +16,25 @@ extension History {
         // One layer at a time, its bands on all cores, so only one layer's compressed copy is held at once (review U,
         // finding 7).
         var layers: [HistorySnapshot.StoredLayer] = []
-        for layer in canvas.layers {
-            var written: [SpillStore.Location]?
-            if !layer.holdsNoPixels {
-                let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(layer.buffer.pixels(in: bands[$0])) }
-                var locations: [SpillStore.Location] = []
-                for data in compressed {
-                    guard let data, let location = try? store.append(data) else { throw .unreadable }
-                    locations.append(location)
-                }
-                written = locations
+        func stored(_ layer: Layer) throws(HistorySnapshot.Failure) -> [SpillStore.Location]? {
+            guard !layer.holdsNoPixels else { return nil }
+            let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(layer.buffer.pixels(in: bands[$0])) }
+            var locations: [SpillStore.Location] = []
+            for data in compressed {
+                guard let data, let location = try? store.append(data) else { throw .unreadable }
+                locations.append(location)
             }
+            return locations
+        }
+        for layer in canvas.layers {
+            let written = try stored(layer)
             layers.append(HistorySnapshot.StoredLayer(layer: layer, id: layer.id, name: layer.name, isVisible: layer.isVisible,
                                                       opacity: layer.opacity, blendMode: layer.blendMode, isLocked: layer.isLocked,
                                                       locksTransparency: layer.locksTransparency, adjustment: layer.adjustment,
                                                       clipsToLayerBelow: layer.clipsToLayerBelow, isGroup: layer.isGroup, groupID: layer.groupID,
-                                                      passesThrough: layer.passesThrough, pixels: written))
+                                                      passesThrough: layer.passesThrough, maskID: layer.mask?.id,
+                                                      maskName: layer.mask?.name ?? "", maskPixels: try layer.mask.flatMap { mask throws(HistorySnapshot.Failure) in try stored(mask) },
+                                                      maskEnabled: layer.maskEnabled, pixels: written))
         }
         let selection: SelectionState = canvas.selection.marquee.map { .marquee($0) } ?? .none
         let snapshot = HistorySnapshot(name: name, thumbnail: makeThumbnail?(canvas), size: canvas.size, layers: layers,
@@ -48,11 +51,9 @@ extension History {
         let bands = GeometryChange.bands(of: snapshot.size)
         // Layers with no pixels stay empty, which takes no memory. Each layer's bands are read and decoded together,
         // one layer at a time (review U, finding 7).
-        var buffers: [PixelBuffer] = []
-        for stored in snapshot.layers {
+        func read(_ locations: [SpillStore.Location]?) throws(HistorySnapshot.Failure) -> PixelBuffer {
             let buffer = PixelBuffer(size: snapshot.size)
-            buffers.append(buffer)
-            guard let locations = stored.pixels else { continue }
+            guard let locations else { return buffer }
             guard locations.count == bands.count else { throw .unreadable }
             var data: [Data] = []
             for location in locations {
@@ -65,15 +66,32 @@ extension History {
                 return true
             }
             guard decoded.allSatisfy({ $0 }) else { throw .unreadable }
+            return buffer
+        }
+        var buffers: [PixelBuffer] = []
+        var masks: [Layer?] = []
+        for stored in snapshot.layers {
+            buffers.append(try read(stored.pixels))
+            if stored.maskID != nil {
+                // A new mask, so undoing this step brings back the mask object as it was, pixels and all, and older
+                // strokes on it never land on this one.
+                masks.append(Layer(name: stored.maskName, buffer: try read(stored.maskPixels)))
+            } else {
+                masks.append(nil)
+            }
         }
         let edit = beginEdit("Go to Snapshot", on: canvas)
         edit.willChangeLayers()
         edit.replacesPicture = true
-        let records = zip(snapshot.layers, buffers).map { stored, buffer in
-            LayerStackState.Record(layer: stored.layer ?? Layer(name: stored.name, buffer: buffer, id: stored.id, isGroup: stored.isGroup),
+        let records = zip(zip(snapshot.layers, buffers), masks).map { pair, mask in
+            let (stored, buffer) = pair
+            var record = LayerStackState.Record(layer: stored.layer ?? Layer(name: stored.name, buffer: buffer, id: stored.id, isGroup: stored.isGroup),
                                    name: stored.name, isVisible: stored.isVisible, opacity: stored.opacity,
                                    blendMode: stored.blendMode, isLocked: stored.isLocked, locksTransparency: stored.locksTransparency, adjustment: stored.adjustment,
                                    clipsToLayerBelow: stored.clipsToLayerBelow, groupID: stored.groupID, passesThrough: stored.passesThrough, buffer: buffer)
+            record.mask = mask
+            record.maskEnabled = stored.maskEnabled
+            return record
         }
         canvas.restore(LayerStackState(records: records, activeIndex: snapshot.activeIndex,
                                        hasTransparentBackground: snapshot.hasTransparentBackground, size: snapshot.size))
@@ -103,15 +121,19 @@ extension History {
         var moved: [[HistorySnapshot.StoredLayer]] = []
         for snapshot in snapshots {
             var layers: [HistorySnapshot.StoredLayer] = []
-            for var stored in snapshot.layers {
-                if let locations = stored.pixels {
-                    var copied: [SpillStore.Location] = []
-                    for location in locations {
-                        guard let data = try? old.readCompressed(location), let place = try? fresh.append(data) else { return }
-                        copied.append(place)
-                    }
-                    stored.pixels = copied
+            func copied(_ locations: [SpillStore.Location]?) -> [SpillStore.Location]?? {
+                guard let locations else { return .some(nil) }
+                var copies: [SpillStore.Location] = []
+                for location in locations {
+                    guard let data = try? old.readCompressed(location), let place = try? fresh.append(data) else { return nil }
+                    copies.append(place)
                 }
+                return copies
+            }
+            for var stored in snapshot.layers {
+                guard let pixels = copied(stored.pixels), let maskPixels = copied(stored.maskPixels) else { return }
+                stored.pixels = pixels
+                stored.maskPixels = maskPixels
                 layers.append(stored)
             }
             moved.append(layers)

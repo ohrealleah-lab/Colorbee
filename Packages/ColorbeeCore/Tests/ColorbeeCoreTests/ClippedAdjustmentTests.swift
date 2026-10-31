@@ -35,7 +35,7 @@ struct ClippedAdjustmentTests {
         LayerActions.addAdjustment(.desaturate, named: "Gray", canvas: canvas, history: history, context: context)
         canvas.layers[3].clipsToLayerBelow = true
         #expect(canvas.clipBaseIndex(forLayerAt: 3) == 1)
-        #expect(canvas.clippedAdjustments(onLayerAt: 1).map(\.name) == ["Invert", "Gray"])
+        #expect(canvas.clippedLayers(onLayerAt: 1).map(\.name) == ["Invert", "Gray"])
         // Nothing to clip to: the bottom layer, or an adjustment that isn't clipped.
         #expect(!canvas.canClip(layerAt: 0))
         canvas.layers[2].clipsToLayerBelow = false
@@ -114,20 +114,20 @@ struct ClippedAdjustmentTests {
             let look = canvas.flattened().contentHash()
             #expect(command(canvas, history, context))
             #expect(canvas.activeLayerIndex == 3)
-            #expect(canvas.clippedAdjustments(onLayerAt: 1).count == 1)
+            #expect(canvas.clippedLayers(onLayerAt: 1).count == 1)
             // An empty new layer changes nothing; a copy of the subject covers it, as it should.
             if keepsLook { #expect(canvas.flattened().contentHash() == look) }
         }
         let (canvas, history) = clippedStack()
         #expect(LayerActions.addAdjustment(.desaturate, named: "Desaturate", canvas: canvas, history: history, context: context))
-        #expect(canvas.activeLayerIndex == 3 && canvas.clippedAdjustments(onLayerAt: 1).count == 1)
+        #expect(canvas.activeLayerIndex == 3 && canvas.clippedLayers(onLayerAt: 1).count == 1)
     }
 
     @Test func duplicatingAClippedAdjustmentKeepsTheCopyInItsGroup() {
         let (canvas, history) = clippedStack()
         canvas.activeLayerIndex = 2
         #expect(LayerActions.duplicate(canvas: canvas, history: history, context: context))
-        #expect(canvas.clippedAdjustments(onLayerAt: 1).count == 2)
+        #expect(canvas.clippedLayers(onLayerAt: 1).count == 2)
     }
 
     @Test func mergeDownBakesTheClippedAdjustmentsIn() {

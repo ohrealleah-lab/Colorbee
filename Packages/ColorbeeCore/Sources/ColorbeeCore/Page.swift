@@ -77,7 +77,7 @@ public final class Page {
         }
         unparkedFrom = nil
         freedLayers = []
-        for layer in canvas.layers where layer.isPixelLayer && !layer.buffer.isUntouched {
+        for layer in canvas.allLayers where layer.isPixelLayer && !layer.buffer.isUntouched {
             layer.buffer.discardContents()
             freedLayers.insert(layer.id)
         }

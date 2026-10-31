@@ -42,6 +42,16 @@ public enum ProjectFile {
         var groups: [GroupEntry]?
         /// With groups, the active layer's place counting them; `activeLayerIndex` counts only `layers`, for beta 7.
         var activeIndexWithGroups: Int?
+        /// Layer masks (stage 27), apart from `layers` like groups, so beta 7 shows the layers whole (Q28.5).
+        var masks: [MaskEntry]?
+    }
+
+    /// A layer's mask: its own id, name and pixels, the layer it's on, and whether it's turned on.
+    struct MaskEntry: Codable {
+        var owner: UUID
+        var layer: LayerEntry
+        /// Missing means on.
+        var enabled: Bool?
     }
 
     /// A group's row and where it goes in the full list of layers.
@@ -93,7 +103,9 @@ public enum ProjectFile {
         let saved = stampingFloating ? canvas.layerBuffersAsSaved(transparentKey: transparentKey, resampling: resampling)
             : Dictionary(uniqueKeysWithValues: canvas.layers.filter { $0.adjustment == nil }.map { ($0.id, $0.buffer) })
         let pixelLayers = canvas.layers.filter { $0.isPixelLayer && saved[$0.id] != nil }
-        let compressed = Dictionary(uniqueKeysWithValues: zip(pixelLayers.map(\.id), try LayerPixels.compress(pixelLayers.map { saved[$0.id]! })))
+        let masked = canvas.layers.compactMap { layer in layer.mask.map { (owner: layer, mask: $0) } }
+        let buffers = pixelLayers.map { saved[$0.id]! } + masked.map(\.mask.buffer)
+        let compressed = Dictionary(uniqueKeysWithValues: zip(pixelLayers.map(\.id) + masked.map(\.mask.id), try LayerPixels.compress(buffers)))
         var groups: [GroupEntry] = []
         for (index, layer) in canvas.layers.enumerated() {
             var entry = LayerEntry(
@@ -116,6 +128,18 @@ public enum ProjectFile {
             }
             entries.append(entry)
         }
+        var masks: [MaskEntry] = []
+        for (owner, mask) in masked {
+            var entry = LayerEntry(id: mask.id.rawValue, name: mask.name, isVisible: true, opacity: 1, blendMode: 0, isLocked: false,
+                                   adjustment: nil, pixels: nil)
+            if let pixels = compressed[mask.id], !mask.buffer.isUntouched {
+                entry.pixels = blobs.count..<(blobs.count + pixels.data.count)
+                entry.pieceRows = pixels.pieceRows
+                entry.pieces = pixels.pieces
+                blobs.append(pixels.data)
+            }
+            masks.append(MaskEntry(owner: owner.id.rawValue, layer: entry, enabled: owner.maskEnabled ? nil : false))
+        }
         let active = canvas.activeLayerIndex
         let manifest = Manifest(
             width: canvas.size.width, height: canvas.size.height,
@@ -126,7 +150,8 @@ public enum ProjectFile {
             layers: entries, cameraDetails: canvas.cameraDetails,
             locationRemoved: canvas.locationRemoved ? true : nil,
             resolution: resolution == Page.defaultResolution ? nil : resolution,
-            groups: groups.isEmpty ? nil : groups, activeIndexWithGroups: groups.isEmpty ? nil : active
+            groups: groups.isEmpty ? nil : groups, activeIndexWithGroups: groups.isEmpty ? nil : active,
+            masks: masks.isEmpty ? nil : masks
         )
         let json = try JSONEncoder().encode(manifest)
         var data = magic
@@ -145,7 +170,9 @@ public enum ProjectFile {
         let (manifest, blobs) = try manifestAndBlobs(data)
         guard allEntries(manifest).map(\.entry.id) == canvas.layers.map(\.id.rawValue) else { throw Failure.damaged }
         var stored: [LayerPixels.Stored] = []
-        for (entry, layer) in zip(manifest.layers, canvas.layers) where layers.contains(layer.id) {
+        let pairs = zip(allEntries(manifest).map(\.entry), canvas.layers).map { ($0, $1) }
+            + (manifest.masks ?? []).compactMap { mask in canvas.layer(withID: LayerID(rawValue: mask.layer.id)).map { (mask.layer, $0) } }
+        for (entry, layer) in pairs where layers.contains(layer.id) {
             guard let range = entry.pixels, range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
             stored.append(LayerPixels.Stored(data: blobs[(blobs.startIndex + range.lowerBound)..<(blobs.startIndex + range.upperBound)],
                                              pieceRows: entry.pieceRows, pieces: entry.pieces, buffer: layer.buffer))
@@ -299,7 +326,10 @@ public enum ProjectFile {
         let entries = try checkedEntries(manifest)
         let layers = entries.map { layer(from: $0.entry, group: $0.group, buffer: PixelBuffer(width: manifest.width, height: manifest.height)) }
         let canvas = makeCanvas(manifest, layers: layers)
-        let pixelLayers = Set(zip(entries, layers).filter { $0.0.entry.pixels != nil && $0.1.isPixelLayer }.map(\.1.id))
+        var pixelLayers = Set(zip(entries, layers).filter { $0.0.entry.pixels != nil && $0.1.isPixelLayer }.map(\.1.id))
+        for mask in attachMasks(manifest, to: canvas, buffer: { _ in PixelBuffer(width: manifest.width, height: manifest.height) }) where mask.entry.pixels != nil {
+            pixelLayers.insert(mask.layer.id)
+        }
         return (canvas, pixelLayers)
     }
 
@@ -316,8 +346,34 @@ public enum ProjectFile {
             }
             return layer(from: entry, group: group, buffer: buffer)
         }
+        let canvas = makeCanvas(manifest, layers: layers)
+        _ = try attachMasks(manifest, to: canvas) { entry in
+            let buffer = PixelBuffer(width: manifest.width, height: manifest.height)
+            if let range = entry.pixels {
+                guard range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
+                let start = blobs.startIndex + range.lowerBound, end = blobs.startIndex + range.upperBound
+                stored.append(LayerPixels.Stored(data: blobs[start..<end], pieceRows: entry.pieceRows, pieces: entry.pieces, buffer: buffer))
+            }
+            return buffer
+        }
         try LayerPixels.decompress(stored)
-        return makeCanvas(manifest, layers: layers)
+        return canvas
+    }
+
+    /// Puts each mask in the manifest on its layer, its pixels in the buffer `buffer` gives. Masks of layers that aren't
+    /// there are left out.
+    private static func attachMasks(_ manifest: Manifest, to canvas: Canvas,
+                                    buffer: (LayerEntry) throws -> PixelBuffer) rethrows -> [(entry: LayerEntry, layer: Layer)] {
+        var attached: [(entry: LayerEntry, layer: Layer)] = []
+        for entry in manifest.masks ?? [] {
+            guard let owner = canvas.layers.first(where: { $0.id.rawValue == entry.owner }), owner.mask == nil,
+                  canvas.layer(withID: LayerID(rawValue: entry.layer.id)) == nil else { continue }
+            let mask = Layer(name: entry.layer.name, buffer: try buffer(entry.layer), id: LayerID(rawValue: entry.layer.id))
+            owner.mask = mask
+            owner.maskEnabled = entry.enabled ?? true
+            attached.append((entry.layer, mask))
+        }
+        return attached
     }
 
     /// Every layer and group, in order: the groups put back at their places among the layers (stage 25).

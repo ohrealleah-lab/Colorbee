@@ -568,9 +568,11 @@ public final class History {
                 }
                 return before.records.count == now.records.count && others ? index : nil
             }
-            let touched = entry.changes.contains { $0.key.layer == layer }
+            // Its mask's strokes are the layer's too (Q28.8).
+            let own = Set([layer] + (canvas.layer(withID: layer)?.mask.map { [$0.id] } ?? []))
+            let touched = entry.changes.contains { own.contains($0.key.layer) }
             guard touched else { continue }
-            return entry.changes.allSatisfy { $0.key.layer == layer } ? index : nil
+            return entry.changes.allSatisfy { own.contains($0.key.layer) } ? index : nil
         }
         return nil
     }
@@ -594,7 +596,7 @@ public final class History {
     private func heldLayerBuffers(of entries: [HistoryEntry], canvas: Canvas) -> [PixelBuffer] {
         // Buffers a geometry step holds are already counted in tileBytes (review A, finding 7).
         let geometryHeld = (undoStack + redoStack).filter { !$0.isSpilled }.flatMap { $0.geometry?.buffers?.values.map(ObjectIdentifier.init) ?? [] }
-        let inCanvas = Set(canvas.layers.map { ObjectIdentifier($0.buffer) } + geometryHeld)
+        let inCanvas = Set(canvas.allLayers.map { ObjectIdentifier($0.buffer) } + geometryHeld)
         var seen = Set<ObjectIdentifier>()
         var buffers: [PixelBuffer] = []
         for entry in entries {
@@ -741,7 +743,7 @@ public final class History {
         // written out and freed in place like history-only layers, never replaced by new objects. Empty and
         // adjustment layers have nothing to write (overnight soak; review A, finding 4).
         if let buffers = entry.geometry?.buffers {
-            let inCanvas = Set(canvas.layers.map { ObjectIdentifier($0.buffer) })
+            let inCanvas = Set(canvas.allLayers.map { ObjectIdentifier($0.buffer) })
             for buffer in buffers.values where !inCanvas.contains(ObjectIdentifier(buffer)) && !isEvicted(buffer) && !buffer.isUntouched {
                 guard evict(buffer, store: store) else { return false }
             }

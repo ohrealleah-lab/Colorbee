@@ -148,6 +148,28 @@ extension Compositing {
         backdrop = SIMD4(color, sourceAlpha + backdropAlpha * (1 - sourceAlpha))
     }
 
+    /// How much a mask pixel lets show, 0...1: the mask is black ink over white paper, so clear and white show
+    /// everything and black nothing (stage 27). `Shaders.metal` `mask_reveal` does the same.
+    @inline(__always)
+    static func reveal(_ mask: Pixel) -> Float {
+        let ink = Float(mask.a) / 255
+        let paper = (Float(mask.r) + Float(mask.g) + Float(mask.b)) / 765
+        return 1 - ink * (1 - paper)
+    }
+
+    /// `source` blended onto `backdrop` only where the backdrop has pixels, keeping its opacity: a pixel layer set to
+    /// "Only the layer below" on the layer it sits on (stage 28b). `Shaders.metal` does the same (`blendMode` −2).
+    @inline(__always)
+    static func blendAtop(_ backdrop: Pixel, _ source: Pixel, opacity: Float, mode: BlendMode) -> Pixel {
+        guard backdrop.a > 0, source.a > 0, opacity > 0 else { return backdrop }
+        let b = SIMD3(Float(backdrop.r), Float(backdrop.g), Float(backdrop.b)) / 255
+        let s = SIMD3(Float(source.r), Float(source.g), Float(source.b)) / 255
+        let amount = Float(source.a) / 255 * opacity
+        let color = b + (mode.blend(b, s) - b) * amount
+        func byte(_ v: Float) -> UInt8 { UInt8((min(max(v, 0), 1) * 255).rounded()) }
+        return Pixel(r: byte(color.x), g: byte(color.y), b: byte(color.z), a: backdrop.a)
+    }
+
     /// A premultiplied float color back to a straight-alpha pixel.
     @inline(__always)
     static func pixel(_ premultiplied: SIMD4<Float>) -> Pixel {

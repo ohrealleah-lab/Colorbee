@@ -39,6 +39,7 @@ public enum LayerActions {
             target.adjustment = nil
             target.clipsToLayerBelow = false
             target.groupID = nil
+            target.mask = nil
             for layer in merged.dropFirst() {
                 canvas.removeLayer(at: canvas.layers.firstIndex { $0 === layer }!)
             }
@@ -113,7 +114,7 @@ public enum LayerActions {
     /// "Name copy", with the same pixels and settings, in the same group.
     static func copy(of source: Layer) -> Layer {
         source.copy(buffer: source.isPixelLayer ? source.buffer.copy() : PixelBuffer(size: source.buffer.size), id: LayerID(),
-                    name: "\(source.name) copy")
+                    name: "\(source.name) copy").withOwnMask(newID: true)
     }
 
     /// Copies of `span` (a group and everything in it, in canvas order), the groups inside pointing to their copies.
@@ -126,7 +127,7 @@ public enum LayerActions {
             let copy = layer.copy(buffer: layer.isPixelLayer ? layer.buffer.copy() : PixelBuffer(size: layer.buffer.size),
                                   id: newIDs[layer.id] ?? LayerID(), name: top ? "\(layer.name) copy" : layer.name)
             if let group = layer.groupID, let renamed = newIDs[group] { copy.groupID = renamed }
-            return copy
+            return copy.withOwnMask(newID: true)
         }
     }
 
@@ -153,7 +154,7 @@ public enum LayerActions {
 
     /// What deleting the layer at `index` takes: a group with everything in it, or a layer with its clipped adjustments.
     static func deletedRange(ofLayerAt index: Int, in canvas: Canvas) -> Range<Int> {
-        canvas.layers[index].isGroup ? canvas.span(ofLayerAt: index) : index..<(index + 1 + canvas.clippedAdjustments(onLayerAt: index).count)
+        canvas.layers[index].isGroup ? canvas.span(ofLayerAt: index) : index..<(index + 1 + canvas.clippedLayers(onLayerAt: index).count)
     }
 
     /// Combines the active layer into the one below, using its blend mode and opacity. The result keeps
@@ -166,8 +167,10 @@ public enum LayerActions {
         return change("Merge Down", canvas: canvas, history: history, context: context) {
             let index = canvas.activeLayerIndex
             let upper = canvas.layers[index], lower = canvas.layers[index - 1]
+            // The lower layer's mask goes into its pixels first, so the merge keeps the look (stage 27).
+            bakeMask(of: lower)
             // Its clipped adjustments are baked in, so the picture keeps its look (Leah, 2026-10-13).
-            let clips = canvas.clippedAdjustments(onLayerAt: index)
+            let clips = canvas.clippedLayers(onLayerAt: index)
             lower.buffer = canvas.composite([upper] + clips.filter(\.isVisible), onto: lower.buffer)
             for _ in 0...clips.count { canvas.removeLayer(at: index) }
             canvas.activeLayerIndex = index - 1
@@ -185,7 +188,7 @@ public enum LayerActions {
         let lower = canvas.layers[index - 1]
         return !canvas.isLocked(canvas.layers[index]) && !canvas.isLocked(lower) && lower.isPixelLayer
             && lower.groupID == canvas.layers[index].groupID
-            && !canvas.clippedAdjustments(onLayerAt: index).contains(where: canvas.isLocked)
+            && !canvas.clippedLayers(onLayerAt: index).contains(where: canvas.isLocked)
     }
 
     /// Combines every visible layer into the lowest visible one, as they look together. Hidden layers stay.
@@ -201,6 +204,7 @@ public enum LayerActions {
             target.adjustment = nil
             target.clipsToLayerBelow = false
             target.groupID = nil
+            target.mask = nil
             let active = canvas.activeLayer
             let activeShown = canvas.isShown(active)
             for layer in visible where layer !== target {
@@ -257,6 +261,7 @@ public enum LayerActions {
             bottom.adjustment = nil
             bottom.clipsToLayerBelow = false
             bottom.groupID = nil
+            bottom.mask = nil
             while canvas.layers.count > 1 { canvas.removeLayer(at: 1) }
             canvas.activeLayerIndex = 0
             return true

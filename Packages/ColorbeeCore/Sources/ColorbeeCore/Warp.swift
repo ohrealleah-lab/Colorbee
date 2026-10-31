@@ -246,7 +246,7 @@ extension ImageActions {
         let edit = history.beginEdit(name, on: canvas)
         edit.willChangeGeometry()
         var buffers: [LayerID: PixelBuffer] = [:]
-        for layer in canvas.layers {
+        for layer in canvas.allLayers {
             buffers[layer.id] = layer.holdsNoPixels && !drawsEmptyLayer(layer) ? PixelBuffer(size: size) : make(layer)
         }
         canvas.replaceContents(size: size, buffers: buffers)

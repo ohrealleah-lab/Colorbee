@@ -443,7 +443,7 @@ final class Renderer {
                 // Objects not yet placed go into their layer before it's blended, so on a layer that isn't Normal
                 // at 100% they look as they will once placed (Leah; review F, finding 1).
                 // Its clipped adjustments change it alone, so it's drawn on its own first, then blended in.
-                let clips = canvas.clippedAdjustments(onLayerAt: index).filter { $0.isVisible && $0.opacity > 0 }
+                let clips = canvas.clippedLayers(onLayerAt: index).filter { $0.isVisible && $0.opacity > 0 }
                 let isolated = ((hasFloating || overlay != nil) && (layer.blendMode != .normal || layer.opacity < 1)) || !clips.isEmpty
                     || lockedPatch != nil || lockedOverlay != nil
                 // Made only when needed: it's the size of the window.

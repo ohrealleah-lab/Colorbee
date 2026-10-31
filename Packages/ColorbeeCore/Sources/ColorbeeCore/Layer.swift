@@ -34,6 +34,16 @@ public final class Layer {
     /// adjustment inside changes only the group.
     public var passesThrough = true
 
+    /// A layer mask (FR-8.8, stages 27 to 28b): black ink on white paper, held as a layer of its own so every tool paints
+    /// on it, and history, saving and snapshots treat it as pixels. Where it's clear or white the layer shows, where
+    /// it's black it's hidden, grays partly (`Compositing.reveal`). An untouched mask shows everything and takes no
+    /// memory. Nil without one.
+    public var mask: Layer?
+    /// Shift-click on the mask turns it off without deleting it (stage 28a).
+    public var maskEnabled = true
+    /// The mask in force: nil when there's none or it's turned off.
+    public var activeMask: PixelBuffer? { maskEnabled ? mask?.buffer : nil }
+
     /// A layer with pixels of its own: not an adjustment layer or a group.
     public var isPixelLayer: Bool { adjustment == nil && !isGroup }
 
@@ -67,11 +77,20 @@ public final class Layer {
         Layer(name: name, buffer: PixelBuffer(size: size), id: id, isGroup: true)
     }
 
-    /// A layer of the same kind, with every setting of this one, holding `buffer`.
+    /// A layer of the same kind, with every setting of this one, holding `buffer`. It shares this one's mask: a copy
+    /// that outlives this moment gives it a mask of its own (`withOwnMask`).
     public func copy(buffer: PixelBuffer, id: LayerID? = nil, name: String? = nil) -> Layer {
         let copy = Layer(name: name ?? self.name, buffer: buffer, id: id ?? self.id, isGroup: isGroup)
         copy.takeSettings(from: self)
+        copy.mask = mask
         return copy
+    }
+
+    /// Gives this layer a copy of its mask, with the same id (`newID` off) or a new one.
+    @discardableResult
+    func withOwnMask(newID: Bool = false) -> Layer {
+        mask = mask.map { $0.copy(buffer: $0.buffer.copy(), id: newID ? LayerID() : $0.id) }
+        return self
     }
 
     /// Every setting of `other` but its name, id, kind and pixels.
@@ -85,5 +104,6 @@ public final class Layer {
         clipsToLayerBelow = other.clipsToLayerBelow
         groupID = other.groupID
         passesThrough = other.passesThrough
+        maskEnabled = other.maskEnabled
     }
 }

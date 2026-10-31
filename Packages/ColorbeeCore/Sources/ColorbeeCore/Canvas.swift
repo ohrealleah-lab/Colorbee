@@ -73,7 +73,7 @@ public final class Canvas {
     /// An independent copy with the same layers, settings and selection, for saving in the background
     /// while editing carries on. A floating selection's pixels are never modified, so they're shared.
     public func copy() -> Canvas {
-        let copies = layers.map { $0.copy(buffer: $0.isPixelLayer ? $0.buffer.copy() : $0.buffer) }
+        let copies = layers.map { $0.copy(buffer: $0.isPixelLayer ? $0.buffer.copy() : $0.buffer).withOwnMask() }
         let canvas = Canvas(colorSpace: colorSpace, layers: copies, hasTransparentBackground: hasTransparentBackground,
                             backgroundLayerID: backgroundLayerID, activeLayerIndex: activeLayerIndex)
         canvas.selection = selection
@@ -85,13 +85,33 @@ public final class Canvas {
     public var bounds: IntRect { IntRect(size: size) }
     public var activeLayer: Layer { layers[activeLayerIndex] }
 
+    /// A layer, or a layer's mask, which tools paint and history records like a layer (stage 27).
     public func layer(withID id: LayerID) -> Layer? {
-        layers.first { $0.id == id }
+        layers.first { $0.id == id } ?? layers.lazy.compactMap(\.mask).first { $0.id == id }
+    }
+
+    /// Every layer, each followed by its mask if it has one: what holds pixels the canvas size.
+    public var allLayers: [Layer] {
+        layers.flatMap { layer in [layer] + (layer.mask.map { [$0] } ?? []) }
+    }
+
+    /// The layer whose mask `mask` is.
+    public func owner(ofMask mask: Layer) -> Layer? {
+        layers.first { $0.mask === mask }
     }
 
     public func insertLayer(_ layer: Layer, at index: Int) {
         precondition(layer.buffer.size == size, "Layer size doesn't match the canvas")
         layers.insert(layer, at: index)
+    }
+
+    /// While the active layer's mask is chosen, tools paint on it rather than on the layer (stage 27). Not saved, and not
+    /// an undo step; it ends when another layer becomes active (`Editor`).
+    public var editsMask = false
+
+    /// Where tools paint: the active layer, or its mask while that's chosen.
+    public var paintLayer: Layer {
+        editsMask ? activeLayer.mask ?? activeLayer : activeLayer
     }
 
     /// Puts `layer` "above the active one" (`indexAboveActiveLayer`), in the active layer's group, and makes it active.
@@ -104,9 +124,9 @@ public final class Canvas {
 
     /// Swaps in new pixel buffers of `size` for every layer. Used by geometry changes and their undo.
     func replaceContents(size: IntSize, buffers: [LayerID: PixelBuffer]) {
-        precondition(layers.allSatisfy { buffers[$0.id]?.size == size }, "Every layer needs a buffer of the new size")
+        precondition(allLayers.allSatisfy { buffers[$0.id]?.size == size }, "Every layer needs a buffer of the new size")
         self.size = size
-        for layer in layers {
+        for layer in allLayers {
             layer.buffer = buffers[layer.id]!
         }
     }
@@ -115,7 +135,7 @@ public final class Canvas {
     /// in it, since history steps (a blend mode change, say) share that object and must see later edits.
     func transform(_ orientation: Orientation) {
         let newSize = orientation.transformedSize(size)
-        for layer in layers {
+        for layer in allLayers {
             if layer.holdsNoPixels {
                 layer.buffer = PixelBuffer(size: newSize)
             } else {
@@ -126,7 +146,7 @@ public final class Canvas {
     }
 
     var currentGeometry: GeometryChange {
-        GeometryChange(size: size, buffers: Dictionary(uniqueKeysWithValues: layers.map { ($0.id, $0.buffer) }))
+        GeometryChange(size: size, buffers: Dictionary(uniqueKeysWithValues: allLayers.map { ($0.id, $0.buffer) }))
     }
 
     /// What the Eraser, Cut and Delete leave on `layer`: as `vacatedFill`, but a layer that locks its transparency can't
@@ -150,49 +170,57 @@ public final class Canvas {
         guard layers.indices.contains(index) else { return nil }
         let parent = layers[index].groupID
         var below = index - 1
-        while below >= 0, layers[below].adjustment != nil, layers[below].clipsToLayerBelow, layers[below].groupID == parent { below -= 1 }
+        while below >= 0, !layers[below].isGroup, layers[below].clipsToLayerBelow, layers[below].groupID == parent { below -= 1 }
         return below >= 0 && layers[below].isPixelLayer && layers[below].groupID == parent ? below : nil
     }
 
-    /// Whether the adjustment layer at `index` could be set to change only the layer below.
+    /// Whether the adjustment or pixel layer at `index` could be set to change or show on only the layer below.
     public func canClip(layerAt index: Int) -> Bool {
-        layers.indices.contains(index) && layers[index].adjustment != nil && clipBaseIndex(forLayerAt: index) != nil
+        layers.indices.contains(index) && !layers[index].isGroup && clipBaseIndex(forLayerAt: index) != nil
     }
 
     /// Where a new layer goes "above the active one": above the active layer's clipped adjustments too, so they keep
     /// changing the layer they're on (Leah, 2026-10-13). On a clipped adjustment, above its whole group.
     public var indexAboveActiveLayer: Int {
         let active = activeLayerIndex
-        let base = layers[active].isPixelLayer ? active : layers[active].adjustment != nil && layers[active].clipsToLayerBelow ? clipBaseIndex(forLayerAt: active) : nil
+        let base = layers[active].clipsToLayerBelow && !layers[active].isGroup ? clipBaseIndex(forLayerAt: active)
+            : layers[active].isPixelLayer ? active : nil
         guard let base else { return active + 1 }
-        return base + 1 + clippedAdjustments(onLayerAt: base).count
+        return base + 1 + clippedLayers(onLayerAt: base).count
     }
 
-    /// The clipped adjustment layers on the pixel layer at `index`, bottom to top.
-    public func clippedAdjustments(onLayerAt index: Int) -> [Layer] {
-        guard layers.indices.contains(index), layers[index].isPixelLayer else { return [] }
+    /// The layers set to "Only the layer below" on the pixel layer at `index` (adjustments, and pixel layers since stage
+    /// 28b), bottom to top. They belong to it: they move, merge and go with it.
+    public func clippedLayers(onLayerAt index: Int) -> [Layer] {
+        guard layers.indices.contains(index), layers[index].isPixelLayer, !layers[index].clipsToLayerBelow else { return [] }
         let parent = layers[index].groupID
         var result: [Layer] = []
         var above = index + 1
-        while above < layers.count, layers[above].adjustment != nil, layers[above].clipsToLayerBelow, layers[above].groupID == parent {
+        while above < layers.count, !layers[above].isGroup, layers[above].clipsToLayerBelow, layers[above].groupID == parent {
             result.append(layers[above])
             above += 1
         }
         return result
     }
 
-    /// `stack` with each pixel layer's clipped adjustments applied to its own pixels (in a stand-in with the same id
-    /// and settings), and the clipped adjustments themselves left out.
+    /// `stack` with each pixel layer's clipped layers put into its own pixels (in a stand-in with the same id, settings
+    /// and mask): its adjustments applied, and its pixel layers blended on only where it has pixels (stage 28b). The
+    /// clipped layers themselves are left out.
     private func clipped(_ stack: [Layer]) -> [Layer] {
-        guard stack.contains(where: { $0.clipsToLayerBelow && $0.adjustment != nil }) else { return stack }
+        guard stack.contains(where: { $0.clipsToLayerBelow && !$0.isGroup }) else { return stack }
         return stack.compactMap { layer in
-            if layer.adjustment != nil { return layer.clipsToLayerBelow ? nil : layer }
-            guard let index = layers.firstIndex(where: { $0 === layer }) else { return layer }
-            let clips = clippedAdjustments(onLayerAt: index).filter { clip in stack.contains { $0 === clip } }
+            if layer.clipsToLayerBelow, !layer.isGroup, let index = layers.firstIndex(where: { $0 === layer }),
+               clipBaseIndex(forLayerAt: index) != nil { return nil }
+            guard layer.isPixelLayer, let index = layers.firstIndex(where: { $0 === layer }) else { return layer }
+            let clips = clippedLayers(onLayerAt: index).filter { clip in stack.contains { $0 === clip } }
             guard !clips.isEmpty else { return layer }
             var buffer = layer.buffer
             for clip in clips {
-                buffer = Compositing.adjust(buffer, by: clip.adjustment!, opacity: clip.opacity, mode: clip.blendMode, placement: placement)
+                if let adjustment = clip.adjustment {
+                    buffer = Compositing.adjust(buffer, by: adjustment, opacity: clip.opacity, mode: clip.blendMode, mask: clip.activeMask, placement: placement)
+                } else {
+                    buffer = Compositing.blendAtop(buffer, clip.buffer, opacity: clip.opacity, mode: clip.blendMode, mask: clip.activeMask)
+                }
             }
             return layer.copy(buffer: buffer)
         }
@@ -211,7 +239,7 @@ public final class Canvas {
         let nodes = tree(of: visible)
         // A pixel layer's clipped adjustments change its own pixels before it's blended.
         let clips = Dictionary(uniqueKeysWithValues: visible.map { layer in
-            (ObjectIdentifier(layer), layers.firstIndex { $0 === layer }.map { clippedAdjustments(onLayerAt: $0).filter { clip in visible.contains { $0 === clip } } } ?? [])
+            (ObjectIdentifier(layer), layers.firstIndex { $0 === layer }.map { clippedLayers(onLayerAt: $0).filter { clip in visible.contains { $0 === clip } } } ?? [])
         })
         // Each adjustment's color change, worked out once: Adjust Photo's color and tone count too, though not its
         // detail or vignette, so the Adjust Photo histogram follows its sliders (stage 15).
@@ -228,27 +256,35 @@ public final class Canvas {
                     for node in nodes {
                         let layer = node.layer
                         if layer.isGroup {
+                            let opacity = Float(layer.opacity) * (layer.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1)
                             if layer.passesThrough {
-                                color += (shade(node.children, onto: color) - color) * Float(layer.opacity)
+                                color += (shade(node.children, onto: color) - color) * opacity
                             } else {
-                                Compositing.blend(&color, Compositing.pixel(shade(node.children, onto: .zero)), opacity: Float(layer.opacity), mode: layer.blendMode)
+                                Compositing.blend(&color, Compositing.pixel(shade(node.children, onto: .zero)), opacity: opacity, mode: layer.blendMode)
                             }
+                        } else if layer.clipsToLayerBelow {
+                            continue
                         } else if layer.adjustment != nil {
-                            guard !layer.clipsToLayerBelow, let transform = transforms[ObjectIdentifier(layer)] else { continue }
+                            guard let transform = transforms[ObjectIdentifier(layer)] else { continue }
                             let below = Compositing.pixel(color)
                             var adjusted = transform(below)
                             adjusted.a = below.a
                             let goal = Compositing.premultiplied(adjusted)
-                            color += (goal - color) * Float(layer.opacity)
+                            color += (goal - color) * Float(layer.opacity) * (layer.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1)
                         } else {
                             var pixel = layer.buffer[x, y]
                             for clip in clips[ObjectIdentifier(layer)] ?? [] {
+                                let reveal = clip.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1
+                                if clip.isPixelLayer {
+                                    pixel = Compositing.blendAtop(pixel, clip.buffer[x, y], opacity: Float(clip.opacity) * reveal, mode: clip.blendMode)
+                                    continue
+                                }
                                 guard let transform = transforms[ObjectIdentifier(clip)] else { continue }
                                 var adjusted = transform(pixel)
                                 adjusted.a = pixel.a
-                                pixel = Compositing.lerp(pixel, adjusted, Float(clip.opacity))
+                                pixel = Compositing.lerp(pixel, adjusted, Float(clip.opacity) * reveal)
                             }
-                            Compositing.blend(&color, pixel, opacity: Float(layer.opacity), mode: layer.blendMode)
+                            Compositing.blend(&color, pixel, opacity: Float(layer.opacity) * (layer.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1), mode: layer.blendMode)
                         }
                     }
                     return color
@@ -286,6 +322,8 @@ public final class Canvas {
             layer.clipsToLayerBelow = record.clipsToLayerBelow
             layer.groupID = record.groupID
             layer.passesThrough = record.passesThrough
+            layer.mask = record.mask
+            layer.maskEnabled = record.maskEnabled
             layer.buffer = record.buffer
             return layer
         }
@@ -341,16 +379,19 @@ public final class Canvas {
                 if layer.passesThrough {
                     let backdrop = below()
                     let inside = composite(node.children, onto: backdrop, transparentKey: transparentKey, resampling: resampling)
-                    current = layer.opacity >= 1 ? inside : Compositing.mixed(backdrop, inside, opacity: layer.opacity, mode: .normal)
+                    current = layer.opacity >= 1 && layer.activeMask == nil ? inside
+                        : Compositing.mixed(backdrop, inside, opacity: layer.opacity, mode: .normal, mask: layer.activeMask)
                 } else {
                     let inside = composite(node.children, onto: nil, transparentKey: transparentKey, resampling: resampling)
                     let standIn = Layer(name: layer.name, buffer: inside, id: layer.id)
                     standIn.opacity = layer.opacity
                     standIn.blendMode = layer.blendMode
+                    standIn.mask = layer.mask
+                    standIn.maskEnabled = layer.maskEnabled
                     segment.append(standIn)
                 }
             } else if let adjustment = layer.adjustment {
-                current = Compositing.adjust(below(), by: adjustment, opacity: layer.opacity, mode: layer.blendMode, placement: placement)
+                current = Compositing.adjust(below(), by: adjustment, opacity: layer.opacity, mode: layer.blendMode, mask: layer.activeMask, placement: placement)
             } else {
                 segment.append(layer)
             }
@@ -382,6 +423,20 @@ public final class Canvas {
                     let source = layer.buffer.row(y)
                     let opacity = Float(layer.opacity)
                     let mode = layer.blendMode
+                    if let mask = layer.activeMask?.row(y) {
+                        // Masked (stage 27): rarer, so its own loop, with the floating selection placed as below.
+                        let floating = floating.flatMap { $0.layerID == layer.id && y >= $0.destination.minY && y < $0.destination.maxY ? $0 : nil }
+                        let floatingRow = floating.flatMap { f in floatingPixels.map { $0.row(y - f.destination.minY) - f.destination.minX } }
+                        let locked = locksTransparency(layer)
+                        for x in 0..<width {
+                            var pixel = source[x]
+                            if let floating, let floatingRow, x >= floating.destination.minX, x < floating.destination.maxX {
+                                pixel = locked ? Pixel.placedOnLocked(pixel, floatingRow[x]) : Compositing.over(pixel, floatingRow[x])
+                            }
+                            Compositing.blend(&row[x], pixel, opacity: opacity * Compositing.reveal(mask[x]), mode: mode)
+                        }
+                        continue
+                    }
                     // The floating selection's pixels over the layer's, as placing will make them.
                     var floatingSpan = 0..<0
                     var floatingRow: UnsafeMutablePointer<Pixel>?
@@ -471,6 +526,13 @@ public final class Canvas {
                 }
             }
             let copy = layer.copy(buffer: buffer)
+            copy.mask = layer.mask.map { mask in
+                let part = PixelBuffer(width: padded.width, height: padded.height)
+                for y in 0..<padded.height {
+                    (part.row(y)).update(from: mask.buffer.row(padded.minY + y) + padded.minX, count: padded.width)
+                }
+                return mask.copy(buffer: part)
+            }
             if alone && offset == 0 {
                 copy.isVisible = true
                 copy.opacity = 1
@@ -517,7 +579,7 @@ public final class Canvas {
     /// floating selection shown above its layer. This is what's exported.
     public func flattened(transparentKey: Pixel? = nil, resampling: Resampling = .nearestNeighbor) -> PixelBuffer {
         let visible = shownLayers
-        if selection.floating == nil, visible.count == 1, visible[0].isPixelLayer, visible[0].opacity >= 1 {
+        if selection.floating == nil, visible.count == 1, visible[0].isPixelLayer, visible[0].opacity >= 1, visible[0].activeMask == nil {
             return visible[0].buffer.copy()
         }
         return composite(visible, transparentKey: transparentKey, resampling: resampling)
@@ -539,6 +601,8 @@ struct LayerStackState {
         let clipsToLayerBelow: Bool
         var groupID: LayerID?
         var passesThrough = true
+        var mask: Layer?
+        var maskEnabled = true
         let buffer: PixelBuffer
 
         /// `layer` as it is now.
@@ -546,6 +610,8 @@ struct LayerStackState {
             self.init(layer: layer, name: layer.name, isVisible: layer.isVisible, opacity: layer.opacity, blendMode: layer.blendMode,
                       isLocked: layer.isLocked, locksTransparency: layer.locksTransparency, adjustment: layer.adjustment,
                       clipsToLayerBelow: layer.clipsToLayerBelow, groupID: layer.groupID, passesThrough: layer.passesThrough, buffer: layer.buffer)
+            mask = layer.mask
+            maskEnabled = layer.maskEnabled
         }
 
         init(layer: Layer, name: String, isVisible: Bool, opacity: Double, blendMode: BlendMode, isLocked: Bool, locksTransparency: Bool,
@@ -569,6 +635,7 @@ struct LayerStackState {
             name == other.name && isVisible == other.isVisible && opacity == other.opacity && blendMode == other.blendMode
                 && isLocked == other.isLocked && locksTransparency == other.locksTransparency && adjustment == other.adjustment && clipsToLayerBelow == other.clipsToLayerBelow
                 && groupID == other.groupID && passesThrough == other.passesThrough && buffer === other.buffer
+                && mask === other.mask && maskEnabled == other.maskEnabled
         }
     }
 

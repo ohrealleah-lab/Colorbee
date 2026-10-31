@@ -10,7 +10,7 @@ public enum ImageActions {
         let edit = history.beginEdit(name, on: canvas)
         edit.willChangeGeometry()
         var buffers: [LayerID: PixelBuffer] = [:]
-        for layer in canvas.layers {
+        for layer in canvas.allLayers {
             let cropped = PixelBuffer(width: target.width, height: target.height)
             if !layer.holdsNoPixels {
                 cropped.setPixels(layer.buffer.pixels(in: target), in: cropped.bounds)
@@ -42,7 +42,7 @@ public enum ImageActions {
         let edit = history.beginEdit(settings.actionName(from: canvas.size), on: canvas)
         edit.willChangeGeometry()
         var buffers: [LayerID: PixelBuffer] = [:]
-        for layer in canvas.layers {
+        for layer in canvas.allLayers {
             guard layer.isPixelLayer else {
                 buffers[layer.id] = PixelBuffer(size: settings.resultSize)
                 continue
@@ -79,7 +79,7 @@ public enum ImageActions {
         // The old picture's part that's still on the canvas, where it was and where it goes.
         let kept = IntRect(size: canvas.size).intersection(IntRect(x: -offset.x, y: -offset.y, width: size.width, height: size.height))
         let placed = IntRect(x: kept.minX + offset.x, y: kept.minY + offset.y, width: kept.width, height: kept.height)
-        for layer in canvas.layers {
+        for layer in canvas.allLayers {
             let fill = layer.isPixelLayer ? canvas.vacatedFill(for: layer, color2: context.color2) : .clear
             let buffer = PixelBuffer(width: size.width, height: size.height, fill: fill)
             // A layer with no pixels has nothing to copy, unless the new area's fill would cover where they go.

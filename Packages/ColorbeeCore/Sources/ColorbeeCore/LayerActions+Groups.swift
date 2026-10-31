@@ -71,6 +71,9 @@ extension LayerActions {
             merged.opacity = group.opacity
             merged.blendMode = group.passesThrough ? .normal : group.blendMode
             merged.groupID = group.groupID
+            // The group's mask stays a mask, on the layer that takes its place.
+            merged.mask = group.mask
+            merged.maskEnabled = group.maskEnabled
             for at in span.reversed() { canvas.removeLayer(at: at) }
             canvas.insertLayer(merged, at: span.lowerBound)
             canvas.activeLayerIndex = span.lowerBound
@@ -149,7 +152,7 @@ extension LayerActions {
                ids.contains(canvas.layers[base].id) { continue }
             result.append(layer)
             if layer.isPixelLayer {
-                result += canvas.clippedAdjustments(onLayerAt: index).filter { clip in !result.contains { $0 === clip } }
+                result += canvas.clippedLayers(onLayerAt: index).filter { clip in !result.contains { $0 === clip } }
             }
         }
         return canvas.layers.filter { layer in result.contains { $0 === layer } }

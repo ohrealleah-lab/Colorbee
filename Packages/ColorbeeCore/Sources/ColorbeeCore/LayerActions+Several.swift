@@ -29,6 +29,7 @@ extension LayerActions {
             holder.isVisible = true
             holder.adjustment = nil
             holder.clipsToLayerBelow = false
+            holder.mask = nil
             let from = canvas.layers.firstIndex { $0 === holder }!
             let above = anchor.flatMap { anchor in canvas.layers.firstIndex { $0 === anchor } } ?? canvas.layers.count
             canvas.moveLayer(from: from, to: above - 1)
@@ -66,7 +67,7 @@ extension LayerActions {
 
     /// The indices of the clipped adjustments on the pixel layer at `index`, bottom to top.
     private static func clipIndices(onLayerAt index: Int, in canvas: Canvas) -> [Int] {
-        Array((index + 1)..<(index + 1 + canvas.clippedAdjustments(onLayerAt: index).count))
+        Array((index + 1)..<(index + 1 + canvas.clippedLayers(onLayerAt: index).count))
     }
 
     // MARK: Delete, Duplicate, Move
@@ -120,7 +121,7 @@ extension LayerActions {
                     if source === active { activeCopy = copy }
                 } else if source.isPixelLayer {
                     // The layer and its chosen clipped adjustments, as a group of their own above its group.
-                    let clips = canvas.clippedAdjustments(onLayerAt: index)
+                    let clips = canvas.clippedLayers(onLayerAt: index)
                     var at = index + 1 + clips.count
                     for layer in [source] + clips.filter({ ids.contains($0.id) }) {
                         let copy = copy(of: layer)

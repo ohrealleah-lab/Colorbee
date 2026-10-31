@@ -112,7 +112,7 @@ public enum Decorations {
         } else {
             edit.willChangeGeometry()
             var buffers: [LayerID: PixelBuffer] = [:]
-            for other in canvas.layers where other !== layer {
+            for other in canvas.allLayers where other !== layer {
                 let otherFill = other.isPixelLayer ? canvas.vacatedFill(for: other, color2: context.color2) : .clear
                 let buffer = PixelBuffer(width: size.width, height: size.height, fill: otherFill)
                 if !(other.holdsNoPixels && otherFill == .clear) {

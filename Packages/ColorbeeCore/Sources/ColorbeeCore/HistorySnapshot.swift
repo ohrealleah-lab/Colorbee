@@ -33,6 +33,11 @@ public final class HistorySnapshot: Identifiable {
         var isGroup = false
         var groupID: LayerID?
         var passesThrough = true
+        /// Its mask (stage 27): whether it had one, its name, its bands, and whether it's on.
+        var maskID: LayerID?
+        var maskName = ""
+        var maskPixels: [SpillStore.Location]?
+        var maskEnabled = true
         /// One band of rows each (`GeometryChange.bands`); nil for a layer with no pixels (empty or an adjustment).
         var pixels: [SpillStore.Location]?
     }

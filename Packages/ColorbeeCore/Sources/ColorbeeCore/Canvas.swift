@@ -259,6 +259,17 @@ public final class Canvas {
         let transforms = Dictionary(uniqueKeysWithValues: visible.compactMap { layer in
             layer.adjustment?.colorTransform.map { (ObjectIdentifier(layer), $0) }
         })
+        // A floating piece shows placed in its layer or mask, as in `flattened` (review round 11, AE B).
+        let placed = selection.floating.flatMap { floating in
+            allLayers.first { $0.id == floating.layerID }.map { layer in
+                (id: layer.id, buffer: floating.placedCopy(of: layer, locked: locksTransparency(layer), resampling: .nearestNeighbor, transparentKey: nil))
+            }
+        }
+        func buffer(of layer: Layer) -> PixelBuffer { placed?.id == layer.id ? placed!.buffer : layer.buffer }
+        func reveal(_ layer: Layer, _ x: Int, _ y: Int) -> Float {
+            guard layer.maskEnabled, let mask = layer.mask else { return 1 }
+            return Compositing.reveal((placed?.id == mask.id ? placed!.buffer : mask.buffer)[x, y])
+        }
         for ty in 0..<height {
             let y = min(size.height - 1, Int((Double(ty) + 0.5) / scale))
             for tx in 0..<width {
@@ -269,7 +280,7 @@ public final class Canvas {
                     for node in nodes {
                         let layer = node.layer
                         if layer.isGroup {
-                            let opacity = Float(layer.opacity) * (layer.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1)
+                            let opacity = Float(layer.opacity) * reveal(layer, x, y)
                             if layer.passesThrough {
                                 color += (shade(node.children, onto: color) - color) * opacity
                             } else {
@@ -282,34 +293,21 @@ public final class Canvas {
                             let below = Compositing.pixel(color)
                             var adjusted = transform(below)
                             adjusted.a = below.a
-                            // Blended as `Compositing.mixed` does for the export (the monkey test, 2026-10-31).
-                            var goal = Compositing.premultiplied(adjusted)
-                            if layer.blendMode != .normal, color.w > 0 {
-                                let alpha = Float(adjusted.a) / 255
-                                let mixed = layer.blendMode.blend(SIMD3(color.x, color.y, color.z) / color.w,
-                                                                  SIMD3(Float(adjusted.r), Float(adjusted.g), Float(adjusted.b)) / 255)
-                                goal = SIMD4(mixed * alpha, alpha)
-                            }
-                            color += (goal - color) * Float(layer.opacity) * (layer.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1)
+                            color = Compositing.mixed(color, adjusted, fade: Float(layer.opacity) * reveal(layer, x, y), mode: layer.blendMode)
                         } else {
-                            var pixel = layer.buffer[x, y]
+                            var pixel = buffer(of: layer)[x, y]
                             for clip in clips[ObjectIdentifier(layer)] ?? [] {
-                                let reveal = clip.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1
+                                let fade = Float(clip.opacity) * reveal(clip, x, y)
                                 if clip.isPixelLayer {
-                                    pixel = Compositing.blendAtop(pixel, clip.buffer[x, y], opacity: Float(clip.opacity) * reveal, mode: clip.blendMode)
+                                    pixel = Compositing.blendAtop(pixel, buffer(of: clip)[x, y], opacity: fade, mode: clip.blendMode)
                                     continue
                                 }
                                 guard let transform = transforms[ObjectIdentifier(clip)] else { continue }
                                 var adjusted = transform(pixel)
                                 adjusted.a = pixel.a
-                                if clip.blendMode != .normal {
-                                    let mixed = clip.blendMode.blend(SIMD3(Float(pixel.r), Float(pixel.g), Float(pixel.b)) / 255,
-                                                                     SIMD3(Float(adjusted.r), Float(adjusted.g), Float(adjusted.b)) / 255) * 255
-                                    adjusted = Pixel(r: UInt8(mixed.x.rounded()), g: UInt8(mixed.y.rounded()), b: UInt8(mixed.z.rounded()), a: pixel.a)
-                                }
-                                pixel = Compositing.lerp(pixel, adjusted, Float(clip.opacity) * reveal)
+                                pixel = Compositing.pixel(Compositing.mixed(Compositing.premultiplied(pixel), adjusted, fade: fade, mode: clip.blendMode))
                             }
-                            Compositing.blend(&color, pixel, opacity: Float(layer.opacity) * (layer.activeMask.map { Compositing.reveal($0[x, y]) } ?? 1), mode: layer.blendMode)
+                            Compositing.blend(&color, pixel, opacity: Float(layer.opacity) * reveal(layer, x, y), mode: layer.blendMode)
                         }
                     }
                     return color

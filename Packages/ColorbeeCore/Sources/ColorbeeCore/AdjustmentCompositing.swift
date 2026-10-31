@@ -18,19 +18,24 @@ extension Compositing {
             for y in rows {
             let beneath = below.row(y), changed = adjusted.row(y), target = result.row(y), masked = mask?.row(y)
             for x in 0..<below.width {
-                let backdrop = premultiplied(beneath[x])
-                let source = changed[x]
-                let sourceAlpha = Float(source.a) / 255
-                var color = SIMD3(Float(source.r), Float(source.g), Float(source.b)) / 255
-                if mode != .normal, backdrop.w > 0 {
-                    color = mode.blend(SIMD3(backdrop.x, backdrop.y, backdrop.z) / backdrop.w, color)
-                }
-                let goal = SIMD4(color * sourceAlpha, sourceAlpha)
-                target[x] = pixel(backdrop + (goal - backdrop) * (masked.map { fade * reveal($0[x]) } ?? fade))
+                target[x] = pixel(mixed(premultiplied(beneath[x]), changed[x], fade: masked.map { fade * reveal($0[x]) } ?? fade, mode: mode))
             }
           }
         }
         return result
+    }
+
+    /// One pixel of `mixed`, premultiplied in and out: `adjusted` over `backdrop` by `mode`, faded in by `fade`. The
+    /// History panel's thumbnails use it too, so they blend adjustments exactly as an export does.
+    @inline(__always)
+    static func mixed(_ backdrop: SIMD4<Float>, _ adjusted: Pixel, fade: Float, mode: BlendMode) -> SIMD4<Float> {
+        let sourceAlpha = Float(adjusted.a) / 255
+        var color = SIMD3(Float(adjusted.r), Float(adjusted.g), Float(adjusted.b)) / 255
+        if mode != .normal, backdrop.w > 0 {
+            color = mode.blend(SIMD3(backdrop.x, backdrop.y, backdrop.z) / backdrop.w, color)
+        }
+        let goal = SIMD4(color * sourceAlpha, sourceAlpha)
+        return backdrop + (goal - backdrop) * fade
     }
 }
 

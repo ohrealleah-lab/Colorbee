@@ -355,41 +355,73 @@ Logs in `build/soak-results*.txt` (not committed).
 
 Choose **Don't Save** when you close a test picture. Press ⌘L if the Layers panel isn't showing.
 
-**A. Masks on a layer** (`TestImages/Several Layers/Opacity Test.colorproj`)
-1. Click Blue, then Layer ▸ Layer Mask ▸ Add Mask. A white picture appears beside Blue's, outlined: you're painting on
-   the mask. The swatches in the palette bar turn to grays. To see the change, click Red (the swatches come back in
-   color), then click Blue's white mask picture (grays again).
-2. Press D (Color 1 white, Color 2 black), then X to swap, so Color 1 is black. Choose the Brush and paint across the
-   blue block: that part hides, and the stripes show through. Press X and paint over it with white: it's back.
-3. Paint a black stroke on the mask again. Choose Edit ▸ Undo on Active Layer: that stroke goes.
-4. Click Blue's own picture (left of the mask): its outline moves there. Paint: the paint lands on the layer itself
-   (in gray, since the colors stay gray). ⌘Z.
-5. Shift-click the mask: a red ✕, and all of Blue shows. Shift-click again: hidden again.
-6. Option-click the mask: the picture shows the mask alone in grays. Option-click again.
-7. Paint black on part of the mask, then Layer ▸ Layer Mask ▸ Apply Mask: that part of Blue is gone for real, and
-   the mask with it. ⌘Z.
-8. File ▸ Save As… a copy as a project wherever you like, close it and open the copy: the mask is there. Export a PNG:
-   it matches the screen.
+A mask is a black-and-white picture attached to a layer: where the mask is black, the layer is hidden; where it's
+white, the layer shows.
 
-**B. One-layer picture** (`TestImages/Photo Editing/Dull Photo.png`)
-9. Layer ▸ Layer Mask ▸ Add Mask Hiding All: the picture disappears (the checkerboard shows). Paint white across the
-   middle: that part comes back. Press ⌘S: Colorbee saves a project (.colorproj), not over the PNG. Delete that
-   project afterwards.
+**A. A mask on a layer** (`TestImages/Several Layers/Opacity Test.colorproj`)
+1. Click the Blue row. Choose Layer ▸ Layer Mask ▸ Add Mask.
+   - A white square appears on Blue's row, next to Blue's picture, with an outline. The outline means you're painting
+     on the mask.
+   - The swatches in the palette bar turn to grays. To see the change, click the Red row (colors come back), then
+     click Blue's white square (grays again).
+2. Press D, then X. Color 1 is now black.
+3. Press B for the Brush and paint across the blue block.
+   - Where you painted, Blue is hidden and the stripes show through.
+4. Press X (Color 1 is now white) and paint over the same spot.
+   - Blue comes back.
+5. Press X again (black) and paint one stroke across the blue block. Choose Edit ▸ Undo on Active Layer (⌥⌘Z).
+   - The stroke goes, and Blue shows there again.
+6. Paint one more black stroke across the blue block, and leave it there for the next steps.
+7. Shift-click Blue's mask square.
+   - A red ✕ appears on it, and all of Blue shows. Shift-click it again: the stroke hides Blue again.
+8. Option-click the mask square.
+   - The canvas shows only the mask: white, with your black stroke. Option-click it again to go back.
+9. Click Blue's own picture (just left of the mask square).
+   - The outline moves to Blue's picture, and the swatches are in color again.
+   - Paint a stroke across the part of the blue block that still shows: it paints Blue's pixels. Press ⌘Z.
+10. Choose Layer ▸ Layer Mask ▸ Apply Mask.
+    - The picture looks the same, but the mask square is gone: the hidden part of Blue is erased for real.
+    - Press ⌘Z: the mask is back.
+11. Choose File ▸ Save As…, save a copy as a project wherever you like, close it, and open that copy.
+    - Blue still has its mask, with your stroke.
+12. Choose File ▸ Export… as PNG and look at the file: it matches the screen.
 
-**C. Masks on adjustment layers** (`TestImages/Photo Editing/Color Chart.png`)
-10. Press M and drag a box around the top row of colors. Layer ▸ New Adjustment Layer ▸ Adjust Photo, then Layer ▸
-    Layer Mask ▸ Add Mask from Selection, then ⌘D. In the Adjustments panel set Saturation to −100: only the top row
-    turns gray.
-11. Layer ▸ Layer Mask ▸ Invert Mask: now the top row is in color and the rest is gray. ⌘Z.
-12. Layer ▸ Merge Adjustment: the picture looks the same, now as pixels. ⌘Z.
+**B. A picture with one layer** (`TestImages/Photo Editing/Dull Photo.png`)
+13. Choose Layer ▸ Layer Mask ▸ Add Mask Hiding All.
+    - The whole photo disappears, and the checkerboard shows.
+14. Press D (Color 1 is white). Press B and paint across the middle.
+    - The photo comes back where you painted.
+15. Press ⌘S.
+    - A Save panel opens to save a project (.colorproj), not the PNG: a mask can only be kept in a project. Click
+      Cancel.
 
-**D. Masks on groups and "Only the layer below" for layers** (`Opacity Test.colorproj`, freshly opened)
-13. Click Red, ⌘-click Green, press ⌘G. With Group 1 active, Layer ▸ Layer Mask ▸ Add Mask, and paint black across
-    both squares: both hide there.
-14. Click Blue, then Layer ▸ New Layer (⇧⌘N). Paint wide strokes across the whole canvas. Turn on **Only the layer
-    below** at the top of the Layers panel: the paint shows only on the blue block.
-15. Drag Blue's row up above Yellow's: the new layer goes with it, and still shows only on Blue.
-16. Save As… a copy, close and reopen it: the same. Export a PNG: it matches the screen.
+**C. A mask on an adjustment layer** (`TestImages/Photo Editing/Color Chart.png`)
+16. Press M and drag a box around the top row of colors.
+17. Choose Layer ▸ New Adjustment Layer ▸ Desaturate.
+    - The whole picture turns gray.
+18. Choose Layer ▸ Layer Mask ▸ Add Mask, then press ⌘D to deselect.
+    - Only the top row is gray now; everything else is back in color. (Add Mask uses the selection when there is
+      one.)
+19. Choose Layer ▸ Layer Mask ▸ Invert Mask.
+    - It flips: the top row is in color, and everything else is gray. Press ⌘Z.
+20. Choose Layer ▸ Merge Adjustment.
+    - The picture looks the same, but the Desaturate row is gone: its look is now part of the pixels. Press ⌘Z.
+
+**D. Masks on groups, and "Only the layer below"** (`Opacity Test.colorproj` again, freshly opened)
+21. Click Red, ⌘-click Green, and press ⌘G.
+    - Group 1 appears with Red and Green inside it, and Group 1's row is chosen.
+22. Choose Layer ▸ Layer Mask ▸ Add Mask. Press D, then X (Color 1 is black). Press B and paint across both the red
+    and green squares.
+    - Both squares are hidden where you painted.
+23. Click the Blue row, then choose Layer ▸ New Layer (⇧⌘N).
+    - A new layer appears just above Blue.
+24. Click a bright swatch, such as orange, and paint wide strokes all over the canvas, well outside the blue block.
+25. Check **Only the layer below** near the top of the Layers panel.
+    - The paint now shows only on top of the blue block. Everywhere else, it's gone.
+26. Drag Blue's row up above Yellow's.
+    - The new layer moves with Blue, and still shows only on the blue block.
+27. Choose File ▸ Save As…, save a copy as a project, close it, and open that copy.
+    - Everything looks the same. Export a PNG: it matches the screen.
 
 ### Test: Stages 25 and 26: Layer groups
 

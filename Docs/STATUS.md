@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-30 · 771 core tests and 264 app tests passing (stages 25 and 26 built); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
+_Last updated: 2026-10-31 · 782 core tests and 268 app tests passing (stages 27 to 28b passed Leah's test); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Stages 27, 28a and 28b: Layer masks](#test-stages-27-28a-and-28b-layer-masks) (2026-10-30)
+Nothing waiting right now.
 
 ---
 
@@ -84,9 +84,9 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 24. Align and Distribute | ✅ Done; passed Leah's test 2026-10-29 | High |
 | 14 · 25. Layer groups 1: groups in the document | ✅ Done; passed Leah's test 2026-10-30 | High |
 | 14 · 26. Layer groups 2: working with groups | ✅ Done; passed Leah's test 2026-10-30 | High |
-| 14 · 27. Layer masks 1: pixel layers | Built 2026-10-30; waiting for Leah's test (with 28a and 28b) | High |
-| 14 · 28a. Layer masks 2: adjustment layers, mask tools | Built 2026-10-30; waiting for Leah's test (with 27 and 28b) | High |
-| 14 · 28b. Masks on groups, clipping for pixel layers | Built 2026-10-30; waiting for Leah's test (with 27 and 28a) | High |
+| 14 · 27. Layer masks 1: pixel layers | ✅ Done; passed Leah's test 2026-10-31 | High |
+| 14 · 28a. Layer masks 2: adjustment layers, mask tools | ✅ Done; passed Leah's test 2026-10-31 | High |
+| 14 · 28b. Masks on groups, clipping for pixel layers | ✅ Done; passed Leah's test 2026-10-31 | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -352,6 +352,8 @@ Logs in `build/soak-results*.txt` (not committed).
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
 ### Test: Stages 27, 28a and 28b: Layer masks
+
+**Passed Leah's hand test on 2026-10-31.**
 
 Choose **Don't Save** when you close a test picture. Press ⌘L if the Layers panel isn't showing.
 

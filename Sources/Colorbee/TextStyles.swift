@@ -26,9 +26,7 @@ final class TextStyleStore {
     private(set) var styles: [SavedTextStyle] = []
 
     private init() {
-        if let data = UserDefaults.standard.data(forKey: Self.key), let stored = try? JSONDecoder().decode([SavedTextStyle].self, from: data) {
-            styles = stored
-        }
+        styles = StoredSettings.list(of: SavedTextStyle.self, from: StoredSettings.data(forKey: Self.key)) ?? []
     }
 
     /// Saves the editor's current text settings and colors; a style with the same name is replaced.
@@ -55,7 +53,7 @@ final class TextStyleStore {
     }
 
     private func persist() {
-        if let data = try? JSONEncoder().encode(styles) { UserDefaults.standard.set(data, forKey: Self.key) }
+        StoredSettings.save(styles, forKey: Self.key)
     }
 }
 

@@ -5413,8 +5413,7 @@ final class Editor {
 
     /// Saved patterns, with every built-in present (new built-ins are added, their expressions kept current).
     private static func loadRedactionPatterns() -> [RedactionPattern] {
-        let saved = UserDefaults.standard.data(forKey: patternsKey)
-            .flatMap { try? JSONDecoder().decode([RedactionPattern].self, from: $0) } ?? []
+        let saved = StoredSettings.list(of: RedactionPattern.self, from: StoredSettings.data(forKey: patternsKey)) ?? []
         let builtIns = RedactionPattern.builtIns.map { builtIn in
             var pattern = builtIn
             pattern.isEnabled = saved.first { $0.id == builtIn.id }?.isEnabled ?? true
@@ -5424,9 +5423,7 @@ final class Editor {
     }
 
     private static func saveRedactionPatterns(_ patterns: [RedactionPattern]) {
-        if let data = try? JSONEncoder().encode(patterns) {
-            UserDefaults.standard.set(data, forKey: patternsKey)
-        }
+        StoredSettings.save(patterns, forKey: patternsKey)
     }
 
     // MARK: Before/After

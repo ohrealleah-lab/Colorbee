@@ -124,7 +124,7 @@ final class ShortcutStore {
     }
 
     private func changed() {
-        if let data = try? book.exported() { UserDefaults.standard.set(data, forKey: Self.key) }
+        if let data = try? book.exported() { StoredSettings.set(data, forKey: Self.key) }
         applyToMenus()
     }
 

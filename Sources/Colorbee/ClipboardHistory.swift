@@ -28,7 +28,7 @@ final class ClipboardHistory {
     @ObservationIgnored private var clipboardChangeCounts: [Item.ID: Int] = [:]
 
     private init() {
-        folder = URL.applicationSupportDirectory.appending(path: "Colorbee/Clipboard History", directoryHint: .isDirectory)
+        folder = SettingsFolder.everyday.appending(path: "Clipboard History", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         if let data = try? Data(contentsOf: indexURL), let stored = try? JSONDecoder().decode([Item].self, from: data) {
             items = stored.filter { FileManager.default.fileExists(atPath: imageURL($0).path) }
@@ -121,6 +121,7 @@ final class ClipboardHistory {
     }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(items) { try? data.write(to: indexURL, options: .atomic) }
+        guard StoredSettings.canWrite, let data = try? JSONEncoder().encode(items) else { return }
+        try? data.write(to: indexURL, options: .atomic)
     }
 }

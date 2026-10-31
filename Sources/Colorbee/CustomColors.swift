@@ -77,6 +77,6 @@ final class CustomColors {
     }
 
     private func save() {
-        UserDefaults.standard.set(packed, forKey: Self.key)
+        StoredSettings.set(packed, forKey: Self.key)
     }
 }

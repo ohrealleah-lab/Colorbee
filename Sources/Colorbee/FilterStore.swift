@@ -30,8 +30,8 @@ final class FilterStore {
     private init() {
         guard let file else { return }
         Self.copyOnce(to: file)
-        if let data = try? Data(contentsOf: file), let saved = try? JSONDecoder().decode([Readable].self, from: data) {
-            custom = saved.compactMap(\.filter).map { PhotoFilter(name: $0.name, steps: $0.steps) }
+        if let saved = StoredSettings.list(of: PhotoFilter.self, from: try? Data(contentsOf: file)) {
+            custom = saved.map { PhotoFilter(name: $0.name, steps: $0.steps) }
         }
     }
 
@@ -44,12 +44,6 @@ final class FilterStore {
         guard let source = [everyday, olderFile].first(where: { $0 != file && manager.fileExists(atPath: $0.path) }) else { return }
         try? manager.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? manager.copyItem(at: source, to: file)
-    }
-
-    /// One filter, or none if this version can't read it, so the others are still kept.
-    private struct Readable: Decodable {
-        let filter: PhotoFilter?
-        init(from decoder: Decoder) throws { filter = try? PhotoFilter(from: decoder) }
     }
 
     var all: [PhotoFilter] { PhotoFilter.builtIn + custom }

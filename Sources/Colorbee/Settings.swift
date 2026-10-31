@@ -57,16 +57,12 @@ final class ExportPresetStore {
 
     /// How presets scale (FR-11.2): nil picks by size (sharp pixels for small pixel art, smooth otherwise).
     var scaling: Resampling? {
-        didSet { UserDefaults.standard.set(scaling.map { $0 == .smooth ? "smooth" : "sharp" }, forKey: Self.scalingKey) }
+        didSet { StoredSettings.set(scaling.map { $0 == .smooth ? "smooth" : "sharp" }, forKey: Self.scalingKey) }
     }
     private static let scalingKey = "ExportPresetScaling"
 
     private init() {
-        if let data = UserDefaults.standard.data(forKey: Self.key), let stored = try? JSONDecoder().decode([Stored].self, from: data) {
-            items = stored
-        } else {
-            items = ExportPreset.defaults.map(Stored.init)
-        }
+        items = StoredSettings.list(of: Stored.self, from: StoredSettings.data(forKey: Self.key)) ?? ExportPreset.defaults.map(Stored.init)
         scaling = switch UserDefaults.standard.string(forKey: Self.scalingKey) {
         case "smooth": .smooth
         case "sharp": .nearestNeighbor
@@ -79,7 +75,7 @@ final class ExportPresetStore {
     }
 
     private func persist() {
-        if let data = try? JSONEncoder().encode(items) { UserDefaults.standard.set(data, forKey: Self.key) }
+        StoredSettings.save(items, forKey: Self.key)
     }
 }
 

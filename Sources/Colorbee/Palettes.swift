@@ -38,6 +38,20 @@ final class PaletteStore {
         var saved: [Palette]
         var activeName: String
         var swatches: [UInt32]
+
+        init(saved: [Palette], activeName: String, swatches: [UInt32]) {
+            self.saved = saved
+            self.activeName = activeName
+            self.swatches = swatches
+        }
+
+        /// A palette this version can't read is skipped, and the others kept.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            saved = try container.decode([Readable<Palette>].self, forKey: .saved).compactMap(\.value)
+            activeName = try container.decode(String.self, forKey: .activeName)
+            swatches = try container.decode([UInt32].self, forKey: .swatches)
+        }
     }
 
     /// Palettes you saved or imported. Paint Classic is built in and always available.
@@ -46,7 +60,7 @@ final class PaletteStore {
     private(set) var swatches = Palette.classic.swatches
 
     private init() {
-        if let data = UserDefaults.standard.data(forKey: Self.key), let stored = try? JSONDecoder().decode(Stored.self, from: data) {
+        if let data = StoredSettings.data(forKey: Self.key), let stored = try? JSONDecoder().decode(Stored.self, from: data) {
             saved = stored.saved
             activeName = stored.activeName
             if stored.swatches.count == 28 { swatches = stored.swatches }
@@ -119,9 +133,7 @@ final class PaletteStore {
     }
 
     private func persist() {
-        if let data = try? JSONEncoder().encode(Stored(saved: saved, activeName: activeName, swatches: swatches)) {
-            UserDefaults.standard.set(data, forKey: Self.key)
-        }
+        StoredSettings.save(Stored(saved: saved, activeName: activeName, swatches: swatches), forKey: Self.key)
     }
 }
 

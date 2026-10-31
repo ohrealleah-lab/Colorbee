@@ -360,9 +360,11 @@ it, choose **Don't Save**. Press ⌘L if the Layers panel isn't showing.
 **B. Adjustments inside a group**
 7. Click Green, then choose Layer ▸ New Adjustment Layer ▸ Hue/Saturation and drag Hue a long way.
    - It sits inside Group 1. With the group's blend mode at **Pass Through** (the top of the blend menu with Group 1
-     active), everything below it changes color, Background's stripes too.
+     active), it changes every colored layer below it, in the group or not (the black and white stripes have no hue
+     to change).
 8. Click Group 1 and choose **Normal** in the blend menu.
-   - Now only Red and Green change; the stripes are back to their own colors.
+   - Now it changes only the layers below it inside the group (Red and Green); anything below the group keeps its
+     colors.
 
 **C. Moving layers in and out**
 9. Drag Blue's row down onto Group 1's row: Blue goes inside the group, at its top, indented.

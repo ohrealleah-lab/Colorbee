@@ -7,16 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-31 · 794 core tests and 276 app tests passing (stages 29 and 30 built); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
+_Last updated: 2026-10-31 · 794 core tests and 276 app tests passing (stages 29 and 30 passed Leah's test); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Stages 29 and 30: Text layers](#test-stages-29-and-30-text-layers) (2026-10-31)
-- [Only the layer below, saved](#test-only-the-layer-below-saved) (2026-10-31)
-- [Shape fill color](#test-shape-fill-color) (2026-10-31)
-- [Moving the window from the toolbar's empty space](#test-moving-the-window-from-the-toolbars-empty-space) (2026-10-31)
+Nothing waiting right now.
 
 ---
 
@@ -90,8 +87,8 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 27. Layer masks 1: pixel layers | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 28a. Layer masks 2: adjustment layers, mask tools | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 28b. Masks on groups, clipping for pixel layers | ✅ Done; passed Leah's test 2026-10-31 | High |
-| 14 · 29. Re-editable text 1: text layers | Built 2026-10-31; waiting for Leah's test (with 30) | High |
-| 14 · 30. Re-editable text 2: when text becomes pixels | Built 2026-10-31; waiting for Leah's test (with 29) | High |
+| 14 · 29. Re-editable text 1: text layers | ✅ Done; passed Leah's test 2026-10-31 | High |
+| 14 · 30. Re-editable text 2: when text becomes pixels | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 31. Stroke smoothing | Not started | High |
 | 14 · 32. Overnight monkey test | Not started | High |
 | 14 · 33. Code reviews (Leah, 2026-10-31) | Not started | High |
@@ -367,6 +364,8 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ### Test: Stages 29 and 30: Text layers
 
+**Passed Leah's hand test on 2026-10-31.**
+
 Use `TestImages/Help/Sample Screenshot.png`. Choose **Don't Save** when you close it. Press ⌘L if the Layers panel
 isn't showing.
 
@@ -412,6 +411,8 @@ isn't showing.
 
 ### Test: Only the layer below, saved
 
+**Passed Leah's hand test on 2026-10-31.**
+
 A fix found while building stage 29: a layer set to **Only the layer below** lost that setting when its project was
 saved. Use `TestImages/Several Layers/Opacity Test.colorproj`, and choose **Don't Save** when you close it.
 
@@ -421,6 +422,8 @@ saved. Use `TestImages/Several Layers/Opacity Test.colorproj`, and choose **Don'
    - The paint still shows only on the blue block, and the box is still checked.
 
 ### Test: Moving the window from the toolbar's empty space
+
+**Passed Leah's hand test on 2026-10-31.**
 
 Leah, 2026-10-31. Any picture, or a new one (⌘N).
 
@@ -433,6 +436,8 @@ Leah, 2026-10-31. Any picture, or a new one (⌘N).
    - Their menus open as before; the window doesn't move.
 
 ### Test: Shape fill color
+
+**Passed Leah's hand test on 2026-10-31.**
 
 Leah, 2026-10-31: a shape with only one part draws it in Color 1. Use any picture, such as
 `TestImages/Stage 5a Practice.png`, and choose **Don't Save** when you close it.

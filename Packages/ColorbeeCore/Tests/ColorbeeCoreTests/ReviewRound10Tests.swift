@@ -214,4 +214,17 @@ struct ReviewRound10Tests {
         #expect(LayerActions.setText(empty, layerAt: 1, canvas: canvas, history: history, context: context))
         #expect(canvas.layers.count == 1 && canvas.flattened().contentHash() == look)
     }
+
+    @Test func undoingACropPastAMaskBroughtBackOutOfOrderDoesntCrash() {
+        let (canvas, history) = picture()
+        let look = canvas.flattened().contentHash()
+        #expect(ImageActions.crop(to: IntRect(x: 2, y: 2, width: 16, height: 10), canvas: canvas, history: history, context: context))
+        LayerActions.addMask(.revealAll, canvas: canvas, history: history, context: context)
+        #expect(history.undoOnLayer(canvas.activeLayer.id, canvas: canvas))
+        history.undo(on: canvas)
+        #expect(canvas.activeLayer.mask != nil)
+        history.undo(on: canvas)
+        #expect(canvas.size == IntSize(width: 24, height: 16) && canvas.activeLayer.mask?.buffer.size == canvas.size)
+        #expect(canvas.flattened().contentHash() == look)
+    }
 }

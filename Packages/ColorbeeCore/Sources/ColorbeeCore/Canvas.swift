@@ -128,11 +128,14 @@ public final class Canvas {
     }
 
     /// Swaps in new pixel buffers of `size` for every layer. Used by geometry changes and their undo.
+    /// A mask that Undo on Active Layer brought back out of order wasn't there when the size changed, so it has no buffer
+    /// of that size: it gets an empty one, which shows the whole layer, rather than stopping Colorbee (the monkey test,
+    /// 2026-10-31).
     func replaceContents(size: IntSize, buffers: [LayerID: PixelBuffer]) {
-        precondition(allLayers.allSatisfy { buffers[$0.id]?.size == size }, "Every layer needs a buffer of the new size")
+        precondition(buffers.values.allSatisfy { $0.size == size }, "Every buffer must be the new size")
         self.size = size
         for layer in allLayers {
-            layer.buffer = buffers[layer.id]!
+            layer.buffer = buffers[layer.id] ?? PixelBuffer(size: size)
         }
     }
 

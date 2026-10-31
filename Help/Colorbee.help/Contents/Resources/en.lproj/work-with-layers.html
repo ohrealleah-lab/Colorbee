@@ -6,7 +6,7 @@
     <title>Work with layers</title>
     <meta name="AppleTitle" content="Work with layers">
     <meta name="description" content="Keep parts of an image separate with layers: add, duplicate, merge and flatten them, set blend modes and opacity, lock them, and change their look with adjustment layers.">
-    <meta name="keywords" content="layer, layers, new layer, merge down, merge layers, several layers, choose several, shift-click, command-click, right-click, merge visible, flatten, blend mode, opacity, lock, hide, adjustment layer, only the layer below, clipping, merge adjustment, undo on active layer, revert layer, project, colorproj">
+    <meta name="keywords" content="layer, layers, new layer, merge down, merge layers, several layers, choose several, shift-click, command-click, right-click, merge visible, flatten, blend mode, opacity, lock, hide, adjustment layer, only the layer below, clipping, merge adjustment, undo on active layer, revert layer, project, colorproj, group, groups, ungroup, folder, pass through, merge group">
     <link rel="stylesheet" href="../shared/help.css">
 </head>
 <body>
@@ -69,6 +69,20 @@
         <li><strong>Layer ▸ Align</strong> lines them up: Left, Centers or Right edges, or Top, Middle or Bottom. It goes by each layer's visible pixels, and lines them up with each other; with a selection, with the selection. With one layer chosen, it lines up with the canvas (Centers and Middle center it). <strong>Distribute Horizontally</strong> or <strong>Vertically</strong> gives three or more layers equal gaps. If a move would push part of a layer off the canvas, where it would be lost, nothing moves.</li>
     </ul>
     <p>Each of these is one undo step. A plain click goes back to one layer.</p>
+
+    <a name="groups"></a>
+    <h2>Groups</h2>
+    <p>A group keeps layers together, like a folder: you can fold it shut, hide it, fade it or move it as one.</p>
+    <ul>
+        <li><strong>Make one:</strong> choose the layers, then <strong>Layer ▸ Group Layers</strong> (⌘G), or right-click and choose Group Chosen Layers. They go into "Group 1" where the top one was. <strong>Layer ▸ Ungroup</strong> (⇧⌘G) takes them out again, leaving them where they are.</li>
+        <li><strong>In the Layers panel</strong> a group's layers sit indented under it. Click its arrow to fold it shut or open it. Groups can go inside groups.</li>
+        <li><strong>Move layers in or out</strong> by dragging: drag a layer down onto an open group to put it inside, at the top; drag it above the group's row, or below its last layer, to take it out.</li>
+        <li><strong>Hiding or locking a group</strong> hides or locks everything in it. Its padlock offers Lock All and Lock Transparent Pixels, as a layer's does.</li>
+        <li><strong>Opacity and blend mode:</strong> a new group is <strong>Pass Through</strong>: its layers mix with everything below as if they weren't grouped, and an adjustment layer inside changes everything below too. Choose Normal or another blend mode in the panel and the group is put together on its own first, then blended in like one layer, so an adjustment inside changes only the group.</li>
+        <li><strong>Merge Group</strong> (Merge Down on a group, ⇧⌘E) turns it into one layer that looks the same. An adjustment inside a Pass Through group that changed what's below the group can't be kept that way.</li>
+        <li><strong>New layers</strong> join the active layer's group. Duplicate and Delete take a group with everything in it, and Layer ▸ Align moves a chosen group's layers together.</li>
+    </ul>
+    <p>Groups are saved in Colorbee projects. An older Colorbee opens such a project with every layer, just not grouped.</p>
 
     <a name="adjustment-layers"></a>
     <h2>Adjustment layers</h2>

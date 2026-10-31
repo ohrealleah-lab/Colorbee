@@ -58,7 +58,7 @@ struct SoakTests {
 
         for step in 0..<60 {
             let color = Pixel(r: random.byte(), g: random.byte(), b: random.byte())
-            switch random.int(0..<11) {
+            switch random.int(0..<13) {
             case 0:
                 timed("Fill") {
                     let edit = history.beginEdit("Fill", on: canvas)
@@ -115,6 +115,13 @@ struct SoakTests {
                 let id = history.snapshots[random.int(0..<history.snapshots.count)].id
                 timed("Go to Snapshot") { _ = try? history.goToSnapshot(id, on: canvas) }
             case 10: continue
+            // Groups (stage 25): the active layer and the one below into a group, or a group's layers out again.
+            case 11:
+                let ids: Set<LayerID> = [canvas.activeLayer.id, canvas.layers[max(0, canvas.activeLayerIndex - 1)].id]
+                timed("Group") { LayerActions.group(ids, canvas: canvas, history: history, context: context) }
+            case 12:
+                if let group = canvas.layers.lastIndex(where: \.isGroup) { canvas.activeLayerIndex = group }
+                timed("Ungroup") { LayerActions.ungroup(canvas: canvas, history: history, context: context) }
             case 6: timed("Merge Down") { LayerActions.mergeDown(canvas: canvas, history: history, context: context) }
             case 7: timed("Flatten") { LayerActions.flatten(canvas: canvas, history: history, context: context) }
             case 8:

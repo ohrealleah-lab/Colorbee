@@ -226,4 +226,46 @@ struct LayerGroupTests {
         let offsets = LayerAlign.offsets(aligning: units, to: .left, reference: canvas.bounds)
         #expect(offsets[canvas.layers[1].id] == IntPoint(x: -2, y: 0) && offsets[canvas.layers[2].id] == IntPoint(x: -2, y: 0))
     }
+
+    /// The undo property test (CLAUDE.md) with groups: random group commands, then undo them all, and the stack and
+    /// picture are exactly as they were. Groups are always kept together along the way.
+    @Test func randomGroupCommandsUndoBackToTheOriginal() throws {
+        for seed in UInt64(1)...6 {
+            let (canvas, history) = picture()
+            var random = SplitMix64(seed: seed)
+            let look = canvas.flattened().contentHash()
+            let shape = canvas.layers.map { "\($0.name)|\($0.groupID == nil)" }
+            let setUp = history.undoCount
+            for _ in 0..<40 {
+                let layers = canvas.layers
+                let pick = Set((0..<random.int(1..<3)).map { _ in layers[random.int(0..<layers.count)].id })
+                canvas.activeLayerIndex = random.int(0..<layers.count)
+                switch random.int(0..<8) {
+                case 0: LayerActions.group(pick, canvas: canvas, history: history, context: context)
+                case 1: LayerActions.ungroup(canvas: canvas, history: history, context: context)
+                case 2:
+                    let target = layers[random.int(0..<layers.count)].id
+                    let drop: LayerDrop = [.above(target), .below(target), .into(target)][random.int(0..<3)]
+                    LayerActions.moveLayers(pick, to: drop, canvas: canvas, history: history, context: context)
+                case 3: LayerActions.mergeDown(canvas: canvas, history: history, context: context)
+                case 4: LayerActions.duplicate(canvas: canvas, history: history, context: context)
+                case 5: LayerActions.delete(canvas: canvas, history: history, context: context)
+                case 6: LayerActions.add(canvas: canvas, history: history, context: context)
+                default:
+                    LayerActions.update("Settings", layerAt: canvas.activeLayerIndex, canvas: canvas, history: history) { layer in
+                        layer.passesThrough.toggle()
+                        layer.opacity = [1, 0.5][random.int(0..<2)]
+                    }
+                }
+                // Every group's layers sit just below its row.
+                for (index, layer) in canvas.layers.enumerated() where layer.isGroup {
+                    let members = canvas.layers.filter { canvas.ancestors(of: $0).contains { $0 === layer } }
+                    #expect(Array(canvas.layers[canvas.memberRange(ofGroupAt: index)]).map(\.id) == members.map(\.id), "seed \(seed)")
+                }
+            }
+            while history.undoCount > setUp { history.undo(on: canvas) }
+            #expect(canvas.flattened().contentHash() == look, "seed \(seed)")
+            #expect(canvas.layers.map { "\($0.name)|\($0.groupID == nil)" } == shape, "seed \(seed)")
+        }
+    }
 }

@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-29 · 754 core tests and 257 app tests passing (review round 9 fixed); the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
+_Last updated: 2026-10-30 · 771 core tests and 264 app tests passing (stages 25 and 26 built); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing is waiting (2026-10-29).
+- [Stages 25 and 26: Layer groups](#test-stages-25-and-26-layer-groups) (2026-10-30)
 
 ---
 
@@ -82,6 +82,8 @@ Nothing is waiting (2026-10-29).
 | 14 · 22. Select All Layers, isolate a layer, Stamp Visible | ✅ Done; passed Leah's test 2026-10-29 | Medium |
 | 14 · 23. Lock transparent pixels | ✅ Done; passed Leah's test 2026-10-29 | High |
 | 14 · 24. Align and Distribute | ✅ Done; passed Leah's test 2026-10-29 | High |
+| 14 · 25. Layer groups 1: groups in the document | Built 2026-10-30; waiting for Leah's test (with stage 26) | High |
+| 14 · 26. Layer groups 2: working with groups | Built 2026-10-30; waiting for Leah's test (with stage 25) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -165,6 +167,13 @@ Nothing is waiting (2026-10-29).
   and Delete.
 - Stage 24 (2026-10-28): Layer ▸ Align and Distribute (`LayerAlign.swift`: boxes from `PixelBuffer.visibleBounds`,
   each move one layer step that swaps in a moved buffer).
+- Stages 25 and 26 (2026-10-30): layer groups. A group is a row in the flat `Canvas.layers` holding no pixels
+  (`Layer.isGroup`); its layers sit just below it and name it (`groupID`). `Canvas+Groups.swift` answers the shared
+  questions (`isShown`, `isLocked`, `locksTransparency`, `tree(of:)`, `span`), and every layer command ends with
+  `keepGroupsTogether()`. `Canvas.composite` and the renderer's `drawNodes` draw Pass Through groups straight onto
+  what's below (faded from a copy of the backdrop below 100%) and other groups on their own, one texture per depth.
+  Projects keep groups in `Manifest.groups`, which beta 7 skips. Commands in `LayerActions+Groups.swift`; the panel
+  indents, folds (`Editor.foldedGroups`) and drops with `LayerDrop`.
 
 **Document and files**
 - NSDocument app: autosave and restore, versions, Open Recent.
@@ -332,6 +341,46 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stages 25 and 26: Layer groups
+
+Use `TestImages/Several Layers/Opacity Test.colorproj` (layers Background, Red, Green, Blue, Yellow). When you close
+it, choose **Don't Save**. Press ⌘L if the Layers panel isn't showing.
+
+**A. Making and showing groups**
+1. Click Red, then ⌘-click Green. Choose Layer ▸ Group Layers (⌘G).
+   - A "Group 1" row appears with a folder icon, and Red and Green are indented under it. The picture doesn't change.
+2. Click the arrow on Group 1's row: Red and Green fold away. Click it again: they're back.
+3. Click Group 1's eye: Red and Green both disappear from the picture, and their rows dim. Click it again.
+4. With Group 1 active, set Opacity to 50%: Red and Green fade together. Set it back to 100%.
+5. Choose File ▸ Save As… and save a copy as a project in your Downloads folder, close it, and open that copy.
+   - The group, its layers and their settings are all as they were.
+6. Choose File ▸ Export… as PNG and look at the file: it matches the screen.
+
+**B. Adjustments inside a group**
+7. Click Green, then choose Layer ▸ New Adjustment Layer ▸ Hue/Saturation and drag Hue a long way.
+   - It sits inside Group 1. With the group's blend mode at **Pass Through** (the top of the blend menu with Group 1
+     active), everything below it changes color, Background's stripes too.
+8. Click Group 1 and choose **Normal** in the blend menu.
+   - Now only Red and Green change; the stripes are back to their own colors.
+
+**C. Moving layers in and out**
+9. Drag Blue's row down onto Group 1's row: Blue goes inside the group, at its top, indented.
+10. Drag Blue's row up above Group 1's row: Blue is out of the group again, no longer indented.
+11. Click Yellow, then ⌘-click Blue. Right-click one of them and choose Group Chosen Layers: "Group 2" holds them.
+12. Drag Group 2's row down onto Group 1's row: Group 2 sits inside Group 1, indented twice. ⌘Z.
+
+**D. Working with a group**
+13. Click Group 1, then Layer ▸ Merge Group (⇧⌘E): one layer named "Group 1" that looks the same. ⌘Z.
+14. Click Group 1, then Layer ▸ Duplicate Layer (⌘J): "Group 1 copy" with copies of everything inside. ⌘Z.
+15. Click Group 1's padlock and choose Lock All. Click Red and try to paint on it with the Pencil: nothing happens.
+    Unlock the group.
+16. Click Group 1, choose Layer ▸ Align ▸ Left: Red and Green move together, keeping their places. ⌘Z.
+17. Click Group 1, then Layer ▸ Ungroup (⇧⌘G): Red and Green stay where they are, no longer indented. ⌘Z.
+18. Option-click Red's eye: only Red shows (its group stays on). Option-click it again.
+
+**E. Your everyday beta 7** (optional; don't save there)
+19. Open the copy saved in step 5 in your everyday beta 7: every layer is there, just not grouped.
 
 ### Test: Review round 9 fixes
 

@@ -16,6 +16,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stages 29 and 30: Text layers](#test-stages-29-and-30-text-layers) (2026-10-31)
 - [Only the layer below, saved](#test-only-the-layer-below-saved) (2026-10-31)
 - [Shape fill color](#test-shape-fill-color) (2026-10-31)
+- [Moving the window from the toolbar's empty space](#test-moving-the-window-from-the-toolbars-empty-space) (2026-10-31)
 
 ---
 
@@ -418,6 +419,18 @@ saved. Use `TestImages/Several Layers/Opacity Test.colorproj`, and choose **Don'
 2. Check **Only the layer below** near the top of the Layers panel. The paint shows only on the blue block.
 3. Choose File ▸ Save As…, save a copy as a project, close it, and open that copy.
    - The paint still shows only on the blue block, and the box is still checked.
+
+### Test: Moving the window from the toolbar's empty space
+
+Leah, 2026-10-31. Any picture, or a new one (⌘N).
+
+1. Press T for the Text tool. The toolbar's Size and Outline/Fill spots are empty.
+2. Drag from that empty space, just right of the drawing tools.
+   - The window moves.
+3. Double-click the same spot.
+   - The window zooms (or does whatever your Mac's title-bar double-click is set to). Double-click again to put it back.
+4. Press U for Shapes. Click Outline and Fill.
+   - Their menus open as before; the window doesn't move.
 
 ### Test: Shape fill color
 

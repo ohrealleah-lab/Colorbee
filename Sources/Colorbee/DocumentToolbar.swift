@@ -95,12 +95,16 @@ private extension View {
             .background(Theme.toolbarCapsule, in: Capsule())
     }
 
-    /// Invisible and out of reach, but still taking up its room in the toolbar.
+    /// Invisible and out of reach, but still taking up its room in the toolbar. Its room moves the window, as the
+    /// title bar does.
     func hiddenKeepingSpace(_ hidden: Bool) -> some View {
         opacity(hidden ? 0 : 1)
             .disabled(hidden)
             .allowsHitTesting(!hidden)
             .accessibilityHidden(hidden)
+            .overlay {
+                if hidden { WindowDragArea() }
+            }
     }
 }
 

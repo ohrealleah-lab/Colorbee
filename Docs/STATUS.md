@@ -372,42 +372,58 @@ Logs in `build/soak-results*.txt` (not committed).
 
 ### Test: Stage 33: Review round 10 fixes
 
-Choose **Don't Save** when you close a test picture, unless a step says otherwise. Press ⌘L if the Layers panel isn't
-showing.
+Close each picture with **Don't Save** unless a step says otherwise. ⌘L shows the Layers panel.
 
 **A. Crashes and lost work**
-1. Open `TestImages/Several Layers/Opacity Test.colorproj`. Click Background, Shift-click Yellow, press ⌘G, then ⇧⌘E.
-   - The group merges into one layer that looks the same. No crash.
-2. Open `TestImages/Stage 9 Practice Photo.png`. Image ▸ Canvas Properties…, width **17,000**, OK.
-   - Colorbee says it's too large, and nothing changes.
-3. In the same picture, choose File ▸ Save As… and save a copy as a project wherever you like. In that copy, press T,
-   click the picture, type `Hello` and **don't** click away. Press ⌘W, then open the copy again.
-   - "Hello" is there. Delete the copy afterwards.
+1. Open `TestImages/Several Layers/Opacity Test.colorproj`.
+   - Click Background. Shift-click Yellow.
+   - Press ⌘G, then ⇧⌘E.
+   - Expected: one layer, same picture, no crash.
+2. Open `TestImages/Stage 9 Practice Photo.png`.
+   - Image > Canvas Properties. Set Width to 17000.
+   - Expected: it says "Sizes run from 1 to 16,384 px." OK is greyed out. Click Cancel.
+3. File > Save As. Save a copy anywhere.
+   - In the copy: press T, click the picture, type `Hello`. Don't click away.
+   - Press ⌘W. Open the copy again.
+   - Expected: "Hello" is there. Delete the copy after.
 
 **B. Redaction** (`TestImages/Stage 9 Practice Photo.png`)
-4. Press T, check **Editable**, type `4111 2222` large and click away. Choose Layer ▸ Lock Transparent Pixels. Press K
-   and paint over the number with Solid Fill.
-   - It's a solid block; the digits can't be read. The layer is now named "Text". ⌘Z twice.
-5. Layer ▸ Duplicate Layer, hide the original, and paint over the copy with the Redact Brush.
-   - The copy is renamed "Text"; "4111" appears in no layer's name.
-6. Make two-line text (`Name`, Return, `SSN 123`), click away. Select a box over the picture without the second line,
-   Image ▸ Crop to Selection, then Image ▸ Canvas Properties… and make it taller.
-   - The SSN line doesn't come back.
-7. Open `TestImages/Auto-Redact Practice.png` in Preview, Select All, Copy. In Colorbee choose File ▸ Paste into New
-   Image (⇧⌘V). Quit Colorbee (⌘Q), open it again, and paint over the email address with the Redact Brush.
-   - Colorbee offers to remove the original from Clipboard History.
+4. Press T. Check Editable. Set size 72. Type `4111 2222`. Click away.
+   - Layer > Lock Transparent Pixels.
+   - Press K. Paint over the number.
+   - Expected: a solid block, digits unreadable. Layer name is "Text".
+   - Press ⌘Z twice.
+5. Layer > Duplicate Layer.
+   - Click the eye on the original "4111 2222" layer to hide it.
+   - Press K. Paint over the copy's number.
+   - Expected: the copy is renamed "Text". No layer name shows "4111".
+6. Press T. Type `Name`, Return, `SSN 123`. Click away.
+   - Press M. Drag a box over the whole picture except the SSN line.
+   - Image > Crop to Selection.
+   - Image > Canvas Properties. Make Height bigger. OK.
+   - Expected: the SSN line doesn't come back.
+7. Open `TestImages/Auto-Redact Practice.png` in Preview. Edit > Select All, Edit > Copy.
+   - In Colorbee: File > Paste into New Image.
+   - Quit Colorbee (⌘Q). Open it again.
+   - Press K. Paint over the email address.
+   - Expected: Colorbee offers to remove the original from Clipboard History.
 
 **C. Layers** (`TestImages/Magic Wand Practice.png`)
-8. Layer ▸ New Adjustment Layer ▸ Invert. Press T with Editable on and type a word.
-   - You can see the word while typing, as it will look. Click away.
-9. Layer ▸ New Layer, paint a blob on the left. Layer Mask ▸ Add Mask and paint black over the left half of the blob.
-   Click the layer's own picture, then Layer ▸ Align ▸ Right.
-   - The half-hidden blob moves to the right edge, still half hidden.
-10. Click the Invert layer's own icon (not a mask). Layer ▸ Layer Mask ▸ Add Mask, click the icon again, then Layer
-    Mask ▸ Invert Mask.
-    - It works, with no beep.
-11. Turn on **Only the layer below** for the Invert layer, then click it and ⌘-click the layer above it and press ⌘G.
-    - The Invert layer stays right above its layer, outside the group.
+8. Layer > New Adjustment Layer > Invert.
+   - Press T. Check Editable. Click and type a word.
+   - Expected: you see the word while typing. Click away.
+9. Layer > New Layer. Press B. Paint a blob on the left.
+   - Layer > Layer Mask > Add Mask. Paint black over the blob's left half.
+   - Click the layer's own picture (left of the mask).
+   - Layer > Align > Right.
+   - Expected: the blob moves right and its left half is still hidden.
+10. Click the Invert layer's icon.
+    - Layer > Layer Mask > Add Mask. Click the Invert icon again.
+    - Layer > Layer Mask > Invert Mask.
+    - Expected: it works, no beep.
+11. Check "Only the layer below" for the Invert layer.
+    - Click Invert. ⌘-click the layer above it. Press ⌘G.
+    - Expected: Invert stays outside the group, right above its layer.
 
 ### Test: Stage 32: Overnight monkey test
 

@@ -353,7 +353,7 @@ it, choose **Don't Save**. Press ⌘L if the Layers panel isn't showing.
 2. Click the arrow on Group 1's row: Red and Green fold away. Click it again: they're back.
 3. Click Group 1's eye: Red and Green both disappear from the picture, and their rows dim. Click it again.
 4. With Group 1 active, set Opacity to 50%: Red and Green fade together. Set it back to 100%.
-5. Choose File ▸ Save As… and save a copy as a project in your Downloads folder, close it, and open that copy.
+5. Choose File ▸ Save As… and save a copy as a project wherever you like, close it, and open that copy.
    - The group, its layers and their settings are all as they were.
 6. Choose File ▸ Export… as PNG and look at the file: it matches the screen.
 

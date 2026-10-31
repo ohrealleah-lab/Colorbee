@@ -391,6 +391,13 @@ Close each picture with **Don't Save**. ⌘L shows the Layers panel.
    - Click the eye on Background to hide it.
    - File > Export. Save a PNG anywhere.
    - Expected: the PNG is empty, like the screen. Delete it after.
+4. Open `TestImages/Several Layers/Opacity Test.colorproj`.
+   - Layer > New Adjustment Layer > Invert.
+   - Drag the Invert layer to the bottom of the list.
+   - Click the eye on Background to hide it.
+   - Click Yellow. Layer > New Adjustment Layer > Desaturate.
+   - Layer > Merge Adjustment.
+   - Expected: no crash. The picture looks the same.
 
 ### Test: Stage 33: Review round 10 fixes
 

@@ -472,8 +472,12 @@ All fixed (Leah, all recommended). The monkey test's first trial and its second,
 | 3 | Critical | Crop, Add Mask, Undo on Active Layer, then ⌘Z twice crashed | **Fixed.** A mask brought back out of order gets an empty buffer of the old size. Core test. |
 | 4 | Medium | Export showed a layer set to "Only the layer below" whose base layer was hidden | **Fixed.** It shows nowhere, as on screen. Core test. |
 | 5 | Low | History and Layers thumbnails ignored an adjustment layer's blend mode | **Fixed.** They blend it as the export does. Core test. |
+| 6 | Critical | Merge Adjustment crashed when an adjustment was the lowest shown layer (older than round 10) | **Fixed.** The layer holding the result is never removed. Core test. |
+| 7 | Low | While a piece floated on a mask, Export left it out but a save kept it | **Fixed.** Export draws it as placed. Monkey test. |
 
-The stricter monkey's other reports were its own mistakes, now fixed: after Undo on Active Layer the start can't come back by design; one action can add two steps; a layer with no mask keeps an unsaved mask-on setting; and Posterize magnifies a one-level rounding difference in a thumbnail into a whole step.
+After these, a 5-minute run (1,159 pictures, 69,540 steps) broke no rule.
+
+The stricter monkey's other reports were its own mistakes, now fixed: after Undo on Active Layer the start can't come back by design; one action can add two steps; a layer with no mask keeps an unsaved mask-on setting; Posterize and hue shifts magnify a one-level rounding difference in a thumbnail; and a fully clear pixel's color doesn't show.
 
 ## Session X: groups and masks in the model ([findings](findings-X.md))
 

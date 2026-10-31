@@ -234,6 +234,14 @@ private struct ToolOptions: View {
         case .text:
             TextStyleMenu(editor: editor, store: TextStyleStore.shared)
             TextOptions(style: $editor.textStyle)
+            // Remembered for next time; only this switch saves it.
+            Toggle("Editable", isOn: Binding(get: { editor.textIsEditable }, set: {
+                editor.textIsEditable = $0
+                UserDefaults.standard.set($0, forKey: Editor.editableTextKey)
+            }))
+            .toggleStyle(.checkbox)
+            .fixedSize()
+            .help("On: placed text becomes a text layer you can double-click to edit later. Off: it becomes pixels, as in Paint.")
         case .pencil:
             hint("1 px · Shift draws straight lines")
         case .retouch:

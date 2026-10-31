@@ -251,6 +251,7 @@ final class DocumentWindow: NSWindow {
         SnapshotPrompt.newSnapshot(editor: editor)
     }
     @objc func revertLayer(_ sender: Any?) { editor?.revertLayer() }
+    @objc func rasterizeText(_ sender: Any?) { editor?.rasterizeText() }
 
     @objc func newAdjustmentLayer(_ sender: Any?) {
         guard let tag = (sender as? NSMenuItem)?.tag, AdjustmentChoice.allCases.indices.contains(tag) else { return }
@@ -499,6 +500,8 @@ final class DocumentWindow: NSWindow {
             return true
         case #selector(applyAdjustment(_:)):
             return LayerActions.canApplyAdjustment(editor.canvas)
+        case #selector(rasterizeText(_:)):
+            return editor.canRasterizeText
         case #selector(newSnapshot(_:)), #selector(trim(_:)):
             return true
         case #selector(copyColorHex(_:)):

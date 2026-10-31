@@ -395,6 +395,8 @@ struct PendingText: Equatable {
     /// A dragged-out box keeps at least its dragged height.
     var minimumHeight: Double = 0
     var string = ""
+    /// The text layer being edited; nil for new text.
+    var layerID: LayerID?
 }
 
 /// What a press on the open text box grabbed: a handle resizes it, the border moves it (FR-6.1).
@@ -585,6 +587,10 @@ final class Editor {
     var textStyle = TextStyle() {
         didSet { renderSoon() }
     }
+    /// The Text options' Editable switch (Q29.1): placed text becomes a text layer. Off by default; the switch remembers
+    /// it (`editableTextKey`), so tests never save it.
+    var textIsEditable = UserDefaults.standard.bool(forKey: Editor.editableTextKey)
+    static let editableTextKey = "EditableText"
     private(set) var pendingText: PendingText?
     /// Non-nil while Before/After is showing. The view is read-only while it's on.
     var comparison: Comparison? {
@@ -2138,7 +2144,8 @@ final class Editor {
 
     /// Opens a text box with its top-left at `origin`. Any open box is placed first.
     func beginText(at origin: Point2D, wrapWidth: Double?, minimumHeight: Double = 0) {
-        guard !refusedBecauseLocked() else { return }
+        // Editable text goes on a new layer of its own, so the active layer's lock or kind doesn't matter.
+        guard textIsEditable || !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingSelection()
         textDragFrame = nil
@@ -2277,10 +2284,26 @@ final class Editor {
         return spec
     }
 
-    /// Turns the open text box into pixels on the active layer (FR-6.3).
+    /// Places the open text box (FR-6.3): an edited text layer is drawn again; new text becomes a text layer with
+    /// Editable on, or pixels on the active layer.
     func commitPendingText() {
         guard let text = pendingText else { return }
         pendingText = nil
+        let spec = textSpec(for: text)
+        if let id = text.layerID {
+            if let index = canvas.layers.firstIndex(where: { $0.id == id }) {
+                layerCommand { LayerActions.setText(spec, layerAt: index, canvas: canvas, history: history, context: selectionContext) }
+            }
+            onRender()
+            return
+        }
+        if textIsEditable {
+            if !spec.text.isEmpty {
+                layerCommand { LayerActions.addText(spec, canvas: canvas, history: history, context: selectionContext) }
+            }
+            onRender()
+            return
+        }
         if let rendered = TextRenderer.render(textSpec(for: text), colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) {
             let edit = history.beginEdit("Text", on: canvas)
             Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.paintLayer, edit: edit)
@@ -2288,6 +2311,67 @@ final class Editor {
         }
         onRender()
     }
+
+    /// Opens a text layer's box to change its words and settings (Q29.5): the Text tool, the layer's font and colors.
+    /// Returns false if there's no text layer there.
+    @discardableResult
+    func editText(layerAt index: Int) -> Bool {
+        guard canvas.layers.indices.contains(index), let text = canvas.layers[index].text else { return false }
+        let layer = canvas.layers[index]
+        guard text.isUpright else {
+            showNotice("Turned text can't be edited. Turn the image back, or choose Layer ▸ Rasterize Text.")
+            return true
+        }
+        guard !canvas.isLocked(layer) else {
+            onRefused()
+            return true
+        }
+        finishInteractions()
+        placeFloatingSelection()
+        selectLayer(at: index)
+        paint(onMask: false, at: index)
+        if tool != .text { selectTool(.text) }
+        let spec = text.spec
+        var style = textStyle
+        style.fontFamily = spec.fontFamily
+        style.fontSize = spec.fontSize
+        style.bold = spec.bold
+        style.italic = spec.italic
+        style.underline = spec.underline
+        style.strikethrough = spec.strikethrough
+        style.alignment = spec.alignment
+        style.opaqueBackground = spec.background != nil
+        textStyle = style
+        color1 = spec.color
+        if let background = spec.background { color2 = background }
+        textDragFrame = nil
+        pendingText = PendingText(origin: spec.origin, wrapWidth: spec.wrapWidth, minimumHeight: spec.minimumHeight, string: spec.text,
+                                  layerID: layer.id)
+        if !text.hasFont {
+            showNotice("Font missing: \(spec.fontFamily). The text keeps its look until you change it.")
+        }
+        onRender()
+        return true
+    }
+
+    /// Double-click with the Text tool: the top text layer whose box is under `point`, if any.
+    @discardableResult
+    func editText(at point: Point2D) -> Bool {
+        let hit = canvas.layers.indices.reversed().first { index in
+            let layer = canvas.layers[index]
+            guard let text = layer.text, canvas.isShown(layer) else { return false }
+            let box = text.isUpright ? TextRenderer.box(for: text.spec) : canvas.bounds
+            return box.contains(IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))))
+        }
+        guard let hit else { return false }
+        // The first click of the double-click opened an empty box, or said why it couldn't; both go without a trace.
+        if pendingText?.string.isEmpty == true, pendingText?.layerID == nil { pendingText = nil }
+        notice = nil
+        return editText(layerAt: hit)
+    }
+
+    /// The text layer whose box is open: its own pixels are hidden while the box shows it as it's typed.
+    var editedTextLayerID: LayerID? { pendingText?.layerID }
 
     // MARK: Selection dragging
 
@@ -4888,14 +4972,32 @@ final class Editor {
 
     /// Whether pixel-changing commands work on the active layer (see `refusedBecauseLocked`).
     /// Its pixels can change: it isn't locked, and it has pixels, or its mask is chosen (stage 27).
-    var activeLayerTakesEdits: Bool { !canvas.isLocked(canvas.activeLayer) && canvas.paintLayer.isPixelLayer }
+    /// A text layer takes none until it's rasterized (Q29.2).
+    var activeLayerTakesEdits: Bool {
+        !canvas.isLocked(canvas.activeLayer) && canvas.paintLayer.isPixelLayer && canvas.paintLayer.text == nil
+    }
 
     /// Pixel-changing commands call this first. A locked layer refuses them (FR-8.2), and so does an
-    /// adjustment layer, which has no pixels to change.
+    /// adjustment layer, which has no pixels to change, and a text layer, which says how to paint on it (Q29.2).
+    /// Redaction never asks: it turns a text layer into pixels itself (`Edit.willModify`).
     private func refusedBecauseLocked() -> Bool {
+        if canvas.paintLayer.text != nil, !canvas.isLocked(canvas.activeLayer) {
+            showNotice("This is a text layer. To paint on it, choose Layer ▸ Rasterize Text first.")
+            return true
+        }
         guard canvas.isLocked(canvas.activeLayer) || !canvas.paintLayer.isPixelLayer else { return false }
         onRefused()
         return true
+    }
+
+    /// Layer ▸ Rasterize Text (stage 30).
+    func rasterizeText() {
+        layerCommand { LayerActions.rasterizeText(canvas: canvas, history: history, context: selectionContext) }
+    }
+
+    var canRasterizeText: Bool {
+        _ = layersRevision
+        return canvas.activeLayer.text != nil && !canvas.isLocked(canvas.activeLayer)
     }
 
     // MARK: Undo
@@ -5421,7 +5523,7 @@ final class Editor {
     /// More than one layer, an adjustment layer, or more than one page: something only a project file can keep.
     var isLayered: Bool {
         // A mask too: a picture saved as a PNG would lose it (stage 27).
-        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains { !$0.isPixelLayer || $0.mask != nil }
+        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains { !$0.isPixelLayer || $0.mask != nil || $0.text != nil }
     }
 
     /// An effect's live preview is drawn into the layer before it's applied; an autosave in the

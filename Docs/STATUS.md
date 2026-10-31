@@ -7,13 +7,14 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-31 · 782 core tests and 268 app tests passing (stages 27 to 28b passed Leah's test); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
+_Last updated: 2026-10-31 · 794 core tests and 276 app tests passing (stages 29 and 30 built); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Stages 29 and 30: Text layers](#test-stages-29-and-30-text-layers) (2026-10-31)
+- [Only the layer below, saved](#test-only-the-layer-below-saved) (2026-10-31)
 
 ---
 
@@ -87,6 +88,8 @@ Nothing waiting right now.
 | 14 · 27. Layer masks 1: pixel layers | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 28a. Layer masks 2: adjustment layers, mask tools | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 28b. Masks on groups, clipping for pixel layers | ✅ Done; passed Leah's test 2026-10-31 | High |
+| 14 · 29. Re-editable text 1: text layers | Built 2026-10-31; waiting for Leah's test (with 30) | High |
+| 14 · 30. Re-editable text 2: when text becomes pixels | Built 2026-10-31; waiting for Leah's test (with 29) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -177,6 +180,12 @@ Nothing waiting right now.
   what's below (faded from a copy of the backdrop below 100%) and other groups on their own, one texture per depth.
   Projects keep groups in `Manifest.groups`, which beta 7 skips. Commands in `LayerActions+Groups.swift`; the panel
   indents, folds (`Editor.foldedGroups`) and drops with `LayerDrop`.
+- Stages 29 and 30 (2026-10-31): text layers. `Layer.text` (`TextLayer`: a `TextSpec` laid out upright, plus quarter
+  turns and a mirror from Rotate and Flip) holds the words; the layer's pixels are always that text drawn. Any pixel
+  change (`Edit.willModify`) makes it plain pixels first and history puts the text back on undo (`HistoryEntry.texts`),
+  so every redaction path wins without knowing about text. Geometry changes call `Canvas.fitText` (crop and canvas size
+  move it, a uniform resize scales it, anything else makes it pixels). Commands in `LayerActions+Text.swift`; the
+  app refuses painting in `refusedBecauseLocked`, and the renderer hides an edited layer's pixels (`replacedLayer`).
 - Stages 27, 28a and 28b (2026-10-30): layer masks and clipped pixel layers. A mask is a `Layer` of its own on its
   layer (`Layer.mask`), black ink on white paper (`Compositing.reveal`, shader `mask_reveal`), so every tool paints
   on it through `Canvas.paintLayer` while `Canvas.editsMask`; `Canvas.allLayers` and `layer(withID:)` include masks
@@ -350,6 +359,61 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stages 29 and 30: Text layers
+
+Use `TestImages/Help/Sample Screenshot.png`. Choose **Don't Save** when you close it. Press ⌘L if the Layers panel
+isn't showing.
+
+**A. Making a text layer**
+1. Press T for the Text tool. In the palette bar, check **Editable** (at the right end).
+2. Click above the "Account" heading and type `Hello Bee`. Click somewhere else on the picture to place it.
+   - A new layer named "Hello Bee" appears above Background, with a small "Aa" badge on its picture and "Text ·
+     Normal · 100%" under its name.
+3. Click once more on an empty part of the picture, type `Second`, and click away.
+   - "Second" gets a layer of its own.
+
+**B. Editing it**
+4. With the Text tool still chosen, double-click right on the words "Hello Bee".
+   - The box opens with "Hello Bee" in it, and the palette bar shows its font and size.
+5. Change it to `Hello there`, click **B** (Bold) and pick a different font. Click away.
+   - The words change, the layer's name becomes "Hello there", and there's no second copy underneath.
+6. Press ⌘Z.
+   - It's back to "Hello Bee" in its first font.
+7. In the Layers panel, double-click the "Hello Bee" layer's small picture.
+   - The box opens again. Press Esc without changing anything. Nothing changes, and History has no new step.
+
+**C. When it becomes pixels**
+8. Press B for the Brush and paint across "Hello Bee".
+   - Nothing is painted. A message says to choose Layer ▸ Rasterize Text first.
+9. Choose Layer ▸ Rasterize Text. Paint across it again.
+   - Now the paint goes on, and the "Aa" badge is gone. Press ⌘Z twice: it's a text layer again.
+10. Choose the Redact Brush (K) and paint over "Hello Bee".
+    - It's redacted. The layer is now plain pixels, and its name has become "Text". Press ⌘Z: the words and the
+      name come back.
+11. Choose Image ▸ Resize and Skew… (⌘E) and set 200%. Zoom in on the text.
+    - The text is sharp, not blurry. Press ⌘Z.
+12. Choose Image ▸ Rotate ▸ 90° Clockwise, then double-click the text with the Text tool.
+    - A message says turned text can't be edited. Choose Image ▸ Rotate ▸ 90° Counter-Clockwise: now a double-click
+      opens it. Press Esc.
+
+**D. Saving**
+13. Choose File ▸ Save As… and save a copy as a project wherever you like. Close it and open that copy.
+    - Double-click the text with the Text tool: it still opens for editing. Press Esc.
+14. Choose File ▸ Export… as PNG and look at the file.
+    - The text is in the picture.
+15. Uncheck **Editable**, type a word and click away.
+    - It goes into the active layer as pixels, as before, with no new layer.
+
+### Test: Only the layer below, saved
+
+A fix found while building stage 29: a layer set to **Only the layer below** lost that setting when its project was
+saved. Use `TestImages/Several Layers/Opacity Test.colorproj`, and choose **Don't Save** when you close it.
+
+1. Click Blue, then choose Layer ▸ New Layer (⇧⌘N). Paint wide strokes across the whole canvas.
+2. Check **Only the layer below** near the top of the Layers panel. The paint shows only on the blue block.
+3. Choose File ▸ Save As…, save a copy as a project, close it, and open that copy.
+   - The paint still shows only on the blue block, and the box is still checked.
 
 ### Test: Stages 27, 28a and 28b: Layer masks
 

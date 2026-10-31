@@ -50,6 +50,20 @@ enum Snapshot {
             editor.canvas.activeLayer.mask?.buffer.fill(.black, in: IntRect(x: 0, y: 0, width: size.width / 2, height: size.height))
             editor.showsAdjustmentsPanel = false
         }
+        // `-ColorbeeSnapshotText YES` places editable text as a text layer and leaves the Text tool chosen, to check the
+        // Editable switch and the text layer's row (stage 29). The switch is set for this run only, not saved.
+        if defaults.bool(forKey: "ColorbeeSnapshotText") {
+            editor.textIsEditable = true
+            editor.selectTool(.text)
+            editor.color1 = Pixel(r: 200, g: 30, b: 30)
+            editor.textStyle.fontSize = 48
+            editor.beginText(at: Point2D(x: 40, y: 40), wrapWidth: nil)
+            editor.updatePendingText("Editable label")
+            editor.commitPendingText()
+            editor.isSidebarOpen = true
+            editor.showsLayersPanel = true
+            editor.showsAdjustmentsPanel = false
+        }
         // `-ColorbeeSnapshotInfo YES` shows the Info panel on its own.
         if defaults.bool(forKey: "ColorbeeSnapshotInfo") {
             editor.showsLayersPanel = false

@@ -260,6 +260,7 @@ final class CanvasView: NSView {
             transparentKey: editor.selectionContext.transparentKey,
             smoothFloating: editor.smoothResize,
             overlay: comparing ? nil : editor.renderedPendingShape() ?? editor.renderedPendingText() ?? editor.renderedPendingBadge(),
+            replacedLayer: comparing ? nil : editor.editedTextLayerID,
             topOverlay: comparing ? nil : editor.areaStrokePicture(),
             maskAlone: !comparing && editor.showsMaskAlone ? editor.canvas.activeLayer.mask?.buffer : nil,
             handlePoints: comparing ? [] : editor.activeEffect?.isCanvasTool == true ? editor.canvasToolHandles : handlePoints(selection),
@@ -373,9 +374,20 @@ final class CanvasView: NSView {
             view = CanvasTextView.make()
             view.delegate = self
             view.onCommit = { [weak self] in self?.editor.commitPendingText() }
+            view.onDoubleClickWhileEmpty = { [weak self] event in
+                guard let self else { return false }
+                return self.editor.editText(at: self.imagePoint(event))
+            }
             addSubview(view)
             textView = view
             window?.makeFirstResponder(view)
+        }
+        // An edited text layer's box opens with its words. A double-click turns the first click's empty box into it, so
+        // the view may already be up for other text.
+        if view.editingLayer != pending.layerID {
+            view.editingLayer = pending.layerID
+            view.string = pending.string
+            appliedTextStyle = nil
         }
         var style = editor.textSpec(for: pending)
         style.text = ""
@@ -617,6 +629,11 @@ final class CanvasView: NSView {
             drag = .retouchBrush
             editor.beginRetouchBrush(at: point, pressure: pressure(event))
         case .text:
+            // A double-click on a text layer opens it for editing (Q29.5).
+            if event.clickCount == 2, !secondary, editor.editText(at: point) {
+                drag = nil
+                return
+            }
             // A handle or the border moves or resizes the open text box; a click elsewhere places it,
             // and the next click starts a new one.
             if editor.pendingText != nil, !secondary, let grab = editor.textBoxGrab(atView: viewPoint(event)) {

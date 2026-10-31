@@ -6,6 +6,10 @@ import ColorbeeCore
 /// as placing it will (review F, finding 1).
 final class CanvasTextView: NSTextView {
     var onCommit: () -> Void = {}
+    /// The text layer whose words this box holds; nil for new text.
+    var editingLayer: LayerID?
+    /// The second click of a double-click on a text layer lands in the empty box the first click opened (Q29.5).
+    var onDoubleClickWhileEmpty: (NSEvent) -> Bool = { _ in false }
     /// Layout managers don't retain their storage, so the view has to.
     private var ownedStorage: NSTextStorage?
 
@@ -30,6 +34,11 @@ final class CanvasTextView: NSTextView {
         // A selected wrapped line highlights to the far edge of its line; keep that inside the box.
         view.clipsToBounds = true
         return view
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2, string.isEmpty, onDoubleClickWhileEmpty(event) { return }
+        super.mouseDown(with: event)
     }
 
     /// Esc places the text (FR-6.3).

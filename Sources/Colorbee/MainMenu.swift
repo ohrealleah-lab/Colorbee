@@ -90,6 +90,7 @@ enum MainMenu {
         "toggleAdjustmentsPanel:": "Show or hide the Adjustments panel, where an adjustment layer's settings live.",
         "newAdjustmentLayer:": "Add an adjustment layer: it changes how the layers below look, without changing their pixels.",
         "applyAdjustment:": "Merge the active adjustment layer and the layers below it into one layer, keeping the look.",
+        "rasterizeText:": "Make the active text layer plain pixels that look the same, so you can paint on it.",
         "newLayer:": "Add a transparent layer above the active one.",
         "duplicateLayer:": "Copy the active layer (or every chosen layer), with its settings, just above it.",
         "deleteLayer:": "Delete the active layer, or every chosen layer. The only layer, or a locked one, can't be deleted.",
@@ -375,6 +376,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(submenu(adjustmentLayerMenu()))
         menu.addItem(item("Merge Adjustment", "applyAdjustment:"))
+        menu.addItem(item("Rasterize Text", "rasterizeText:"))
         menu.addItem(item("Revert Layer", "revertLayer:"))
         menu.addItem(.separator())
         menu.addItem(item("Hide Layer", "toggleLayerVisibility:"))

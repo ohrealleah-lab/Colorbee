@@ -44,6 +44,8 @@ struct RenderScene {
     let smoothFloating: Bool
     /// A shape being edited, drawn above the active layer.
     let overlay: (pixels: PixelBuffer, origin: IntPoint)?
+    /// A text layer whose box is open (stage 29): its own pixels give way to the text being typed, the overlay.
+    var replacedLayer: LayerID? = nil
     /// The Redact Brush's or Remove's painted area, drawn above every layer: it belongs to no one layer, and must
     /// show even when the active layer is an adjustment layer or hidden (review O, finding 10).
     var topOverlay: (pixels: PixelBuffer, origin: IntPoint)? = nil
@@ -490,8 +492,10 @@ final class Renderer {
                     uniforms.opacity = 1
                 }
                 uniforms.blendMode = isolated ? 0 : Float(layer.blendMode.rawValue)
-                encoder.setFragmentTexture(texture(for: layer.buffer, live: &liveBuffers), index: 0)
-                draw(blendLayerPipeline)
+                if layer.id != scene.replacedLayer {
+                    encoder.setFragmentTexture(texture(for: layer.buffer, live: &liveBuffers), index: 0)
+                    draw(blendLayerPipeline)
+                }
 
                 if let lockedPatch {
                     uniforms.rect = deviceRect(lockedPatch.area)

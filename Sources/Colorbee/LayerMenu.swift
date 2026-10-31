@@ -31,6 +31,10 @@ enum LayerMenu {
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem((active.isVisible ? "Hide " : "Show ") + layers) { editor.toggleChosenLayersVisible() })
         menu.addItem(ClosureMenuItem((active.isLocked ? "Unlock " : "Lock ") + layers) { editor.toggleChosenLayersLocked() })
+        if active.text != nil {
+            menu.addItem(ClosureMenuItem("Edit Text") { editor.editText(layerAt: index) })
+            menu.addItem(ClosureMenuItem("Rasterize Text", enabled: editor.canRasterizeText) { editor.rasterizeText() })
+        }
         menu.addItem(.separator())
         // A name belongs to one layer (Leah, 2026-10-27).
         menu.addItem(ClosureMenuItem("Rename…", enabled: !editor.hasSeveralChosenLayers, rename))

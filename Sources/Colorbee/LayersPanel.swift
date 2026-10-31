@@ -294,12 +294,30 @@ private struct LayersPanel: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 40, height: 26)
                         .background(Checkerboard(square: 4))
+                        // A text layer (stage 29) is marked, so it's clear why painting on it asks to rasterize first.
+                        .overlay(alignment: .bottomTrailing) {
+                            if layer.text != nil {
+                                Image(systemName: "textformat")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(2)
+                                    .background(Color.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 3))
+                            }
+                        }
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(
                 isActive && layer.mask != nil && !editor.editsMask ? Color.white : Color.gray.opacity(0.4),
                 lineWidth: isActive && layer.mask != nil && !editor.editsMask ? 2 : 0.5))
+            // A text layer's picture: double-click to change the text (Q29.5). Elsewhere a double-click renames, as on
+            // the rest of the row.
+            .onTapGesture(count: 2) {
+                if !editor.editText(layerAt: index) {
+                    newName = layer.name
+                    renaming = layer
+                }
+            }
             // With a mask beside it, a click on this picture paints on the layer again (stage 27).
             .onTapGesture { editor.paint(onMask: false, at: index) }
             .accessibilityHidden(true)
@@ -321,7 +339,7 @@ private struct LayersPanel: View {
                 Text(layer.isGroup
                      ? "\(layer.passesThrough ? "Pass Through" : layer.blendMode.name) · \(Int((layer.opacity * 100).rounded()))%"
                      : layer.adjustment == nil
-                     ? "\(layer.blendMode.name) · \(Int((layer.opacity * 100).rounded()))%"
+                     ? "\(layer.text == nil ? "" : "Text · ")\(layer.blendMode.name) · \(Int((layer.opacity * 100).rounded()))%"
                      : layer.clipsToLayerBelow
                         ? (editor.canvas.clipBaseIndex(forLayerAt: index) == nil ? "Layer below only: none"
                             : layer.blendMode == .normal ? "Layer below only" : "Layer below only · \(layer.blendMode.name)")
@@ -376,6 +394,7 @@ private struct LayersPanel: View {
             }
         }))
         .help(layer.isGroup ? "Click to make active · double-click to rename · drag to reorder · drag a layer down onto it to put it inside"
+              : layer.text != nil ? "Click to make active · double-click its picture to edit the text · double-click the name to rename · drag to reorder"
               : "Click to make active · Shift- or ⌘-click to choose several · double-click to rename · drag to reorder")
         .accessibilityAddTraits(isActive || isChosen ? [.isSelected] : [])
         .accessibilityAction(named: "Make Active") { editor.selectLayer(at: index) }

@@ -131,7 +131,7 @@ extension Editor {
         guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
-        let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let seed = IntPoint(containing: point)
         let edit = history.beginEdit("Fill", on: canvas)
         FloodFill.fill(
             layer: canvas.paintLayer,
@@ -154,7 +154,7 @@ extension Editor {
     /// Picks a color, averaging the Eyedropper's Sample Size. With `allLayers`, samples what's visible rather than
     /// only the active layer.
     func pickColor(at point: Point2D, secondary: Bool, allLayers: Bool) {
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let pixel = IntPoint(containing: point)
         guard canvas.bounds.contains(pixel) else { return }
         let area = sample(around: pixel, size: eyedropperSampleSize)
         let picked: Pixel
@@ -175,7 +175,7 @@ extension Editor {
     /// A click while the status bar's eyedropper is on: the hex of the color there, as the readout shows it, or nil
     /// off the picture (a beep, and it stays on). The caller puts it on the clipboard.
     func pickHexToCopy(at point: Point2D) -> String? {
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let pixel = IntPoint(containing: point)
         guard let hex = readoutColor(at: pixel).map(Self.hex) else {
             onRefused()
             return nil
@@ -258,7 +258,7 @@ extension Editor {
     // MARK: Measure
 
     func measure(from start: Point2D, to end: Point2D) {
-        func pixel(_ point: Point2D) -> IntPoint { IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))) }
+        func pixel(_ point: Point2D) -> IntPoint { IntPoint(containing: point) }
         measurement = Measurement(start: pixel(start), end: pixel(end))
         onRender()
     }

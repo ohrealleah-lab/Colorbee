@@ -491,7 +491,7 @@ final class CanvasView: NSView {
             return
         }
         let point = imagePoint(event)
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let pixel = IntPoint(containing: point)
         editor.pointer = editor.canvas.bounds.contains(pixel) ? pixel : nil
         hoverPoint = point
         if editor.tool == .eraser || editor.tool == .retouch || editor.areaBrushSize != nil { setNeedsRender() }

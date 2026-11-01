@@ -8,7 +8,7 @@ extension Editor {
 
     /// Whether a drag starting at `point` would move the selection rather than start a new one.
     func selectionContains(_ point: Point2D) -> Bool {
-        canvas.selection.contains(IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))))
+        canvas.selection.contains(IntPoint(containing: point))
     }
 
     /// The handle under a view point, if the selection's handles are showing there.
@@ -60,7 +60,7 @@ extension Editor {
         case .magicWand:
             // A floating paste is placed first, so the wand sees it rather than what's under it (review I, finding 2).
             placeFloatingKeepingOutline()
-            let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+            let seed = IntPoint(containing: point)
             let sampled = wandSamplesAllLayers ? canvas.flattened() : canvas.paintLayer.buffer
             let mask = SelectionMask.magicWand(in: sampled, at: seed, tolerance: wandTolerance, contiguous: wandContiguous)
             recordingChanges {
@@ -385,7 +385,7 @@ extension Editor {
     /// A click picks the color there, a 5 × 5 average like the other eyedroppers; Shift-click adds it to those
     /// picked. A click where there's nothing to read beeps.
     func pickRangeColor(at point: Point2D, adding: Bool) {
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let pixel = IntPoint(containing: point)
         guard canvas.bounds.contains(pixel),
               let color = rangeSampled().averageColor(in: IntRect(x: pixel.x - 2, y: pixel.y - 2, width: 5, height: 5)) else { return onRefused() }
         rangeColors = adding ? rangeColors + [color] : [color]

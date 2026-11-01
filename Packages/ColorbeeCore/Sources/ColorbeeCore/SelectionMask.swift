@@ -177,21 +177,17 @@ public struct SelectionMask: Sendable {
     /// The edge softened by `radius` pixels (Edit ▸ Feather…, and the selection tools' Feather): a Gaussian blur of
     /// the mask, about `radius` wide each way. At the canvas's edge the selection carries on, so a selection reaching
     /// the edge stays fully selected there.
-    public func feathered(radius: Double, clippedTo canvasBounds: IntRect) -> SelectionMask? {
-        guard radius >= 0.5 else { return self }
-        let sigma = radius / 2
-        // As Gaussian Blur sizes its boxes. Feather's radius is whole pixels, where this rounding and the truncation it
-        // once had agree (review round 11, AD 6).
-        let box = Effects.boxWidth(sigma: sigma)
-        let reach = Effects.blurReach(sigma: sigma)
-        let area = IntRect(x: bounds.minX - reach, y: bounds.minY - reach, width: bounds.width + 2 * reach, height: bounds.height + 2 * reach)
-            .intersection(canvasBounds)
+    /// The mask's values in an area `padding` wider on each side, clipped to the canvas; what's new is unselected. Nil when
+    /// nothing of it is on the canvas. Feather and Modify Selection start from this.
+    func padded(by padding: Int, clippedTo canvasBounds: IntRect) -> (area: IntRect, values: [UInt8])? {
+        let area = IntRect(x: bounds.minX - padding, y: bounds.minY - padding, width: bounds.width + 2 * padding,
+                           height: bounds.height + 2 * padding).intersection(canvasBounds)
         guard !area.isEmpty else { return nil }
-        var first = [UInt8](repeating: 0, count: area.area)
+        var result = [UInt8](repeating: 0, count: area.area)
         // Whole rows at a time: on a big selection, pixel by pixel took longer than the blurs (review O, finding 12).
         let inside = bounds.intersection(area)
         if !inside.isEmpty {
-            first.withUnsafeMutableBufferPointer { target in
+            result.withUnsafeMutableBufferPointer { target in
                 values.withUnsafeBufferPointer { source in
                     for y in inside.minY..<inside.maxY {
                         let from = (y - bounds.minY) * bounds.width + inside.minX - bounds.minX
@@ -201,6 +197,19 @@ public struct SelectionMask: Sendable {
                 }
             }
         }
+        return (area, result)
+    }
+
+    public func feathered(radius: Double, clippedTo canvasBounds: IntRect) -> SelectionMask? {
+        guard radius >= 0.5 else { return self }
+        let sigma = radius / 2
+        // As Gaussian Blur sizes its boxes. Feather's radius is whole pixels, where this rounding and the truncation it
+        // once had agree (review round 11, AD 6).
+        let box = Effects.boxWidth(sigma: sigma)
+        let reach = Effects.blurReach(sigma: sigma)
+        guard let start = padded(by: reach, clippedTo: canvasBounds) else { return nil }
+        let area = start.area
+        var first = start.values
         var second = [UInt8](repeating: 0, count: area.area)
         first.withUnsafeMutableBytes { a in
             second.withUnsafeMutableBytes { b in

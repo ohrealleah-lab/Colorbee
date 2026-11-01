@@ -86,7 +86,7 @@ public final class PencilStroke: CoveragePainting {
 
     @discardableResult
     public func move(to point: Point2D, pressure: Double) -> IntRect {
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let pixel = IntPoint(containing: point)
         defer { lastPixel = pixel }
         var changed = IntRect.zero
         for step in Line.pixels(from: lastPixel ?? pixel, to: pixel) {
@@ -119,7 +119,7 @@ public final class EraserStroke: CoveragePainting {
 
     @discardableResult
     public func move(to point: Point2D, pressure: Double) -> IntRect {
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let pixel = IntPoint(containing: point)
         defer { lastPixel = pixel }
         var changed = IntRect.zero
         for center in Line.pixels(from: lastPixel ?? pixel, to: pixel) {

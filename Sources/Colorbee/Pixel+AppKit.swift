@@ -31,3 +31,13 @@ extension Pixel {
         return "\(name), \(hex), \(Int((Double(a) / 255 * 100).rounded()))% opaque"
     }
 }
+
+extension Thumbnail {
+    /// The History and Pages panels' picture of it, in `colorSpace`.
+    func nsImage(in colorSpace: CGColorSpace) -> NSImage? {
+        let buffer = PixelBuffer(width: width, height: height)
+        buffer.setPixels(pixels, in: buffer.bounds)
+        guard let cgImage = try? ImageCodec.makeCGImage(buffer, colorSpace: colorSpace) else { return nil }
+        return NSImage(cgImage: cgImage, size: NSSize(width: width, height: height))
+    }
+}

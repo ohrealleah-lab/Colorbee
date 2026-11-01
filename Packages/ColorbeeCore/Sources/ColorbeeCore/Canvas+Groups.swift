@@ -96,10 +96,15 @@ extension Canvas {
 
     /// "Group 1", "Group 2"… one more than the highest number in use (Q25.7).
     func nextGroupName() -> String {
+        Self.nextNumberedName("Group", among: layers.filter(\.isGroup))
+    }
+
+    /// "`prefix` 1", "`prefix` 2"… one more than the highest number `layers` already use.
+    static func nextNumberedName(_ prefix: String, among layers: [Layer]) -> String {
         let numbers = layers.compactMap { layer -> Int? in
-            guard layer.isGroup, layer.name.hasPrefix("Group ") else { return nil }
-            return Int(layer.name.dropFirst("Group ".count))
+            guard layer.name.hasPrefix(prefix + " ") else { return nil }
+            return Int(layer.name.dropFirst(prefix.count + 1))
         }
-        return "Group \((numbers.max() ?? 0) + 1)"
+        return "\(prefix) \((numbers.max() ?? 0) + 1)"
     }
 }

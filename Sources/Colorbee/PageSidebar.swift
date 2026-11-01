@@ -143,11 +143,7 @@ struct PageSidebar: View {
     }
 
     private func image(for index: Int) -> NSImage? {
-        guard let thumbnail = editor.pageThumbnail(at: index) else { return nil }
-        let buffer = PixelBuffer(width: thumbnail.width, height: thumbnail.height)
-        buffer.setPixels(thumbnail.pixels, in: buffer.bounds)
-        guard let image = try? ImageCodec.makeCGImage(buffer, colorSpace: editor.canvas.colorSpace) else { return nil }
-        return NSImage(cgImage: image, size: NSSize(width: thumbnail.width, height: thumbnail.height))
+        editor.pageThumbnail(at: index)?.nsImage(in: editor.canvas.colorSpace)
     }
 
     private func footerButton(_ symbol: String, _ label: String, command: String, _ action: @escaping () -> Void) -> some View {

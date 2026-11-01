@@ -139,7 +139,7 @@ extension Editor {
         guard let spec = pendingShapeSpec, pendingShape?.isBuilding == false else { return false }
         if spec.kind.isBoxShape {
             let local = spec.unrotated(point)
-            return spec.box.contains(IntPoint(x: Int(local.x.rounded(.down)), y: Int(local.y.rounded(.down))))
+            return spec.box.contains(IntPoint(containing: local))
         }
         let tolerance = spec.lineWidth / 2 + 4 / viewport.zoom
         if let path = spec.path {

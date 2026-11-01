@@ -24,7 +24,7 @@ public enum PDFWriter {
         var image = image, colorSpace = colorSpace
         let standard = [CGColorSpace.displayP3, CGColorSpace.sRGB].contains { $0 == colorSpace.name }
         if !standard, let displayP3 = CGColorSpace(name: CGColorSpace.displayP3) {
-            image = try ImageCodec.decode(ImageCodec.makeCGImage(image, colorSpace: colorSpace), convertingTo: displayP3).buffer
+            image = try ImageCodec.converted(image, from: colorSpace, to: displayP3)
             colorSpace = displayP3
         }
         let width = image.width, height = image.height

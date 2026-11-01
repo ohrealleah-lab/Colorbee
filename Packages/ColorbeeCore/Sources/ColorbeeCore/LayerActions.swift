@@ -328,11 +328,7 @@ public enum LayerActions {
 
     /// "Layer 1", "Layer 2"… one more than the highest number in use.
     static func nextName(in canvas: Canvas) -> String {
-        let numbers = canvas.layers.compactMap { layer -> Int? in
-            guard layer.name.hasPrefix("Layer ") else { return nil }
-            return Int(layer.name.dropFirst("Layer ".count))
-        }
-        return "Layer \((numbers.max() ?? 0) + 1)"
+        Canvas.nextNumberedName("Layer", among: canvas.layers)
     }
 
     /// A layer step that places a floating piece first.

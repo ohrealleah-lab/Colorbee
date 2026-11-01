@@ -32,22 +32,8 @@ extension SelectionMask {
     /// The mask copied into an area `padding` wider on each side (within the canvas), changed, then trimmed. Inside
     /// the canvas the padding is unselected, so the edge shrinks there; at the canvas's edge there's nothing beyond.
     private func modified(padding: Int, clippedTo canvasBounds: IntRect, _ change: (inout MaskPlane) -> Void) -> SelectionMask? {
-        let area = IntRect(x: bounds.minX - padding, y: bounds.minY - padding, width: bounds.width + 2 * padding,
-                           height: bounds.height + 2 * padding).intersection(canvasBounds)
-        guard !area.isEmpty else { return nil }
-        var plane = MaskPlane(width: area.width, height: area.height)
-        let inside = bounds.intersection(area)
-        if !inside.isEmpty {
-            plane.values.withUnsafeMutableBufferPointer { target in
-                values.withUnsafeBufferPointer { source in
-                    for y in inside.minY..<inside.maxY {
-                        let from = (y - bounds.minY) * bounds.width + inside.minX - bounds.minX
-                        let to = (y - area.minY) * area.width + inside.minX - area.minX
-                        (target.baseAddress! + to).update(from: source.baseAddress! + from, count: inside.width)
-                    }
-                }
-            }
-        }
+        guard let (area, values) = padded(by: padding, clippedTo: canvasBounds) else { return nil }
+        var plane = MaskPlane(width: area.width, height: area.height, values: values)
         change(&plane)
         return SelectionMask(bounds: area, values: plane.values).trimmed()
     }
@@ -71,10 +57,10 @@ private struct MaskPlane {
     let height: Int
     var values: [UInt8]
 
-    init(width: Int, height: Int) {
+    init(width: Int, height: Int, values: [UInt8]? = nil) {
         self.width = width
         self.height = height
-        values = [UInt8](repeating: 0, count: width * height)
+        self.values = values ?? [UInt8](repeating: 0, count: width * height)
     }
 
     /// Each value replaced by the most (growing) or least selected value within `radius`, a round area.

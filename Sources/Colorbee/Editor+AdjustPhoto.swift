@@ -70,7 +70,7 @@ extension Editor {
         guard let purpose = picturePickPurpose, purpose.drags, let pick = picturePick, let edit = currentPhotoEdit(for: pick.target) else {
             return false
         }
-        let center = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let center = IntPoint(containing: point)
         guard let sample = pictureSample(at: center, for: pick.target) else {
             onRefused()
             return true
@@ -140,7 +140,7 @@ extension Editor {
         }
         // The hand takes drags (`beginPictureDrag`), not clicks.
         guard !purpose.drags else { return false }
-        let center = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let center = IntPoint(containing: point)
         guard let sample = pictureSample(at: center, for: pick.target), var changed = currentPhotoEdit(for: pick.target) else {
             onRefused()
             return true

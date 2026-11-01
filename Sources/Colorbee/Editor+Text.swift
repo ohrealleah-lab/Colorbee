@@ -203,7 +203,7 @@ extension Editor {
             let layer = canvas.layers[index]
             guard let text = layer.text, canvas.isShown(layer) else { return false }
             let box = text.isUpright ? TextRenderer.box(for: text.spec) : canvas.bounds
-            return box.contains(IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))))
+            return box.contains(IntPoint(containing: point))
         }
         guard let hit else { return false }
         // The first click of the double-click opened an empty box, or said why it couldn't; both go without a trace.

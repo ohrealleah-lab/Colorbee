@@ -101,10 +101,7 @@ struct HistoryPanel: View {
     }
 
     private func image(for thumbnail: Thumbnail) -> NSImage? {
-        let buffer = PixelBuffer(width: thumbnail.width, height: thumbnail.height)
-        buffer.setPixels(thumbnail.pixels, in: buffer.bounds)
-        guard let cgImage = try? ImageCodec.makeCGImage(buffer, colorSpace: editor.canvas.colorSpace) else { return nil }
-        return NSImage(cgImage: cgImage, size: NSSize(width: thumbnail.width, height: thumbnail.height))
+        thumbnail.nsImage(in: editor.canvas.colorSpace)
     }
 }
 

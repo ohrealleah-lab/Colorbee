@@ -150,6 +150,15 @@ public final class PixelBuffer {
         return result
     }
 
+    /// A new buffer holding `rect` (inside this one), copied a row at a time.
+    func part(_ rect: IntRect) -> PixelBuffer {
+        let result = PixelBuffer(width: rect.width, height: rect.height)
+        for y in 0..<rect.height {
+            result.row(y).update(from: row(rect.minY + y) + rect.minX, count: rect.width)
+        }
+        return result
+    }
+
     /// A hash of the visible pixels, computed in bands on all cores; for telling whether a large buffer
     /// changed. Not the same value as `contentHash()`.
     func fingerprint() -> Int {

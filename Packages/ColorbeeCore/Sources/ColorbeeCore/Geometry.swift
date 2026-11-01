@@ -6,6 +6,11 @@ public struct IntPoint: Hashable, Sendable {
         self.x = x
         self.y = y
     }
+
+    /// The pixel `point` falls in.
+    public init(containing point: Point2D) {
+        self.init(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+    }
 }
 
 public struct IntSize: Hashable, Sendable {

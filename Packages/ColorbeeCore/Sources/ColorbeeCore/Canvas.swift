@@ -551,20 +551,9 @@ public final class Canvas {
         let padded = rect.insetBy(-reach).intersection(bounds)
         // Every layer, hidden ones too, so an adjustment set to "Only the layer below" finds the same layer below.
         let patch = stack.enumerated().map { offset, layer -> Layer in
-            let buffer = PixelBuffer(width: padded.width, height: padded.height)
-            if layer.adjustment == nil {
-                for y in 0..<padded.height {
-                    (buffer.row(y)).update(from: layer.buffer.row(padded.minY + y) + padded.minX, count: padded.width)
-                }
-            }
+            let buffer = layer.adjustment == nil ? layer.buffer.part(padded) : PixelBuffer(width: padded.width, height: padded.height)
             let copy = layer.copy(buffer: buffer)
-            copy.mask = layer.mask.map { mask in
-                let part = PixelBuffer(width: padded.width, height: padded.height)
-                for y in 0..<padded.height {
-                    (part.row(y)).update(from: mask.buffer.row(padded.minY + y) + padded.minX, count: padded.width)
-                }
-                return mask.copy(buffer: part)
-            }
+            copy.mask = layer.mask.map { mask in mask.copy(buffer: mask.buffer.part(padded)) }
             if alone && offset == 0 {
                 copy.isVisible = true
                 copy.opacity = 1

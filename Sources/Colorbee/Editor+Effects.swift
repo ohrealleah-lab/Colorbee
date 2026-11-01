@@ -412,7 +412,7 @@ extension Editor {
     /// A click while picking: that subject, or one found by looking closer around the click, or a beep.
     private func pickSubject(at point: Point2D) {
         guard let pick = subjectPick, !isFindingSubject else { return }
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
+        let pixel = IntPoint(containing: point)
         if let index = pick.scan.subject(at: pixel) {
             subjectPick = nil
             activeEffect = nil

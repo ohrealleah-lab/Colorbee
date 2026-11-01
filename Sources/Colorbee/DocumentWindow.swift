@@ -340,7 +340,7 @@ final class DocumentWindow: NSWindow {
     @objc func pasteInPlace(_ sender: Any?) { paste(inPlace: true) }
 
     private func paste(inPlace: Bool) {
-        guard let editor, let data = Self.imageDataOnPasteboard() else { return }
+        guard let editor, let data = PasteboardImages.imageData() else { return }
         let place = inPlace ? ClipboardImage.place() : nil
         do {
             let decoded = try ImageCodec.decode(data, convertingTo: editor.canvas.colorSpace)
@@ -381,7 +381,7 @@ final class DocumentWindow: NSWindow {
 
     /// Also `AppDelegate`'s, so it works with no window open (review M, finding 1).
     static func openClipboardImage() throws {
-        guard let data = imageDataOnPasteboard() else { return }
+        guard let data = PasteboardImages.imageData() else { return }
         let decoded = try ImageCodec.decode(data)
         let source = ClipboardHistory.shared.add(data)
         ImageDocument.open(Canvas(picture: decoded.buffer, colorSpace: decoded.colorSpace), clipboardSource: source)
@@ -568,7 +568,6 @@ final class DocumentWindow: NSWindow {
         }
     }
 
-    /// Commands that only change the view.
     /// Whether a toggle in the menus is on, or nil for a command that isn't one.
     static func isOn(_ menuItem: NSMenuItem, in editor: Editor) -> Bool? {
         switch menuItem.action {
@@ -589,6 +588,7 @@ final class DocumentWindow: NSWindow {
         }
     }
 
+    /// Commands that only change the view.
     private static let viewingCommands: Set<Selector?> = [
         #selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)), #selector(zoomToFit(_:)),
         #selector(togglePixelGrid(_:)), #selector(toggleRulers(_:)), #selector(toggleStatusBar(_:)), #selector(toggleLayers(_:)),
@@ -607,10 +607,6 @@ final class DocumentWindow: NSWindow {
         #selector(showHueSaturation(_:)), #selector(invertColors(_:)), #selector(desaturate(_:)),
         #selector(removeBackground(_:)), #selector(liftSubject(_:)),
     ]
-
-    private static func imageDataOnPasteboard() -> Data? {
-        PasteboardImages.imageData()
-    }
 }
 
 /// A buffer made for the clipboard and handed to the encoder's thread; nothing else holds it.

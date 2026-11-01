@@ -309,7 +309,6 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
         return (fromFilter + [own]).filter { $0.amount != 0 }
     }
 
-    public var vignetteAmounts: [Double] { vignettes.map(\.amount) }
 
     /// The grains, after the vignettes: the filter's at its intensity, then the panel's own. Zero amounts are left out.
     public var grains: [Grain] {

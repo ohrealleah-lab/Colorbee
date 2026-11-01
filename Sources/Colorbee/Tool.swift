@@ -35,12 +35,4 @@ enum Tool: CaseIterable {
         default: false
         }
     }
-
-    /// Tools that paint while the pointer is dragged.
-    var isStrokeTool: Bool {
-        switch self {
-        case .pencil, .brush, .eraser: true
-        default: false
-        }
-    }
 }

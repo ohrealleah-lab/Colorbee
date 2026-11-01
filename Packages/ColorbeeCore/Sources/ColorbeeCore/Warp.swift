@@ -30,7 +30,6 @@ public enum Warp {
         return IntSize(width: Int((w * c + h * s - 1e-9).rounded(.up)), height: Int((w * s + h * c - 1e-9).rounded(.up)))
     }
 
-    /// `buffer` turned clockwise by `angle` degrees about its center, onto `size` (centered), over `fill`.
     /// Turned clockwise by `angle` degrees about its center into a `size` buffer, with Apple's vImage: about 2.5×
     /// faster than looking up each pixel, with differences too small to see (mean 0.4 of 255; Leah, 2026-10-11,
     /// Docs/GPU-AUDIT.md). Premultiplied, so transparent areas don't darken the edges; outside the original is `fill`.

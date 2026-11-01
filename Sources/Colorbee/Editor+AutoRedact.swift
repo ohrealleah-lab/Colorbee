@@ -6,7 +6,6 @@ import Observation
 extension Editor {
     // MARK: After a redaction (review H, findings 1 and 2)
 
-    /// Clipboard History items this document was pasted from, which still hold the image before redaction.
     /// The Clipboard History items the picture was pasted from, kept with its pages so they're saved and survive a
     /// relaunch (review AA, finding 4).
     private var clipboardSources: Set<ClipboardHistory.Item.ID> { Set(pages.pages.flatMap(\.canvas.pastedFrom)) }

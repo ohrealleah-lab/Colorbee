@@ -14,7 +14,6 @@ enum Theme {
     static let toolbarCapsule = Color(nsColor: dynamic(light: (0, 0, 0, 0.07), dark: (255, 255, 255, 0.1)))
     static let separator = Color(nsColor: dynamic(light: (0, 0, 0, 0.1), dark: (255, 255, 255, 0.1)))
     static let secondaryInk = Color(nsColor: dynamic(light: (0, 0, 0, 0.56), dark: (255, 255, 255, 0.6)))
-    static let tertiaryInk = Color(nsColor: dynamic(light: (0, 0, 0, 0.28), dark: (255, 255, 255, 0.3)))
 
     private static func isDark(_ appearance: NSAppearance) -> Bool {
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

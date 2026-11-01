@@ -122,8 +122,6 @@ extension Editor {
         if case .layer = drag.target { finishLayerSettings() }
     }
 
-    var isDraggingOnPicture: Bool { pictureDrag != nil }
-
     private func currentPhotoEdit(for target: PicturePick.Target) -> PhotoEdit? {
         switch target {
         case .panel: activeEffect == .adjustPhoto ? photoEdit : nil

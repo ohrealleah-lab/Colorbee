@@ -38,7 +38,7 @@ enum MainMenu {
     }
 
     /// Hover text for every command, keyed by its action.
-    private static let tooltips: [String: String] = [
+    static let tooltips: [String: String] = [
         "orderFrontStandardAboutPanel:": "Version and credits.",
         "showHelp:": "How to use Colorbee: guides for the main jobs, and every tool, menu and setting.",
         "showSettings:": "Appearance, PDF resolution, keyboard shortcuts and export presets.",
@@ -512,7 +512,7 @@ final class ExportPresetMenuTitles: NSObject, NSMenuDelegate {
             }
             let presetItem = NSMenuItem(title: title, action: #selector(ImageDocument.exportPreset(_:)), keyEquivalent: "")
             presetItem.tag = index
-            presetItem.toolTip = "Save a PNG at this exact size; the aspect ratio is kept and nothing is enlarged."
+            presetItem.toolTip = MainMenu.tooltips["exportPreset:"]
             menu.addItem(presetItem)
         }
         menu.addItem(.separator())

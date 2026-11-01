@@ -589,11 +589,6 @@ private struct CompareBar: View {
     }
 }
 
-/// Rounds a slider's value to whole numbers. A stepped Slider would do this too, but draws a tick mark for every step.
-private func wholeNumber(_ value: Binding<Double>) -> Binding<Double> {
-    Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0.rounded() })
-}
-
 /// Edit ▸ Feather… and Modify Selection ▸ Expand…, Contract… and Smooth… (FR-3.4, FR-9.7 item 3): by how many pixels,
 /// previewed with a tint over what isn't selected.
 private struct SelectionChangeSheet: View {

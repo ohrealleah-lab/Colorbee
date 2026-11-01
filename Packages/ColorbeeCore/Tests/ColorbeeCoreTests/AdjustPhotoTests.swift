@@ -130,7 +130,7 @@ struct PhotoFilterTests {
     @Test func thereAreNineBuiltInFiltersOfColorAndToneOnly() {
         #expect(PhotoFilter.builtIn.map(\.name) == ["Vivid", "Vivid Warm", "Vivid Cool", "Dramatic", "Dramatic Warm", "Dramatic Cool", "Mono", "Silvertone", "Noir"])
         #expect(PhotoFilter.builtIn.allSatisfy { $0.isBuiltIn && $0.steps.allSatisfy { $0.forFilters == $0 } })
-        #expect(PhotoFilter.builtIn.allSatisfy { PhotoEdit(filter: $0).vignetteAmounts.isEmpty })
+        #expect(PhotoFilter.builtIn.allSatisfy { PhotoEdit(filter: $0).vignettes.map(\.amount).isEmpty })
         let mono = PhotoFilter.builtIn[6].steps(atIntensity: 1)
         let pixel = mono.compactMap(\.colorTransform).reduce(Pixel(r: 200, g: 50, b: 80)) { $1($0) }
         #expect(pixel.r == pixel.g && pixel.g == pixel.b)
@@ -191,8 +191,8 @@ struct PhotoFilterTests {
                                                        .sepia(amount: 30)])
         let edit = PhotoEdit(adjustments: PhotoAdjustments([.vignette: 10]), filter: outer, filterIntensity: 50)
         // Inner's −20 at 50% of 50%, then outer's own 40 at 50%, then the panel's 10.
-        #expect(edit.vignetteAmounts == [-5, 20, 10])
-        #expect(PhotoEdit(filter: outer, filterIntensity: 0).vignetteAmounts.isEmpty)
+        #expect(edit.vignettes.map(\.amount) == [-5, 20, 10])
+        #expect(PhotoEdit(filter: outer, filterIntensity: 0).vignettes.map(\.amount).isEmpty)
     }
 
     @Test func aFiltersVignetteLooksTheSameAsTheSlider() {

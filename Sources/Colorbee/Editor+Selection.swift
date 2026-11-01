@@ -528,7 +528,6 @@ extension Editor {
         }
     }
 
-    /// The selected pixels, or nil when nothing is selected.
     /// Copy Merged: the selection as all visible layers show it together.
     func selectedMergedPixels() -> PixelBuffer? {
         finishInteractions()

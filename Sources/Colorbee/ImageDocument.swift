@@ -415,7 +415,7 @@ final class ImageDocument: NSDocument {
     /// Saves a PNG copy in Application Support (the desktop needs a file that stays put) and shows it on every screen.
     @IBAction func setDesktopPicture(_ sender: Any?) {
         guard let editor else { return }
-        let folder = URL.applicationSupportDirectory.appending(path: "Colorbee/Desktop Pictures", directoryHint: .isDirectory)
+        let folder = SettingsFolder.everyday.appending(path: "Desktop Pictures", directoryHint: .isDirectory)
         let stamp = Date.now.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false)).replacingOccurrences(of: ":", with: ".")
         let url = folder.appending(path: "\((displayName as NSString).deletingPathExtension) \(stamp).png")
         writePNGInBackground(of: editor, to: url) {

@@ -347,7 +347,6 @@ extension Editor {
 
     // MARK: Align and Distribute (stage 24)
 
-    /// The chosen layers with pixels to line up: adjustment layers have none.
     /// The chosen pixel layers, and each chosen group's, a group's moving together (stage 26).
     private var chosenAlignUnits: [LayerAlign.Unit] {
         LayerAlign.units(chosenLayerIDs, in: canvas)
@@ -458,7 +457,6 @@ extension Editor {
         layerSetting("Rename Layer", at: index) { $0.name = trimmed }
     }
 
-    /// An adjustment layer: change only the layer below it, or everything below (Leah, 2026-10-10).
     /// An adjustment layer, or since stage 28b a pixel layer: only on the layer below it, or everything below.
     func setClipsToLayerBelow(_ clips: Bool) {
         guard !canvas.activeLayer.isGroup, !canvas.isLocked(canvas.activeLayer) else { return }

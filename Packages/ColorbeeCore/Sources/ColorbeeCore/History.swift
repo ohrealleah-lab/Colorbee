@@ -863,14 +863,6 @@ final class SpillStore {
         try? FileManager.default.removeItem(at: url)
     }
 
-    func write(_ pixels: [Pixel]) throws -> Location {
-        try append(Self.compress(pixels))
-    }
-
-    func read(_ location: Location, count: Int) throws -> [Pixel] {
-        try Self.decompress(readCompressed(location), count: count)
-    }
-
     static func compress(_ pixels: [Pixel]) throws -> Data {
         let raw = pixels.withUnsafeBytes { Data($0) }
         return try (raw as NSData).compressed(using: .lz4) as Data

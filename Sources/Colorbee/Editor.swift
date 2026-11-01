@@ -390,7 +390,6 @@ final class Editor {
 
     // MARK: Pages (FR-11.6)
 
-    /// What the Editor remembers about a page while another is shown.
     /// What a hidden page goes back to when it's shown: compressed until then.
     struct PageMemory {
         /// Nil until the page has been shown.

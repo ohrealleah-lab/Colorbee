@@ -59,7 +59,6 @@ extension Editor {
                             currentIndex: pages.currentIndex)
     }
 
-    /// More than one layer, or an adjustment layer: something only a project file can keep.
     /// More than one layer, an adjustment layer, or more than one page: something only a project file can keep.
     var isLayered: Bool {
         // A mask too: a picture saved as a PNG would lose it (stage 27).

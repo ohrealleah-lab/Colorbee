@@ -21,7 +21,7 @@ struct FilterStoreTests {
         defer { FilterStore.shared.delete(after.filter?.name ?? "") }
         #expect(after.adjustments == PhotoAdjustments([.sharpness: 25]))
         #expect(after.filter?.steps == [.photo(PhotoEdit(adjustments: PhotoAdjustments([.saturation: 30, .vignette: 60])))])
-        #expect(after.vignetteAmounts == edit.vignetteAmounts)
+        #expect(after.vignettes.map(\.amount) == edit.vignettes.map(\.amount))
     }
 
     @Test func saveAsFilterKeepsTheVignetteShapeAndGrain() {

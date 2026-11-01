@@ -9,9 +9,9 @@ struct ReviewHIJTests {
     /// H5: the spill file can't outlive Colorbee, even after a crash: it's unlinked as soon as it's open.
     @Test func theSpillFileHasNoNameOnDisk() throws {
         let store = try SpillStore()
-        let location = try store.write([Pixel](repeating: Pixel(r: 1, g: 2, b: 3), count: 64))
+        let location = try store.append(SpillStore.compress([Pixel](repeating: Pixel(r: 1, g: 2, b: 3), count: 64)))
         #expect(!FileManager.default.fileExists(atPath: store.path))
-        #expect(try store.read(location, count: 64).first == Pixel(r: 1, g: 2, b: 3))
+        #expect(try SpillStore.decompress(store.readCompressed(location), count: 64).first == Pixel(r: 1, g: 2, b: 3))
     }
 
     /// H7: pixels Remove Background makes fully transparent keep none of their old color.

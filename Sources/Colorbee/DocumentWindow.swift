@@ -110,7 +110,8 @@ final class DocumentWindow: NSWindow {
         // (Leah, 2026-10-05; review K, finding 11).
         let added: @MainActor @Sendable (ClipboardHistory.Item.ID) -> Void = { [weak editor] id in editor?.noteClipboardSource(id) }
         if let selected {
-            let pixels = UnsafePixels(selected)
+            // Made for the clipboard and handed to the encoder's thread; nothing else holds it.
+            let pixels = UnsafeTransfer(selected)
             ClipboardImage.copy(colorSpace: colorSpace, place: place, pixels: { pixels.value }, added: added)
         } else {
             let snapshot = editor.saveSnapshot()
@@ -607,10 +608,4 @@ final class DocumentWindow: NSWindow {
         #selector(showHueSaturation(_:)), #selector(invertColors(_:)), #selector(desaturate(_:)),
         #selector(removeBackground(_:)), #selector(liftSubject(_:)),
     ]
-}
-
-/// A buffer made for the clipboard and handed to the encoder's thread; nothing else holds it.
-private struct UnsafePixels: @unchecked Sendable {
-    let value: PixelBuffer
-    init(_ value: PixelBuffer) { self.value = value }
 }

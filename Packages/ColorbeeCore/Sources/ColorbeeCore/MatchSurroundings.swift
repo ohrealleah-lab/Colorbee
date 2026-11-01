@@ -509,7 +509,8 @@ public enum MatchSurroundings {
             var updated = pixels
             let snapshot = pixels
             updated.withUnsafeMutableBufferPointer { output in
-                let shared = SharedPixels(output: output)
+                // Each band writes only its own pixels.
+                let shared = UnsafeSendable(output)
                 DispatchQueue.concurrentPerform(iterations: MatchSurroundings.bands) { band in
                     for position in bandStarts[band]..<bandStarts[band + 1] {
                         let q = Int(holeIndices[position]), qx = q % width, qy = q / width
@@ -523,7 +524,7 @@ public enum MatchSurroundings {
                                 count += 1
                             }
                         }
-                        if count > 0 { shared.output[q] = sum / count }
+                        if count > 0 { shared.value[q] = sum / count }
                     }
                 }
             }
@@ -544,8 +545,4 @@ public enum MatchSurroundings {
 private struct SharedField: @unchecked Sendable {
     let source: UnsafeMutableBufferPointer<Int32>
     let cost: UnsafeMutableBufferPointer<Float>
-}
-
-private struct SharedPixels: @unchecked Sendable {
-    let output: UnsafeMutableBufferPointer<SIMD4<Float>>
 }

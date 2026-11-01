@@ -92,7 +92,7 @@ final class DevelopSession {
         let developer = developer, settings = settings
         Task {
             let image = await Task.detached(priority: .userInitiated) {
-                developer.preview(settings, maxSide: Self.previewSide).map(UncheckedImage.init)
+                developer.preview(settings, maxSide: Self.previewSide).map(UnsafeTransfer.init)
             }.value
             previewRunning = false
             guard !cancelled else { return }
@@ -110,7 +110,8 @@ final class DevelopSession {
         Task {
             do {
                 let canvas = try await Task.detached(priority: .userInitiated) {
-                    UncheckedCanvas(value: try developer.develop(settings))
+                    // Made in the background and handed to the main thread, which then owns it alone.
+                    UnsafeTransfer(try developer.develop(settings))
                 }.value
                 guard !cancelled else { return }
                 ImageDocument.open(canvas.value, name: developer.url.deletingPathExtension().lastPathComponent,
@@ -127,15 +128,6 @@ final class DevelopSession {
     func cancel() {
         cancelled = true
     }
-}
-
-private struct UncheckedImage: @unchecked Sendable {
-    let value: CGImage
-}
-
-/// A canvas made in the background and handed to the main thread, which then owns it alone.
-private struct UncheckedCanvas: @unchecked Sendable {
-    let value: ColorbeeCore.Canvas
 }
 
 private struct DevelopView: View {

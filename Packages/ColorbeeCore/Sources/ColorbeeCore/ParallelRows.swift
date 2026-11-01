@@ -38,7 +38,9 @@ extension ParallelRows {
     }
 }
 
-private struct UnsafeSendable<Value>: @unchecked Sendable {
+/// Hands a value to the cores of a parallel loop. The one place thread safety rests on what the caller says: each use
+/// says why the cores never write the same memory, or only read it.
+struct UnsafeSendable<Value>: @unchecked Sendable {
     let value: Value
     init(_ value: Value) { self.value = value }
 }

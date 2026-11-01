@@ -30,7 +30,8 @@ final class ClipboardImage: NSObject, NSPasteboardItemDataProvider, @unchecked S
         pasteboard.clearContents()
         pasteboard.writeObjects([item])
         current = image
-        let space = UnsafeColorSpace(colorSpace)
+        // Core Graphics color spaces are immutable, so handing one to the encoder's thread is safe.
+        let space = UnsafeTransfer(colorSpace)
         DispatchQueue.global(qos: .userInitiated).async {
             let png = pixels().flatMap { try? ImageCodec.encodePNG($0, colorSpace: space.value) }
             image.finish(with: png)
@@ -66,10 +67,4 @@ final class ClipboardImage: NSObject, NSPasteboardItemDataProvider, @unchecked S
         condition.unlock()
         if let data { item.setData(data, forType: type) }
     }
-}
-
-/// Core Graphics color spaces are immutable, so handing one to the encoder's thread is safe.
-private struct UnsafeColorSpace: @unchecked Sendable {
-    let value: CGColorSpace
-    init(_ value: CGColorSpace) { self.value = value }
 }

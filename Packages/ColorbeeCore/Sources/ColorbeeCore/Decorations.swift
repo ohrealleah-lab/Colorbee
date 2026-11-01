@@ -234,20 +234,21 @@ struct Shape {
             }
         }
         squared.withUnsafeMutableBufferPointer { grid in
-            let grid = UnsafeSendableGrid(grid)
+            // Each band touches only its own lines.
+            let grid = UnsafeSendable(grid.baseAddress!)
             ParallelRows.forEach(0..<width, minimumRows: 8) { columns in
                 var line = [Float](repeating: 0, count: height)
                 for x in columns {
-                    for y in 0..<height { line[y] = grid.base[y * width + x] }
+                    for y in 0..<height { line[y] = grid.value[y * width + x] }
                     let result = Self.transform(line)
-                    for y in 0..<height { grid.base[y * width + x] = result[y] }
+                    for y in 0..<height { grid.value[y * width + x] = result[y] }
                 }
             }
             ParallelRows.forEach(0..<height, minimumRows: 8) { rows in
                 for y in rows {
-                    let line = Array(UnsafeBufferPointer(start: grid.base + y * width, count: width))
+                    let line = Array(UnsafeBufferPointer(start: grid.value + y * width, count: width))
                     let result = Self.transform(line)
-                    for x in 0..<width { grid.base[y * width + x] = result[x].squareRoot() }
+                    for x in 0..<width { grid.value[y * width + x] = result[x].squareRoot() }
                 }
             }
         }
@@ -297,10 +298,4 @@ struct Field {
         guard x >= bounds.minX, x < bounds.maxX, y >= bounds.minY, y < bounds.maxY else { return outside }
         return values[(y - bounds.minY) * bounds.width + (x - bounds.minX)]
     }
-}
-
-/// Lets the distance transform's column and row passes share the grid; each band touches only its own lines.
-private struct UnsafeSendableGrid: @unchecked Sendable {
-    let base: UnsafeMutablePointer<Float>
-    init(_ buffer: UnsafeMutableBufferPointer<Float>) { base = buffer.baseAddress! }
 }

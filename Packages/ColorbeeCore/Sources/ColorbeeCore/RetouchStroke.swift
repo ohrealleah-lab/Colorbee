@@ -453,7 +453,8 @@ public enum ToneMatch {
     private static func relax(_ level: inout Level, passes: Int, overRelaxation: Float = 1) {
         let width = level.width, height = level.height, cells = level.cells, cellAt = level.cellAt, known = level.known
         level.values.withUnsafeMutableBufferPointer { buffer in
-            let values = UnsafeSendableValues(buffer)
+            // Each pass writes only the pixels of one color, reading the other's.
+            let values = UnsafeSendable(buffer.baseAddress!)
             for _ in 0..<passes {
                 for color in 0..<2 {
                     ParallelRows.forEach(0..<cells.count, minimumRows: 4096) { range in
@@ -461,11 +462,11 @@ public enum ToneMatch {
                             let index = Int(cells[cell]), x = index % width, y = index / width
                             guard (x + y) & 1 == color else { continue }
                             var sum = SIMD4<Float>.zero, count: Float = 0
-                            if x + 1 < width, case let n = cellAt[index + 1], n >= 0 { sum += values.base[Int(n)]; count += 1 }
-                            if x > 0, case let n = cellAt[index - 1], n >= 0 { sum += values.base[Int(n)]; count += 1 }
-                            if y + 1 < height, case let n = cellAt[index + width], n >= 0 { sum += values.base[Int(n)]; count += 1 }
-                            if y > 0, case let n = cellAt[index - width], n >= 0 { sum += values.base[Int(n)]; count += 1 }
-                            if count > 0 { values.base[cell] += (sum / count - values.base[cell]) * overRelaxation }
+                            if x + 1 < width, case let n = cellAt[index + 1], n >= 0 { sum += values.value[Int(n)]; count += 1 }
+                            if x > 0, case let n = cellAt[index - 1], n >= 0 { sum += values.value[Int(n)]; count += 1 }
+                            if y + 1 < height, case let n = cellAt[index + width], n >= 0 { sum += values.value[Int(n)]; count += 1 }
+                            if y > 0, case let n = cellAt[index - width], n >= 0 { sum += values.value[Int(n)]; count += 1 }
+                            if count > 0 { values.value[cell] += (sum / count - values.value[cell]) * overRelaxation }
                         }
                     }
                 }
@@ -489,11 +490,4 @@ public enum ToneMatch {
             layer.buffer[x, y] = Pixel(r: UInt8(clamped.x), g: UInt8(clamped.y), b: UInt8(clamped.z), a: p.a)
         }
     }
-}
-
-/// Lets `ToneMatch.relax` share the values across cores; each pass writes only the pixels of one color, reading the
-/// other's.
-private struct UnsafeSendableValues: @unchecked Sendable {
-    let base: UnsafeMutablePointer<SIMD4<Float>>
-    init(_ buffer: UnsafeMutableBufferPointer<SIMD4<Float>>) { base = buffer.baseAddress! }
 }

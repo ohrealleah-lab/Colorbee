@@ -201,7 +201,10 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   the hosted test app, on small pictures: `MonkeyGenerator` picks steps (`MonkeyStep`, data, so they replay exactly),
   `MonkeyRules` checks the document after each and saving at the end, and `UndoTracker` checks that every undo and redo
   gives back the exact picture recorded for that point in history and that no picture change bypasses history.
-  Failures are grouped by rule and step kind and shrunk by removing steps one at a time. `aShortRunBreaksNoRules` runs
+  Failures are grouped by rule and step kind and shrunk by removing steps one at a time. Since 2026-11-01 it also
+  adds, deletes, moves and switches pages, runs Batch Redact previews (applied or cancelled) and Auto-Redact (waiting
+  for its background reading), saves and reopens mid-way and carries on in the copy, and makes Adjust Photo layers
+  directly (never through Apply, which remembers "last used"). After a page change, undo is checked only for working. `aShortRunBreaksNoRules` runs
   four short episodes in every `make test`. Nothing that saves preferences, uses the clipboard or runs in the background
   is included.
 - Stages 29 and 30 (2026-10-31): text layers. `Layer.text` (`TextLayer`: a `TextSpec` laid out upright, plus quarter

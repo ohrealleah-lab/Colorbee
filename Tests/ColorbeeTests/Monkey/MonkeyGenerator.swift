@@ -23,9 +23,13 @@ enum MonkeyGenerator {
         func color() -> Pixel {
             Pixel(r: UInt8(random.int(0...255)), g: UInt8(random.int(0...255)), b: UInt8(random.int(0...255)), a: random.chance(0.2) ? UInt8(random.int(40...255)) : 255)
         }
+        // Only what the slider allows: some run from 0, others from -100.
+        func sliderValue(_ slider: PhotoAdjustments.Slider) -> Double {
+            Double(random.int(Int(max(-60, slider.range.lowerBound))...Int(min(60, slider.range.upperBound))))
+        }
         func words() -> String { random.pick(["Hi", "Step 2", "Look here", "API key", "OK", "x"]) }
 
-        let roll = random.int(0..<100)
+        let roll = random.int(0..<112)
         switch roll {
         case 0..<16:
             return .stroke(tool: random.pick([.brush, .brush, .pencil, .eraser]), brush: random.pick(Brush.allCases), size: Double(random.int(1...20)),
@@ -88,7 +92,21 @@ enum MonkeyGenerator {
         case 89: return .goToSnapshot(random.int(0..<10))
         case 90..<96: return .undo
         case 96..<99: return .redo
-        default: return .undoOnActiveLayer
+        case 99: return .undoOnActiveLayer
+        case 100: return .newPage
+        case 101: return .duplicatePage
+        case 102: return .deletePage
+        case 103..<105: return .showPage(random.int(0..<4))
+        case 105: return .movePage(from: random.int(0..<4), to: random.int(0..<4))
+        case 106: return .batchRedact(blur: random.chance(0.5), apply: random.chance(0.6))
+        case 107: return .autoRedact
+        case 108: return .saveAndReopen
+        case 109..<111:
+            let slider = random.pick(PhotoAdjustments.Slider.allCases)
+            return .photoLayer(slider, sliderValue(slider))
+        default:
+            let slider = random.pick(PhotoAdjustments.Slider.allCases)
+            return .photoSetting(slider, sliderValue(slider))
         }
     }
 }

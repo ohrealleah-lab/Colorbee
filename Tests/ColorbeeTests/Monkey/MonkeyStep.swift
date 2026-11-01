@@ -58,6 +58,22 @@ enum MonkeyStep: CustomStringConvertible {
     case undo
     case redo
     case undoOnActiveLayer
+    // Pages (FR-11.6), where lost work would hurt most.
+    case newPage
+    case duplicatePage
+    case deletePage
+    case showPage(Int)
+    case movePage(from: Int, to: Int)
+    /// Batch Redact ▸ Blur… or Pixelate… on the selection, applied or cancelled after its preview.
+    case batchRedact(blur: Bool, apply: Bool)
+    /// Auto-Redact: reads the picture in the background, then applies what it found.
+    case autoRedact
+    /// Saves the project and carries on in the reopened copy (`MonkeyEpisode.drive` does it).
+    case saveAndReopen
+    /// An Adjust Photo layer made directly, so nothing is saved as "last used".
+    case photoLayer(PhotoAdjustments.Slider, Double)
+    /// A new setting on the active Adjust Photo layer.
+    case photoSetting(PhotoAdjustments.Slider, Double)
 
     /// A short name for grouping failures: the same rule broken by the same kind of step counts once.
     var kind: String { String(describing: self).split(separator: "(").first.map(String.init) ?? "" }
@@ -124,12 +140,23 @@ enum MonkeyStep: CustomStringConvertible {
         case .undo: return "Undo"
         case .redo: return "Redo"
         case .undoOnActiveLayer: return "Undo on Active Layer"
+        case .newPage: return "Page > New Page"
+        case .duplicatePage: return "Page > Duplicate Page"
+        case .deletePage: return "Page > Delete Page"
+        case let .showPage(index): return "Show page \(index + 1)"
+        case let .movePage(from, to): return "Drag page \(from + 1) to place \(to + 1)"
+        case let .batchRedact(blur, apply):
+            return "Batch Redact > \(blur ? "Blur" : "Pixelate")…, then \(apply ? "Apply" : "Cancel")"
+        case .autoRedact: return "Auto-Redact, then Apply"
+        case .saveAndReopen: return "Save, close and reopen"
+        case let .photoLayer(slider, value): return "New Adjust Photo layer with \(slider.title) \(Int(value))"
+        case let .photoSetting(slider, value): return "Set the Adjust Photo layer's \(slider.title) to \(Int(value))"
         }
     }
 
     /// Does the step to `editor`.
     @MainActor
-    func perform(on editor: Editor) {
+    func perform(on editor: Editor) async {
         let layers = editor.canvas.layers.count
         func layer(_ index: Int) -> Int { ((index % layers) + layers) % layers }
         switch self {
@@ -263,6 +290,46 @@ enum MonkeyStep: CustomStringConvertible {
         case .undo: editor.undo()
         case .redo: editor.redo()
         case .undoOnActiveLayer: editor.undoOnActiveLayer()
+        case .newPage:
+            guard editor.pages.pages.count < 4 else { return }
+            editor.newPage()
+        case .duplicatePage:
+            guard editor.pages.pages.count < 4 else { return }
+            editor.duplicatePage()
+        case .deletePage: editor.deletePage()
+        case let .showPage(index): editor.showPage(at: index % editor.pages.pages.count)
+        case let .movePage(from, to):
+            let count = editor.pages.pages.count
+            guard count > 1 else { return }
+            editor.movePage(from: from % count, to: to % count)
+        case let .batchRedact(blur, apply):
+            guard editor.hasSelection else { return }
+            editor.beginBatchRedact(blur ? .gaussianBlur : .pixelate)
+            if apply {
+                editor.applyEffect()
+            } else {
+                editor.cancelEffect()
+            }
+        case .autoRedact:
+            editor.beginAutoRedact()
+            // Reading happens in the background; wait for it, a few seconds at most.
+            for _ in 0..<400 where editor.autoRedact?.isReading == true {
+                try? await Task.sleep(for: .milliseconds(25))
+            }
+            if let session = editor.autoRedact, !session.isReading, session.problem == nil {
+                editor.applyAutoRedact()
+                for _ in 0..<400 where editor.autoRedact != nil {
+                    try? await Task.sleep(for: .milliseconds(25))
+                }
+            }
+            if editor.autoRedact != nil { editor.cancelAutoRedact() }
+        case .saveAndReopen: break
+        case let .photoLayer(slider, value):
+            editor.addAdjustmentLayer(.photo(PhotoEdit(adjustments: PhotoAdjustments([slider: value]))), named: "Adjust Photo")
+        case let .photoSetting(slider, value):
+            guard case .photo(var edit) = editor.canvas.activeLayer.adjustment else { return }
+            edit.adjustments = PhotoAdjustments([slider: value])
+            editor.setAdjustment(.photo(edit))
         }
     }
 }

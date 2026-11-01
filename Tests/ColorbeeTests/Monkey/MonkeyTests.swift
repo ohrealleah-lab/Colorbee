@@ -16,13 +16,13 @@ struct MonkeyTests {
     static let maxFailures = 20
 
     /// A few short episodes on every `make test`, so the monkey itself keeps working and today's code breaks no rule.
-    @Test func aShortRunBreaksNoRules() {
+    @Test func aShortRunBreaksNoRules() async {
         for seed in UInt64(1)...4 {
             var episode = MonkeyEpisode.random(seed: seed)
             do {
-                try episode.explore(count: 40)
+                try await episode.explore(count: 40)
             } catch {
-                let (shrunk, failure) = Self.shrink(episode, failure: error)
+                let (shrunk, failure) = await Self.shrink(episode, failure: error)
                 Issue.record(Comment(rawValue: Self.describe(shrunk, failure: failure)))
             }
         }
@@ -45,13 +45,13 @@ struct MonkeyTests {
             try? "Episode seed \(seed) was running. Replay it with: make monkey SEED=\(seed) EPISODES=1\n".write(to: inProgress, atomically: true, encoding: .utf8)
             var episode = MonkeyEpisode.random(seed: seed)
             do {
-                try episode.explore(count: Self.stepsPerEpisode)
+                try await episode.explore(count: Self.stepsPerEpisode)
             } catch {
                 let key = error.failure.rule + " · " + (episode.steps.prefix(error.steps).last?.kind ?? "")
                 if let index = found.firstIndex(where: { $0.key == key }) {
                     found[index].count += 1
                 } else {
-                    let (shrunk, failure) = Self.shrink(episode, failure: error)
+                    let (shrunk, failure) = await Self.shrink(episode, failure: error)
                     found.append((key, 1, Self.describe(shrunk, failure: failure)))
                     Self.writeReport(found: found, episodes: episodes + 1, steps: steps + episode.steps.count, started: started, finished: nil, to: folder)
                 }
@@ -68,7 +68,7 @@ struct MonkeyTests {
 
     /// The fewest steps that still break the same rule: everything after the failure goes, then each step that isn't
     /// needed, one at a time from the end.
-    static func shrink(_ episode: MonkeyEpisode, failure: MonkeyFailureAt, tries: Int = 150) -> (MonkeyEpisode, MonkeyFailureAt) {
+    static func shrink(_ episode: MonkeyEpisode, failure: MonkeyFailureAt, tries: Int = 150) async -> (MonkeyEpisode, MonkeyFailureAt) {
         var best = episode
         best.steps = Array(episode.steps.prefix(failure.steps))
         var bestFailure = failure
@@ -79,7 +79,7 @@ struct MonkeyTests {
             candidate.steps.remove(at: index)
             attempts += 1
             do {
-                try candidate.run()
+                try await candidate.run()
             } catch where error.failure.rule == failure.failure.rule {
                 best = candidate
                 best.steps = Array(candidate.steps.prefix(error.steps))

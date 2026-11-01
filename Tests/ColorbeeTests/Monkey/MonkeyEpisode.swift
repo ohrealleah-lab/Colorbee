@@ -48,20 +48,35 @@ struct MonkeyEpisode {
     var start: String { "A new \(width) × \(height) picture, background \(String(format: "#%02X%02X%02X", background.r, background.g, background.b))." }
 
     func makeEditor() -> Editor {
-        let editor = Colorbee.Editor(canvas: Canvas(size: IntSize(width: width, height: height), colorSpace: Canvas.defaultColorSpace, background: background))
-        // Settings that are saved for real are set here directly, never through the controls that save them.
+        Self.settled(Colorbee.Editor(canvas: Canvas(size: IntSize(width: width, height: height), colorSpace: Canvas.defaultColorSpace, background: background)))
+    }
+
+    /// Settings that are saved for real are set here directly, never through the controls that save them.
+    private static func settled(_ editor: Editor) -> Editor {
         editor.textIsEditable = false
         editor.smoothing = 0
         return editor
     }
 
+    /// The project saved and opened again, as `ImageDocument` reads one: the page shown is unparked, the rest wait.
+    private static func reopened(_ editor: Editor) throws(MonkeyFailure) -> Editor {
+        do {
+            let (stored, current) = try ProjectFile.storedPages(try editor.encodedProject())
+            let pages = try stored.map { try Page(stored: $0, history: Editor.makeHistory()) }
+            try pages[current].unpark()
+            return settled(Editor(pages: PageStack(pages: pages, currentIndex: current)))
+        } catch {
+            throw MonkeyFailure(rule: "Saving or reopening a project failed", detail: "\(error)")
+        }
+    }
+
     /// Chooses `count` random steps as it goes, from what the document has, checking the rules after each. On a broken
     /// rule, `steps` holds the steps up to it.
-    mutating func explore(count: Int) throws(MonkeyFailureAt) {
+    mutating func explore(count: Int) async throws(MonkeyFailureAt) {
         var random = MonkeyRandom(seed: seed &* 31 &+ 7)
         var chosen: [MonkeyStep] = []
         defer { steps = chosen }
-        try Self.drive(makeEditor(), finishing: true) { editor in
+        try await Self.drive(makeEditor(), finishing: true) { editor in
             guard chosen.count < count else { return nil }
             let step = MonkeyGenerator.step(&random, editor: editor)
             chosen.append(step)
@@ -70,21 +85,37 @@ struct MonkeyEpisode {
     }
 
     /// Does the steps again, as they were, checking the rules after each.
-    func run() throws(MonkeyFailureAt) {
+    func run() async throws(MonkeyFailureAt) {
         var next = steps.makeIterator()
-        try Self.drive(makeEditor(), finishing: true) { _ in next.next() }
+        try await Self.drive(makeEditor(), finishing: true) { _ in next.next() }
     }
 
-    private static func drive(_ editor: Editor, finishing: Bool, next: (Editor) -> MonkeyStep?) throws(MonkeyFailureAt) {
+    private static func drive(_ start: Editor, finishing: Bool, next: (Editor) -> MonkeyStep?) async throws(MonkeyFailureAt) {
+        var editor = start
         var tracker = UndoTracker(editor: editor)
         var done = 0
         while let step = next(editor) {
             let before = (revision: editor.history.revision, undoCount: editor.history.undoCount)
-            step.perform(on: editor)
+            let canvas = editor.canvas
+            await step.perform(on: editor)
             done += 1
             do {
+                if case .saveAndReopen = step {
+                    // Carry on in the reopened copy, which must hold what was saved (the save places what's open).
+                    editor.placePendingObjects()
+                    let copy = try reopened(editor)
+                    try MonkeyRules.checkSame(editor.canvas, copy.canvas, pages: (editor.pages.pages.count, copy.pages.pages.count))
+                    editor = copy
+                    tracker.restart(on: editor, pagesTouched: true)
+                    continue
+                }
                 try MonkeyRules.checkDocument(editor)
-                try tracker.note(step, before: before)
+                if editor.canvas !== canvas {
+                    // Another page is shown: its own history, so the line starts again there.
+                    tracker.restart(on: editor, pagesTouched: true)
+                } else {
+                    try tracker.note(step, before: before)
+                }
             } catch {
                 throw MonkeyFailureAt(failure: error, steps: done)
             }
@@ -109,7 +140,9 @@ struct MonkeyFailureAt: Error {
 /// What the document held at each place in history, so undo and redo can be checked against it.
 @MainActor
 struct UndoTracker {
-    let editor: Editor
+    private(set) var editor: Editor
+    /// Pages were added, switched or reopened: undo can then cross pages, so the end only checks that it works.
+    private var pagesTouched = false
     /// The document at each undo count along the current line of history; nil where it can't be known.
     private var line: [[String]?]
 
@@ -159,8 +192,17 @@ struct UndoTracker {
         }
     }
 
-    /// At the end: undo all the way back, checking each picture, then redo all the way, likewise.
+    /// Starts again on `editor`'s shown page, as nothing on it can be checked against what came before.
+    mutating func restart(on editor: Editor, pagesTouched: Bool) {
+        self.editor = editor
+        self.pagesTouched = self.pagesTouched || pagesTouched
+        line = Array(repeating: nil, count: editor.history.undoCount) + [editor.documentState]
+    }
+
+    /// At the end: undo all the way back, checking each picture, then redo all the way, likewise. Across pages, only
+    /// that every undo and redo does something.
     func undoAndRedoEverything() throws(MonkeyFailure) {
+        if pagesTouched { return try undoAndRedoAcrossPages() }
         let history = editor.history
         let end = history.undoCount
         var guardSteps = 0
@@ -188,6 +230,21 @@ struct UndoTracker {
             if line.indices.contains(now), let want = line[now], want != editor.documentState {
                 throw MonkeyFailure(rule: "Redoing everything didn't give back each picture",
                                     detail: "Redoing \(name), to step \(now): " + Self.difference(want, editor.documentState))
+            }
+        }
+    }
+
+    private func undoAndRedoAcrossPages() throws(MonkeyFailure) {
+        for redoing in [false, true] {
+            for _ in 0..<10_000 {
+                guard let name = redoing ? editor.redoActionName : editor.undoActionName else { break }
+                let canvas = editor.canvas, count = editor.history.undoCount
+                if redoing { editor.redo() } else { editor.undo() }
+                guard editor.canvas !== canvas || editor.history.undoCount != count
+                        || (redoing ? editor.redoActionName : editor.undoActionName) != name else {
+                    throw MonkeyFailure(rule: "\(redoing ? "Redo" : "Undo") stopped working", detail: "\(name) did nothing, across pages.")
+                }
+                try MonkeyRules.checkDocument(editor)
             }
         }
     }

@@ -55,6 +55,22 @@ enum MonkeyRules {
         return words
     }
 
+    /// A project reopened mid-way holds what was saved: as many pages, and the shown one with the same layers.
+    static func checkSame(_ saved: Canvas, _ reopened: Canvas, pages: (Int, Int)) throws(MonkeyFailure) {
+        guard pages.0 == pages.1 else {
+            throw MonkeyFailure(rule: "A saved project reopens with different pages", detail: "\(pages.1) pages came back, not \(pages.0).")
+        }
+        let floatingOn = saved.selection.floating?.layerID
+        let before = saved.layers.map { state(of: $0, pixels: $0.id != floatingOn && $0.mask?.id != floatingOn) }
+        let after = reopened.layers.map { state(of: $0, pixels: $0.id != floatingOn && $0.mask?.id != floatingOn) }
+        guard reopened.flattened().contentHash() == saved.flattened().contentHash() else {
+            throw MonkeyFailure(rule: "A saved project reopens looking different", detail: "The page shown came back looking different.")
+        }
+        guard before == after else {
+            throw MonkeyFailure(rule: "A saved project reopens with different layers", detail: "The page shown came back with different layers.")
+        }
+    }
+
     /// At the end: a saved project reopens the same, and the thumbnail matches the export.
     static func checkSaving(_ editor: Editor) throws(MonkeyFailure) {
         editor.placePendingObjects()
@@ -66,6 +82,9 @@ enum MonkeyRules {
         let sketched = canvas.shownLayers.contains { layer in
             guard let adjustment = layer.adjustment else { return false }
             if case .posterize = adjustment { return true }
+            // Adjust Photo's detail and vignette are left out of thumbnails by design (stage 15).
+            if case .photo(let edit) = adjustment,
+               [.sharpness, .definition, .texture, .noiseReduction, .vignette, .grain].contains(where: { edit.adjustments[$0] != 0 }) { return true }
             return adjustment.colorTransform == nil
         }
         if !sketched {

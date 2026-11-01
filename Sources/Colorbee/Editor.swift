@@ -62,6 +62,12 @@ struct DragModifiers {
 }
 
 /// Per-document editing state: the canvas, its history, tool settings and the view mapping.
+/// The monkey test sets a tiny history budget for its own episodes, so history spills to disk as a long session's
+/// would. Task-local, so other tests running alongside keep the real one.
+enum HistoryBudget {
+    @TaskLocal static var forTests: Int?
+}
+
 @MainActor
 @Observable
 final class Editor {
@@ -446,7 +452,7 @@ final class Editor {
     @ObservationIgnored var savedGeometrySteps: [ObjectIdentifier] = []
 
     nonisolated private static var historyByteBudget: Int {
-        Int(min(UInt64(512 << 20), ProcessInfo.processInfo.physicalMemory / 10))
+        HistoryBudget.forTests ?? Int(min(UInt64(512 << 20), ProcessInfo.processInfo.physicalMemory / 10))
     }
 
     // MARK: Painting

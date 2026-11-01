@@ -211,7 +211,13 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   Failures are grouped by rule and step kind and shrunk by removing steps one at a time. Since 2026-11-01 it also
   adds, deletes, moves and switches pages, runs Batch Redact previews (applied or cancelled) and Auto-Redact (waiting
   for its background reading), saves and reopens mid-way and carries on in the copy, and makes Adjust Photo layers
-  directly (never through Apply, which remembers "last used"). After a page change, undo is checked only for working. `aShortRunBreaksNoRules` runs
+  directly (never through Apply, which remembers "last used"). After a page change, undo is checked only for working.
+  Since 2026-11-01 evening (the gaps review's top five, `Docs/Review/monkey-gaps.md`): after a real redaction, no
+  words of a redacted text layer survive in a layer or mask name or the saved project (R1); Forget History leaves
+  nothing to undo, redo or go back to (R1b); a page left and shown again, or saved and reopened, is as it was (R2); a
+  floating piece comes back exactly with undo and redo (R3); every other episode's history has a 256 KB budget, so it
+  spills (R6, through the task-local `HistoryBudget.forTests`); autosaves are encoded in the background while editing
+  goes on (R5); and it uses the Retouch tools, waiting for their background work (C1). `aShortRunBreaksNoRules` runs
   four short episodes in every `make test`. Nothing that saves preferences, uses the clipboard or runs in the background
   is included.
 - Stages 29 and 30 (2026-10-31): text layers. `Layer.text` (`TextLayer`: a `TextSpec` laid out upright, plus quarter

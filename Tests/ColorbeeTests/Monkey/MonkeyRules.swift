@@ -50,6 +50,66 @@ enum MonkeyRules {
         }
     }
 
+    /// After a redaction (monkey gaps, R1): no layer it changed is still a text layer or carries those words in its name or
+    /// its mask's, and the saved project holds them nowhere unless a layer it didn't touch still does.
+    static func checkNothingLeft(_ editor: Editor, redacted: [Layer], words: [LayerID: String]) throws(MonkeyFailure) {
+        let canvas = editor.canvas
+        var gone: [String] = []
+        for layer in redacted {
+            guard let text = words[layer.id], text.count >= 2 else { continue }
+            if layer.text != nil {
+                throw MonkeyFailure(rule: "A redacted text layer kept its words", detail: "\"\(layer.name)\" is still a text layer.")
+            }
+            if layer.name.contains(text) || layer.mask?.name.contains(text) == true {
+                throw MonkeyFailure(rule: "Redacted words survive in a layer's name", detail: "\"\(layer.name)\" still names \"\(text)\".")
+            }
+            gone.append(text)
+        }
+        let kept = canvas.layers.flatMap { [$0.name, $0.mask?.name ?? "", $0.text?.spec.text ?? ""] }
+        let lost = gone.filter { text in text.count >= 4 && !kept.contains { $0.contains(text) } }
+        guard !lost.isEmpty else { return }
+        let data: Data
+        do { data = try ProjectFile.encode(canvas) } catch { return }
+        for text in lost where data.range(of: Data(text.utf8)) != nil {
+            throw MonkeyFailure(rule: "Redacted words survive in the saved project", detail: "\"\(text)\" is still in the file.")
+        }
+    }
+
+    /// After Forget History (monkey gaps, R1b): no page can undo, redo or go to a snapshot, and the picture is as it was.
+    static func checkForgotten(_ editor: Editor, before: [String]?) throws(MonkeyFailure) {
+        for (index, page) in editor.pages.pages.enumerated() {
+            let history = page.history
+            guard history.undoCount == 0, history.redoActionName == nil, history.snapshots.isEmpty else {
+                throw MonkeyFailure(rule: "Forget History left something behind",
+                                    detail: "Page \(index + 1) can still undo, redo or go to a snapshot.")
+            }
+        }
+        if let before, before != layerStates(of: editor.canvas, floatingOn: nil) {
+            throw MonkeyFailure(rule: "Forget History changed the picture", detail: UndoTracker.difference(before, layerStates(of: editor.canvas, floatingOn: nil)))
+        }
+    }
+
+    /// The size, then each layer's state with its id; a layer a piece floats on (or whose mask it floats on) without its
+    /// pixels, since saving stamps the piece in.
+    static func layerStates(of canvas: Canvas, floatingOn: LayerID?) -> [String] {
+        ["\(canvas.size.width) × \(canvas.size.height)"] + canvas.layers.map { layer in
+            state(of: layer, pixels: floatingOn == nil || (layer.id != floatingOn && layer.mask?.id != floatingOn)) + "|\(layer.id.rawValue)"
+        }
+    }
+
+    /// The marquee or floating piece, as text (monkey gaps, R3): a floating piece's pixels live only here until placed.
+    static func selectionState(of canvas: Canvas) -> String {
+        if let floating = canvas.selection.floating {
+            return "a floating piece on layer \(floating.layerID.rawValue) at \(floating.destination), pixels \(floating.pixels.contentHash())"
+        }
+        guard let mask = canvas.selection.marquee else { return "no selection" }
+        var hasher = Hasher()
+        for y in mask.bounds.minY..<mask.bounds.maxY {
+            for x in mask.bounds.minX..<mask.bounds.maxX { hasher.combine(mask[x, y]) }
+        }
+        return "a marquee over \(mask.bounds), \(hasher.finalize())"
+    }
+
     /// A layer's pixels, mask and settings, as text, for comparing.
     static func state(of layer: Layer, pixels: Bool) -> String {
         var words = "\(layer.name)|\(layer.isVisible)|\(layer.opacity)|\(layer.blendMode.rawValue)|\(layer.isLocked)|\(layer.locksTransparency)"

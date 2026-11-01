@@ -74,6 +74,12 @@ enum MonkeyStep: CustomStringConvertible {
     case photoLayer(PhotoAdjustments.Slider, Double)
     /// A new setting on the active Adjust Photo layer.
     case photoSetting(PhotoAdjustments.Slider, Double)
+    /// Takes a save copy now and writes it in the background a few steps later, as autosave does (`MonkeyEpisode.drive`).
+    case saveInBackground
+    /// Edit > Forget History: nothing can bring an earlier picture back.
+    case forgetHistory
+    /// A Retouch tool along a path; the Clone Stamp copies from `source`. Remove and Spot Heal land in the background.
+    case retouch(RetouchKind, points: [Point2D], source: Point2D)
 
     /// Redacts, so it must leave no History Snapshots on the page it changed (Leah, 2026-11-01). The monkey always
     /// answers the question with Delete Snapshots and Redact.
@@ -160,6 +166,11 @@ enum MonkeyStep: CustomStringConvertible {
         case .saveAndReopen: return "Save, close and reopen"
         case let .photoLayer(slider, value): return "New Adjust Photo layer with \(slider.title) \(Int(value))"
         case let .photoSetting(slider, value): return "Set the Adjust Photo layer's \(slider.title) to \(Int(value))"
+        case .saveInBackground: return "Autosave in the background while editing goes on"
+        case .forgetHistory: return "Edit > Forget History"
+        case let .retouch(kind, points, source):
+            let from = kind == .cloneStamp ? ", copying from (\(Int(source.x)), \(Int(source.y)))" : ""
+            return "Retouch > \(kind.name) through \(points.map { "(\(Int($0.x.rounded())), \(Int($0.y.rounded())))" }.joined(separator: ", "))\(from)"
         }
     }
 
@@ -335,7 +346,25 @@ enum MonkeyStep: CustomStringConvertible {
                 }
             }
             if editor.autoRedact != nil { editor.cancelAutoRedact() }
-        case .saveAndReopen: break
+        case .saveAndReopen, .saveInBackground: break
+        case .forgetHistory: editor.forgetHistory()
+        case let .retouch(kind, points, source):
+            editor.selectTool(.retouch)
+            editor.retouchKind = kind
+            if kind == .cloneStamp { editor.setCloneSource(source) }
+            if kind.fillsArea {
+                editor.beginRetouchStroke(at: points[0])
+                for point in points.dropFirst() { editor.continueRetouchStroke(to: point, constrain: false) }
+                editor.endRetouchStroke()
+            } else {
+                editor.beginRetouchBrush(at: points[0], pressure: 1)
+                for point in points.dropFirst() { editor.continueRetouchBrush(to: point, constrain: false, pressure: 1) }
+                editor.endRetouchBrush()
+            }
+            // Remove and Spot Heal fill, and the Clone Stamp matches tone, in the background: wait for them.
+            for _ in 0..<400 where editor.fillProgress != nil || editor.fillingArea != nil || editor.isMatchingTone || editor.pendingTone != nil {
+                try? await Task.sleep(for: .milliseconds(25))
+            }
         case let .photoLayer(slider, value):
             editor.addAdjustmentLayer(.photo(PhotoEdit(adjustments: PhotoAdjustments([slider: value]))), named: "Adjust Photo")
         case let .photoSetting(slider, value):

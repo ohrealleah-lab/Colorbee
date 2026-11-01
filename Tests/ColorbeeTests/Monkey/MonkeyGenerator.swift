@@ -29,7 +29,7 @@ enum MonkeyGenerator {
         }
         func words() -> String { random.pick(["Hi", "Step 2", "Look here", "API key", "OK", "x"]) }
 
-        let roll = random.int(0..<112)
+        let roll = random.int(0..<120)
         switch roll {
         case 0..<16:
             return .stroke(tool: random.pick([.brush, .brush, .pencil, .eraser]), brush: random.pick(Brush.allCases), size: Double(random.int(1...20)),
@@ -101,6 +101,10 @@ enum MonkeyGenerator {
         case 106: return .batchRedact(blur: random.chance(0.5), apply: random.chance(0.6))
         case 107: return .autoRedact
         case 108: return .saveAndReopen
+        case 112: return .saveInBackground
+        case 113: return random.chance(0.3) ? .forgetHistory : .saveInBackground
+        case 114..<118:
+            return .retouch(random.pick(RetouchKind.allCases), points: path(), source: point())
         case 109..<111:
             let slider = random.pick(PhotoAdjustments.Slider.allCases)
             return .photoLayer(slider, sliderValue(slider))

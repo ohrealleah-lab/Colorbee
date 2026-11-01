@@ -62,6 +62,13 @@ public final class Canvas {
         self.activeLayerIndex = min(max(0, activeLayerIndex), layers.count - 1)
     }
 
+    /// A one-layer picture of `buffer`, its Background layer, with a transparent background where it has clear pixels
+    /// unless `transparent` says otherwise. Whatever opens a single picture makes it this way (review round 11, AC 9).
+    public convenience init(picture buffer: PixelBuffer, colorSpace: CGColorSpace, transparent: Bool? = nil) {
+        self.init(colorSpace: colorSpace, layers: [Layer(name: "Background", buffer: buffer)],
+                  hasTransparentBackground: transparent ?? buffer.hasTransparency)
+    }
+
     public init(colorSpace: CGColorSpace, layers: [Layer], hasTransparentBackground: Bool) {
         precondition(!layers.isEmpty, "A canvas needs at least one layer")
         let size = layers[0].buffer.size
@@ -390,6 +397,7 @@ public final class Canvas {
         composite(tree(of: clipped(stack, transparentKey: transparentKey, resampling: resampling)), onto: base, transparentKey: transparentKey, resampling: resampling)
     }
 
+    /// `Renderer.encode` draws the same on screen: groups, clipped layers and layers drawn on their own.
     private func composite(_ nodes: [LayerNode], onto base: PixelBuffer?, transparentKey: Pixel?, resampling: Resampling) -> PixelBuffer {
         var current = base
         var segment: [Layer] = []

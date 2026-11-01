@@ -114,9 +114,7 @@ final class DocumentWindow: NSWindow {
             ClipboardImage.copy(colorSpace: colorSpace, place: place, pixels: { pixels.value }, added: added)
         } else {
             let snapshot = editor.saveSnapshot()
-            ClipboardImage.copy(colorSpace: colorSpace, place: place, pixels: {
-                snapshot.canvas.flattened(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling)
-            }, added: added)
+            ClipboardImage.copy(colorSpace: colorSpace, place: place, pixels: { snapshot.flattened }, added: added)
         }
     }
 
@@ -386,8 +384,7 @@ final class DocumentWindow: NSWindow {
         guard let data = imageDataOnPasteboard() else { return }
         let decoded = try ImageCodec.decode(data)
         let source = ClipboardHistory.shared.add(data)
-        ImageDocument.open(Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)],
-                                  hasTransparentBackground: decoded.buffer.hasTransparency), clipboardSource: source)
+        ImageDocument.open(Canvas(picture: decoded.buffer, colorSpace: decoded.colorSpace), clipboardSource: source)
     }
 
     @objc func showCanvasProperties(_ sender: Any?) { editor?.isCanvasPropertiesOpen = true }

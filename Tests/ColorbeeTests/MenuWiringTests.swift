@@ -36,4 +36,10 @@ struct MenuWiringTests {
             #expect(!(item.toolTip ?? "").isEmpty, "\(item.title): \(item.action!)")
         }
     }
+
+    /// The canvas keys are named in ShortcutStore and acted on in CanvasView; a key in one and not the other would show
+    /// in Settings and do nothing, or never show (review round 11, AC 5).
+    @Test func everyCanvasKeyHasAnActionAndEveryActionAKey() {
+        #expect(Set(ShortcutStore.canvasCommands.map(\.id)) == Set(CanvasView.canvasActions.keys))
+    }
 }

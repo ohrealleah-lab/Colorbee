@@ -138,7 +138,7 @@ final class RawDeveloper: Sendable {
         let bounds = CGRect(x: image.extent.minX, y: image.extent.minY, width: CGFloat(size.width), height: CGFloat(size.height))
         Self.context.render(image, toBitmap: buffer.baseAddress, rowBytes: buffer.bytesPerRow, bounds: bounds,
                             format: .BGRA8, colorSpace: Self.colorSpace)
-        let canvas = Canvas(colorSpace: Self.colorSpace, layers: [Layer(name: "Background", buffer: buffer)], hasTransparentBackground: false)
+        let canvas = Canvas(picture: buffer, colorSpace: Self.colorSpace, transparent: false)
         canvas.cameraDetails = cameraDetails
         canvas.locationRemoved = locationRemoved
         return canvas

@@ -53,7 +53,7 @@ public enum PDFPages {
         context.drawPDFPage(page)
         guard let image = context.makeImage() else { throw Failure.unreadable }
         let decoded = try ImageCodec.decode(image)
-        let canvas = Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)], hasTransparentBackground: false)
+        let canvas = Canvas(picture: decoded.buffer, colorSpace: decoded.colorSpace, transparent: false)
         return (canvas, scale * 72)
     }
 
@@ -69,7 +69,7 @@ public enum PDFPages {
               let decoded = try? decodeScan(scan) else {
             return try render(data, page: index, resolution: resolution)
         }
-        let canvas = Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)], hasTransparentBackground: false)
+        let canvas = Canvas(picture: decoded.buffer, colorSpace: decoded.colorSpace, transparent: false)
         let fitted = max(Double(decoded.buffer.width) / (box.width / 72), Double(decoded.buffer.height) / (box.height / 72))
         return (canvas, fitted)
     }

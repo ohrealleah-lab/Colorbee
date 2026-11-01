@@ -371,7 +371,7 @@ extension Editor {
         let written = UnsafeTransfer(snapshot)
         Task { [weak self] in
             let image = await Task.detached(priority: .utility) {
-                UnsafeTransfer(written.value.canvas.flattened(transparentKey: written.value.transparentKey, resampling: written.value.resampling))
+                UnsafeTransfer(written.value.flattened)
             }.value
             guard let self, self.lastSavedSnapshot?.canvas === written.value.canvas, self.lastSavedImage == nil else { return }
             self.lastSavedImage = image.value

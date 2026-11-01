@@ -153,30 +153,28 @@ final class ImageDocument: NSDocument {
             // Animated GIFs and multi-page TIFFs: every frame as a page (FR-11.6).
             let stored = try ProjectFile.storedPages(count: decoded.frameCount) { index in
                 let frame = try ImageCodec.decode(data, frame: index)
-                return (Canvas(colorSpace: frame.colorSpace, layers: [Layer(name: "Background", buffer: frame.buffer)],
-                               hasTransparentBackground: frame.buffer.hasTransparency), Page.defaultResolution)
+                return (Canvas(picture: frame.buffer, colorSpace: frame.colorSpace), Page.defaultResolution)
             }
             try open(stored, showing: 0)
             return
         }
         // AppKit reads on the main thread unless canConcurrentlyReadDocuments is overridden.
         MainActor.assumeIsolated {
-            let canvas = Canvas(
-                colorSpace: decoded.colorSpace,
-                layers: [Layer(name: "Background", buffer: decoded.buffer)],
-                hasTransparentBackground: decoded.buffer.hasTransparency
-            )
+            let canvas = Canvas(picture: decoded.buffer, colorSpace: decoded.colorSpace)
             canvas.cameraDetails = decoded.cameraDetails
             canvas.locationRemoved = decoded.locationRemoved
             editor = Editor(canvas: canvas)
         }
     }
 
-    /// The PDF resolution set in Settings, in pixels per inch.
+    /// The PDF resolution set in Settings, in pixels per inch: one of `pdfResolutions`, 200 until one is chosen.
     nonisolated static var pdfResolution: Double {
-        let stored = UserDefaults.standard.double(forKey: "PDFResolution")
-        return [150, 200, 300].contains(stored) ? stored : 200
+        let stored = UserDefaults.standard.double(forKey: pdfResolutionKey)
+        return pdfResolutions.contains(stored) ? stored : 200
     }
+    nonisolated static let pdfResolutionKey = "PDFResolution"
+    /// The choices Settings offers.
+    nonisolated static let pdfResolutions: [Double] = [150, 200, 300]
 
     /// Makes the document's pages from stored ones, all parked but the one shown.
     private func open(_ stored: [ProjectFile.StoredPage], showing current: Int) throws {

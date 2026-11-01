@@ -995,8 +995,8 @@ final class CanvasView: NSView {
                 if drag == nil { NSCursor.openHand.set() }
             default:
                 // Tool and canvas keys come from the shortcut settings (FR-15.3).
-                if let id = ShortcutStore.shared.canvasCommand(for: event), let action = canvasActions[id] {
-                    action()
+                if let id = ShortcutStore.shared.canvasCommand(for: event), let action = Self.canvasActions[id] {
+                    action(editor)
                 } else {
                     super.keyDown(with: event)
                 }
@@ -1004,23 +1004,22 @@ final class CanvasView: NSView {
         }
     }
 
-    /// What each canvas key does, by its id in `ShortcutStore.canvasCommands`.
-    private var canvasActions: [String: () -> Void] {
-        [
-            "canvas.pencil": { self.editor.selectTool(.pencil) }, "canvas.brush": { self.editor.selectTool(.brush) },
-            "canvas.eraser": { self.editor.selectTool(.eraser) }, "canvas.fill": { self.editor.selectTool(.fill) },
-            "canvas.text": { self.editor.selectTool(.text) }, "canvas.eyedropper": { self.editor.selectTool(.eyedropper) },
-            "canvas.magnifier": { self.editor.selectTool(.magnifier) }, "canvas.rectangleSelect": { self.editor.selectTool(.rectangleSelect) },
-            "canvas.lassoSelect": { self.editor.selectTool(.lassoSelect) }, "canvas.magicWand": { self.editor.selectTool(.magicWand) },
-            "canvas.shape": { self.editor.selectTool(.shape) }, "canvas.measure": { self.editor.selectTool(.measure) },
-            "canvas.stepBadge": { self.editor.selectTool(.stepBadge) }, "canvas.redactBrush": { self.editor.selectTool(.redactBrush) },
-            "canvas.retouch": { self.editor.selectTool(.retouch) },
-            "canvas.cloneStamp": { self.editor.selectTool(.retouch); self.editor.retouchKind = .cloneStamp },
-            "canvas.swapColors": { self.editor.swapColors() }, "canvas.resetColors": { self.editor.resetColors() },
-            "canvas.smaller": { self.editor.adjustToolSize(larger: false) }, "canvas.larger": { self.editor.adjustToolSize(larger: true) },
-            "canvas.sidebar": { self.editor.toggleSidebar() },
-        ]
-    }
+    /// What each canvas key does, by its id in `ShortcutStore.canvasCommands`; a test checks the two lists hold the same
+    /// keys (review round 11, AC 5).
+    static let canvasActions: [String: @MainActor (Editor) -> Void] = [
+        "canvas.pencil": { editor in editor.selectTool(.pencil) }, "canvas.brush": { editor in editor.selectTool(.brush) },
+        "canvas.eraser": { editor in editor.selectTool(.eraser) }, "canvas.fill": { editor in editor.selectTool(.fill) },
+        "canvas.text": { editor in editor.selectTool(.text) }, "canvas.eyedropper": { editor in editor.selectTool(.eyedropper) },
+        "canvas.magnifier": { editor in editor.selectTool(.magnifier) }, "canvas.rectangleSelect": { editor in editor.selectTool(.rectangleSelect) },
+        "canvas.lassoSelect": { editor in editor.selectTool(.lassoSelect) }, "canvas.magicWand": { editor in editor.selectTool(.magicWand) },
+        "canvas.shape": { editor in editor.selectTool(.shape) }, "canvas.measure": { editor in editor.selectTool(.measure) },
+        "canvas.stepBadge": { editor in editor.selectTool(.stepBadge) }, "canvas.redactBrush": { editor in editor.selectTool(.redactBrush) },
+        "canvas.retouch": { editor in editor.selectTool(.retouch) },
+        "canvas.cloneStamp": { editor in editor.selectTool(.retouch); editor.retouchKind = .cloneStamp },
+        "canvas.swapColors": { editor in editor.swapColors() }, "canvas.resetColors": { editor in editor.resetColors() },
+        "canvas.smaller": { editor in editor.adjustToolSize(larger: false) }, "canvas.larger": { editor in editor.adjustToolSize(larger: true) },
+        "canvas.sidebar": { editor in editor.toggleSidebar() },
+    ]
 
     private func nudge(dx: Int, dy: Int, _ event: NSEvent) {
         guard editor.hasSelection else {
@@ -1133,8 +1132,7 @@ extension CanvasView {
             let origin = IntPoint(x: Int(point.x) - decoded.buffer.width / 2, y: Int(point.y) - decoded.buffer.height / 2)
             editor.paste(decoded.buffer, at: origin)
         } else {
-            ImageDocument.open(Canvas(colorSpace: decoded.colorSpace, layers: [Layer(name: "Background", buffer: decoded.buffer)],
-                                      hasTransparentBackground: decoded.buffer.hasTransparency))
+            ImageDocument.open(Canvas(picture: decoded.buffer, colorSpace: decoded.colorSpace))
         }
         return true
     }

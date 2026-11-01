@@ -22,11 +22,22 @@ struct SaveSnapshot: @unchecked Sendable {
     let otherPages: [(index: Int, id: UUID, geometrySteps: [ObjectIdentifier], page: ProjectFile.StoredPage)]
     let currentIndex: Int
 
+    /// The page shown as a save writes it: every export, copy and "is this what was saved?" check uses this, so they
+    /// all agree (review round 11, AC 8).
+    var flattened: PixelBuffer { canvas.flattened(transparentKey: transparentKey, resampling: resampling) }
+
+    /// Every page in order: the parked ones as `parked` gives them, and the shown one as `shown`, where it is.
+    private func inPageOrder<Page>(shown: Page, _ parked: (ProjectFile.StoredPage) -> Page) -> [Page] {
+        var pages = otherPages.sorted { $0.index < $1.index }.map { parked($0.page) }
+        pages.insert(shown, at: min(currentIndex, pages.count))
+        return pages
+    }
+
     /// The page shown in an image format, with its camera details only when asked (FR-11.8), in `color`'s colors and,
     /// for JPEG and HEIC, no bigger than `limit` bytes when there is one (FR-9.7 item 8).
     func encoded(as format: ImageFileFormat, quality: Double = 0.9, tiffLZW: Bool = false, includingCameraDetails: Bool = false,
                  color: ExportColor = .keep, limit: Int? = nil) throws -> Data {
-        let (pixels, space, matte) = try inColors(color, canvas.flattened(transparentKey: transparentKey, resampling: resampling))
+        let (pixels, space, matte) = try inColors(color, flattened)
         let details = includingCameraDetails ? canvas.cameraDetails : nil
         if let limit, format.isLossy {
             return try ImageCodec.encode(pixels, colorSpace: space, as: format, limit: limit, matte: matte, cameraDetails: details)
@@ -46,17 +57,14 @@ struct SaveSnapshot: @unchecked Sendable {
         // A one-page project is just this page, so its resolution goes in with it (Leah's test, 2026-10-05).
         let shown = try ProjectFile.encode(canvas, transparentKey: transparentKey, resampling: resampling, resolution: pageResolution)
         guard !otherPages.isEmpty else { return shown }
-        var pages = otherPages.sorted { $0.index < $1.index }.map(\.page)
-        pages.insert(ProjectFile.StoredPage(project: shown, resolution: pageResolution, thumbnail: canvas.thumbnail(maxSide: 160)),
-                     at: min(currentIndex, pages.count))
+        let pages = inPageOrder(shown: ProjectFile.StoredPage(project: shown, resolution: pageResolution, thumbnail: canvas.thumbnail(maxSide: 160))) { $0 }
         return try ProjectFile.encode(stored: pages, currentIndex: currentIndex)
     }
 
     /// Every page as a PDF page, at its own resolution (FR-11.6). Pages are flattened and compressed four at a
     /// time: enough to use the cores, without holding dozens of full-size pages at once.
     func encodedPDF() throws -> Data {
-        var order: [ProjectFile.StoredPage?] = otherPages.sorted { $0.index < $1.index }.map(\.page)
-        order.insert(nil, at: min(currentIndex, order.count))
+        let order: [ProjectFile.StoredPage?] = inPageOrder(shown: nil) { $0 }
         let encoded = Mutex<[Int: PDFWriter.EncodedPage]>([:])
         let failure = Mutex<(any Error)?>(nil)
         let lanes = min(4, order.count)
@@ -82,8 +90,7 @@ struct SaveSnapshot: @unchecked Sendable {
     /// One page for the PDF: the page shown (nil) as it is now, or another as it's parked.
     private func pdfPage(_ stored: ProjectFile.StoredPage?) throws -> PDFWriter.EncodedPage {
         guard let stored else {
-            return try PDFWriter.encodePage(canvas.flattened(transparentKey: transparentKey, resampling: resampling),
-                                            colorSpace: canvas.colorSpace, resolution: pageResolution)
+            return try PDFWriter.encodePage(flattened, colorSpace: canvas.colorSpace, resolution: pageResolution)
         }
         let page = try ProjectFile.decode(stored.project)
         return try PDFWriter.encodePage(page.flattened(), colorSpace: page.colorSpace, resolution: stored.resolution)
@@ -91,7 +98,7 @@ struct SaveSnapshot: @unchecked Sendable {
 
     /// A PNG scaled by an export preset, with the chosen scaling or the one that suits the image's size.
     func encoded(using preset: ExportPreset, scaling: Resampling? = nil) throws -> Data {
-        let image = canvas.flattened(transparentKey: transparentKey, resampling: resampling)
+        let image = flattened
         let scaled = image.resampled(to: preset.targetSize(for: image.size), using: scaling ?? ExportPreset.resampling(for: image.size))
         let (pixels, space, _) = try inColors(preset.color, scaled)
         return try ImageCodec.encode(pixels, colorSpace: space, as: .png)

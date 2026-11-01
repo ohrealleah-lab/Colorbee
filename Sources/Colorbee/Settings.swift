@@ -127,7 +127,7 @@ private struct SettingsView: View {
 private struct GeneralSettings: View {
     @AppStorage(AppearanceSetting.key) private var appearance = AppearanceSetting.system
     /// Read when a PDF opens, so it changes the next one.
-    @AppStorage("PDFResolution") private var resolution = 200.0
+    @AppStorage(ImageDocument.pdfResolutionKey) private var resolution = 200.0
 
     var body: some View {
         Form {
@@ -142,6 +142,7 @@ private struct GeneralSettings: View {
                     .foregroundStyle(.secondary)
             }
             Section {
+                // One row for each of `ImageDocument.pdfResolutions`.
                 Picker("Open PDFs at", selection: $resolution) {
                     Text("150 DPI · smaller, faster").tag(150.0)
                     Text("200 DPI · recommended").tag(200.0)

@@ -260,7 +260,7 @@ final class Editor {
     var lastSaved: PixelBuffer? {
         guard hasLastSaved else { return nil }
         if lastSavedImage == nil, let snapshot = lastSavedSnapshot {
-            lastSavedImage = snapshot.canvas.flattened(transparentKey: snapshot.transparentKey, resampling: snapshot.resampling)
+            lastSavedImage = snapshot.flattened
         }
         return lastSavedImage
     }

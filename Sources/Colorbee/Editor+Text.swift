@@ -125,22 +125,8 @@ extension Editor {
     }
 
     func textSpec(for text: PendingText) -> TextSpec {
-        var spec = TextSpec(
-            text: text.string,
-            origin: text.origin,
-            wrapWidth: text.wrapWidth,
-            fontFamily: textStyle.fontFamily,
-            fontSize: textStyle.fontSize,
-            color: color1,
-            background: textStyle.opaqueBackground ? color2 : nil
-        )
-        spec.bold = textStyle.bold
-        spec.italic = textStyle.italic
-        spec.underline = textStyle.underline
-        spec.strikethrough = textStyle.strikethrough
-        spec.alignment = textStyle.alignment
-        spec.minimumHeight = text.minimumHeight
-        return spec
+        textStyle.spec(text.string, origin: text.origin, wrapWidth: text.wrapWidth, minimumHeight: text.minimumHeight, color: color1,
+                       background: color2)
     }
 
     /// Places the open text box (FR-6.3): an edited text layer is drawn again; new text becomes a text layer with
@@ -197,16 +183,7 @@ extension Editor {
         paint(onMask: false, at: index)
         if tool != .text { selectTool(.text) }
         let spec = text.spec
-        var style = textStyle
-        style.fontFamily = spec.fontFamily
-        style.fontSize = spec.fontSize
-        style.bold = spec.bold
-        style.italic = spec.italic
-        style.underline = spec.underline
-        style.strikethrough = spec.strikethrough
-        style.alignment = spec.alignment
-        style.opaqueBackground = spec.background != nil
-        textStyle = style
+        textStyle = TextStyle(spec)
         color1 = spec.color
         if let background = spec.background { color2 = background }
         textDragFrame = nil

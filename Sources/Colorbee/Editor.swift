@@ -176,7 +176,12 @@ final class Editor {
     var redactBrushSize = 24.0 {
         didSet { renderSoon() }
     }
-    @ObservationIgnored var redactStroke: (area: RedactBrushArea, path: StrokePath, secondary: Bool)?
+    /// A Redact Brush or Remove and Spot Heal stroke: the area painted so far, its smoothed path, and what it's for.
+    @ObservationIgnored var areaStroke: (area: RedactBrushArea, path: StrokePath, purpose: AreaPurpose)?
+    enum AreaPurpose {
+        case redact(secondary: Bool)
+        case retouch(RetouchKind)
+    }
     // Retouching (FR-4.6).
     var retouchKind: RetouchKind = .remove {
         didSet { renderSoon() }
@@ -206,7 +211,6 @@ final class Editor {
     @ObservationIgnored var retouchBrush: (stroke: Stroke, edit: Edit, kind: RetouchKind, path: StrokePath, offset: IntPoint?, pressure: Double)?
     /// Where the Clone Stamp is copying from now, for the crosshair.
     var cloneCrosshair: Point2D?
-    @ObservationIgnored var retouchStroke: (area: RedactBrushArea, path: StrokePath, kind: RetouchKind)?
     /// The area being filled, shown until the fill is done.
     @ObservationIgnored var fillingArea: RedactBrushArea?
     /// How far the fill has got, while one runs.

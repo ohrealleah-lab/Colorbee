@@ -49,6 +49,35 @@ struct TextStyle: Equatable, Codable {
     var opaqueBackground = false
 }
 
+// Each text setting crosses between the Text tool's settings and a text here, both ways, so a new one is added to
+// both at once (review round 11, AB 6).
+extension TextStyle {
+    /// The style `spec` was set in.
+    init(_ spec: TextSpec) {
+        fontFamily = spec.fontFamily
+        fontSize = spec.fontSize
+        bold = spec.bold
+        italic = spec.italic
+        underline = spec.underline
+        strikethrough = spec.strikethrough
+        alignment = spec.alignment
+        opaqueBackground = spec.background != nil
+    }
+
+    /// `text` set in this style, in `color`, on `background` when the style's background is opaque.
+    func spec(_ text: String, origin: Point2D, wrapWidth: Double?, minimumHeight: Double, color: Pixel, background: Pixel) -> TextSpec {
+        var spec = TextSpec(text: text, origin: origin, wrapWidth: wrapWidth, fontFamily: fontFamily, fontSize: fontSize, color: color,
+                            background: opaqueBackground ? background : nil)
+        spec.bold = bold
+        spec.italic = italic
+        spec.underline = underline
+        spec.strikethrough = strikethrough
+        spec.alignment = alignment
+        spec.minimumHeight = minimumHeight
+        return spec
+    }
+}
+
 /// A text box still being typed into.
 struct PendingText: Equatable {
     var origin: Point2D

@@ -174,3 +174,32 @@ struct EditorCommandTests {
         #expect(editor.imageHash == before)
     }
 }
+
+/// The `[` and `]` keys keep to the sizes the Size control allows (review round 11, AB 9).
+@MainActor
+struct ToolSizeKeyTests {
+    @Test func bracketsStayWithinEachToolsSizes() {
+        for tool in [Tool.brush, .shape, .eraser, .stepBadge, .redactBrush, .retouch] {
+            let editor = makeEditor()
+            editor.selectTool(tool)
+            let range = editor.toolSizeRange
+            for _ in 0..<200 { editor.adjustToolSize(larger: true) }
+            #expect(editor.toolSize == range.upperBound, "\(tool)")
+            for _ in 0..<200 { editor.adjustToolSize(larger: false) }
+            #expect(editor.toolSize == range.lowerBound, "\(tool)")
+        }
+    }
+}
+
+/// Text settings cross between the Text tool and a text in one place, both ways (review round 11, AB 6).
+@MainActor
+struct TextStyleRoundTripTests {
+    @Test func aStyleSetIntoTextReadsBackTheSame() {
+        var style = TextStyle(fontFamily: "Georgia", fontSize: 31, bold: true, italic: false, underline: true, strikethrough: true,
+                              alignment: .center, opaqueBackground: true)
+        let spec = style.spec("Hello", origin: pt(3, 4), wrapWidth: 80, minimumHeight: 12, color: .black, background: .white)
+        #expect(TextStyle(spec) == style && spec.background == .white && spec.minimumHeight == 12 && spec.wrapWidth == 80)
+        style.opaqueBackground = false
+        #expect(TextStyle(style.spec("Hi", origin: pt(0, 0), wrapWidth: nil, minimumHeight: 0, color: .black, background: .white)) == style)
+    }
+}

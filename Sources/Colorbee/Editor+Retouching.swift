@@ -11,40 +11,57 @@ extension Editor {
     func beginRedactStroke(at point: Point2D, secondary: Bool) {
         finishInteractions()
         placeFloatingSelection()
-        let area = RedactBrushArea(diameter: redactBrushSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 120))
-        area.move(to: point)
-        redactStroke = (area, StrokePath(start: point, reach: smoothingReach), secondary)
-        onRender()
+        beginAreaStroke(at: point, diameter: redactBrushSize, tint: 120, purpose: .redact(secondary: secondary))
     }
 
     /// Shift keeps the stroke on one horizontal or vertical line, for a line of text.
     func continueRedactStroke(to point: Point2D, constrain: Bool) {
-        guard var stroke = redactStroke else { return }
-        stroke.area.move(to: stroke.path.next(point, constrain: constrain))
-        redactStroke = stroke
+        continueAreaStroke(to: point, constrain: constrain)
+    }
+
+    /// The Redact Brush's and Remove's strokes are painted alike, with the same smoothing and Shift-constrain; only what
+    /// happens at the end differs (review round 11, AB 7). `tint` is how strongly the area shows meanwhile.
+    private func beginAreaStroke(at point: Point2D, diameter: Double, tint: UInt8, purpose: AreaPurpose) {
+        let area = RedactBrushArea(diameter: diameter, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: tint))
+        area.move(to: point)
+        areaStroke = (area, StrokePath(start: point, reach: smoothingReach), purpose)
         onRender()
+    }
+
+    private func continueAreaStroke(to point: Point2D, constrain: Bool) {
+        guard var stroke = areaStroke else { return }
+        stroke.area.move(to: stroke.path.next(point, constrain: constrain))
+        areaStroke = stroke
+        onRender()
+    }
+
+    /// The area stroke under way, caught up to its last point and ended, if it's for `purpose`.
+    private func endAreaStroke(_ isFor: (AreaPurpose) -> Bool) -> (area: RedactBrushArea, purpose: AreaPurpose)? {
+        guard let stroke = areaStroke, isFor(stroke.purpose) else { return nil }
+        areaStroke = nil
+        if let point = stroke.path.catchUp { stroke.area.move(to: point) }
+        return (stroke.area, stroke.purpose)
     }
 
     /// Redacts the area on every layer with pixels under it, as one step, like Batch Redact. Blur and Pixelate are
     /// as strong as the brush is wide, as Auto-Redact's follow the text's height; Solid Fill uses Color 1, or Color 2
     /// with the right button.
     func endRedactStroke() {
-        guard let stroke = redactStroke else { return }
-        redactStroke = nil
-        if let point = stroke.path.catchUp { stroke.area.move(to: point) }
+        guard let stroke = endAreaStroke({ if case .redact = $0 { true } else { false } }),
+              case .redact(let secondary) = stroke.purpose else { return }
         guard let mask = stroke.area.mask else { return onRender() }
         let strength = max(6, stroke.area.diameter / 3)
         let effect: Effect = switch redactTreatment {
         case .blur: .gaussianBlur(radius: strength)
         case .pixelate: .pixelate(cellSize: Int(strength.rounded()))
-        case .solidFill: .solidFill(stroke.secondary ? color2 : color1)
+        case .solidFill: .solidFill(secondary ? color2 : color1)
         }
         redactEveryLayer(with: effect, in: mask, named: "Redact Brush")
     }
 
     /// The see-through area of a Redact Brush or Remove stroke, or of a fill under way, for the screen.
     func areaStrokePicture() -> (pixels: PixelBuffer, origin: IntPoint)? {
-        redactStroke?.area.picture ?? retouchStroke?.area.picture ?? fillingArea?.picture
+        areaStroke?.area.picture ?? fillingArea?.picture
     }
 
     /// The size of the round brush outline under the pointer, for the tools that paint an area.
@@ -188,7 +205,7 @@ extension Editor {
 
     /// A stroke, drag, effect, fill or object being placed.
     private var isEditInProgress: Bool {
-        activeStroke != nil || retouchBrush != nil || retouchStroke != nil || redactStroke != nil || selectionDrag != nil
+        activeStroke != nil || retouchBrush != nil || areaStroke != nil || selectionDrag != nil
             || gradientDrag != nil || activeEffect != nil || fillProgress != nil || pendingShape != nil || pendingText != nil
             || pendingBadge != nil
     }
@@ -210,28 +227,21 @@ extension Editor {
         guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingSelection()
-        let area = RedactBrushArea(diameter: retouchSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 110))
-        area.move(to: point)
-        retouchStroke = (area, StrokePath(start: point, reach: smoothingReach), retouchKind)
-        onRender()
+        beginAreaStroke(at: point, diameter: retouchSize, tint: 110, purpose: .retouch(retouchKind))
     }
 
     func continueRetouchStroke(to point: Point2D, constrain: Bool) {
-        guard var stroke = retouchStroke else { return }
-        stroke.area.move(to: stroke.path.next(point, constrain: constrain))
-        retouchStroke = stroke
-        onRender()
+        continueAreaStroke(to: point, constrain: constrain)
     }
 
     /// Fills the painted area from its surroundings in the background, then places it as one step ("Remove" or
     /// "Spot Heal"). Spot Heal looks only just around the spot and evens out the tone. If the image changed
     /// meanwhile, the fill no longer fits it and is dropped.
     func endRetouchStroke() {
-        guard let stroke = retouchStroke else { return }
-        retouchStroke = nil
-        if let point = stroke.path.catchUp { stroke.area.move(to: point) }
+        guard let stroke = endAreaStroke({ if case .retouch = $0 { true } else { false } }),
+              case .retouch(let kind) = stroke.purpose else { return }
         let layer = canvas.paintLayer
-        let healing = stroke.kind == .spotHeal
+        let healing = kind == .spotHeal
         let image = retouchSamplesAllLayers ? canvas.composited(through: canvas.activeLayerIndex) : layer.buffer
         guard let mask = stroke.area.mask,
               let job = MatchSurroundings.Job(image: image, area: mask, nearby: healing, matchingTone: healing) else { return onRender() }
@@ -264,7 +274,7 @@ extension Editor {
                 self.showNotice("The image changed while filling. Try again.")
                 return self.onRender()
             }
-            let edit = self.history.beginEdit(stroke.kind.name, on: self.canvas)
+            let edit = self.history.beginEdit(kind.name, on: self.canvas)
             fill.apply(to: self.canvas.paintLayer, edit: edit)
             self.recordingChanges { self.history.commit(edit) }
             self.onRender()

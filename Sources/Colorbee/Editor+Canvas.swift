@@ -134,7 +134,10 @@ extension Editor {
     }
 
     /// The sizes the tool in use allows.
-    var toolSizeRange: ClosedRange<Int> {
+    var toolSizeRange: ClosedRange<Int> { Self.sizeRange(for: tool) }
+
+    /// The sizes `tool` allows; the Size control and the `[` and `]` keys both keep to them.
+    static func sizeRange(for tool: Tool) -> ClosedRange<Int> {
         switch tool {
         case .eraser: 1...100
         case .stepBadge: 16...128
@@ -156,20 +159,24 @@ extension Editor {
 
     /// The `[` and `]` keys: resize whichever tool is active.
     func adjustToolSize(larger: Bool) {
+        func stepped(_ size: Double, by step: Double, for tool: Tool) -> Double {
+            let range = Self.sizeRange(for: tool)
+            return max(Double(range.lowerBound), min(Double(range.upperBound), size + (larger ? step : -step)))
+        }
         switch tool {
         case .eraser:
-            eraserSize = max(1, min(100, eraserSize + (larger ? 2 : -2)))
+            eraserSize = Int(stepped(Double(eraserSize), by: 2, for: .eraser))
         case .shape:
             // The Shapes tool's size is its line width (review I, finding 10).
-            shapeLineWidth = max(1, min(50, shapeLineWidth + (larger ? 1 : -1)))
+            shapeLineWidth = stepped(shapeLineWidth, by: 1, for: .shape)
         case .stepBadge:
-            badgeDiameter = max(16, min(128, badgeDiameter + (larger ? 4 : -4)))
+            badgeDiameter = stepped(badgeDiameter, by: 4, for: .stepBadge)
         case .redactBrush:
-            redactBrushSize = max(1, min(300, redactBrushSize + (larger ? 4 : -4)))
+            redactBrushSize = stepped(redactBrushSize, by: 4, for: .redactBrush)
         case .retouch:
-            retouchSize = max(1, min(300, retouchSize + (larger ? 4 : -4)))
+            retouchSize = stepped(retouchSize, by: 4, for: .retouch)
         default:
-            brushDiameter = max(1, min(50, brushDiameter + (larger ? 1 : -1)))
+            brushDiameter = stepped(brushDiameter, by: 1, for: .brush)
         }
     }
 
@@ -200,6 +207,18 @@ extension Editor {
         cancelOrEndSelectionDrag()
         if activeEffect != nil { cancelEffect() }
         finishLayerSettings()
+    }
+
+    /// One pixel step on the layer being painted: `draw` changes it through the edit, then it's recorded and shown.
+    /// Whether anything changed. The caller has checked the lock and finished what was under way.
+    @discardableResult
+    func pixelStep(_ name: String, _ draw: (Layer, Edit) -> Void) -> Bool {
+        let edit = history.beginEdit(name, on: canvas)
+        draw(canvas.paintLayer, edit)
+        var changed = false
+        recordingChanges { changed = history.commit(edit) }
+        onRender()
+        return changed
     }
 
     func placeFloatingSelection() {

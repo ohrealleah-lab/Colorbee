@@ -334,12 +334,8 @@ extension Editor {
         finishInteractions()
         placeFloatingKeepingOutline()
         if let mask = canvas.selection.marquee {
-            let edit = history.beginEdit("Remove Red-Eye", on: canvas)
-            RedEye.fix(in: mask, layer: canvas.paintLayer, edit: edit)
-            var changed = false
-            recordingChanges { changed = history.commit(edit) }
-            if !changed { showNotice("No red-eye found") }
-            return onRender()
+            if !pixelStep("Remove Red-Eye", { layer, edit in RedEye.fix(in: mask, layer: layer, edit: edit) }) { showNotice("No red-eye found") }
+            return
         }
         let layer = canvas.paintLayer
         guard let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
@@ -353,12 +349,9 @@ extension Editor {
             guard self.history.revision == revision, self.canvas.paintLayer.id == layer.id, self.activeLayerTakesEdits else {
                 return self.showNotice("The image changed while finding eyes. Try again.")
             }
-            let edit = self.history.beginEdit("Remove Red-Eye", on: self.canvas)
-            RedEye.fix(eyes, in: self.canvas.paintLayer, edit: edit)
-            var changed = false
-            self.recordingChanges { changed = self.history.commit(edit) }
-            if !changed { self.showNotice(eyes.isEmpty ? "No eyes found. Select the red pupils and try again." : "No red-eye found") }
-            self.onRender()
+            if !self.pixelStep("Remove Red-Eye", { layer, edit in RedEye.fix(eyes, in: layer, edit: edit) }) {
+                self.showNotice(eyes.isEmpty ? "No eyes found. Select the red pupils and try again." : "No red-eye found")
+            }
         }
     }
 

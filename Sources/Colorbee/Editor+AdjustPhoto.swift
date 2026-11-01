@@ -303,10 +303,7 @@ extension Editor {
         let selection = canvas.selection.marquee
         let levels = Levels.auto(from: Histogram(canvas.paintLayer.buffer, selection: selection))
         guard levels != .identity else { return }
-        let edit = history.beginEdit("Auto Contrast", on: canvas)
-        Effects.apply(.levels(levels), to: canvas.paintLayer, selection: selection, edit: edit)
-        recordingChanges { history.commit(edit) }
-        onRender()
+        pixelStep("Auto Contrast") { layer, edit in Effects.apply(.levels(levels), to: layer, selection: selection, edit: edit) }
     }
 
     /// An Auto Contrast adjustment layer: a Levels layer with its points set from what's beneath it now.
@@ -320,10 +317,8 @@ extension Editor {
         guard !refusedBecauseLocked() else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
-        let edit = history.beginEdit(effect.name, on: canvas)
-        Effects.apply(effect, to: canvas.paintLayer, selection: canvas.selection.marquee, edit: edit)
-        recordingChanges { history.commit(edit) }
-        onRender()
+        let selection = canvas.selection.marquee
+        pixelStep(effect.name) { layer, edit in Effects.apply(effect, to: layer, selection: selection, edit: edit) }
     }
 
     /// What Resize and Skew starts from: the selection as it appears now, or the whole image.

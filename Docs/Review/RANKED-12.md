@@ -79,5 +79,9 @@ One small commit per item: no picture, file or step changes unless a Part 1 answ
   differences from the plan: menu commands are checked by a test that walks the real menus rather than by
   `#selector`; ExportOptions' settings keep their own keys; AD 6's Feather now shares Gaussian Blur's box sizes,
   identical for every radius Feather offers.
-- **Tier 4:** next.
+- **Tier 4:** done (2026-11-01): dead code and misplaced comments (AB 14, AC 14, AD 15, AE 14), one Sendable box on
+  each side (AC 13, AD 13), and the clearest small helpers (AB 13, AC 11, AD 12, AE 13). Left on purpose: AC 10 (one
+  slider row for both panels: the two differ on purpose in small ways, and it's looks only), AC 12, AD 10, AD 11,
+  AD 14, AE 10 to AE 12 (each a few lines, and AE 10's drawing helper touches exact text and shape pixels), and AE 9
+  (merge results: the four differ on purpose). Any of them can be done later if a fix ever needs it.
 

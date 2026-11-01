@@ -116,6 +116,24 @@ struct AutoRedactEditorTests {
         editor.undo()
         #expect(pageHashes() == before)
     }
+
+    /// Leah, 2026-11-01: it asks first, then deletes the snapshots of every page it redacts, parked ones too.
+    @Test func everyRedactedPagesSnapshotsAreDeletedAfterAsking() async throws {
+        let editor = try sampleEditor()
+        try editor.takeSnapshot(named: "Page 1")
+        editor.duplicatePage()
+        try editor.takeSnapshot(named: "Page 2")
+        _ = try await read(editor)
+        editor.applyAutoRedact()
+        #expect(editor.snapshotQuestion?.count == 2 && editor.autoRedact?.applying == nil)
+        editor.snapshotQuestion = nil
+        #expect(editor.pages.pages.allSatisfy { $0.history.snapshots.count == 1 })
+        editor.applyAutoRedact()
+        editor.deleteSnapshotsAndRedact()
+        for _ in 0..<2000 where editor.autoRedact != nil { try await Task.sleep(for: .milliseconds(5)) }
+        #expect(editor.stepNames.last == "Auto-Redact")
+        #expect(editor.pages.pages.allSatisfy { $0.history.snapshots.isEmpty })
+    }
 }
 
 /// Auto-Redact's faces (FR-9.7 item 10), on the made-up faces picture.

@@ -37,6 +37,7 @@ struct AutoRedactSheet: View {
         }
         .padding(20)
         .frame(width: 560)
+        .snapshotQuestion(editor, shown: true)
     }
 
     private var header: some View {

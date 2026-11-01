@@ -7,12 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-31 · 839 core tests and 328 app tests passing (review round 11, tiers 1 and 2 done; photo-editing test coverage added; stage 31 passed Leah's test); the soak test now groups and ungroups too; the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-01 · 842 core tests and 338 app tests passing (a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Redaction deletes History Snapshots](#test-redaction-deletes-history-snapshots) (2026-11-01)
 - [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
 - [The monkey's thumbnail and export fixes](#test-the-monkeys-thumbnail-and-export-fixes) (2026-10-31)
 - [Photo test coverage: screen drawing, Curves and color wheels](#test-photo-test-coverage-screen-drawing-curves-and-color-wheels) (2026-10-31)
@@ -197,6 +198,12 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   what's below (faded from a copy of the backdrop below 100%) and other groups on their own, one texture per depth.
   Projects keep groups in `Manifest.groups`, which beta 7 skips. Commands in `LayerActions+Groups.swift`; the panel
   indents, folds (`Editor.foldedGroups`) and drops with `LayerDrop`.
+- Redaction and History Snapshots (2026-11-01; Leah, from the monkey gaps review, `Review/monkey-gaps.md`): a
+  redaction deletes the snapshots of every page it changes (`History.deleteAllSnapshots`,
+  `Editor.deleteSnapshotsAfterRedacting`), after asking ("Delete 2 History Snapshots?", `Editor.snapshotQuestion`).
+  The Redact Brush and Solid Fill ask in `redactEveryLayer` (a locked layer still refuses at once, without asking),
+  Batch Redact at Apply (Cancel leaves the bar open), Auto-Redact at Apply, from its review sheet. Not a step, so undo
+  doesn't bring them back. The monkey answers Delete Snapshots and Redact and checks none are left.
 - Stage 32 (2026-10-31): the overnight monkey test, `Tests/ColorbeeTests/Monkey`. It drives the real `Editor` inside
   the hosted test app, on small pictures: `MonkeyGenerator` picks steps (`MonkeyStep`, data, so they replay exactly),
   `MonkeyRules` checks the document after each and saving at the end, and `UndoTracker` checks that every undo and redo
@@ -437,6 +444,37 @@ nothing changed. Use `TestImages/Photo Editing/Old Adjust Photo.colorproj`.
    Expected: the dot follows the mouse; with Option it moves a quarter as far.
 10. Drag sideways across a slider's name, such as Exposure.
     Expected: the slider moves as if you dragged it.
+
+### Test: Redaction deletes History Snapshots
+
+Use `TestImages/Help/Sample Screenshot.png`.
+
+1. Open the picture in Colorbee.
+2. Edit > New Snapshot…, then click Take Snapshot.
+3. Choose the Redact Brush and paint over the email address.
+   Expected: "Delete 1 History Snapshot?" appears, with Delete Snapshots and Redact, and Cancel. Nothing is covered yet.
+4. Click Cancel.
+   Expected: nothing is covered, and the History panel still shows Snapshot 1.
+5. Paint over the email address again, then click Delete Snapshots and Redact.
+   Expected: the email is covered, and Snapshot 1 is gone from the History panel.
+6. Edit > Undo.
+   Expected: the email shows again, and no snapshot comes back.
+7. Edit > New Snapshot…, then click Take Snapshot.
+8. Drag a rectangle selection over the phone number.
+9. Redact > Pixelate…, then click Apply.
+   Expected: "Delete 1 History Snapshot?" appears.
+10. Click Cancel.
+    Expected: the Pixelate bar is still open, and the snapshot is still in the History panel.
+11. Click Apply, then Delete Snapshots and Redact.
+    Expected: the phone number is pixelated, and the snapshot is gone.
+12. Page > Duplicate Page.
+13. Edit > New Snapshot…, then click Take Snapshot. Do the same on page 1.
+14. Redact > Auto-Redact…, then click Apply.
+    Expected: "Delete 2 History Snapshots?" appears over the review.
+15. Click Delete Snapshots and Redact.
+    Expected: both pages are redacted, and neither page shows a snapshot in the History panel.
+16. With no snapshots, paint with the Redact Brush once more.
+    Expected: no question; it's covered at once.
 
 ### Test: The monkey's thumbnail and export fixes
 

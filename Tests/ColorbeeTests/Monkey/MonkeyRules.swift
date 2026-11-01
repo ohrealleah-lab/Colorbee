@@ -41,6 +41,15 @@ enum MonkeyRules {
         }
     }
 
+    /// After a redaction that changed the page shown: none of its snapshots are left to show what was redacted
+    /// (Leah, 2026-11-01).
+    static func checkRedacted(_ editor: Editor) throws(MonkeyFailure) {
+        let left = editor.history.snapshots.count
+        guard left == 0 else {
+            throw MonkeyFailure(rule: "A redaction left History Snapshots", detail: "\(left) snapshots still show what was redacted.")
+        }
+    }
+
     /// A layer's pixels, mask and settings, as text, for comparing.
     static func state(of layer: Layer, pixels: Bool) -> String {
         var words = "\(layer.name)|\(layer.isVisible)|\(layer.opacity)|\(layer.blendMode.rawValue)|\(layer.isLocked)|\(layer.locksTransparency)"

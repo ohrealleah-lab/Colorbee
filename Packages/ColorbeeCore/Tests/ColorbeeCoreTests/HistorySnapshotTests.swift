@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ColorbeeCore
 
@@ -123,6 +124,21 @@ struct HistorySnapshotTests {
         try history.takeSnapshot(named: "Before redacting", of: canvas)
         history.removeAll()
         #expect(history.snapshots.isEmpty && history.snapshotStore == nil)
+    }
+
+    /// After a redaction (Leah, 2026-11-01): every snapshot and its scratch file go, but the undo steps stay.
+    @Test func deletingAllSnapshotsKeepsTheUndoSteps() throws {
+        let canvas = canvas(16), history = History(byteBudget: .max)
+        fill(IntRect(x: 0, y: 0, width: 4, height: 4), with: .black, on: canvas, history: history)
+        try history.takeSnapshot(named: "One", of: canvas)
+        try history.takeSnapshot(named: "Two", of: canvas)
+        let file = try #require(history.snapshotStore?.path)
+        history.deleteAllSnapshots()
+        #expect(history.snapshots.isEmpty && history.snapshotStore == nil)
+        #expect(!FileManager.default.fileExists(atPath: file))
+        #expect(history.undoCount == 1)
+        try history.takeSnapshot(named: "Again", of: canvas)
+        #expect(history.snapshots.map(\.name) == ["Again"])
     }
 
     @Test func aSnapshotOfEmptyAndAdjustmentLayersKeepsThemEmpty() throws {

@@ -116,6 +116,23 @@ struct DocumentView: View {
         } message: {
             Text(cleanupMessage)
         }
+        // While the Auto-Redact review is open, it asks from there instead.
+        .snapshotQuestion(editor, shown: editor.autoRedact == nil)
+    }
+}
+
+extension View {
+    /// Before a redaction that deletes History Snapshots (Leah, 2026-11-01). Redacting is the default.
+    func snapshotQuestion(_ editor: Editor, shown: Bool) -> some View {
+        let count = editor.snapshotQuestion?.count ?? 0
+        return alert(count == 1 ? "Delete 1 History Snapshot?" : "Delete \(count) History Snapshots?",
+                     isPresented: Binding(get: { shown && editor.snapshotQuestion != nil }, set: { if !$0 { editor.snapshotQuestion = nil } })) {
+            Button("Delete Snapshots and Redact", role: .destructive) { editor.deleteSnapshotsAndRedact() }
+                .keyboardShortcut(.defaultAction)
+            Button("Cancel", role: .cancel) { editor.snapshotQuestion = nil }
+        } message: {
+            Text("Snapshots taken before this redaction still show what it covers, so they're deleted with it. Undo won't bring them back.")
+        }
     }
 }
 

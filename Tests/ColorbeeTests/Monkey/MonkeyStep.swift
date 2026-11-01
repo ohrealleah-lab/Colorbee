@@ -75,6 +75,15 @@ enum MonkeyStep: CustomStringConvertible {
     /// A new setting on the active Adjust Photo layer.
     case photoSetting(PhotoAdjustments.Slider, Double)
 
+    /// Redacts, so it must leave no History Snapshots on the page it changed (Leah, 2026-11-01). The monkey always
+    /// answers the question with Delete Snapshots and Redact.
+    var redacts: Bool {
+        switch self {
+        case .redact, .batchRedact, .autoRedact: true
+        default: false
+        }
+    }
+
     /// A short name for grouping failures: the same rule broken by the same kind of step counts once.
     var kind: String { String(describing: self).split(separator: "(").first.map(String.init) ?? "" }
 
@@ -212,6 +221,7 @@ enum MonkeyStep: CustomStringConvertible {
             editor.beginRedactStroke(at: points[0], secondary: false)
             for point in points.dropFirst() { editor.continueRedactStroke(to: point, constrain: false) }
             editor.endRedactStroke()
+            editor.deleteSnapshotsAndRedact()
         case let .select(from, to):
             editor.selectTool(.rectangleSelect)
             editor.selectionDrag(from: from, to: to)
@@ -307,6 +317,7 @@ enum MonkeyStep: CustomStringConvertible {
             editor.beginBatchRedact(blur ? .gaussianBlur : .pixelate)
             if apply {
                 editor.applyEffect()
+                editor.deleteSnapshotsAndRedact()
             } else {
                 editor.cancelEffect()
             }
@@ -318,6 +329,7 @@ enum MonkeyStep: CustomStringConvertible {
             }
             if let session = editor.autoRedact, !session.isReading, session.problem == nil {
                 editor.applyAutoRedact()
+                editor.deleteSnapshotsAndRedact()
                 for _ in 0..<400 where editor.autoRedact != nil {
                     try? await Task.sleep(for: .milliseconds(25))
                 }

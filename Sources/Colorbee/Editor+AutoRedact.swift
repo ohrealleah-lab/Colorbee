@@ -58,15 +58,48 @@ extension Editor {
     /// `mask` is the area, the selection by default.
     func redactEveryLayer(with effect: Effect, in mask: SelectionMask? = nil, named name: String? = nil) {
         guard let area = mask ?? canvas.selection.marquee ?? SelectionMask.rectangle(canvas.bounds, clippedTo: canvas.bounds) else { return }
+        // Only a redaction that will change something asks; a locked layer refuses at once, as without snapshots.
+        if !history.snapshots.isEmpty {
+            let (layers, locked) = AutoRedact.layersWithPixels(in: area.hardened(), canvas: canvas)
+            if locked == nil, !layers.isEmpty {
+                let revision = history.revision, pageID = page.id
+                snapshotQuestion = SnapshotQuestion(count: history.snapshots.count) { [weak self] in
+                    // If the picture changed while the question was up, the area asked about may not fit it.
+                    guard let self, self.history.revision == revision, self.page.id == pageID else { return }
+                    self.redact(with: effect, in: area, named: name)
+                }
+                return onRender()
+            }
+        }
+        redact(with: effect, in: area, named: name)
+    }
+
+    private func redact(with effect: Effect, in area: SelectionMask, named name: String?) {
         var outcome = AutoRedact.Outcome.nothingChanged
         recordingChanges { outcome = AutoRedact.apply(effect, in: area, named: name, canvas: canvas, history: history) }
         if case .locked(let name) = outcome {
             onRefused()
             redactionMessage = "“\(name)” is locked, so nothing was redacted. Unlock it and try again."
         } else if outcome == .redacted {
+            deleteSnapshotsAfterRedacting(page)
             noteRedaction()
         }
         onRender()
+    }
+
+    /// A redacted page's History Snapshots still show what was redacted, so they go (Leah, 2026-11-01). Not a step:
+    /// undoing the redaction doesn't bring them back.
+    func deleteSnapshotsAfterRedacting(_ redacted: Page) {
+        guard !redacted.history.snapshots.isEmpty else { return }
+        redacted.history.deleteAllSnapshots()
+        layersRevision += 1
+    }
+
+    /// The question's Delete Snapshots and Redact.
+    func deleteSnapshotsAndRedact() {
+        guard let question = snapshotQuestion else { return }
+        snapshotQuestion = nil
+        question.redact()
     }
 
     /// Drops the background preview state; a render still running finds a newer generation and is ignored.
@@ -202,7 +235,8 @@ extension Editor {
 
     /// Redacts every checked match, one step on each page, on every layer under it (review E, findings 1, 3 and
     /// 4). Nothing is redacted if any page changed since it was read or has a locked layer under a box.
-    func applyAutoRedact() {
+    /// `snapshotsAnswered`: the person agreed to delete the snapshots of the pages being redacted.
+    func applyAutoRedact(snapshotsAnswered: Bool = false) {
         guard let session = autoRedact, !session.isReading, session.failure == nil, session.applying == nil else { return }
         let targets = session.pages.compactMap { result -> (page: Page, result: AutoRedactSession.PageResult, matches: [RedactionMatch])? in
             let matches = session.selectedMatches(onPage: result.pageID)
@@ -228,6 +262,12 @@ extension Editor {
                 return
             }
         }
+        let snapshots = targets.reduce(0) { $0 + $1.page.history.snapshots.count }
+        if snapshots > 0, !snapshotsAnswered {
+            // Asked again on the answer, so a page that changed meanwhile is still caught above.
+            snapshotQuestion = SnapshotQuestion(count: snapshots) { [weak self] in self?.applyAutoRedact(snapshotsAnswered: true) }
+            return
+        }
         autoRedact?.applying = (0, targets.count)
         Task { [weak self] in
             guard let self else { return }
@@ -240,7 +280,11 @@ extension Editor {
                 let number = pageNumber(of: target.page.id) ?? 0
                 if target.page === page {
                     recordingChanges {
-                        if apply() == .redacted { redacted = true; group += history.undoStepID.map { [(page.id, $0)] } ?? [] }
+                        if apply() == .redacted {
+                            redacted = true
+                            group += history.undoStepID.map { [(page.id, $0)] } ?? []
+                            deleteSnapshotsAfterRedacting(page)
+                        }
                     }
                     redactedPages.append(number)
                 } else {
@@ -252,6 +296,7 @@ extension Editor {
                             redacted = true
                             changedOtherPages = true
                             group += target.page.history.undoStepID.map { [(target.page.id, $0)] } ?? []
+                            deleteSnapshotsAfterRedacting(target.page)
                         }
                         redactedPages.append(number)
                         try target.page.park()

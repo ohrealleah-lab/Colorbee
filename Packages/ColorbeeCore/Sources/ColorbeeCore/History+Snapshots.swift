@@ -84,6 +84,13 @@ extension History {
         return true
     }
 
+    /// After a redaction (Leah, 2026-11-01): the snapshots would still show what was redacted, so they go, scratch file
+    /// and all. It isn't a step, so undoing the redaction doesn't bring them back.
+    public func deleteAllSnapshots() {
+        snapshots = []
+        snapshotStore = nil
+    }
+
     public func deleteSnapshot(_ id: HistorySnapshot.ID) {
         snapshots.removeAll { $0.id == id }
         // The scratch file only grows, so it goes once nothing needs it, and otherwise the snapshots left are copied to

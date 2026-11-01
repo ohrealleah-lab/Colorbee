@@ -110,6 +110,9 @@ struct MonkeyEpisode {
                     continue
                 }
                 try MonkeyRules.checkDocument(editor)
+                if step.redacts, editor.canvas === canvas, editor.history.revision != before.revision {
+                    try MonkeyRules.checkRedacted(editor)
+                }
                 if editor.canvas !== canvas {
                     // Another page is shown: its own history, so the line starts again there.
                     tracker.restart(on: editor, pagesTouched: true)

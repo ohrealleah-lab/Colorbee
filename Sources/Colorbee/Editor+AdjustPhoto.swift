@@ -374,8 +374,18 @@ extension Editor {
         redactEveryLayer(with: .solidFill(color1))
     }
 
-    func applyEffect() {
+    /// `snapshotsAnswered`: for Batch Redact, the person agreed to delete the page's History Snapshots.
+    func applyEffect(snapshotsAnswered: Bool = false) {
         if activeEffect?.choosesSelection == true { return applyRange() }
+        // Batch Redact would leave snapshots showing what it covers, so it asks first (Leah, 2026-11-01). Cancel
+        // leaves the bar open, with nothing applied.
+        if effectCoversAllLayers, effectEdit != nil, !snapshotsAnswered, !history.snapshots.isEmpty {
+            snapshotQuestion = SnapshotQuestion(count: history.snapshots.count) { [weak self] in
+                guard let self, self.effectCoversAllLayers else { return }
+                self.applyEffect(snapshotsAnswered: true)
+            }
+            return
+        }
         // Masking's edge mask and Point Color's Range are only ever views (Q13.2; review V, finding 1): what's applied is
         // the photo, re-rendered below if need be.
         photoEdit = photoEdit.withoutViews
@@ -440,7 +450,10 @@ extension Editor {
         activeEffect = nil
         var committed = false
         recordingChanges { committed = history.commit(edit) }
-        if redacting, committed { noteRedaction() }
+        if redacting, committed {
+            deleteSnapshotsAfterRedacting(page)
+            noteRedaction()
+        }
         if committed, let appliedPhoto { PhotoSettingsStore.shared.last = appliedPhoto }
     }
 }

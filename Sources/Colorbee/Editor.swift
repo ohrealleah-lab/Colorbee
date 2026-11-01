@@ -704,6 +704,8 @@ final class Editor {
     var redactionMessage: String?
     /// After a redaction, the Clipboard History items to offer to remove (Remove is the default).
     var clipboardCleanup: ClipboardCleanup?
+    /// Before a redaction that would delete History Snapshots: Colorbee asks first.
+    var snapshotQuestion: SnapshotQuestion?
     /// The clipboard's change count right after Copy Text put this document's text there; while it's unchanged, the
     /// clipboard still holds that text.
     @ObservationIgnored var copiedTextClipboardCount: Int?
@@ -807,4 +809,11 @@ struct RenderedShape: @unchecked Sendable {
 struct ClipboardCleanup: Equatable {
     var images: [ClipboardHistory.Item.ID]
     var text: Bool
+}
+
+/// Asked before a redaction on pages with History Snapshots, which would still show what's redacted: how many would be
+/// deleted, and the redaction to do if the person agrees (Leah, 2026-11-01).
+struct SnapshotQuestion {
+    let count: Int
+    let redact: @MainActor () -> Void
 }

@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-31 · 831 core tests and 324 app tests passing (review round 11, tier 1 refactors done; photo-editing test coverage added; stage 31 passed Leah's test); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
+_Last updated: 2026-10-31 · 839 core tests and 328 app tests passing (review round 11, tiers 1 and 2 done; photo-editing test coverage added; stage 31 passed Leah's test); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
 
 ## Waiting for Leah's tests
 
@@ -95,7 +95,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 31. Stroke smoothing | ✅ Done; passed Leah's test 2026-10-31 ("feels great") | High |
 | 14 · 32. Overnight monkey test | Built 2026-10-31; waiting for Leah's first overnight run | High |
 | 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done, fixed, and passed Leah's test 2026-10-31 ([Review/RESULTS.md](Review/RESULTS.md)); the stricter monkey's new reports are being sorted | High |
-| 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tier 1 done 2026-10-31 (R5 moved to tier 3, Leah); paused before tiers 2 and 4 (Leah). A 30-minute monkey run after it found 5 breaks (2 projects reopening different after a paste on an "Only the layer below" layer, 3 thumbnails not matching the export); all 5 replay the same on 08094b7, before round 11, so none came from it. Fixed (Leah, 2026-10-31); the five seeds and a 5-minute run now pass ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
+| 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tiers 1 and 2 done 2026-11-01; tier 4 (tidy-ups) next. R5, AB 5 and AD 8 moved to Leah / tier 3. The monkey after tier 1 found 5 older bugs, fixed; 5 minutes after tier 2 found none ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built

@@ -70,3 +70,14 @@ Dead code and misplaced comments (AB 14, AC 14, AD 15, AE 14); one `UnsafeTransf
 
 One small commit per item: no picture, file or step changes unless a Part 1 answer says so; `make test` green; a
 `make monkey MINUTES=30` run after R1, R5, R6 and anything in Tier 3. Part 1 fixes get a test and hand-test steps.
+
+## Where it stands (2026-11-01)
+
+- **Tier 1:** done, except R5 (moved to tier 3, Leah).
+- **Tier 2:** done, except AB 5 (one "image unchanged" stamp: it could change when a notice appears, so it's Leah's
+  call) and AD 8 (effects on a plain buffer: it restructures the core effect path, so it moved to tier 3). Small
+  differences from the plan: menu commands are checked by a test that walks the real menus rather than by
+  `#selector`; ExportOptions' settings keep their own keys; AD 6's Feather now shares Gaussian Blur's box sizes,
+  identical for every radius Feather offers.
+- **Tier 4:** next.
+

@@ -19,7 +19,7 @@ struct CanvasPropertiesSheet: View {
     }
 
     private var valid: Bool {
-        width >= 1 && height >= 1 && width <= ResizeSkew.maxSide && height <= ResizeSkew.maxSide && width * height <= ResizeSkew.maxArea
+        width >= 1 && height >= 1 && IntSize(width: width, height: height).fitsEditing
     }
 
     var body: some View {

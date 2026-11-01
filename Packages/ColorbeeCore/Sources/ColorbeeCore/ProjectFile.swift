@@ -458,8 +458,8 @@ public enum ProjectFile {
         let entries = allEntries(manifest)
         // Repeated layer ids would make two layers one (review J, finding 19).
         guard Set(entries.map(\.entry.id)).count == entries.count,
-              manifest.width > 0, manifest.height > 0, manifest.width <= ResizeSkew.maxSide, manifest.height <= ResizeSkew.maxSide,
-              manifest.width * manifest.height <= ResizeSkew.maxArea, !entries.isEmpty else { throw Failure.damaged }
+              manifest.width > 0, manifest.height > 0, IntSize(width: manifest.width, height: manifest.height).fitsEditing,
+              !entries.isEmpty else { throw Failure.damaged }
         return entries
     }
 

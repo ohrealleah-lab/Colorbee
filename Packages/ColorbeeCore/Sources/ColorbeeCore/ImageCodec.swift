@@ -115,7 +115,7 @@ public enum ImageCodec {
     }
 
     public static func fitsEditing(width: Int, height: Int) -> Bool {
-        width <= ResizeSkew.maxSide && height <= ResizeSkew.maxSide && width * height <= ResizeSkew.maxArea
+        IntSize(width: width, height: height).fitsEditing
     }
 
     public static func decode(_ image: CGImage, convertingTo target: CGColorSpace? = nil) throws -> DecodedImage {

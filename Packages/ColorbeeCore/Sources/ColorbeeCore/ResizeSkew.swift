@@ -33,9 +33,7 @@ public struct ResizeSkew: Equatable, Sendable {
     }
 
     public var fits: Bool {
-        let result = resultSize
-        return size.width > 0 && size.height > 0 && result.width <= Self.maxSide && result.height <= Self.maxSide
-            && result.width * result.height <= Self.maxArea
+        size.width > 0 && size.height > 0 && resultSize.fitsEditing
     }
 
     public func changes(_ original: IntSize) -> Bool {
@@ -53,7 +51,7 @@ public struct ResizeSkew: Equatable, Sendable {
     }
 
     /// How many pixels a slant adds across `length` pixels.
-    private static func extent(_ slope: Double, over length: Int) -> Int {
+    fileprivate static func extent(_ slope: Double, over length: Int) -> Int {
         Int((abs(slope) * Double(max(0, length - 1))).rounded(.up))
     }
 
@@ -63,6 +61,14 @@ public struct ResizeSkew: Equatable, Sendable {
     }
 
     fileprivate var slopes: (horizontal: Double, vertical: Double) { (horizontalSlope, verticalSlope) }
+}
+
+extension IntSize {
+    /// Within what Colorbee edits (`ResizeSkew.maxSide`, `maxArea`). The sides are checked first, so a damaged file's
+    /// huge sides can't overflow the multiply.
+    public var fitsEditing: Bool {
+        width <= ResizeSkew.maxSide && height <= ResizeSkew.maxSide && width * height <= ResizeSkew.maxArea
+    }
 }
 
 extension PixelBuffer {
@@ -80,7 +86,8 @@ extension PixelBuffer {
     private func skewed(_ slope: Double, horizontally: Bool, resampling: Resampling) -> PixelBuffer {
         let lines = horizontally ? height : width
         let length = horizontally ? width : height
-        let extra = Int((abs(slope) * Double(max(0, lines - 1))).rounded(.up))
+        // As `ResizeSkew.resultSize` works it out, so the size `fits` approved is the size made.
+        let extra = ResizeSkew.extent(slope, over: lines)
         let result = horizontally
             ? PixelBuffer(width: width + extra, height: height)
             : PixelBuffer(width: width, height: height + extra)

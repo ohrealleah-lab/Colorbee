@@ -74,7 +74,7 @@ public enum ImageActions {
     public static func resizeCanvas(to size: IntSize, anchor: CanvasAnchor = .topLeft, canvas: Canvas, history: History,
                                     context: SelectionContext) -> Bool {
         guard size.width > 0, size.height > 0, size != canvas.size,
-              size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return false }
+              size.fitsEditing else { return false }
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
         let edit = history.beginEdit("Resize Canvas", on: canvas)
         edit.willChangeGeometry()

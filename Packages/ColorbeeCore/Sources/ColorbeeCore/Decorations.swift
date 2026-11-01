@@ -79,7 +79,7 @@ public enum Decorations {
         let left = max(0, -extent.minX), top = max(0, -extent.minY)
         let right = max(0, extent.maxX - canvas.size.width), bottom = max(0, extent.maxY - canvas.size.height)
         let size = IntSize(width: canvas.size.width + left + right, height: canvas.size.height + top + bottom)
-        guard size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return false }
+        guard size.fitsEditing else { return false }
         let fill = canvas.vacatedFill(for: layer, color2: context.color2)
 
         /// The active layer's new pixel at `(x, y)` in the new canvas: the unselected part, then the decoration,

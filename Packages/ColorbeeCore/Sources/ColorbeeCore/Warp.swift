@@ -218,7 +218,7 @@ extension ImageActions {
     public static func correctPerspective(corners: [Point2D], canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard Warp.isConvex(corners) else { return false }
         let size = Warp.perspectiveSize(corners)
-        guard size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return false }
+        guard size.fitsEditing else { return false }
         return replaceEveryLayer("Perspective Correction", size: size, canvas: canvas, history: history, context: context) { layer in
             Warp.perspectiveCorrected(layer.buffer, corners: corners, size: size)
         }
@@ -271,7 +271,7 @@ public struct StraightenPlan: @unchecked Sendable {
         let angle = min(max(angle, -45), 45)
         guard abs(angle) >= 0.05 else { return nil }
         let size = Warp.straightenedSize(canvas.size, angle: angle, cropToFit: cropToFit)
-        guard size.width <= ResizeSkew.maxSide, size.height <= ResizeSkew.maxSide, size.width * size.height <= ResizeSkew.maxArea else { return nil }
+        guard size.fitsEditing else { return nil }
         self.angle = angle
         self.cropToFit = cropToFit
         self.size = size

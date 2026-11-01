@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-10-31 · 824 core tests and 316 app tests passing (photo-editing test coverage added; stage 31 passed Leah's test); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
+_Last updated: 2026-10-31 · 831 core tests and 324 app tests passing (review round 11, tier 1 refactors done; photo-editing test coverage added; stage 31 passed Leah's test); the soak test now groups and ungroups too; the full `make perf` (with its soak test, which now takes and goes to History Snapshots) not yet run for stages 3 to 14: only the new speed tests for Color Grading, looks, snapshots, detail, and vignette and grain have run (none needed for stages 15 to 18b)_
 
 ## Waiting for Leah's tests
 
@@ -16,6 +16,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 - [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
 - [The monkey's thumbnail and export fixes](#test-the-monkeys-thumbnail-and-export-fixes) (2026-10-31)
 - [Photo test coverage: screen drawing, Curves and color wheels](#test-photo-test-coverage-screen-drawing-curves-and-color-wheels) (2026-10-31)
+- [Review round 11, tier 1: undo after a page change, thumbnails, saved settings](#test-review-round-11-tier-1) (2026-10-31)
 
 ---
 
@@ -94,6 +95,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 31. Stroke smoothing | ✅ Done; passed Leah's test 2026-10-31 ("feels great") | High |
 | 14 · 32. Overnight monkey test | Built 2026-10-31; waiting for Leah's first overnight run | High |
 | 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done, fixed, and passed Leah's test 2026-10-31 ([Review/RESULTS.md](Review/RESULTS.md)); the stricter monkey's new reports are being sorted | High |
+| 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tier 1 done 2026-10-31 except R5 (to Leah); tiers 2 and 4 next ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -381,6 +383,27 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Review round 11, tier 1
+
+Mostly reorganized code, so these check that everyday things still work, plus the two fixes. Use
+`TestImages/Several Layers/Opacity Test.colorproj`.
+
+1. File > Open `Opacity Test.colorproj`.
+   Expected: it looks as it always has.
+2. Page > New Page, then Page > Delete Page.
+3. Effects > Drop Shadow…, then Apply.
+4. Edit > Undo.
+   Expected: the shadow goes away. There's still one page.
+5. Copy any picture in another app, then Edit > Paste.
+6. View > History (if it isn't showing).
+   Expected: the newest History picture shows the pasted piece.
+7. Press Return to place it, then Edit > Undo.
+   Expected: the pasted piece goes away.
+8. In the Layers panel, hide a layer and change one's opacity, then Edit > Undo twice.
+   Expected: both come back.
+9. Pick the Text tool. In the bar at the top, Styles > Save Current Style…, any name. Quit Colorbee and open it again.
+   Expected: the style is still in the Styles menu.
 
 ### Test: Photo test coverage: screen drawing, Curves and color wheels
 

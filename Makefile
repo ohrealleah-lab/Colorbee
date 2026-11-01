@@ -60,7 +60,7 @@ coverage: gen
 	$(FORGET_DEBUG)
 	@echo "== App =="
 	@xcrun xccov view --report --only-targets $(COVERAGE) | grep -E 'Colorbee.app'
-	@xcrun xccov view --report --files-for-target Colorbee.app $(COVERAGE) | grep -E 'Editor\.swift'
+	@xcrun xccov view --report --files-for-target Colorbee.app $(COVERAGE) | grep -E 'Editor(\+[A-Za-z]+)?\.swift'
 
 # Release-only time limits and the 8000x8000 soak test (AC-27, NFR-7). Takes a few minutes.
 perf:

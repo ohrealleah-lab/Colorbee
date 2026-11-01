@@ -9,49 +9,6 @@ enum DocumentChange {
     case redone
 }
 
-enum Tool: CaseIterable {
-    case pencil
-    case brush
-    case eraser
-    case fill
-    case eyedropper
-    case gradient
-    case measure
-    case shape
-    case text
-    case rectangleSelect
-    case ellipseSelect
-    case lassoSelect
-    case magicWand
-    case magnifier
-    case retouch
-    case redactBrush
-    case stepBadge
-
-    var isSelectionTool: Bool {
-        switch self {
-        case .rectangleSelect, .ellipseSelect, .lassoSelect, .magicWand: true
-        default: false
-        }
-    }
-
-    /// Tools that change the active layer's pixels.
-    var changesPixels: Bool {
-        switch self {
-        case .pencil, .brush, .eraser, .fill, .gradient, .shape, .text, .retouch, .redactBrush, .stepBadge: true
-        default: false
-        }
-    }
-
-    /// Tools that paint while the pointer is dragged.
-    var isStrokeTool: Bool {
-        switch self {
-        case .pencil, .brush, .eraser: true
-        default: false
-        }
-    }
-}
-
 /// Which color well a swatch click (and the Alpha slider and the color picker) changes (FR-1.1).
 enum ColorWell {
     case color1
@@ -87,248 +44,6 @@ struct Measurement: Equatable {
     var angle: Double { atan2(Double(-dy), Double(dx)) * 180 / .pi }
 }
 
-/// An effect with a dialog, and the sliders it shows.
-enum EffectKind: CaseIterable {
-    case gaussianBlur
-    case pixelate
-    case sharpen
-    case hueSaturation
-    case levels
-    case curves
-    case sepia
-    case posterize
-    case addNoise
-    case motionBlur
-    case emboss
-    case vignette
-    case adjustPhoto
-    case dropShadow
-    case border
-    case spotlight
-    case straighten
-    case perspective
-    case crop
-    /// Waiting for a click on one of several subjects (Remove Background, Select Subject).
-    case pickSubject
-    /// Edit ▸ Color Range… and Luminance Range… (FR-9.7 item 3): a selection chosen in the bar, previewed with a tint.
-    case colorRange
-    case luminanceRange
-    /// Edit ▸ Graduated Selection (FR-9.7 item 3): a dragged line, fully selected at its start and fading to its end.
-    case graduatedSelection
-
-    /// Drop Shadow, Border and Straighten change the canvas's size, so their preview is a real step, redone as
-    /// settings change.
-    var previewsAsStep: Bool { self == .dropShadow || self == .border || self == .straighten }
-
-    /// Straighten, Perspective Correction and Crop: dragging on the canvas sets them, rather than panning.
-    var isCanvasTool: Bool {
-        self == .straighten || self == .perspective || self == .crop || self == .pickSubject || choosesSelection
-    }
-
-    /// Color Range and Luminance Range: they make a selection rather than change pixels.
-    var choosesSelection: Bool { self == .colorRange || self == .luminanceRange || self == .graduatedSelection }
-
-    /// Changes every layer, not just the active one.
-    var appliesToWholeImage: Bool { self == .straighten || self == .perspective || self == .crop }
-
-    struct Parameter {
-        let label: String
-        let range: ClosedRange<Double>
-        let defaultValue: Double
-        let unit: String
-        /// The slider moves in steps of this size.
-        var step: Double = 1
-        /// A picker instead of a slider: the value is the chosen option's index.
-        var options: [String]? = nil
-    }
-
-    var title: String {
-        switch self {
-        case .gaussianBlur: "Gaussian Blur"
-        case .pixelate: "Pixelate"
-        case .sharpen: "Sharpen"
-        case .hueSaturation: "Hue/Saturation"
-        case .levels: "Levels"
-        case .curves: "Curves"
-        case .sepia: "Sepia"
-        case .posterize: "Posterize"
-        case .addNoise: "Add Noise"
-        case .motionBlur: "Motion Blur"
-        case .emboss: "Emboss"
-        case .vignette: "Vignette"
-        case .adjustPhoto: "Adjust Photo"
-        case .dropShadow: "Drop Shadow"
-        case .border: "Border"
-        case .spotlight: "Spotlight"
-        case .straighten: "Straighten"
-        case .perspective: "Perspective Correction"
-        case .crop: "Crop"
-        case .pickSubject: "Pick a Subject"
-        case .colorRange: "Color Range"
-        case .luminanceRange: "Luminance Range"
-        case .graduatedSelection: "Graduated Selection"
-        }
-    }
-
-    /// How a range's selection combines with the one there already (Leah, 2026-10-28).
-    static let combineOptions = ["Replace", "Add", "Subtract", "Intersect"]
-
-    var parameters: [Parameter] {
-        switch self {
-        case .gaussianBlur: [Parameter(label: "Radius", range: 1...100, defaultValue: 8, unit: "px")]
-        case .pixelate: [Parameter(label: "Cell size", range: 2...100, defaultValue: 12, unit: "px")]
-        case .sharpen: [Parameter(label: "Amount", range: 0...200, defaultValue: 60, unit: "%")]
-        case .hueSaturation: [
-            Parameter(label: "Hue", range: -180...180, defaultValue: 0, unit: "°"),
-            Parameter(label: "Saturation", range: -100...100, defaultValue: 0, unit: ""),
-            Parameter(label: "Lightness", range: -100...100, defaultValue: 0, unit: ""),
-        ]
-        case .levels: [
-            Parameter(label: "Black", range: 0...254, defaultValue: 0, unit: ""),
-            Parameter(label: "Midtones", range: 0.1...9.99, defaultValue: 1, unit: "", step: 0.01),
-            Parameter(label: "White", range: 1...255, defaultValue: 255, unit: ""),
-        ]
-        case .curves, .adjustPhoto, .perspective, .crop, .pickSubject: []
-        case .colorRange: [
-            Parameter(label: "Fuzziness", range: 0...100, defaultValue: 25, unit: "%"),
-            Parameter(label: "Selection", range: 0...3, defaultValue: 0, unit: "", options: Self.combineOptions),
-        ]
-        // From and To are shown as one two-handle slider, with the Shadows, Midtones and Highlights choices.
-        case .luminanceRange: [
-            Parameter(label: "From", range: 0...100, defaultValue: LuminanceRange.shadows.lower, unit: ""),
-            Parameter(label: "To", range: 0...100, defaultValue: LuminanceRange.shadows.upper, unit: ""),
-            Parameter(label: "Smoothness", range: 0...100, defaultValue: 50, unit: ""),
-            Parameter(label: "Selection", range: 0...3, defaultValue: 0, unit: "", options: Self.combineOptions),
-        ]
-        case .graduatedSelection: [
-            Parameter(label: "Selection", range: 0...3, defaultValue: 0, unit: "", options: Self.combineOptions),
-        ]
-        case .straighten: [
-            Parameter(label: "Angle", range: -45...45, defaultValue: 0, unit: "°", step: 0.1),
-            Parameter(label: "Corners", range: 0...1, defaultValue: 0, unit: "", options: ["Crop to Fit", "Grow Canvas"]),
-        ]
-        case .dropShadow: [
-            Parameter(label: "Across", range: -200...200, defaultValue: 12, unit: "px"),
-            Parameter(label: "Down", range: -200...200, defaultValue: 12, unit: "px"),
-            Parameter(label: "Blur", range: 0...100, defaultValue: 10, unit: "px"),
-            Parameter(label: "Opacity", range: 0...100, defaultValue: 50, unit: "%"),
-            Parameter(label: "Color", range: 0...1, defaultValue: 0, unit: "", options: ["Black", "Color 1"]),
-        ]
-        case .border: [
-            Parameter(label: "Width", range: 1...200, defaultValue: 8, unit: "px"),
-            Parameter(label: "Color", range: 0...3, defaultValue: 0, unit: "", options: ["Color 1", "Color 2", "Black", "White"]),
-        ]
-        case .spotlight: [
-            Parameter(label: "Outside", range: 0...2, defaultValue: 0, unit: "", options: ["Dim", "Blur", "Desaturate"]),
-            Parameter(label: "Amount", range: 0...100, defaultValue: 60, unit: "%"),
-        ]
-        case .sepia: [Parameter(label: "Amount", range: 0...100, defaultValue: 100, unit: "%")]
-        case .posterize: [Parameter(label: "Levels", range: 2...32, defaultValue: 4, unit: "")]
-        case .addNoise: [
-            Parameter(label: "Amount", range: 0...100, defaultValue: 20, unit: "%"),
-            Parameter(label: "Noise", range: 0...1, defaultValue: 0, unit: "", options: ["Color", "Monochrome"]),
-        ]
-        case .motionBlur: [
-            Parameter(label: "Angle", range: -180...180, defaultValue: 0, unit: "°"),
-            Parameter(label: "Distance", range: 1...200, defaultValue: 20, unit: "px"),
-        ]
-        case .emboss: [
-            Parameter(label: "Angle", range: -180...180, defaultValue: 135, unit: "°"),
-            Parameter(label: "Depth", range: 1...10, defaultValue: 3, unit: ""),
-        ]
-        case .vignette: [
-            Parameter(label: "Amount", range: -100...100, defaultValue: 50, unit: ""),
-            Parameter(label: "Size", range: 0...100, defaultValue: 50, unit: ""),
-        ]
-        }
-    }
-
-    func effect(_ values: [Double], curves: Curves = .identity, photo: PhotoEdit = PhotoEdit()) -> Effect {
-        func value(_ index: Int) -> Double { values.indices.contains(index) ? values[index] : parameters[index].defaultValue }
-        return switch self {
-        case .gaussianBlur: .gaussianBlur(radius: value(0))
-        case .pixelate: .pixelate(cellSize: Int(value(0).rounded()))
-        case .sharpen: .sharpen(amount: value(0))
-        case .hueSaturation: .hueSaturation(hue: value(0), saturation: value(1), lightness: value(2))
-        case .levels: .levels(Levels(black: value(0), white: max(value(2), value(0) + 1), gamma: value(1)))
-        case .curves: .curves(curves)
-        case .sepia: .sepia(amount: value(0))
-        case .posterize: .posterize(levels: Int(value(0).rounded()))
-        case .addNoise: .addNoise(amount: value(0), monochrome: value(1) >= 0.5)
-        case .motionBlur: .motionBlur(angle: value(0), distance: value(1))
-        case .emboss: .emboss(angle: value(0), depth: value(1))
-        case .vignette: .vignette(amount: value(0), size: value(1))
-        case .adjustPhoto: .photo(photo)
-        case .spotlight:
-            switch Int(value(0).rounded()) {
-            case 1: .gaussianBlur(radius: max(1, value(1) / 2))
-            case 2: .hueSaturation(hue: 0, saturation: -value(1), lightness: 0)
-            default: .brightnessContrast(brightness: -value(1) * 0.8, contrast: 0)
-            }
-        // Done by Decorations and ImageActions, not as an effect (see Editor.renderEffectPreview).
-        case .dropShadow, .border, .straighten, .perspective, .crop, .pickSubject, .colorRange, .luminanceRange, .graduatedSelection: .invert
-        }
-    }
-}
-
-extension RedactionTreatment {
-    var title: String {
-        switch self {
-        case .blur: "Blur"
-        case .pixelate: "Pixelate"
-        case .solidFill: "Solid Fill"
-        }
-    }
-}
-
-/// An Auto-Redact review in progress (FR-9.3): every page, whole, whatever is selected (FR-11.6).
-struct AutoRedactSession {
-    /// One page that was read, and what was found on it.
-    struct PageResult {
-        let pageID: UUID
-        /// The page as it was read; Apply refuses if it has changed since (review E, finding 2).
-        let revision: Int
-        let canvasSize: IntSize
-        var scan: TextScan?
-        /// The faces Vision found (FR-9.7 item 10), each with an id kept while the review is open.
-        var faces: [(id: UUID, rect: IntRect)]?
-        var matches: [RedactionMatch] = []
-    }
-
-    /// Tells this run's scan from an earlier run's that finishes late.
-    let id = UUID()
-    /// Some page read has more than one layer, so hidden layers matter.
-    let anyLayered: Bool
-    /// In page order.
-    var pages: [PageResult]
-    /// Why Apply couldn't redact (a page changed, or a layer is locked).
-    var problem: String?
-    var failure: String?
-    /// The page that couldn't be read. Pages after it weren't read either, so nothing can be applied (review K, finding 2).
-    var failedPage: UUID?
-    /// Matches the person unchecked to keep visible.
-    var keptVisible: Set<UUID> = []
-    var treatment: RedactionTreatment = .solidFill
-    /// The match last clicked in the list.
-    var focused: UUID?
-    /// While Apply works through the pages: how many are done, of how many.
-    var applying: (done: Int, total: Int)?
-
-    var isReading: Bool { failure == nil && pages.contains { $0.scan == nil || $0.faces == nil } }
-    var pagesRead: Int { pages.count { $0.scan != nil && $0.faces != nil } }
-    var isMultiPage: Bool { pages.count > 1 }
-    var matches: [RedactionMatch] { pages.flatMap(\.matches) }
-    var selectedMatches: [RedactionMatch] { matches.filter { !keptVisible.contains($0.id) } }
-
-    func matches(onPage id: UUID) -> [RedactionMatch] {
-        pages.first { $0.pageID == id }?.matches ?? []
-    }
-
-    func selectedMatches(onPage id: UUID) -> [RedactionMatch] {
-        matches(onPage: id).filter { !keptVisible.contains($0.id) }
-    }
-}
-
 /// The Before/After view's settings (FR-11.3).
 struct Comparison: Equatable {
     enum Baseline { case asOpened, lastSaved }
@@ -338,80 +53,6 @@ struct Comparison: Equatable {
     var layout: Layout = .split
     /// The split's divider, as a fraction of the view's width.
     var divider = 0.5
-}
-
-/// A shape still being edited, before it's placed into the layer (FR-5.1).
-struct PendingShape: Equatable {
-    var kind: ShapeKind
-    var start: Point2D
-    var end: Point2D
-    /// Polygon vertices, or a curve's start, two control points and end.
-    var points: [Point2D] = []
-    var rotation = 0.0
-    /// Right-dragged: outline uses Color 2 and fill uses Color 1.
-    var swapped: Bool
-    /// A polygon or curve still being placed point by point.
-    var isBuilding = false
-    /// Curve construction: 0 the line, 1 the first bend, 2 the second bend.
-    var curveStage = 0
-
-    mutating func translate(by dx: Double, _ dy: Double) {
-        start = Point2D(x: start.x + dx, y: start.y + dy)
-        end = Point2D(x: end.x + dx, y: end.y + dy)
-        points = points.map { Point2D(x: $0.x + dx, y: $0.y + dy) }
-    }
-}
-
-/// A step badge still being placed (FR-5.3): it can be moved or removed until the next one, or another command,
-/// places it.
-struct PendingBadge: Equatable {
-    var style: BadgeStyle
-    var value: Int
-    var center: Point2D
-    var arrowTip: Point2D?
-    /// Right-clicked: the circle in Color 2 and the number in Color 1.
-    var swapped: Bool
-}
-
-/// Text formatting for the text tool (FR-6.1).
-struct TextStyle: Equatable, Codable {
-    var fontFamily = "Helvetica Neue"
-    /// In image pixels at 100% zoom.
-    var fontSize = 24.0
-    var bold = false
-    var italic = false
-    var underline = false
-    var strikethrough = false
-    var alignment: TextAlignment = .left
-    /// Opaque draws a Color 2 rectangle behind the text.
-    var opaqueBackground = false
-}
-
-/// A text box still being typed into.
-struct PendingText: Equatable {
-    var origin: Point2D
-    /// Set when the box was dragged out; otherwise lines run as long as they need.
-    var wrapWidth: Double?
-    /// A dragged-out box keeps at least its dragged height.
-    var minimumHeight: Double = 0
-    var string = ""
-    /// The text layer being edited; nil for new text.
-    var layerID: LayerID?
-}
-
-/// What a press on the open text box grabbed: a handle resizes it, the border moves it (FR-6.1).
-enum TextBoxGrab: Equatable {
-    case handle(SelectionHandle)
-    case border
-}
-
-/// What a press on a pending shape grabbed.
-enum ShapeHandle: Equatable {
-    case box(SelectionHandle)
-    case start
-    case end
-    case vertex(Int)
-    case rotate
 }
 
 /// Modifier keys that matter to canvas drags.
@@ -429,12 +70,12 @@ final class Editor {
     /// The document's pages (FR-11.6); the canvas and history are the shown page's.
     @ObservationIgnored let pages: PageStack
     /// The page shown. Setting it (through `pageDidChange`) refreshes everything that shows the canvas.
-    private(set) var page: Page
+    var page: Page
     var canvas: Canvas { page.canvas }
     var history: History { page.history }
 
     // A first click on a new document selects rather than draws (Leah, 2026-10-04).
-    private(set) var tool: Tool = .rectangleSelect
+    var tool: Tool = .rectangleSelect
     var brush: Brush = .round
     /// Brushes respond to trackpad and pen pressure (FR-4.2). Off, every brush draws at full size.
     var usesPressure = true
@@ -479,16 +120,16 @@ final class Editor {
     var showsPixelGrid = true {
         didSet { renderSoon() }
     }
-    private(set) var viewport = Viewport()
+    var viewport = Viewport()
     var pointer: IntPoint?
     /// The selection being dragged, already combined with the existing selection.
-    private(set) var marqueePreview: SelectionMask?
+    var marqueePreview: SelectionMask?
     /// Bounds of the selected area, for the status bar.
-    private(set) var selectionBounds: IntRect?
+    var selectionBounds: IntRect?
     /// The canvas size, observable for the status bar (the canvas itself isn't observable).
-    private(set) var canvasSize: IntSize
+    var canvasSize: IntSize
     /// A stretched floating selection's width as a percentage of its original, for the status bar.
-    private(set) var selectionScalePercent: Int?
+    var selectionScalePercent: Int?
     /// Changing the kind restyles a pending shape of the same family; otherwise the pending one is placed first.
     var shapeKind: ShapeKind = .rectangle {
         didSet {
@@ -513,14 +154,14 @@ final class Editor {
     var shapeFill: PaintStyle? {
         didSet { renderSoon() }
     }
-    private(set) var pendingShape: PendingShape?
+    var pendingShape: PendingShape?
     // Step badges (FR-5.3).
     var badgeStyle: BadgeStyle = .numbers {
         didSet { renderSoon() }
     }
     /// What the next badge of each style shows: numbers and letters count separately (Leah, 2026-10-10). Each starts
     /// at the beginning in each document and steps back when one of its badges is undone.
-    private var nextBadges: [BadgeStyle: Int] = [:]
+    var nextBadges: [BadgeStyle: Int] = [:]
     /// The next badge in the style chosen now.
     var nextBadge: Int {
         get { nextBadges[badgeStyle] ?? 1 }
@@ -529,13 +170,13 @@ final class Editor {
     var badgeDiameter = 32.0 {
         didSet { renderSoon() }
     }
-    private(set) var pendingBadge: PendingBadge?
+    var pendingBadge: PendingBadge?
     // The Redact Brush (FR-9.6). Solid Fill is the safest, so it's the default, as in Auto-Redact.
     var redactTreatment: RedactionTreatment = .solidFill
     var redactBrushSize = 24.0 {
         didSet { renderSoon() }
     }
-    @ObservationIgnored private var redactStroke: (area: RedactBrushArea, path: StrokePath, secondary: Bool)?
+    @ObservationIgnored var redactStroke: (area: RedactBrushArea, path: StrokePath, secondary: Bool)?
     // Retouching (FR-4.6).
     var retouchKind: RetouchKind = .remove {
         didSet { renderSoon() }
@@ -557,33 +198,33 @@ final class Editor {
     var toneRange: ToneRange = .midtones
     /// The Clone Stamp: where it copies from (Option-click), whether the offset stays from stroke to stroke, and
     /// whether the copied pixels' tone is evened out with their surroundings.
-    private(set) var cloneSource: Point2D?
+    var cloneSource: Point2D?
     var cloneAligned = true
     var cloneMatchesTone = false
     /// From where you paint to where it copies from, once the first stroke after picking the source started.
-    @ObservationIgnored private var cloneOffset: IntPoint?
-    @ObservationIgnored private var retouchBrush: (stroke: Stroke, edit: Edit, kind: RetouchKind, path: StrokePath, offset: IntPoint?, pressure: Double)?
+    @ObservationIgnored var cloneOffset: IntPoint?
+    @ObservationIgnored var retouchBrush: (stroke: Stroke, edit: Edit, kind: RetouchKind, path: StrokePath, offset: IntPoint?, pressure: Double)?
     /// Where the Clone Stamp is copying from now, for the crosshair.
-    private(set) var cloneCrosshair: Point2D?
-    @ObservationIgnored private var retouchStroke: (area: RedactBrushArea, path: StrokePath, kind: RetouchKind)?
+    var cloneCrosshair: Point2D?
+    @ObservationIgnored var retouchStroke: (area: RedactBrushArea, path: StrokePath, kind: RetouchKind)?
     /// The area being filled, shown until the fill is done.
-    @ObservationIgnored private var fillingArea: RedactBrushArea?
+    @ObservationIgnored var fillingArea: RedactBrushArea?
     /// How far the fill has got, while one runs.
-    private(set) var fillProgress: Double?
-    @ObservationIgnored private var fillCancel: CancelFlag?
-    private enum BadgeDrag {
+    var fillProgress: Double?
+    @ObservationIgnored var fillCancel: CancelFlag?
+    enum BadgeDrag {
         case create
         case move(grab: Point2D, original: PendingBadge)
     }
-    @ObservationIgnored private var badgeDrag: BadgeDrag?
+    @ObservationIgnored var badgeDrag: BadgeDrag?
     /// What each placed badge's step showed, so undoing it steps its style's next value back.
-    @ObservationIgnored private var badgeSteps: [UUID: (style: BadgeStyle, value: Int)] = [:]
+    @ObservationIgnored var badgeSteps: [UUID: (style: BadgeStyle, value: Int)] = [:]
     var gradientMode: GradientMode = .linear
     var symmetry: SymmetryMode = .off {
         didSet { renderSoon() }
     }
     /// The last measurement; it stays on screen until the next one or a tool change.
-    private(set) var measurement: Measurement?
+    var measurement: Measurement?
     var textStyle = TextStyle() {
         didSet { renderSoon() }
     }
@@ -597,18 +238,18 @@ final class Editor {
     static let smoothingKey = "Smoothing"
     /// How far the pointer pulls ahead before a smoothed line follows, in image pixels: up to 36 points on screen at full
     /// Smoothing, so it feels the same at any zoom.
-    private var smoothingReach: Double { smoothing * 36 / viewport.zoom }
-    private(set) var pendingText: PendingText?
+    var smoothingReach: Double { smoothing * 36 / viewport.zoom }
+    var pendingText: PendingText?
     /// Non-nil while Before/After is showing. The view is read-only while it's on.
     var comparison: Comparison? {
         didSet { if oldValue?.layout != comparison?.layout { fitComparison() } else { renderSoon() } }
     }
     /// The page shown, as opened or created (FR-11.3). Other pages keep theirs in `pageMemory`.
-    @ObservationIgnored private var opened: PageBaseline
+    @ObservationIgnored var opened: PageBaseline
     var asOpened: PixelBuffer? { opened.flattened }
     /// The document at the last explicit save, as it was written.
-    private(set) var lastSavedSnapshot: SaveSnapshot?
-    @ObservationIgnored private var lastSavedImage: PixelBuffer?
+    var lastSavedSnapshot: SaveSnapshot?
+    @ObservationIgnored var lastSavedImage: PixelBuffer?
     /// "Last Saved" is for the page shown at the last save (FR-11.6).
     var hasLastSaved: Bool { lastSavedSnapshot?.pageID == page.id }
     /// The image at the last explicit save, flattened the first time Before/After needs it.
@@ -619,7 +260,7 @@ final class Editor {
         }
         return lastSavedImage
     }
-    private(set) var autoRedact: AutoRedactSession?
+    var autoRedact: AutoRedactSession?
     var redactionPatterns = Editor.loadRedactionPatterns() {
         didSet {
             Editor.saveRedactionPatterns(redactionPatterns)
@@ -629,46 +270,46 @@ final class Editor {
     /// The gap between the two images in side-by-side Before/After, in image pixels.
     static let comparisonGap = 40
     /// The effect whose dialog is open, if any.
-    private(set) var activeEffect: EffectKind?
+    var activeEffect: EffectKind?
     /// Batch Redact's Blur and Pixelate: the preview and Apply cover every layer under the selection
     /// (review H, finding 3; Leah, 2026-10-04).
-    private(set) var effectCoversAllLayers = false
+    var effectCoversAllLayers = false
     /// The layers a Batch Redact bar previews and changes.
-    @ObservationIgnored private var effectLayers: [Layer] = []
+    @ObservationIgnored var effectLayers: [Layer] = []
     var effectValues: [Double] = []
 
     @ObservationIgnored var onRender: () -> Void = {}
-    @ObservationIgnored private var renderScheduled = false
+    @ObservationIgnored var renderScheduled = false
     @ObservationIgnored var onDocumentChange: (DocumentChange) -> Void = { _ in }
-    @ObservationIgnored private var activeStroke: ActiveStroke?
-    @ObservationIgnored private var selectionDrag: SelectionDrag?
-    @ObservationIgnored private var effectEdit: Edit?
+    @ObservationIgnored var activeStroke: ActiveStroke?
+    @ObservationIgnored var selectionDrag: SelectionDrag?
+    @ObservationIgnored var effectEdit: Edit?
     /// Curves' points while its dialog is open.
     var effectCurves = Curves.identity
     /// The Adjust Photo panel's settings while it's open, and which sliders Auto last set.
-    private(set) var photoEdit = PhotoEdit()
-    private(set) var photoAutoMoved: Set<PhotoAdjustments.Slider> = []
+    var photoEdit = PhotoEdit()
+    var photoAutoMoved: Set<PhotoAdjustments.Slider> = []
     /// An eyedropper waiting for a click on the picture (FR-9.7). See `picturePickPurpose`.
-    private(set) var picturePick: PicturePick?
+    var picturePick: PicturePick?
     /// What Levels shows behind its sliders: the pixels it applies to, before any change.
-    private(set) var effectHistogram: Histogram?
+    var effectHistogram: Histogram?
     /// The selection's separate regions, worked out once per dialog; nil applies to the whole layer.
-    @ObservationIgnored private var effectRegions: [SelectionMask]?
-    @ObservationIgnored private var effectPreviewScheduled = false
+    @ObservationIgnored var effectRegions: [SelectionMask]?
+    @ObservationIgnored var effectPreviewScheduled = false
     /// The active layer's pixels as they were when the effect opened. Previews are worked out from this
     /// copy in the background, so large images don't hold up the sliders (NFR-6).
-    @ObservationIgnored private var effectSource: PixelBuffer?
+    @ObservationIgnored var effectSource: PixelBuffer?
     /// What the canvas shows now, so Apply knows whether the newest settings still need working out.
-    @ObservationIgnored private var shownEffect: Effect?
+    @ObservationIgnored var shownEffect: Effect?
     /// Bumped when the effect closes, so a background preview finishing late is ignored.
-    @ObservationIgnored private var previewGeneration = 0
-    @ObservationIgnored private var previewRunning = false
-    @ObservationIgnored private var previewWanted = false
-    @ObservationIgnored private var shapeDrag: ShapeDrag?
-    @ObservationIgnored private var gradientDrag: GradientDrag?
-    @ObservationIgnored private var gradientRenderScheduled = false
+    @ObservationIgnored var previewGeneration = 0
+    @ObservationIgnored var previewRunning = false
+    @ObservationIgnored var previewWanted = false
+    @ObservationIgnored var shapeDrag: ShapeDrag?
+    @ObservationIgnored var gradientDrag: GradientDrag?
+    @ObservationIgnored var gradientRenderScheduled = false
 
-    private struct GradientDrag {
+    struct GradientDrag {
         let edit: Edit
         let start: Point2D
         var end: Point2D
@@ -676,16 +317,16 @@ final class Editor {
         let reversed: Bool
         let selection: SelectionMask?
     }
-    @ObservationIgnored private var shapeRenderCache: (spec: ShapeSpec, pixels: PixelBuffer, origin: IntPoint)?
-    @ObservationIgnored private var textRenderCache: (spec: TextSpec, pixels: PixelBuffer, origin: IntPoint)?
+    @ObservationIgnored var shapeRenderCache: (spec: ShapeSpec, pixels: PixelBuffer, origin: IntPoint)?
+    @ObservationIgnored var textRenderCache: (spec: TextSpec, pixels: PixelBuffer, origin: IntPoint)?
     /// Textured shapes take too long to draw on every drag event, so they're drawn in the background;
     /// these track the drawing under way and the newest spec waiting for it.
-    @ObservationIgnored private var shapeRenderInFlight = false
-    @ObservationIgnored private var shapeRenderWanted: ShapeSpec?
+    @ObservationIgnored var shapeRenderInFlight = false
+    @ObservationIgnored var shapeRenderWanted: ShapeSpec?
     /// Bumped when a shape is placed or cancelled, so a late background result for it is dropped.
-    @ObservationIgnored private var shapeRenderGeneration = 0
+    @ObservationIgnored var shapeRenderGeneration = 0
 
-    private enum ShapeDrag {
+    enum ShapeDrag {
         case draw
         case curveLine
         case move(grab: Point2D, original: PendingShape)
@@ -696,7 +337,7 @@ final class Editor {
         kind.isLinear ? 0 : kind.isPointBased ? (kind == .polygon ? 1 : 2) : 3
     }
 
-    private struct ActiveStroke {
+    struct ActiveStroke {
         let edit: Edit
         /// One stroke per mirror image when Symmetry is on.
         let strokes: [Stroke]
@@ -707,7 +348,7 @@ final class Editor {
         var pressure: Double
     }
 
-    private enum SelectionDrag {
+    enum SelectionDrag {
         case marquee(shape: SelectionShape, start: Point2D, mode: SelectionCombineMode, shiftHeldAtStart: Bool, shiftReleased: Bool)
         case lasso(points: [Point2D], mode: SelectionCombineMode)
         case move(edit: Edit?, grab: Point2D, origin: IntPoint, smear: Bool, duplicate: Bool)
@@ -747,7 +388,7 @@ final class Editor {
 
     /// What the Editor remembers about a page while another is shown.
     /// What a hidden page goes back to when it's shown: compressed until then.
-    private struct PageMemory {
+    struct PageMemory {
         /// Nil until the page has been shown.
         var viewport: Viewport?
         var opened: PageBaseline
@@ -755,186 +396,15 @@ final class Editor {
         var savedGeometrySteps: [ObjectIdentifier]
     }
 
-    @ObservationIgnored private var pageMemory: [UUID: PageMemory] = [:]
+    @ObservationIgnored var pageMemory: [UUID: PageMemory] = [:]
     /// The newest undos, oldest first: page changes and page edits redo in the order they were undone.
-    private enum Undone { case pageChange, pageEdit }
-    @ObservationIgnored private var undone: [Undone] = []
+    enum Undone { case pageChange, pageEdit }
+    @ObservationIgnored var undone: [Undone] = []
     /// Auto-Redacts that changed more than one page, as each page's step: undone and redone together while they're
     /// the newest change on every page (Leah, 2026-10-04).
-    @ObservationIgnored private var redactionGroups: [[(page: UUID, step: UUID)]] = []
+    @ObservationIgnored var redactionGroups: [[(page: UUID, step: UUID)]] = []
     var showsPageSidebar = true {
         didSet { onViewStateChange() }
-    }
-
-    var pageCount: Int {
-        _ = layersRevision
-        return pages.pages.count
-    }
-
-    var currentPageIndex: Int {
-        _ = layersRevision
-        return pages.currentIndex
-    }
-
-    /// A page's small picture for the page sidebar.
-    func pageThumbnail(at index: Int) -> Thumbnail? {
-        _ = layersRevision
-        guard pages.pages.indices.contains(index) else { return nil }
-        return pages.pages[index].thumbnail()
-    }
-
-    func showPage(at index: Int) {
-        guard index != pages.currentIndex else { return }
-        changePages { try pages.show(index) }
-    }
-
-    /// New Page: blank, the size of the shown page, filled with Color 2, after it.
-    func newPage() {
-        let size = canvas.size
-        let blank = Canvas(size: size, colorSpace: canvas.colorSpace, background: color2)
-        let added = Page(canvas: blank, history: Editor.makeHistory(), resolution: page.resolution)
-        changePages(recorded: true) { try pages.insert(added, at: pages.currentIndex + 1) }
-    }
-
-    func duplicatePage() {
-        finishInteractions()
-        placeFloatingSelection()
-        let copy = Page(canvas: canvas.copy(), history: Editor.makeHistory(), resolution: page.resolution)
-        changePages(recorded: true) { try pages.insert(copy, at: pages.currentIndex + 1) }
-    }
-
-    func deletePage() {
-        guard pages.pages.count > 1 else { return onRefused() }
-        changePages(recorded: true) { try pages.remove(at: pages.currentIndex) }
-    }
-
-    func movePage(from source: Int, to destination: Int) {
-        guard source != destination, pages.pages.indices.contains(destination) else { return }
-        changePages(recorded: true) { pages.move(from: source, to: destination) }
-    }
-
-    /// Runs a page change: what's under way on the shown page is finished first, then the Editor follows the
-    /// page now shown. `recorded` changes are steps (undoable, and they mark the document edited).
-    /// Whether the change was made. A page that can't be brought back changes nothing (review K, finding 5).
-    @discardableResult
-    private func changePages(recorded: Bool = false, _ body: () throws -> Void) -> Bool {
-        finishInteractions()
-        placeFloatingSelection()
-        comparison = nil
-        do {
-            try body()
-        } catch {
-            onRefused()
-            if pages.current !== page { pageDidChange() }
-            return false
-        }
-        if recorded {
-            undone = []
-            onDocumentChange(.done)
-        }
-        pageDidChange()
-        return true
-    }
-
-    /// After the shown page changed (or the page list did): remembers the old page's view and saved state, and
-    /// brings back the new one's.
-    private func pageDidChange() {
-        stopFillForChange()
-        otherChosenLayerIDs = []
-        if pages.current !== page {
-            opened.pack()
-            saved.pack()
-            pageMemory[page.id] = PageMemory(viewport: viewport, opened: opened, saved: saved, savedGeometrySteps: savedGeometrySteps)
-            page = pages.current
-            canvasSize = canvas.size
-            if let memory = pageMemory.removeValue(forKey: page.id) {
-                opened = memory.opened
-                saved = memory.saved
-                savedGeometrySteps = memory.savedGeometrySteps
-                if let shown = memory.viewport {
-                    updateViewport { $0 = Viewport(zoom: shown.zoom, center: shown.center, viewSize: $0.viewSize) }
-                } else {
-                    zoomToFit()
-                }
-            } else {
-                // A page added since the document opened: as opened is as it is now.
-                opened = PageBaseline(canvas: canvas.copy())
-                saved = opened
-                savedGeometrySteps = history.geometrySteps
-                zoomToFit()
-            }
-        }
-        // Pages out of the document are forgotten once undo can't bring them back (review L, finding 10).
-        let kept = Set((pages.pages + pages.restorablePages).map(\.id))
-        pageMemory = pageMemory.filter { kept.contains($0.key) }
-        layersRevision += 1
-        selectionDidChange()
-        onRender()
-    }
-
-    // MARK: History panel (FR-13.2)
-
-    var historySteps: [(name: String, thumbnail: Thumbnail?, isUndone: Bool)] {
-        _ = layersRevision
-        return history.steps
-    }
-
-    /// Undoes or redoes until exactly `count` steps are done, for a click in the History panel.
-    /// Steps only the page shown, never a page change, which isn't in its list (review L, finding 1).
-    func jump(toStep count: Int) {
-        finishInteractions()
-        // Like Undo and Redo, it leaves just the active layer chosen (review T, finding 4).
-        otherChosenLayerIDs = []
-        while history.undoCount > count, history.canUndo, stepShownPage(undoing: true) {}
-        while history.undoCount < count, history.canRedo, stepShownPage(undoing: false) {}
-    }
-
-    // MARK: History Snapshots (FR-9.7 item 4)
-
-    /// The page's snapshots, oldest first.
-    var historySnapshots: [HistorySnapshot] {
-        _ = layersRevision
-        return history.snapshots
-    }
-
-    /// What New Snapshot… suggests: "Snapshot 1", "Snapshot 2" and so on, skipping names in use.
-    var nextSnapshotName: String {
-        let names = Set(history.snapshots.map(\.name))
-        return (1...).lazy.map { "Snapshot \($0)" }.first { !names.contains($0) }!
-    }
-
-    /// Copies the image as it is now. A floating selection is placed first, keeping its outline, since a snapshot
-    /// holds only layers and a marquee.
-    func takeSnapshot(named name: String) throws(HistorySnapshot.Failure) {
-        guard !blocksDocumentCommands else { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        try history.takeSnapshot(named: name, of: canvas)
-        layersRevision += 1
-    }
-
-    /// Puts the image back as the snapshot has it, as one step that ⌘Z takes back (Q12.5).
-    func goToSnapshot(_ id: HistorySnapshot.ID) {
-        guard !blocksDocumentCommands else { return onRefused() }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        stopFillForChange()
-        otherChosenLayerIDs = []
-        var failed = false
-        performSelectionCommand {
-            do { try history.goToSnapshot(id, on: canvas) } catch { failed = true }
-        }
-        if failed { onRefused() }
-    }
-
-    func renameSnapshot(_ id: HistorySnapshot.ID, to name: String) {
-        history.renameSnapshot(id, to: name)
-        layersRevision += 1
-    }
-
-    func deleteSnapshot(_ id: HistorySnapshot.ID) {
-        history.deleteSnapshot(id)
-        layersRevision += 1
     }
 
     // MARK: Canvas (FR-1.4)
@@ -962,1808 +432,90 @@ final class Editor {
     var fileKind: String?
     var fileBytes: Int64?
 
-    /// The Info panel's facts, except the color profile's name, which takes AppKit to read.
-    var documentInfo: DocumentInfo {
-        DocumentInfo(fileName: fileName, kind: fileKind, bytesOnDisk: fileBytes, size: canvasSize, profileName: nil,
-                     hasTransparentBackground: hasTransparentBackground, layerCount: layers.count,
-                     pageIndex: currentPageIndex, pageCount: pageCount, resolution: page.resolution,
-                     camera: canvas.cameraDetails, locationRemoved: canvas.locationRemoved)
-    }
-
-    var hasTransparentBackground: Bool {
-        _ = layersRevision
-        return canvas.hasTransparentBackground
-    }
-
-    /// Canvas Properties: the new size, with the picture at `anchor`, and the transparent-background setting, each its
-    /// own step.
-    func applyCanvasProperties(size: IntSize, anchor: CanvasAnchor = .center, transparentBackground: Bool) {
-        isCanvasPropertiesOpen = false
-        finishInteractions()
-        recordingChanges {
-            ImageActions.setTransparentBackground(transparentBackground, canvas: canvas, history: history)
-            ImageActions.resizeCanvas(to: size, anchor: anchor, canvas: canvas, history: history, context: selectionContext)
-        }
-        selectionDidChange()
-    }
-
-    /// The canvas's edge handles: new area on the right and bottom (FR-1.4).
-    func resizeCanvas(to size: IntSize) {
-        finishInteractions()
-        recordingChanges { ImageActions.resizeCanvas(to: size, canvas: canvas, history: history, context: selectionContext) }
-        selectionDidChange()
-    }
-
     /// While a canvas edge handle is dragged: the size it would become, outlined on the canvas.
     var canvasResizePreview: IntSize? {
         didSet { renderSoon() }
     }
 
     /// The page shown's layers as of the last explicit save (or as opened), for Revert Layer (FR-8.3).
-    @ObservationIgnored private var saved: PageBaseline
+    @ObservationIgnored var saved: PageBaseline
     /// The crop, resize, rotation and flip steps in effect at the last save; Revert Layer needs the same ones.
-    @ObservationIgnored private var savedGeometrySteps: [ObjectIdentifier] = []
-
-    var canRevertLayer: Bool {
-        let layer = canvas.activeLayer
-        // After a flip or rotation since the save, the saved pixels would come back unturned (review G, finding 4).
-        return layer.isPixelLayer && !canvas.isLocked(layer) && canvas.size == saved.size && history.geometrySteps == savedGeometrySteps
-            && saved.layerIDs.contains(layer.id)
-    }
-
-    /// Revert Layer: the active layer's pixels go back to how they were at the last save, as one step, and its mask's too
-    /// if it had that mask then (Q28.8).
-    func revertLayer() {
-        guard canRevertLayer, let saved = saved.layer(canvas.activeLayer.id) else {
-            onRefused()
-            return
-        }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        let layer = canvas.activeLayer
-        let edit = history.beginEdit("Revert Layer", on: canvas)
-        edit.willModify(layer.buffer.bounds, in: layer)
-        layer.buffer.setPixels(saved.pixels(in: saved.bounds), in: layer.buffer.bounds)
-        if let mask = layer.mask, let savedMask = self.saved.mask(mask.id), savedMask.size == mask.buffer.size {
-            edit.willModify(mask.buffer.bounds, in: mask)
-            mask.buffer.setPixels(savedMask.pixels(in: savedMask.bounds), in: mask.buffer.bounds)
-        }
-        recordingChanges { history.commit(edit) }
-        onRender()
-    }
-
-    /// The step Undo on Active Layer would take back, for the menu; nil when it isn't available.
-    var undoOnActiveLayerName: String? {
-        // Placing a pending shape or text makes a newer step, so the step isn't known yet (review G, finding 1).
-        guard pendingShape == nil, pendingText == nil, pendingBadge == nil else { return nil }
-        return history.undoOnLayerActionName(canvas.activeLayer.id, canvas: canvas)
-    }
-
-    /// Undo on Active Layer (⌘⌥Z, FR-8.3): takes back the active layer's last change only.
-    func undoOnActiveLayer() {
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        var done = false
-        recordingChanges { done = history.undoOnLayer(canvas.activeLayer.id, canvas: canvas) }
-        if !done { onRefused() }
-        selectionDidChange()
-    }
+    @ObservationIgnored var savedGeometrySteps: [ObjectIdentifier] = []
 
     nonisolated private static var historyByteBudget: Int {
         Int(min(UInt64(512 << 20), ProcessInfo.processInfo.physicalMemory / 10))
     }
 
-    var selectionContext: SelectionContext {
-        SelectionContext(color2: color2, transparentSelection: transparentSelection, resampling: smoothResize ? .smooth : .nearestNeighbor)
-    }
-
-    var hasSelection: Bool { !canvas.selection.isEmpty || marqueePreview != nil }
-
-    // MARK: Tools
-
-    func selectTool(_ newTool: Tool) {
-        onFocusCanvas()
-        guard newTool != tool else { return }
-        finishInteractions()
-        measurement = nil
-        // Moved or pasted pixels are placed, but the outline stays selected so tools like
-        // Fill and Gradient (and the Effects) still work inside it.
-        if !newTool.isSelectionTool {
-            placeFloatingKeepingOutline()
-        }
-        tool = newTool
-    }
-
-    /// What the toolbar's Size control edits (FR-1.1); nil for tools without a size.
-    var toolSize: Int? {
-        get {
-            switch tool {
-            case .brush: Int(brushDiameter.rounded())
-            case .shape: Int(shapeLineWidth.rounded())
-            case .eraser: eraserSize
-            case .stepBadge: Int(badgeDiameter.rounded())
-            case .redactBrush: Int(redactBrushSize.rounded())
-            case .retouch: Int(retouchSize.rounded())
-            default: nil
-            }
-        }
-        set {
-            guard let size = newValue else { return }
-            let range = toolSizeRange
-            let clamped = min(range.upperBound, max(range.lowerBound, size))
-            switch tool {
-            case .brush: brushDiameter = Double(clamped)
-            case .shape: shapeLineWidth = Double(clamped)
-            case .eraser: eraserSize = clamped
-            case .stepBadge: badgeDiameter = Double(clamped)
-            case .redactBrush: redactBrushSize = Double(clamped)
-            case .retouch: retouchSize = Double(clamped)
-            default: break
-            }
-        }
-    }
-
-    /// The sizes the tool in use allows.
-    var toolSizeRange: ClosedRange<Int> {
-        switch tool {
-        case .eraser: 1...100
-        case .stepBadge: 16...128
-        case .redactBrush, .retouch: 1...300
-        default: 1...50
-        }
-    }
-
-    /// The five sizes the Size control offers for the tool in use.
-    var toolSizePresets: [Int] {
-        switch tool {
-        case .eraser: [4, 6, 8, 10, 20]
-        case .stepBadge: [24, 32, 48, 64, 96]
-        case .redactBrush: [8, 16, 24, 40, 64]
-        case .retouch: retouchKind.sizePresets
-        default: [1, 2, 3, 4, 5]
-        }
-    }
-
-    /// The `[` and `]` keys: resize whichever tool is active.
-    func adjustToolSize(larger: Bool) {
-        switch tool {
-        case .eraser:
-            eraserSize = max(1, min(100, eraserSize + (larger ? 2 : -2)))
-        case .shape:
-            // The Shapes tool's size is its line width (review I, finding 10).
-            shapeLineWidth = max(1, min(50, shapeLineWidth + (larger ? 1 : -1)))
-        case .stepBadge:
-            badgeDiameter = max(16, min(128, badgeDiameter + (larger ? 4 : -4)))
-        case .redactBrush:
-            redactBrushSize = max(1, min(300, redactBrushSize + (larger ? 4 : -4)))
-        case .retouch:
-            retouchSize = max(1, min(300, retouchSize + (larger ? 4 : -4)))
-        default:
-            brushDiameter = max(1, min(50, brushDiameter + (larger ? 1 : -1)))
-        }
-    }
-
-    /// Redraws on the next turn of the run loop. Property observers use this instead of `onRender()`:
-    /// drawing reads other settings, and reading one while another is mid-change crashes (Swift exclusivity).
-    private func renderSoon() {
-        guard !renderScheduled else { return }
-        renderScheduled = true
-        Task { @MainActor [weak self] in
-            self?.renderScheduled = false
-            self?.onRender()
-        }
-    }
-
-    /// Ends any drag in progress so menu commands and undo see a settled document.
-    /// A pending shape is placed.
-    private func finishInteractions() {
-        finishPendingTone()
-        endGradient()
-        shapeDrag = nil
-        commitPendingShape()
-        commitPendingText()
-        commitPendingBadge()
-        endRedactStroke()
-        endRetouchStroke()
-        endRetouchBrush()
-        endStroke()
-        cancelOrEndSelectionDrag()
-        if activeEffect != nil { cancelEffect() }
-        finishLayerSettings()
-    }
-
-    private func placeFloatingSelection() {
-        guard canvas.selection.floating != nil else { return }
-        recordingChanges { SelectionActions.placeFloating(canvas: canvas, history: history, context: selectionContext) }
-        selectionDidChange()
-    }
-
-    /// Places a floating selection but keeps its outline selected, so effects still apply to just that area.
-    private func placeFloatingKeepingOutline() {
-        guard let outline = canvas.selection.outline, canvas.selection.floating != nil else { return }
-        placeFloatingSelection()
-        // The paste may hang past the canvas; the outline kept is only the part on it (Leah's crash, 2026-10-04).
-        if let clipped = SelectionMask.combine(outline, with: .rectangle(canvas.bounds, clippedTo: canvas.bounds), mode: .intersect) {
-            canvas.selection = .marquee(clipped)
-        } else {
-            canvas.selection = .none
-        }
-        selectionDidChange()
-    }
-
     // MARK: Painting
-
-    func beginStroke(at point: Point2D, secondary: Bool, pressure: Double = 1) {
-        guard !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingSelection()
-        let layer = canvas.paintLayer
-        let color = secondary ? color2 : color1
-        let name: String
-        // Each copy gets whether it's mirrored across one axis only (which turns a `/` nib into `\`), how its
-        // pixels are reflected, and the first copy, whose painting it shares so overlaps don't fight
-        // (review I, findings 4 and 5).
-        let makeStroke: (Edit, Bool, StrokeMirror?, Stroke?) -> Stroke
-        switch tool {
-        case .pencil:
-            name = "Pencil"
-            makeStroke = { edit, _, mirror, first in PencilStroke(color: color, layer: layer, edit: edit, mirror: mirror, sharingPainterWith: first) }
-        case .brush:
-            name = brush == .round ? "Brush Stroke" : brush.name
-            makeStroke = { [brush, brushDiameter] edit, mirrored, _, first in
-                (mirrored ? brush.mirrored : brush).makeStroke(diameter: brushDiameter, color: color, layer: layer, edit: edit, sharingPainterWith: first)
-            }
-        case .eraser:
-            // Right-drag is the Color Eraser: only Color 1 pixels (within the tolerance) become Color 2.
-            let tolerance = UInt8((min(max(colorEraserTolerance, 0), 1) * 255).rounded())
-            let colorErasing = secondary || colorEraserMode
-            let effect: StrokeEffect = colorErasing
-                ? .replaceMatching(target: color1, tolerance: tolerance, with: color2)
-                : .replace(canvas.erasedFill(for: layer, color2: color2))
-            name = colorErasing ? "Color Erase" : "Erase"
-            makeStroke = { [eraserSize] edit, _, mirror, first in
-                EraserStroke(size: eraserSize, effect: effect, layer: layer, edit: edit, mirror: mirror, sharingPainterWith: first)
-            }
-        default:
-            return
-        }
-        let edit = history.beginEdit(name, on: canvas)
-        let copies: [(mirroredOnce: Bool, flipsX: Bool, flipsY: Bool)] = switch symmetry {
-        case .off: [(false, false, false)]
-        case .vertical: [(false, false, false), (true, true, false)]
-        case .horizontal: [(false, false, false), (true, false, true)]
-        case .both: [(false, false, false), (true, true, false), (true, false, true), (false, true, true)]
-        }
-        // Pixel tools reflect their pixels, so they're all fed the same point; brushes are fed mirrored points.
-        let size = canvas.size
-        var strokes: [Stroke] = []
-        for copy in copies {
-            let mirror = pixelToolMirrors && (copy.flipsX || copy.flipsY) ? StrokeMirror(canvasSize: size, flipsX: copy.flipsX, flipsY: copy.flipsY) : nil
-            strokes.append(makeStroke(edit, copy.mirroredOnce, mirror, strokes.first))
-        }
-        // Pixel art wants exact pixels: the Pencil is never smoothed (Q31.1).
-        activeStroke = ActiveStroke(edit: edit, strokes: strokes, path: StrokePath(start: point, reach: tool == .pencil ? 0 : smoothingReach),
-                                    pressureRange: pressure...pressure, pressure: pressure)
-        moveStrokes(strokes, to: point, pressure: pressure)
-    }
-
-    /// How a point is reflected for each active mirror; the first is always the point itself.
-    private var mirrors: [(Point2D) -> Point2D] {
-        let width = Double(canvas.size.width), height = Double(canvas.size.height)
-        let flipX: (Point2D) -> Point2D = { Point2D(x: width - $0.x, y: $0.y) }
-        let flipY: (Point2D) -> Point2D = { Point2D(x: $0.x, y: height - $0.y) }
-        switch symmetry {
-        case .off: return [{ $0 }]
-        case .vertical: return [{ $0 }, flipX]
-        case .horizontal: return [{ $0 }, flipY]
-        case .both: return [{ $0 }, flipX, flipY, { flipY(flipX($0)) }]
-        }
-    }
-
-    /// The Pencil and Eraser mirror whole pixel squares themselves (`StrokeMirror`).
-    private var pixelToolMirrors: Bool { tool == .pencil || tool == .eraser }
-
-    private func moveStrokes(_ strokes: [Stroke], to point: Point2D, pressure: Double) {
-        var changed = false
-        let same: (Point2D) -> Point2D = { $0 }
-        let mirrors = pixelToolMirrors ? Array(repeating: same, count: strokes.count) : self.mirrors
-        for (stroke, mirror) in zip(strokes, mirrors) where !stroke.move(to: mirror(point), pressure: pressure).isEmpty {
-            changed = true
-        }
-        if changed { onRender() }
-    }
-
-    /// Whether the stroke under way should keep being fed `holdStroke()` while the pointer is still (the airbrush).
-    var strokeSpraysWhileHeld: Bool {
-        activeStroke != nil && tool == .brush && brush == .airbrush
-    }
-
-    func holdStroke() {
-        guard let strokes = activeStroke?.strokes else { return }
-        var changed = false
-        for stroke in strokes where !stroke.hold().isEmpty { changed = true }
-        if changed { onRender() }
-    }
-
-    /// With `constrain`, the pencil, brush or eraser stays on one horizontal or vertical line from where it started
-    /// (`AxisLock`), for highlighting a line of text (Leah, 2026-10-10). Otherwise Smoothing steadies it (`StrokePath`).
-    func continueStroke(to point: Point2D, constrain: Bool, pressure: Double = 1) {
-        guard var active = activeStroke else { return }
-        let target = active.path.next(point, constrain: constrain)
-        active.pressureRange = min(active.pressureRange.lowerBound, pressure)...max(active.pressureRange.upperBound, pressure)
-        active.pressure = pressure
-        activeStroke = active
-        moveStrokes(active.strokes, to: target, pressure: pressure)
-    }
-
-    /// The size of the eraser stroke under way. Size changes apply from the next stroke, so the outline shows this one.
-    var strokeEraserSize: Int? {
-        (activeStroke?.strokes.first as? EraserStroke)?.size
-    }
-
-    func endStroke() {
-        guard let active = activeStroke else { return }
-        // A smoothed line ends where you let go (Q31.3).
-        if let point = active.path.catchUp { moveStrokes(active.strokes, to: point, pressure: active.pressure) }
-        activeStroke = nil
-        if active.strokes.contains(where: { !$0.finish().isEmpty }) { onRender() }
-        if tool == .brush {
-            let range = active.pressureRange
-            Diagnostics.logger.notice("Brush pressure \(range.lowerBound, format: .fixed(precision: 2))–\(range.upperBound, format: .fixed(precision: 2))")
-        }
-        recordingChanges { history.commit(active.edit) }
-    }
-
-    func fill(at point: Point2D, secondary: Bool) {
-        guard !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-        let edit = history.beginEdit("Fill", on: canvas)
-        FloodFill.fill(
-            layer: canvas.paintLayer,
-            at: seed,
-            with: secondary ? color2 : color1,
-            tolerance: fillTolerance,
-            selection: canvas.selection.marquee,
-            edit: edit,
-            sampling: fillSamplesAllLayers ? canvas.flattened() : nil
-        )
-        recordingChanges { history.commit(edit) }
-        onRender()
-    }
 
     /// The Eyedropper's Sample Size (FR-9.7 item 9): 1 (one pixel), 3 or 5 pixels square, averaged.
     var eyedropperSampleSize = 1
-
-    /// The square `size` pixels across centered on `pixel`.
-    private func sample(around pixel: IntPoint, size: Int) -> IntRect {
-        IntRect(x: pixel.x - size / 2, y: pixel.y - size / 2, width: size, height: size)
-    }
-
-    /// Picks a color, averaging the Eyedropper's Sample Size. With `allLayers`, samples what's visible rather than
-    /// only the active layer.
-    func pickColor(at point: Point2D, secondary: Bool, allLayers: Bool) {
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-        guard canvas.bounds.contains(pixel) else { return }
-        let area = sample(around: pixel, size: eyedropperSampleSize)
-        let picked: Pixel
-        if allLayers {
-            // As shown: blend modes and adjustment layers included (review I, finding 8).
-            picked = canvas.colorAsShown(in: area) ?? .clear
-        } else {
-            picked = canvas.paintLayer.buffer.averagedPixel(in: area)
-        }
-        if secondary { color2 = picked } else { color1 = picked }
-    }
-
-    /// `pointerColor` as the status bar writes it, "#RRGGBB", for Edit ▸ Copy Color as Hex.
-    var pointerColorHex: String? {
-        pointerColor.map(Self.hex)
-    }
 
     /// The status bar's eyedropper is on: the next click on the picture copies that color's hex, whatever the tool
     /// (Leah, 2026-10-28). Esc turns it off.
     var picksHexToCopy = false
 
-    /// A click while the status bar's eyedropper is on: the hex of the color there, as the readout shows it, or nil
-    /// off the picture (a beep, and it stays on). The caller puts it on the clipboard.
-    func pickHexToCopy(at point: Point2D) -> String? {
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-        guard let hex = readoutColor(at: pixel).map(Self.hex) else {
-            onRefused()
-            return nil
-        }
-        picksHexToCopy = false
-        showNotice("Copied \(hex)")
-        return hex
-    }
-
-    /// The color under the pointer as shown, every layer included, in sRGB (FR-9.7 item 9, Q20.1 and Q20.2), for the
-    /// status bar; averaged over the Sample Size while the Eyedropper is chosen (Q20.4). Nil off the picture.
-    var pointerColor: Pixel? {
-        _ = layersRevision
-        // Mid-drag the readout keeps its last color, rather than working out a patch of every layer on each mouse move
-        // while a stroke draws (review W, finding 4).
-        guard !isPointerDragging else { return lastPointerColor }
-        lastPointerColor = pointer.flatMap(readoutColor(at:))
-        return lastPointerColor
-    }
-
     /// A drag is going on over the picture: drawing, moving or panning.
     var isPointerDragging = false
-    @ObservationIgnored private var lastPointerColor: Pixel?
-
-    /// What the readout shows for `pixel`: the color as shown, in sRGB, averaged over the Sample Size while the
-    /// Eyedropper is chosen. Nil off the picture.
-    private func readoutColor(at pixel: IntPoint) -> Pixel? {
-        let size = tool == .eyedropper ? eyedropperSampleSize : 1
-        guard let shown = canvas.colorAsShown(in: sample(around: pixel, size: size)) else { return nil }
-        let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
-        return (try? ImageCodec.converted(PixelBuffer(width: 1, height: 1, fill: shown), from: canvas.colorSpace, to: srgb))?[0, 0] ?? shown
-    }
-
-    static func hex(_ color: Pixel) -> String {
-        String(format: "#%02X%02X%02X", color.r, color.g, color.b)
-    }
-
-    // MARK: Gradient
-
-    func beginGradient(at point: Point2D, secondary: Bool) {
-        guard !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        gradientDrag = GradientDrag(
-            edit: history.beginEdit("Gradient", on: canvas),
-            start: point,
-            end: point,
-            reversed: secondary,
-            selection: canvas.selection.marquee
-        )
-    }
-
-    func continueGradient(to point: Point2D) {
-        gradientDrag?.end = point
-        guard !gradientRenderScheduled else { return }
-        gradientRenderScheduled = true
-        Task { @MainActor [weak self] in self?.renderGradient() }
-    }
-
-    private func renderGradient() {
-        gradientRenderScheduled = false
-        guard let drag = gradientDrag else { return }
-        drag.edit.restoreOriginals()
-        Gradients.draw(
-            gradientMode,
-            from: drag.start,
-            to: drag.end,
-            startColor: drag.reversed ? color2 : color1,
-            endColor: drag.reversed ? color1 : color2,
-            onto: canvas.paintLayer,
-            selection: drag.selection,
-            edit: drag.edit
-        )
-        onRender()
-    }
-
-    func endGradient() {
-        guard let drag = gradientDrag else { return }
-        if gradientRenderScheduled { renderGradient() }
-        gradientDrag = nil
-        recordingChanges { history.commit(drag.edit) }
-    }
-
-    // MARK: Measure
-
-    func measure(from start: Point2D, to end: Point2D) {
-        func pixel(_ point: Point2D) -> IntPoint { IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))) }
-        measurement = Measurement(start: pixel(start), end: pixel(end))
-        onRender()
-    }
-
-    // MARK: Shapes
-
-    /// What a shape's fill is painted with (Leah, 2026-10-31): under an outline, Color 2 as in Paint; on its own, Color 1,
-    /// like an outline on its own, so picking a color and drawing gives a shape in that color. Right-click swaps them.
-    func shapeFillColor(swapped: Bool) -> Pixel {
-        let outlined = shapeOutline != nil
-        return outlined != swapped ? color2 : color1
-    }
-
-    /// The pending shape with the current toolbar settings applied.
-    var pendingShapeSpec: ShapeSpec? {
-        guard let pendingShape else { return nil }
-        let outlineColor = pendingShape.swapped ? color2 : color1
-        let fillColor = shapeFillColor(swapped: pendingShape.swapped)
-        return ShapeSpec(
-            kind: pendingShape.kind,
-            start: pendingShape.start,
-            end: pendingShape.end,
-            points: pendingShape.points,
-            rotation: pendingShape.rotation,
-            lineWidth: shapeLineWidth,
-            outline: shapeOutline != nil || pendingShape.kind.isOpen ? outlineColor : nil,
-            fill: shapeFill != nil ? fillColor : nil,
-            outlineStyle: shapeOutline ?? .solid,
-            fillStyle: shapeFill ?? .solid
-        )
-    }
-
-    /// The pending shape drawn into pixels, cached until it changes.
-    /// For display. A textured shape may briefly show its previous frame while the new one draws in the background.
-    func renderedPendingShape() -> (pixels: PixelBuffer, origin: IntPoint)? {
-        guard let spec = pendingShapeSpec else { return nil }
-        if let cache = shapeRenderCache, cache.spec == spec { return (cache.pixels, cache.origin) }
-        if spec.outlineStyle == .solid, spec.fillStyle == .solid {
-            return renderShapeNow(spec)
-        }
-        renderShapeInBackground(spec)
-        return shapeRenderCache.map { ($0.pixels, $0.origin) }
-    }
-
-    private func renderShapeNow(_ spec: ShapeSpec) -> (pixels: PixelBuffer, origin: IntPoint)? {
-        guard let rendered = ShapeRenderer.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) else {
-            shapeRenderCache = nil
-            return nil
-        }
-        shapeRenderCache = (spec, rendered.pixels, rendered.origin)
-        return rendered
-    }
-
-    private func renderShapeInBackground(_ spec: ShapeSpec) {
-        guard !shapeRenderInFlight else {
-            shapeRenderWanted = spec
-            return
-        }
-        shapeRenderInFlight = true
-        let generation = shapeRenderGeneration
-        let colorSpace = canvas.colorSpace, bounds = canvas.bounds
-        Task { [weak self] in
-            let rendered = await Task.detached(priority: .userInitiated) {
-                ShapeRenderer.render(spec, colorSpace: colorSpace, clippedTo: bounds).map { RenderedShape(pixels: $0.pixels, origin: $0.origin) }
-            }.value
-            guard let self else { return }
-            self.shapeRenderInFlight = false
-            guard generation == self.shapeRenderGeneration else { return }
-            self.shapeRenderCache = rendered.map { (spec, $0.pixels, $0.origin) }
-            if let wanted = self.shapeRenderWanted {
-                self.shapeRenderWanted = nil
-                if wanted != spec { self.renderShapeInBackground(wanted) }
-            }
-            self.renderSoon()
-        }
-    }
-
-    private func forgetShapeRender() {
-        shapeRenderCache = nil
-        shapeRenderWanted = nil
-        shapeRenderGeneration += 1
-    }
-
-    /// The rotate handle sits a fixed on-screen distance above the box's top edge.
-    private func rotateHandlePoint(for spec: ShapeSpec) -> Point2D {
-        let center = spec.boxCenter
-        let top = min(spec.start.y, spec.end.y)
-        return spec.rotated(Point2D(x: center.x, y: top - 24 / viewport.zoom))
-    }
-
-    /// Where the pending shape's handles are, in image coordinates.
-    var pendingShapeHandlePoints: [Point2D] {
-        guard let spec = pendingShapeSpec else { return [] }
-        if spec.kind.isLinear { return [spec.start, spec.end] }
-        if spec.kind.isPointBased { return spec.points }
-        return SelectionHandle.allCases.map { spec.rotated($0.point(on: spec.box)) }
-    }
-
-    /// The round rotate handle above a box shape.
-    var pendingShapeRotateHandle: Point2D? {
-        guard let spec = pendingShapeSpec, spec.kind.isBoxShape, pendingShape?.isBuilding == false else { return nil }
-        return rotateHandlePoint(for: spec)
-    }
-
-    /// Guide lines for the pending shape: the rotate handle's stem, and a curve's control arms.
-    var pendingShapeGuides: [(Point2D, Point2D)] {
-        guard let spec = pendingShapeSpec else { return [] }
-        if spec.kind.isBoxShape {
-            return [(spec.rotated(SelectionHandle.top.point(on: spec.box)), rotateHandlePoint(for: spec))]
-        }
-        if spec.kind == .curve, spec.points.count == 4 {
-            return [(spec.points[0], spec.points[1]), (spec.points[3], spec.points[2])]
-        }
-        return []
-    }
-
-    func shapeHandle(atView point: Point2D) -> ShapeHandle? {
-        guard let spec = pendingShapeSpec, pendingShape?.isBuilding == false else { return nil }
-        func near(_ imagePoint: Point2D) -> Bool {
-            let center = viewport.viewPoint(fromImage: imagePoint)
-            return abs(center.x - point.x) <= 6 && abs(center.y - point.y) <= 6
-        }
-        if spec.kind.isLinear {
-            if near(spec.end) { return .end }
-            if near(spec.start) { return .start }
-            return nil
-        }
-        if spec.kind.isPointBased {
-            return spec.points.indices.last { near(spec.points[$0]) }.map(ShapeHandle.vertex)
-        }
-        if near(rotateHandlePoint(for: spec)) { return .rotate }
-        return SelectionHandle.allCases.first { near(spec.rotated($0.point(on: spec.box))) }.map(ShapeHandle.box)
-    }
-
-    /// Whether `point` is on the pending shape, so a drag there moves it.
-    func pendingShapeContains(_ point: Point2D) -> Bool {
-        guard let spec = pendingShapeSpec, pendingShape?.isBuilding == false else { return false }
-        if spec.kind.isBoxShape {
-            let local = spec.unrotated(point)
-            return spec.box.contains(IntPoint(x: Int(local.x.rounded(.down)), y: Int(local.y.rounded(.down))))
-        }
-        let tolerance = spec.lineWidth / 2 + 4 / viewport.zoom
-        if let path = spec.path {
-            let cgPoint = CGPoint(x: point.x, y: point.y)
-            if spec.kind == .polygon, path.contains(cgPoint) { return true }
-            return path.copy(strokingWithWidth: tolerance * 2, lineCap: .round, lineJoin: .round, miterLimit: 10).contains(cgPoint)
-        }
-        let dx = spec.end.x - spec.start.x, dy = spec.end.y - spec.start.y
-        let lengthSquared = max(dx * dx + dy * dy, 1e-9)
-        let t = min(1, max(0, ((point.x - spec.start.x) * dx + (point.y - spec.start.y) * dy) / lengthSquared))
-        let nearestX = spec.start.x + t * dx, nearestY = spec.start.y + t * dy
-        return ((point.x - nearestX) * (point.x - nearestX) + (point.y - nearestY) * (point.y - nearestY)).squareRoot() <= tolerance
-    }
-
-    func beginShapeDrag(at point: Point2D, viewPoint: Point2D, secondary: Bool, clickCount: Int) {
-        if pendingShape == nil, refusedBecauseLocked() { return }
-        if var pending = pendingShape {
-            if pending.isBuilding {
-                continueBuilding(&pending, at: point, viewPoint: viewPoint, clickCount: clickCount)
-                return
-            }
-            if let handle = shapeHandle(atView: viewPoint) {
-                shapeDrag = .handle(handle, grab: point, original: pending)
-                return
-            }
-            if pendingShapeContains(point) {
-                shapeDrag = .move(grab: point, original: pending)
-                return
-            }
-        }
-        finishInteractions()
-        placeFloatingSelection()
-        var shape = PendingShape(kind: shapeKind, start: point, end: point, swapped: secondary)
-        switch shapeKind {
-        case .polygon:
-            shape.points = [point, point]
-            shape.isBuilding = true
-            shapeDrag = .handle(.vertex(1), grab: point, original: shape)
-        case .curve:
-            shape.points = [point, point, point, point]
-            shape.isBuilding = true
-            shapeDrag = .curveLine
-        default:
-            shapeDrag = .draw
-        }
-        pendingShape = shape
-        onRender()
-    }
-
-    /// Polygons: each click adds a corner; clicking the first corner or double-clicking closes it.
-    /// Curves: after the line, two more drags bend it.
-    private func continueBuilding(_ pending: inout PendingShape, at point: Point2D, viewPoint: Point2D, clickCount: Int) {
-        if pending.kind == .polygon {
-            let first = viewport.viewPoint(fromImage: pending.points[0])
-            let closesOnFirst = abs(first.x - viewPoint.x) <= 8 && abs(first.y - viewPoint.y) <= 8 && pending.points.count >= 3
-            if clickCount >= 2 || closesOnFirst {
-                finishBuilding()
-                return
-            }
-            pending.points.append(point)
-            pendingShape = pending
-            shapeDrag = .handle(.vertex(pending.points.count - 1), grab: point, original: pending)
-        } else {
-            let control = pending.curveStage == 1 ? 1 : 2
-            pending.points[control] = point
-            pendingShape = pending
-            shapeDrag = .handle(.vertex(control), grab: point, original: pending)
-        }
-        onRender()
-    }
-
-    /// Ends point-by-point placement; the shape stays editable until placed.
-    func finishBuilding() {
-        guard var pending = pendingShape, pending.isBuilding else { return }
-        if pending.kind == .polygon, pending.points.count > 2,
-           let last = pending.points.last, let previous = pending.points.dropLast().last,
-           abs(last.x - previous.x) < 0.5, abs(last.y - previous.y) < 0.5 {
-            pending.points.removeLast()
-        }
-        pending.isBuilding = false
-        pendingShape = pending
-        onRender()
-    }
-
-    func continueShapeDrag(to point: Point2D, shiftDown: Bool) {
-        guard var shape = pendingShape, let drag = shapeDrag else { return }
-        switch drag {
-        case .draw:
-            shape.end = point
-            if shiftDown, var spec = pendingShapeSpec {
-                spec.end = point
-                shape.end = spec.constrained().end
-            }
-        case .curveLine:
-            let start = shape.points[0]
-            shape.points[3] = point
-            shape.points[1] = Point2D(x: start.x + (point.x - start.x) / 3, y: start.y + (point.y - start.y) / 3)
-            shape.points[2] = Point2D(x: start.x + (point.x - start.x) * 2 / 3, y: start.y + (point.y - start.y) * 2 / 3)
-            shape.start = start
-            shape.end = point
-        case .move(let grab, let original):
-            shape = original
-            shape.translate(by: point.x - grab.x, point.y - grab.y)
-        case .handle(let handle, let grab, let original):
-            let delta = Point2D(x: point.x - grab.x, y: point.y - grab.y)
-            switch handle {
-            case .start:
-                shape.start = Point2D(x: original.start.x + delta.x, y: original.start.y + delta.y)
-            case .end:
-                shape.end = Point2D(x: original.end.x + delta.x, y: original.end.y + delta.y)
-            case .vertex(let index):
-                guard original.points.indices.contains(index) else { break }
-                shape.points[index] = Point2D(x: original.points[index].x + delta.x, y: original.points[index].y + delta.y)
-                if shape.kind == .curve {
-                    shape.start = shape.points[0]
-                    shape.end = shape.points[3]
-                }
-            case .rotate:
-                let center = Point2D(x: (original.start.x + original.end.x) / 2, y: (original.start.y + original.end.y) / 2)
-                let turned = atan2(point.y - center.y, point.x - center.x) - atan2(grab.y - center.y, grab.x - center.x)
-                var rotation = original.rotation + turned
-                if shiftDown {
-                    let step = Double.pi / 12
-                    rotation = (rotation / step).rounded() * step
-                }
-                shape.rotation = rotation
-            case .box(let boxHandle):
-                resizeBox(&shape, original: original, handle: boxHandle, delta: delta, keepProportions: shiftDown)
-            }
-        }
-        pendingShape = shape
-        onRender()
-    }
-
-    /// Resizes in the shape's own (rotated) frame, keeping the opposite side fixed on the canvas.
-    private func resizeBox(_ shape: inout PendingShape, original: PendingShape, handle: SelectionHandle, delta: Point2D, keepProportions: Bool) {
-        let cosine = cos(original.rotation), sine = sin(original.rotation)
-        let localDelta = Point2D(x: delta.x * cosine + delta.y * sine, y: -delta.x * sine + delta.y * cosine)
-        let box = IntRect(
-            enclosingMinX: min(original.start.x, original.end.x), minY: min(original.start.y, original.end.y),
-            maxX: max(original.start.x, original.end.x), maxY: max(original.start.y, original.end.y)
-        )
-        let resized = handle.resize(box, by: localDelta, keepProportions: keepProportions)
-        let oldCenter = Point2D(x: Double(box.minX) + Double(box.width) / 2, y: Double(box.minY) + Double(box.height) / 2)
-        let shift = Point2D(
-            x: Double(resized.minX) + Double(resized.width) / 2 - oldCenter.x,
-            y: Double(resized.minY) + Double(resized.height) / 2 - oldCenter.y
-        )
-        // The box rotates around its own center, so move that center by the rotated shift.
-        let newCenter = Point2D(x: oldCenter.x + shift.x * cosine - shift.y * sine, y: oldCenter.y + shift.x * sine + shift.y * cosine)
-        shape.start = Point2D(x: newCenter.x - Double(resized.width) / 2, y: newCenter.y - Double(resized.height) / 2)
-        shape.end = Point2D(x: newCenter.x + Double(resized.width) / 2, y: newCenter.y + Double(resized.height) / 2)
-    }
-
-    func endShapeDrag() {
-        defer { shapeDrag = nil }
-        guard var shape = pendingShape else { return }
-        switch shapeDrag {
-        case .draw where abs(shape.end.x - shape.start.x) < 1 && abs(shape.end.y - shape.start.y) < 1:
-            pendingShape = nil
-            onRender()
-        case .curveLine:
-            shape.curveStage = 1
-            pendingShape = shape
-        case .handle(.vertex, _, _) where shape.isBuilding && shape.kind == .curve:
-            shape.curveStage += 1
-            if shape.curveStage > 2 { shape.isBuilding = false }
-            pendingShape = shape
-            onRender()
-        default:
-            break
-        }
-    }
-
-    /// Draws the pending shape into the active layer as one step.
-    func commitPendingShape() {
-        guard let spec = pendingShapeSpec else { return }
-        // Placing always uses the finished drawing, never a frame still catching up.
-        let rendered = shapeRenderCache.flatMap { $0.spec == spec ? ($0.pixels, $0.origin) : nil } ?? renderShapeNow(spec)
-        pendingShape = nil
-        forgetShapeRender()
-        if let rendered {
-            let edit = history.beginEdit(spec.kind.name, on: canvas)
-            Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.paintLayer, edit: edit)
-            recordingChanges { history.commit(edit) }
-        }
-        onRender()
-    }
-
-    func cancelPendingShape() {
-        pendingShape = nil
-        forgetShapeRender()
-        shapeDrag = nil
-        onRender()
-    }
-
-    // MARK: Redact Brush (FR-9.6)
-
-    /// Starts a stroke. Nothing changes until it ends; meanwhile the area shows see-through. It paints where you
-    /// paint, whatever is selected.
-    func beginRedactStroke(at point: Point2D, secondary: Bool) {
-        finishInteractions()
-        placeFloatingSelection()
-        let area = RedactBrushArea(diameter: redactBrushSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 120))
-        area.move(to: point)
-        redactStroke = (area, StrokePath(start: point, reach: smoothingReach), secondary)
-        onRender()
-    }
-
-    /// Shift keeps the stroke on one horizontal or vertical line, for a line of text.
-    func continueRedactStroke(to point: Point2D, constrain: Bool) {
-        guard var stroke = redactStroke else { return }
-        stroke.area.move(to: stroke.path.next(point, constrain: constrain))
-        redactStroke = stroke
-        onRender()
-    }
-
-    /// Redacts the area on every layer with pixels under it, as one step, like Batch Redact. Blur and Pixelate are
-    /// as strong as the brush is wide, as Auto-Redact's follow the text's height; Solid Fill uses Color 1, or Color 2
-    /// with the right button.
-    func endRedactStroke() {
-        guard let stroke = redactStroke else { return }
-        redactStroke = nil
-        if let point = stroke.path.catchUp { stroke.area.move(to: point) }
-        guard let mask = stroke.area.mask else { return onRender() }
-        let strength = max(6, stroke.area.diameter / 3)
-        let effect: Effect = switch redactTreatment {
-        case .blur: .gaussianBlur(radius: strength)
-        case .pixelate: .pixelate(cellSize: Int(strength.rounded()))
-        case .solidFill: .solidFill(stroke.secondary ? color2 : color1)
-        }
-        redactEveryLayer(with: effect, in: mask, named: "Redact Brush")
-    }
-
-    /// The see-through area of a Redact Brush or Remove stroke, or of a fill under way, for the screen.
-    func areaStrokePicture() -> (pixels: PixelBuffer, origin: IntPoint)? {
-        redactStroke?.area.picture ?? retouchStroke?.area.picture ?? fillingArea?.picture
-    }
-
-    /// The size of the round brush outline under the pointer, for the tools that paint an area.
-    var areaBrushSize: Double? {
-        switch tool {
-        case .redactBrush: redactBrushSize
-        case .retouch: retouchSize
-        default: nil
-        }
-    }
+    @ObservationIgnored var lastPointerColor: Pixel?
 
     // MARK: Retouching: brushes (FR-4.6)
-
-    /// Option-click with the Clone Stamp: where to copy from. The next stroke sets the offset.
-    func setCloneSource(_ point: Point2D) {
-        cloneSource = point
-        cloneOffset = nil
-        cloneCrosshair = point
-        onRender()
-    }
-
-    /// The local brushes, Smudge and the Clone Stamp change pixels as you paint; the stroke is one step.
-    func beginRetouchBrush(at point: Point2D, pressure: Double) {
-        guard !refusedBecauseLocked() else { return }
-        let kind = retouchKind
-        var offset: IntPoint?
-        if kind == .cloneStamp {
-            guard let source = cloneSource else {
-                showNotice("Option-click where to copy from first")
-                return onRefused()
-            }
-            // Aligned keeps the offset from the first stroke; otherwise each stroke starts again from the source.
-            offset = cloneAligned ? cloneOffset : nil
-            if offset == nil {
-                offset = IntPoint(x: Int((source.x - point.x).rounded()), y: Int((source.y - point.y).rounded()))
-                if cloneAligned { cloneOffset = offset }
-            }
-        }
-        finishInteractions()
-        placeFloatingSelection()
-        let layer = canvas.paintLayer
-        let edit = history.beginEdit(kind.name, on: canvas)
-        let stroke: Stroke
-        if kind == .smudge {
-            stroke = SmudgeStroke(diameter: retouchSize, hardness: retouchHardness, strength: retouchStrength, layer: layer, edit: edit)
-        } else if let offset {
-            // The active layer and those below, as shown: adjustments above apply to the result anyway (Leah, 2026-10-13).
-            let source = retouchSamplesAllLayers ? canvas.composited(through: canvas.activeLayerIndex) : nil
-            stroke = RetouchStroke(diameter: retouchSize, hardness: retouchHardness, strength: 1, kind: .clone(offset: offset, source: source),
-                                   layer: layer, edit: edit)
-        } else if let adjustment = kind.adjustment(range: toneRange) {
-            stroke = RetouchStroke(diameter: retouchSize, hardness: retouchHardness, strength: retouchStrength, kind: .adjust(adjustment),
-                                   layer: layer, edit: edit)
-        } else {
-            return
-        }
-        retouchBrush = (stroke, edit, kind, StrokePath(start: point, reach: smoothingReach), offset, pressure)
-        moveRetouchBrush(to: point, pressure: pressure)
-    }
-
-    func continueRetouchBrush(to point: Point2D, constrain: Bool, pressure: Double) {
-        guard var brush = retouchBrush else { return }
-        let target = brush.path.next(point, constrain: constrain)
-        brush.pressure = pressure
-        retouchBrush = brush
-        moveRetouchBrush(to: target, pressure: pressure)
-    }
-
-    private func moveRetouchBrush(to point: Point2D, pressure: Double) {
-        guard let brush = retouchBrush else { return }
-        if let offset = brush.offset { cloneCrosshair = Point2D(x: point.x + Double(offset.x), y: point.y + Double(offset.y)) }
-        if !brush.stroke.move(to: point, pressure: pressure).isEmpty || brush.offset != nil { onRender() }
-    }
-
-    /// Ends the stroke as one step; the Clone Stamp's Match Tone evens out what it copied first, in the same step.
-    func endRetouchBrush() {
-        guard let brush = retouchBrush else { return }
-        if let point = brush.path.catchUp { moveRetouchBrush(to: point, pressure: brush.pressure) }
-        retouchBrush = nil
-        brush.stroke.finish()
-        let stroke = brush.stroke as? RetouchStroke
-        var tone: (mask: SelectionMask, reference: ToneMatch.Reference?)?
-        if brush.kind == .cloneStamp, cloneMatchesTone, let stroke, let mask = stroke.coverage {
-            tone = (mask, stroke.toneReference(over: ToneMatch.readArea(for: mask, in: canvas.bounds), mask: mask))
-        }
-        // A dab or a short stroke is matched at once, as part of its step, so quick dabs never miss it; only a big
-        // stroke goes to the background.
-        if let match = tone, ToneMatch.readArea(for: match.mask, in: canvas.bounds).area < Self.backgroundToneArea {
-            ToneMatch.apply(to: canvas.paintLayer, in: match.mask, reference: match.reference, edit: brush.edit)
-            tone = nil
-        }
-        recordingChanges { history.commit(brush.edit) }
-        onRender()
-        if let tone { matchTone(in: tone.mask, reference: tone.reference) }
-    }
 
     /// Strokes whose Match Tone reads more pixels than this have it worked out in the background. Tests lower it.
     static var backgroundToneArea = 250_000
 
-    /// The Clone Stamp's Match Tone: worked out in the background from a copy of the pixels, so a long stroke doesn't
-    /// pause the app, then folded into the stroke's step (review O, finding 13). Anything that starts a new edit
-    /// first waits for it and lands it (`finishPendingTone`), so it never lands in the middle of another edit, where
-    /// that edit's undo or Cancel would lose it (review R, finding 1).
-    private func matchTone(in mask: SelectionMask, reference: ToneMatch.Reference?) {
-        let layer = canvas.paintLayer
-        let area = ToneMatch.readArea(for: mask, in: layer.buffer.bounds)
-        guard !area.isEmpty else { return }
-        // With a reference the plan needs only the edge's before and copied pixels, not a copy of the area.
-        let pixels = reference == nil ? layer.buffer.pixels(in: area) : nil
-        let pending = PendingTone(revision: history.revision, layer: layer.id, page: page.id)
-        let work = UnsafeTransfer(mask)
-        pendingTone = pending
-        isMatchingTone = true
-        DispatchQueue.global(qos: .userInitiated).async {
-            pending.plan = UnsafeTransfer(ToneMatch.plan(pixels, area: area, mask: work.value, reference: reference))
-            pending.done.signal()
-            DispatchQueue.main.async { [weak self] in self?.land(pending) }
-        }
-    }
-
-    /// Waits for a Match Tone still being worked out, and lands it, before anything else changes the image.
-    private func finishPendingTone() {
-        guard let pending = pendingTone else { return }
-        pending.done.wait()
-        land(pending)
-    }
-
-    private func land(_ pending: PendingTone) {
-        guard pendingTone === pending else { return }
-        pendingTone = nil
-        isMatchingTone = false
-        guard let plan = pending.plan?.value else { return }
-        // Every new edit lands the tone first, so these hold unless something changed the image without that; then
-        // the stroke keeps its own tone rather than the tone landing in another edit.
-        guard history.revision == pending.revision, page.id == pending.page, canvas.paintLayer.id == pending.layer,
-              !isEditInProgress else {
-            return showNotice("The image changed before Match Tone finished, so the stroke kept its own tone.")
-        }
-        let edit = history.beginEdit(RetouchKind.cloneStamp.name, on: canvas)
-        ToneMatch.apply(plan, to: canvas.paintLayer, edit: edit)
-        recordingChanges { history.commit(edit, mergingIntoPrevious: true) }
-        onRender()
-    }
-
-    /// A stroke, drag, effect, fill or object being placed.
-    private var isEditInProgress: Bool {
-        activeStroke != nil || retouchBrush != nil || retouchStroke != nil || redactStroke != nil || selectionDrag != nil
-            || gradientDrag != nil || activeEffect != nil || fillProgress != nil || pendingShape != nil || pendingText != nil
-            || pendingBadge != nil
-    }
-
-    /// Where the crosshair goes while hovering with the Clone Stamp: the source, or where an aligned offset reads from.
-    func cloneCrosshair(hovering point: Point2D?) -> Point2D? {
-        guard tool == .retouch, retouchKind == .cloneStamp, let source = cloneSource else { return nil }
-        if retouchBrush != nil { return cloneCrosshair }
-        if cloneAligned, let offset = cloneOffset, let point { return Point2D(x: point.x + Double(offset.x), y: point.y + Double(offset.y)) }
-        return source
-    }
-
-    // MARK: Retouching: Remove and Spot Heal (FR-4.6)
-
-    /// Starts painting over what to remove or heal. Nothing changes until the stroke ends.
-    func beginRetouchStroke(at point: Point2D) {
-        // One fill at a time.
-        guard fillProgress == nil else { return onRefused() }
-        guard !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingSelection()
-        let area = RedactBrushArea(diameter: retouchSize, canvasBounds: canvas.bounds, overlayColor: Pixel(r: 230, g: 40, b: 60, a: 110))
-        area.move(to: point)
-        retouchStroke = (area, StrokePath(start: point, reach: smoothingReach), retouchKind)
-        onRender()
-    }
-
-    func continueRetouchStroke(to point: Point2D, constrain: Bool) {
-        guard var stroke = retouchStroke else { return }
-        stroke.area.move(to: stroke.path.next(point, constrain: constrain))
-        retouchStroke = stroke
-        onRender()
-    }
-
-    /// Fills the painted area from its surroundings in the background, then places it as one step ("Remove" or
-    /// "Spot Heal"). Spot Heal looks only just around the spot and evens out the tone. If the image changed
-    /// meanwhile, the fill no longer fits it and is dropped.
-    func endRetouchStroke() {
-        guard let stroke = retouchStroke else { return }
-        retouchStroke = nil
-        if let point = stroke.path.catchUp { stroke.area.move(to: point) }
-        let layer = canvas.paintLayer
-        let healing = stroke.kind == .spotHeal
-        let image = retouchSamplesAllLayers ? canvas.composited(through: canvas.activeLayerIndex) : layer.buffer
-        guard let mask = stroke.area.mask,
-              let job = MatchSurroundings.Job(image: image, area: mask, nearby: healing, matchingTone: healing) else { return onRender() }
-        guard !job.isTooLarge else {
-            showNotice("That area is too big to fill at once. Remove a smaller part at a time, or use the Clone Stamp.")
-            return onRender()
-        }
-        let flag = CancelFlag()
-        fillCancel = flag
-        fillingArea = stroke.area
-        fillProgress = 0
-        let revision = history.revision, layerID = layer.id, pageID = page.id
-        Task { @MainActor [weak self] in
-            let outcome = await Task.detached(priority: .userInitiated) { [weak self] in
-                // Also stops once the document is gone: closing its window cancels (review O, finding 8).
-                Result { try job.run(progress: { value in
-                    Task { @MainActor in if self?.fillCancel === flag { self?.fillProgress = value } }
-                }, isCancelled: { flag.isSet || self == nil }) }
-            }.value
-            guard let self, self.fillCancel === flag else { return }
-            self.fillCancel = nil
-            self.fillProgress = nil
-            self.fillingArea = nil
-            if case .failure(let error) = outcome, error is MatchSurroundings.NothingToFillFrom {
-                self.showNotice("There isn't enough picture around that area to fill it from.")
-            }
-            guard case .success(let fill) = outcome else { return self.onRender() }
-            guard self.history.revision == revision, self.page.id == pageID, self.canvas.paintLayer.id == layerID,
-                  self.activeLayerTakesEdits else {
-                self.showNotice("The image changed while filling. Try again.")
-                return self.onRender()
-            }
-            let edit = self.history.beginEdit(stroke.kind.name, on: self.canvas)
-            fill.apply(to: self.canvas.paintLayer, edit: edit)
-            self.recordingChanges { self.history.commit(edit) }
-            self.onRender()
-        }
-    }
-
-    /// The image changed or another page is shown while a fill runs: its result wouldn't fit, so it stops now rather
-    /// than finishing for nothing (review O, finding 8).
-    private func stopFillForChange() {
-        guard fillCancel != nil else { return }
-        cancelFill()
-        showNotice("The image changed while filling. Try again.")
-    }
-
-    /// Esc while a fill runs: stops it, and nothing changes.
-    func cancelFill() {
-        guard let flag = fillCancel else { return }
-        flag.set()
-        fillCancel = nil
-        fillProgress = nil
-        fillingArea = nil
-        onRender()
-    }
-
-    // MARK: Step badges (FR-5.3)
-
-    var pendingBadgeSpec: StepBadgeSpec? {
-        guard let badge = pendingBadge else { return nil }
-        return StepBadgeSpec(label: StepBadge.label(for: badge.value, style: badge.style), center: badge.center, diameter: badgeDiameter,
-                             fill: badge.swapped ? color2 : color1, ink: badge.swapped ? color1 : color2, arrowTip: badge.arrowTip)
-    }
-
-    /// The badge being placed, drawn into pixels for the overlay.
-    func renderedPendingBadge() -> (pixels: PixelBuffer, origin: IntPoint)? {
-        pendingBadgeSpec.flatMap { StepBadge.render($0, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) }
-    }
-
-    func pendingBadgeContains(_ point: Point2D) -> Bool {
-        pendingBadgeSpec?.contains(point) == true
-    }
-
-    /// A press on the badge being placed moves it; anywhere else places it and starts the next one there. Dragging
-    /// out from a new badge points an arrow at where the drag ends.
-    func beginBadge(at point: Point2D, secondary: Bool) {
-        if let badge = pendingBadge, pendingBadgeContains(point) {
-            badgeDrag = .move(grab: point, original: badge)
-            return
-        }
-        guard !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingSelection()
-        pendingBadge = PendingBadge(style: badgeStyle, value: nextBadge, center: point, swapped: secondary)
-        nextBadge += 1
-        badgeDrag = .create
-        onRender()
-    }
-
-    func continueBadge(to point: Point2D) {
-        guard var badge = pendingBadge, let drag = badgeDrag else { return }
-        switch drag {
-        case .create:
-            badge.arrowTip = point
-        case .move(let grab, let original):
-            let dx = point.x - grab.x, dy = point.y - grab.y
-            badge = original
-            badge.center = Point2D(x: original.center.x + dx, y: original.center.y + dy)
-            badge.arrowTip = original.arrowTip.map { Point2D(x: $0.x + dx, y: $0.y + dy) }
-        }
-        pendingBadge = badge
-        onRender()
-    }
-
-    func endBadge() {
-        badgeDrag = nil
-        // A click, or a drag that stayed on the circle, has no arrow.
-        if pendingBadgeSpec?.showsArrow == false { pendingBadge?.arrowTip = nil }
-    }
-
-    /// Draws the badge into the active layer as one step, "Step Badge".
-    func commitPendingBadge() {
-        guard let badge = pendingBadge, let spec = pendingBadgeSpec else { return }
-        pendingBadge = nil
-        badgeDrag = nil
-        guard activeLayerTakesEdits, let rendered = StepBadge.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) else {
-            nextBadges[badge.style] = badge.value
-            onRender()
-            return
-        }
-        let edit = history.beginEdit("Step Badge", on: canvas)
-        Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.paintLayer, edit: edit)
-        recordingChanges { history.commit(edit) }
-        if let step = history.undoStepID { badgeSteps[step] = (badge.style, badge.value) }
-        onRender()
-    }
-
-    /// Removes the badge being placed (Delete, Esc or ⌘Z); its number is used again by the next one.
-    func cancelPendingBadge() {
-        guard let badge = pendingBadge else { return }
-        pendingBadge = nil
-        badgeDrag = nil
-        nextBadges[badge.style] = badge.value
-        onRender()
-    }
-
     // MARK: Text
 
-    /// Opens a text box with its top-left at `origin`. Any open box is placed first.
-    func beginText(at origin: Point2D, wrapWidth: Double?, minimumHeight: Double = 0) {
-        // Editable text goes on a new layer of its own, so the active layer's lock or kind doesn't matter.
-        guard textIsEditable || !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingSelection()
-        textDragFrame = nil
-        pendingText = PendingText(origin: origin, wrapWidth: wrapWidth, minimumHeight: minimumHeight)
-        onRender()
-    }
-
     /// The box being dragged out with the Text tool, shown as a frame until the mouse is released.
-    private(set) var textDragFrame: (start: Point2D, end: Point2D)?
+    var textDragFrame: (start: Point2D, end: Point2D)?
 
-    func updateTextDragFrame(from start: Point2D, to end: Point2D) {
-        textDragFrame = (start, end)
-        onRender()
-    }
-
-    /// The open text box's frame in image coordinates, for drawing its border.
-    var pendingTextFrame: IntRect? {
-        guard let text = pendingText else { return nil }
-        var spec = textSpec(for: text)
-        if spec.text.isEmpty { spec.text = " " }
-        return TextRenderer.box(for: spec)
-    }
-
-    /// The text box's border, drawn a little outside the text so it doesn't touch the glyphs.
-    var pendingTextBorder: (minX: Double, minY: Double, maxX: Double, maxY: Double)? {
-        guard let box = pendingTextFrame else { return nil }
-        let pad = 3 / viewport.zoom
-        return (Double(box.minX) - pad, Double(box.minY) - pad, Double(box.maxX) + pad, Double(box.maxY) + pad)
-    }
-
-    /// The eight handles on the text box's border, in image coordinates.
-    var pendingTextHandles: [(handle: SelectionHandle, point: Point2D)] {
-        guard let border = pendingTextBorder else { return [] }
-        let midX = (border.minX + border.maxX) / 2, midY = (border.minY + border.maxY) / 2
-        return SelectionHandle.allCases.map { handle in
-            let point: Point2D = switch handle {
-            case .topLeft: Point2D(x: border.minX, y: border.minY)
-            case .top: Point2D(x: midX, y: border.minY)
-            case .topRight: Point2D(x: border.maxX, y: border.minY)
-            case .right: Point2D(x: border.maxX, y: midY)
-            case .bottomRight: Point2D(x: border.maxX, y: border.maxY)
-            case .bottom: Point2D(x: midX, y: border.maxY)
-            case .bottomLeft: Point2D(x: border.minX, y: border.maxY)
-            case .left: Point2D(x: border.minX, y: midY)
-            }
-            return (handle, point)
-        }
-    }
-
-    /// A handle or the border under a view point. Inside the box, clicks go to the text itself.
-    func textBoxGrab(atView point: Point2D) -> TextBoxGrab? {
-        guard let border = pendingTextBorder else { return nil }
-        // An empty box is only a few pixels wide, so its handles overlap; take the closest one.
-        if let handle = nearestHandle(pendingTextHandles, to: point) { return .handle(handle) }
-        let topLeft = viewport.viewPoint(fromImage: Point2D(x: border.minX, y: border.minY))
-        let bottomRight = viewport.viewPoint(fromImage: Point2D(x: border.maxX, y: border.maxY))
-        let band = 5.0
-        let nearOutside = point.x >= topLeft.x - band && point.x <= bottomRight.x + band
-            && point.y >= topLeft.y - band && point.y <= bottomRight.y + band
-        let wellInside = point.x > topLeft.x + band && point.x < bottomRight.x - band
-            && point.y > topLeft.y + band && point.y < bottomRight.y - band
-        return nearOutside && !wellInside ? .border : nil
-    }
-
-    @ObservationIgnored private var textBoxDrag: (grab: TextBoxGrab, text: PendingText, frame: IntRect, start: Point2D)?
-
-    func beginTextBoxDrag(_ grab: TextBoxGrab, at point: Point2D) {
-        guard let text = pendingText, let frame = pendingTextFrame else { return }
-        textBoxDrag = (grab, text, frame, point)
-    }
-
-    /// Moving keeps the size. Dragging a side handle sets the width the text wraps at; top and
-    /// bottom handles set the box's height, which still grows if the text needs more room.
-    func continueTextBoxDrag(to point: Point2D) {
-        guard let drag = textBoxDrag, var text = pendingText else { return }
-        let delta = Point2D(x: point.x - drag.start.x, y: point.y - drag.start.y)
-        switch drag.grab {
-        case .border:
-            text.origin = Point2D(x: drag.text.origin.x + delta.x.rounded(), y: drag.text.origin.y + delta.y.rounded())
-        case .handle(let handle):
-            let rect = handle.resize(drag.frame, by: delta, keepProportions: false)
-            text.origin = Point2D(
-                x: drag.text.origin.x + Double(rect.minX - drag.frame.minX),
-                y: drag.text.origin.y + Double(rect.minY - drag.frame.minY)
-            )
-            if rect.width != drag.frame.width { text.wrapWidth = Double(rect.width) }
-            if rect.height != drag.frame.height { text.minimumHeight = Double(rect.height) }
-        }
-        pendingText = text
-        onRender()
-    }
-
-    func endTextBoxDrag() {
-        textBoxDrag = nil
-    }
-
-    /// The text being typed, drawn by the renderer exactly as placing will draw it, so it sits in its layer at
-    /// the layer's blend mode and opacity (Leah; review F, finding 1). The text view shows only the caret
-    /// and selection.
-    func renderedPendingText() -> (pixels: PixelBuffer, origin: IntPoint)? {
-        guard let text = pendingText else {
-            textRenderCache = nil
-            return nil
-        }
-        let spec = textSpec(for: text)
-        if let cache = textRenderCache, cache.spec == spec { return (cache.pixels, cache.origin) }
-        guard let rendered = TextRenderer.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) else {
-            textRenderCache = nil
-            return nil
-        }
-        textRenderCache = (spec, rendered.pixels, rendered.origin)
-        return rendered
-    }
-
-    func updatePendingText(_ string: String) {
-        pendingText?.string = string
-        onRender()
-    }
-
-    func textSpec(for text: PendingText) -> TextSpec {
-        var spec = TextSpec(
-            text: text.string,
-            origin: text.origin,
-            wrapWidth: text.wrapWidth,
-            fontFamily: textStyle.fontFamily,
-            fontSize: textStyle.fontSize,
-            color: color1,
-            background: textStyle.opaqueBackground ? color2 : nil
-        )
-        spec.bold = textStyle.bold
-        spec.italic = textStyle.italic
-        spec.underline = textStyle.underline
-        spec.strikethrough = textStyle.strikethrough
-        spec.alignment = textStyle.alignment
-        spec.minimumHeight = text.minimumHeight
-        return spec
-    }
-
-    /// Places the open text box (FR-6.3): an edited text layer is drawn again; new text becomes a text layer with
-    /// Editable on, or pixels on the active layer.
-    func commitPendingText() {
-        guard let text = pendingText else { return }
-        pendingText = nil
-        let spec = textSpec(for: text)
-        if let id = text.layerID {
-            if let index = canvas.layers.firstIndex(where: { $0.id == id }) {
-                layerCommand { LayerActions.setText(spec, layerAt: index, canvas: canvas, history: history, context: selectionContext) }
-                // The last layer can't go (review Y, finding 8).
-                if spec.text.isEmpty, canvas.layers.contains(where: { $0.id == id }) {
-                    showNotice("The last layer can't be deleted, so the text stays.")
-                }
-            }
-            onRender()
-            return
-        }
-        // Editable may have been turned off while the box was open on a layer that takes no pixels: the words go on a
-        // layer of their own rather than into it (review Y, finding 5).
-        if textIsEditable || !activeLayerTakesEdits {
-            if !spec.text.isEmpty {
-                layerCommand { LayerActions.addText(spec, canvas: canvas, history: history, context: selectionContext) }
-            }
-            onRender()
-            return
-        }
-        if let rendered = TextRenderer.render(textSpec(for: text), colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) {
-            let edit = history.beginEdit("Text", on: canvas)
-            Compositing.draw(rendered.pixels, at: rendered.origin, onto: canvas.paintLayer, edit: edit)
-            recordingChanges { history.commit(edit) }
-        }
-        onRender()
-    }
-
-    /// Opens a text layer's box to change its words and settings (Q29.5): the Text tool, the layer's font and colors.
-    /// Returns false if there's no text layer there.
-    @discardableResult
-    func editText(layerAt index: Int) -> Bool {
-        guard canvas.layers.indices.contains(index), let text = canvas.layers[index].text else { return false }
-        let layer = canvas.layers[index]
-        guard text.isUpright else {
-            showNotice("Turned text can't be edited. Turn the image back, or choose Layer ▸ Rasterize Text.")
-            return true
-        }
-        guard !canvas.isLocked(layer) else {
-            onRefused()
-            return true
-        }
-        finishInteractions()
-        placeFloatingSelection()
-        selectLayer(at: index)
-        paint(onMask: false, at: index)
-        if tool != .text { selectTool(.text) }
-        let spec = text.spec
-        var style = textStyle
-        style.fontFamily = spec.fontFamily
-        style.fontSize = spec.fontSize
-        style.bold = spec.bold
-        style.italic = spec.italic
-        style.underline = spec.underline
-        style.strikethrough = spec.strikethrough
-        style.alignment = spec.alignment
-        style.opaqueBackground = spec.background != nil
-        textStyle = style
-        color1 = spec.color
-        if let background = spec.background { color2 = background }
-        textDragFrame = nil
-        pendingText = PendingText(origin: spec.origin, wrapWidth: spec.wrapWidth, minimumHeight: spec.minimumHeight, string: spec.text,
-                                  layerID: layer.id)
-        if !text.hasFont {
-            showNotice("Font missing: \(spec.fontFamily). The text keeps its look until you change it.")
-        }
-        onRender()
-        return true
-    }
-
-    /// Double-click with the Text tool: the top text layer whose box is under `point`, if any.
-    @discardableResult
-    func editText(at point: Point2D) -> Bool {
-        let hit = canvas.layers.indices.reversed().first { index in
-            let layer = canvas.layers[index]
-            guard let text = layer.text, canvas.isShown(layer) else { return false }
-            let box = text.isUpright ? TextRenderer.box(for: text.spec) : canvas.bounds
-            return box.contains(IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))))
-        }
-        guard let hit else { return false }
-        // The first click of the double-click opened an empty box, or said why it couldn't; both go without a trace.
-        if pendingText?.string.isEmpty == true, pendingText?.layerID == nil { pendingText = nil }
-        notice = nil
-        return editText(layerAt: hit)
-    }
-
-    /// The text layer whose box is open: its own pixels are hidden while the box shows it as it's typed.
-    var editedTextLayerID: LayerID? { pendingText?.layerID }
-
-    /// New text that will be a layer of its own: shown on top while it's typed, not inside the active layer, so it looks
-    /// as it will once placed (review Y, finding 7).
-    var pendingTextMakesLayer: Bool {
-        guard let pendingText, pendingText.layerID == nil else { return false }
-        return textIsEditable || !activeLayerTakesEdits
-    }
+    @ObservationIgnored var textBoxDrag: (grab: TextBoxGrab, text: PendingText, frame: IntRect, start: Point2D)?
 
     // MARK: Selection dragging
-
-    /// Whether a drag starting at `point` would move the selection rather than start a new one.
-    func selectionContains(_ point: Point2D) -> Bool {
-        canvas.selection.contains(IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down))))
-    }
-
-    /// The handle under a view point, if the selection's handles are showing there.
-    func selectionHandle(atView point: Point2D) -> SelectionHandle? {
-        guard tool.isSelectionTool, marqueePreview == nil, let rect = canvas.selection.bounds else { return nil }
-        // On a selection small on screen, the handles would cover it all; inside it, a press moves it (review I, finding 15).
-        if min(Double(rect.width), Double(rect.height)) * viewport.zoom < 24, selectionContains(viewport.imagePoint(fromView: point)) { return nil }
-        return nearestHandle(SelectionHandle.allCases.map { ($0, $0.point(on: rect)) }, to: point)
-    }
-
-    /// The handle closest to a view point, if one is within reach. On a tiny box the handles overlap,
-    /// and taking the first one in range would always pick a left or top one.
-    private func nearestHandle(_ handles: [(handle: SelectionHandle, point: Point2D)], to point: Point2D) -> SelectionHandle? {
-        handles
-            .map { handle, center -> (SelectionHandle, Double) in
-                let view = viewport.viewPoint(fromImage: center)
-                return (handle, max(abs(view.x - point.x), abs(view.y - point.y)))
-            }
-            .filter { $0.1 <= 6 }
-            .min { $0.1 < $1.1 }?
-            .0
-    }
-
-    func beginResize(_ handle: SelectionHandle, at point: Point2D) {
-        guard !refusedBecauseLocked() else { return }
-        finishInteractions()
-        guard let rect = canvas.selection.bounds else { return }
-        selectionDrag = .resize(edit: nil, handle: handle, original: rect, grab: point)
-    }
-
-    func beginSelectionDrag(at point: Point2D, modifiers: DragModifiers) {
-        guard tool.isSelectionTool else { return }
-        finishInteractions()
-        // The wand always selects when a modifier is held, so it can add to or subtract from a selection.
-        let wandCombining = tool == .magicWand && (modifiers.shift || modifiers.option)
-        if !wandCombining, selectionContains(point), let origin = canvas.selection.bounds.map({ IntPoint(x: $0.minX, y: $0.minY) }) {
-            // Moving selected pixels changes the layer; drawing a new outline doesn't.
-            guard !refusedBecauseLocked() else { return }
-            selectionDrag = .move(edit: nil, grab: point, origin: origin, smear: modifiers.shift, duplicate: modifiers.option)
-            return
-        }
-        let mode: SelectionCombineMode = switch (modifiers.shift, modifiers.option) {
-        case (true, true): .intersect
-        case (true, false): .add
-        case (false, true): .subtract
-        case (false, false): .replace
-        }
-        switch tool {
-        case .magicWand:
-            // A floating paste is placed first, so the wand sees it rather than what's under it (review I, finding 2).
-            placeFloatingKeepingOutline()
-            let seed = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-            let sampled = wandSamplesAllLayers ? canvas.flattened() : canvas.paintLayer.buffer
-            let mask = SelectionMask.magicWand(in: sampled, at: seed, tolerance: wandTolerance, contiguous: wandContiguous)
-            recordingChanges {
-                SelectionActions.select(mask, mode: mode, canvas: canvas, history: history, context: selectionContext)
-            }
-            selectionDidChange()
-            return
-        case .lassoSelect:
-            selectionDrag = .lasso(points: [point], mode: mode)
-        case .ellipseSelect:
-            selectionDrag = .marquee(shape: .ellipse, start: point, mode: mode, shiftHeldAtStart: modifiers.shift, shiftReleased: false)
-        default:
-            selectionDrag = .marquee(shape: .rectangle, start: point, mode: mode, shiftHeldAtStart: modifiers.shift, shiftReleased: false)
-        }
-        updateSelectionPreview(to: point, shiftDown: modifiers.shift)
-    }
-
-    func continueSelectionDrag(to point: Point2D, shiftDown: Bool) {
-        switch selectionDrag {
-        case .marquee, .lasso:
-            updateSelectionPreview(to: point, shiftDown: shiftDown)
-        case .move(var edit, let grab, let origin, let smear, let duplicate):
-            if edit == nil {
-                edit = SelectionActions.beginMove(duplicate: duplicate, canvas: canvas, history: history, context: selectionContext)
-                guard edit != nil else {
-                    selectionDrag = nil
-                    return
-                }
-            }
-            let target = IntPoint(
-                x: origin.x + Int((point.x - grab.x).rounded()),
-                y: origin.y + Int((point.y - grab.y).rounded())
-            )
-            if let edit, let destination = canvas.selection.floating?.destination,
-               destination.minX != target.x || destination.minY != target.y {
-                SelectionActions.move(to: target, smear: smear, edit: edit, canvas: canvas, context: selectionContext)
-                selectionDidChange()
-            }
-            selectionDrag = .move(edit: edit, grab: grab, origin: origin, smear: smear, duplicate: duplicate)
-        case .resize(var edit, let handle, let original, let grab):
-            if edit == nil {
-                // Resizing a marquee lifts its pixels first.
-                edit = SelectionActions.beginMove(duplicate: false, named: "Resize Selection", canvas: canvas, history: history, context: selectionContext)
-                guard edit != nil else {
-                    selectionDrag = nil
-                    return
-                }
-            }
-            let delta = Point2D(x: point.x - grab.x, y: point.y - grab.y)
-            SelectionActions.resize(to: handle.resize(original, by: delta, keepProportions: shiftDown), canvas: canvas)
-            selectionDrag = .resize(edit: edit, handle: handle, original: original, grab: grab)
-            selectionDidChange()
-        case nil:
-            break
-        }
-    }
-
-    /// Finishes the drag. Pass nil to finish without a final pointer position.
-    func endSelectionDrag(at point: Point2D?) {
-        guard let drag = selectionDrag else { return }
-        selectionDrag = nil
-        switch drag {
-        case .marquee(_, let start, let mode, _, _):
-            // A click is a press that moves under 2 points on screen, at any zoom (review I, finding 14).
-            let reach = 2 / viewport.zoom
-            let clicked = point.map { abs($0.x - start.x) < reach && abs($0.y - start.y) < reach } ?? false
-            commitSelectionPreview(deselecting: clicked && mode == .replace)
-        case .lasso(let points, let mode):
-            commitSelectionPreview(deselecting: points.count < 3 && mode == .replace)
-        case .move(let edit, _, _, _, _), .resize(let edit, _, _, _):
-            if let edit { recordingChanges { history.commit(edit) } }
-        }
-        selectionDidChange()
-    }
-
-    /// Interrupted mid-drag (say, by a tool key): a marquee or lasso still being drawn is dropped and the
-    /// earlier selection stays, while a move or resize keeps what's already been done.
-    private func cancelOrEndSelectionDrag() {
-        switch selectionDrag {
-        case .marquee, .lasso:
-            selectionDrag = nil
-            marqueePreview = nil
-            selectionDidChange()
-        case .move, .resize:
-            endSelectionDrag(at: nil)
-        case nil:
-            break
-        }
-    }
-
-    private func commitSelectionPreview(deselecting: Bool) {
-        var preview = marqueePreview
-        if selectionFeather >= 0.5, let drawn = drawnSelection, let shape = drawn.shape {
-            preview = SelectionMask.combine(canvas.selection.outline, with: shape.feathered(radius: selectionFeather, clippedTo: canvas.bounds),
-                                            mode: drawn.mode)
-        }
-        drawnSelection = nil
-        marqueePreview = nil
-        recordingChanges {
-            if deselecting {
-                SelectionActions.deselect(canvas: canvas, history: history, context: selectionContext)
-            } else {
-                SelectionActions.select(preview, mode: .replace, canvas: canvas, history: history, context: selectionContext)
-            }
-        }
-    }
 
     /// The selection tools' Feather (FR-3.4): how soft each new rectangle, ellipse or free-form selection's edge is,
     /// in pixels. It's applied when the drag ends, so dragging stays quick; the outline shows where pixels are half
     /// selected, which feathering doesn't move.
     var selectionFeather = 0.0
     /// The shape being drawn and how it combines, for feathering it when the drag ends.
-    @ObservationIgnored private var drawnSelection: (shape: SelectionMask?, mode: SelectionCombineMode)?
-
-    private func updateSelectionPreview(to point: Point2D, shiftDown: Bool) {
-        let shape: SelectionMask?
-        let mode: SelectionCombineMode
-        switch selectionDrag {
-        case .marquee(let kind, let start, let combine, let shiftHeldAtStart, var shiftReleased):
-            if !shiftDown { shiftReleased = true }
-            // Shift held from the start picks "add"; it only constrains once released and pressed again.
-            let constrain = shiftDown && (!shiftHeldAtStart || shiftReleased)
-            selectionDrag = .marquee(shape: kind, start: start, mode: combine, shiftHeldAtStart: shiftHeldAtStart, shiftReleased: shiftReleased)
-            shape = SelectionActions.marquee(kind, from: start, to: point, constrain: constrain, in: canvas.bounds)
-            mode = combine
-        case .lasso(var points, let combine):
-            if let last = points.last, abs(last.x - point.x) + abs(last.y - point.y) >= 1 {
-                points.append(point)
-            }
-            selectionDrag = .lasso(points: points, mode: combine)
-            shape = SelectionMask.polygon(points, clippedTo: canvas.bounds)
-            mode = combine
-        default:
-            return
-        }
-        drawnSelection = (shape, mode)
-        marqueePreview = SelectionMask.combine(canvas.selection.outline, with: shape, mode: mode)
-        selectionBounds = marqueePreview?.bounds
-        onRender()
-    }
-
-    // MARK: Selection commands
-
-    private func performSelectionCommand(_ command: () -> Void) {
-        finishInteractions()
-        recordingChanges(command)
-        selectionDidChange()
-    }
-
-    /// Runs `body` and tells the document it changed if a history step was recorded.
-    private func recordingChanges(_ body: () -> Void) {
-        let revision = history.revision
-        body()
-        if history.revision != revision { noteEdited() }
-    }
-
-    /// The bookkeeping every recorded step needs, wherever it was recorded. Not for page changes (`changePages`),
-    /// which are undone on their own list.
-    private func noteEdited() {
-        stopFillForChange()
-        // A page edit: page changes made before it can't be undone any more, as edits work in an image.
-        pages.noteEdit()
-        undone = []
-        onDocumentChange(.done)
-        layersRevision += 1
-    }
-
-    func selectAll() {
-        if !tool.isSelectionTool { tool = .rectangleSelect }
-        performSelectionCommand { SelectionActions.selectAll(canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    func deselect() {
-        performSelectionCommand { SelectionActions.deselect(canvas: canvas, history: history, context: selectionContext) }
-    }
+    @ObservationIgnored var drawnSelection: (shape: SelectionMask?, mode: SelectionCombineMode)?
 
     // MARK: Edit ▸ Feather… and Modify Selection (FR-3.4, FR-9.7 item 3)
 
     /// Which change the selection sheet is trying, if it's open; the canvas tints what isn't selected meanwhile.
-    private(set) var selectionChange: SelectionModification?
+    var selectionChange: SelectionModification?
     /// The radius being tried, in whole pixels.
-    private(set) var selectionChangeRadius = 10.0
+    var selectionChangeRadius = 10.0
     /// Whether the radius being tried would leave nothing selected, so OK can't be chosen.
-    private(set) var selectionChangeLeavesNothing = false
+    var selectionChangeLeavesNothing = false
     /// Whether the preview for the radius being tried is still being worked out.
-    private(set) var isWorkingOnSelectionChange = false
-    @ObservationIgnored private var selectionChangeOriginal: SelectionMask?
+    var isWorkingOnSelectionChange = false
+    @ObservationIgnored var selectionChangeOriginal: SelectionMask?
     /// Whether the last Clone Stamp stroke's Match Tone is still being worked out.
-    private(set) var isMatchingTone = false
-    @ObservationIgnored private var pendingTone: PendingTone?
+    var isMatchingTone = false
+    @ObservationIgnored var pendingTone: PendingTone?
 
-    /// A Match Tone being worked out: `plan` is set before `done` is signalled.
-    private final class PendingTone: @unchecked Sendable {
-        let revision: Int
-        let layer: LayerID
-        let page: UUID
-        let done = DispatchSemaphore(value: 0)
-        var plan: UnsafeTransfer<ToneMatch.Plan?>?
-
-        init(revision: Int, layer: LayerID, page: UUID) {
-            self.revision = revision
-            self.layer = layer
-            self.page = page
-        }
-    }
     /// The radius the preview shows, whether one is being worked out, a count that drops a stale one, and whether
     /// OK is waiting for it.
-    @ObservationIgnored private var selectionChangeShown: Double?
-    @ObservationIgnored private var selectionChangeRunning = false
-    @ObservationIgnored private var selectionChangeSession = 0
-    @ObservationIgnored private var appliesSelectionChangeWhenShown = false
-
-    func beginSelectionChange(_ change: SelectionModification) {
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        guard let mask = canvas.selection.marquee else { return onRefused() }
-        selectionChangeOriginal = mask
-        selectionChange = change
-        setSelectionChangeRadius(Double(change.startingRadius))
-    }
-
-    /// The slider's radius shows at once; the changed selection is worked out in the background, with moves made
-    /// meanwhile merged, so a big selection doesn't stall the slider (review O, finding 12; review P, finding 5).
-    func setSelectionChangeRadius(_ radius: Double) {
-        guard selectionChangeOriginal != nil else { return }
-        selectionChangeRadius = min(100, max(1, radius.rounded()))
-        isWorkingOnSelectionChange = selectionChangeRadius != selectionChangeShown
-        refreshSelectionChangePreview()
-    }
-
-    private func refreshSelectionChangePreview() {
-        guard !selectionChangeRunning, let original = selectionChangeOriginal, let change = selectionChange,
-              selectionChangeRadius != selectionChangeShown else { return }
-        selectionChangeRunning = true
-        let session = selectionChangeSession, bounds = canvas.bounds, radius = selectionChangeRadius
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let mask = UnsafeTransfer(change.applied(to: original, radius: Int(radius), clippedTo: bounds))
-            await MainActor.run { [weak self] in self?.showSelectionChangePreview(mask.value, radius: radius, session: session) }
-        }
-    }
-
-    private func showSelectionChangePreview(_ mask: SelectionMask?, radius: Double, session: Int) {
-        guard session == selectionChangeSession else { return }
-        selectionChangeRunning = false
-        // With nothing left, the selection as it was stays on show, and the sheet says why OK is off.
-        marqueePreview = mask
-        selectionChangeLeavesNothing = mask == nil
-        selectionChangeShown = radius
-        isWorkingOnSelectionChange = radius != selectionChangeRadius
-        onRender()
-        if !isWorkingOnSelectionChange, appliesSelectionChangeWhenShown { return applySelectionChange() }
-        refreshSelectionChangePreview()
-    }
-
-    /// OK keeps exactly the radius in the box: if its selection is still being worked out, it's applied when ready,
-    /// rather than worked out here and holding up the window.
-    func applySelectionChange() {
-        guard selectionChange != nil else { return }
-        if selectionChangeRadius != selectionChangeShown {
-            appliesSelectionChangeWhenShown = true
-            return
-        }
-        guard !selectionChangeLeavesNothing else { return onRefused() }
-        let changed = marqueePreview
-        endSelectionChange()
-        recordingChanges { SelectionActions.select(changed, mode: .replace, canvas: canvas, history: history, context: selectionContext) }
-        selectionDidChange()
-    }
-
-    func cancelSelectionChange() {
-        endSelectionChange()
-        onRender()
-    }
-
-    private func endSelectionChange() {
-        selectionChangeOriginal = nil
-        selectionChange = nil
-        marqueePreview = nil
-        selectionChangeShown = nil
-        selectionChangeRunning = false
-        selectionChangeLeavesNothing = false
-        isWorkingOnSelectionChange = false
-        appliesSelectionChangeWhenShown = false
-        selectionChangeSession += 1
-    }
+    @ObservationIgnored var selectionChangeShown: Double?
+    @ObservationIgnored var selectionChangeRunning = false
+    @ObservationIgnored var selectionChangeSession = 0
+    @ObservationIgnored var appliesSelectionChangeWhenShown = false
 
     // MARK: Edit ▸ Color Range… and Luminance Range… (FR-9.7 item 3)
 
     /// The colors clicked for Color Range; Shift-click adds more.
-    private(set) var rangeColors: [Pixel] = []
+    var rangeColors: [Pixel] = []
     /// What the range reads: the active layer, or everything shown with Sample All Layers (shared with the Magic Wand).
-    @ObservationIgnored private var rangeSource: PixelBuffer?
+    @ObservationIgnored var rangeSource: PixelBuffer?
     /// The settings the preview shows, whether one is being worked out, and a count that drops a stale one.
-    @ObservationIgnored private var rangeShown: RangeSettings?
-    @ObservationIgnored private var rangeRunning = false
-    @ObservationIgnored private var rangeSession = 0
+    @ObservationIgnored var rangeShown: RangeSettings?
+    @ObservationIgnored var rangeRunning = false
+    @ObservationIgnored var rangeSession = 0
     /// The range's own selection for the settings shown, before it's combined with the one there already.
-    @ObservationIgnored private var rangeMask: SelectionMask?
+    @ObservationIgnored var rangeMask: SelectionMask?
 
-    private enum RangeSettings: Equatable {
+    enum RangeSettings: Equatable {
         case color(ColorRange)
         case luminance(LuminanceRange)
         case graduated(GraduatedSelection)
@@ -2777,420 +529,47 @@ final class Editor {
         }
     }
 
-    private var rangeSettings: RangeSettings? {
-        func value(_ index: Int) -> Double { effectValues[safe: index] ?? 0 }
-        switch activeEffect {
-        case .colorRange: return .color(ColorRange(colors: rangeColors, fuzziness: value(0)))
-        case .luminanceRange: return .luminance(LuminanceRange(lower: value(0), upper: value(1), smoothness: value(2)))
-        case .graduatedSelection: return graduatedLine.map { .graduated($0) }
-        default: return nil
-        }
-    }
-
-    private var rangeCombineMode: SelectionCombineMode {
-        let position = activeEffect?.parameters.firstIndex { $0.options == EffectKind.combineOptions } ?? 0
-        let index = Int((effectValues[safe: position] ?? 0).rounded())
-        return [.replace, .add, .subtract, .intersect][min(max(index, 0), 3)]
-    }
-
-    /// Whether the range reads everything shown. An adjustment layer has no pixels of its own to read, so on one it
-    /// always does (my choice, §23).
-    var rangeSamplesAllLayers: Bool {
-        get { wandSamplesAllLayers || !canvas.activeLayer.isPixelLayer }
-        set {
-            wandSamplesAllLayers = newValue
-            guard activeEffect?.choosesSelection == true else { return }
-            rangeSource = nil
-            rangeShown = nil
-            refreshRangePreview()
-        }
-    }
-
-    private func beginRange() {
-        rangeColors = []
-        graduatedLine = nil
-        graduatedMoving = nil
-        rangeShown = nil
-        rangeMask = nil
-        rangeSource = nil
-    }
-
-    private func endRange() {
-        if activeEffect?.choosesSelection == true { marqueePreview = nil }
-        rangeColors = []
-        graduatedLine = nil
-        graduatedMoving = nil
-        rangeShown = nil
-        rangeRunning = false
-        rangeMask = nil
-        rangeSource = nil
-        rangeSession += 1
-    }
-
-    private func rangeSampled() -> PixelBuffer {
-        if let rangeSource { return rangeSource }
-        // A graduated selection reads no pixels, only the canvas's size.
-        if activeEffect == .graduatedSelection { return canvas.paintLayer.buffer }
-        let source = rangeSamplesAllLayers ? canvas.flattened() : canvas.paintLayer.buffer
-        rangeSource = source
-        return source
-    }
-
-    /// A click picks the color there, a 5 × 5 average like the other eyedroppers; Shift-click adds it to those
-    /// picked. A click where there's nothing to read beeps.
-    private func pickRangeColor(at point: Point2D, adding: Bool) {
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-        guard canvas.bounds.contains(pixel),
-              let color = rangeSampled().averageColor(in: IntRect(x: pixel.x - 2, y: pixel.y - 2, width: 5, height: 5)) else { return onRefused() }
-        rangeColors = adding ? rangeColors + [color] : [color]
-        refreshRangePreview()
-    }
-
-    /// The range's selection is worked out in the background, with changes made meanwhile merged, then combined with
-    /// the selection there already for the tint.
-    private func refreshRangePreview() {
-        guard !rangeRunning, let settings = rangeSettings else { return showRangePreview() }
-        guard settings != rangeShown else { return showRangePreview() }
-        rangeRunning = true
-        let session = rangeSession, source = UnsafeTransfer(rangeSampled())
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let mask = settings.selection(in: source.value)
-            let result = UnsafeTransfer(mask)
-            await MainActor.run { [weak self] in
-                guard let self, session == self.rangeSession else { return }
-                self.rangeRunning = false
-                self.rangeMask = result.value
-                self.rangeShown = settings
-                self.refreshRangePreview()
-            }
-        }
-    }
-
-    private func showRangePreview() {
-        // Nothing clicked or drawn yet: the selection as it is, untinted.
-        if rangeSettings == nil || activeEffect == .colorRange && rangeColors.isEmpty {
-            marqueePreview = nil
-        } else {
-            marqueePreview = SelectionMask.combine(canvas.selection.marquee, with: rangeMask, mode: rangeCombineMode)
-        }
-        onRender()
-    }
-
-    /// Return makes the range the selection, combined as the bar says; with no color clicked yet there's nothing to
-    /// take. It's no more an undo step than any other selection.
-    private func applyRange() {
-        guard let settings = rangeSettings else { return onRefused() }
-        if activeEffect == .colorRange, rangeColors.isEmpty { return onRefused() }
-        let mask: SelectionMask?
-        if settings == rangeShown {
-            mask = rangeMask
-        } else {
-            // The newest settings aren't worked out yet: OK keeps exactly what's in the bar.
-            mask = settings.selection(in: rangeSampled())
-        }
-        let mode = rangeCombineMode
-        endEffectSession()
-        activeEffect = nil
-        recordingChanges { SelectionActions.select(mask, mode: mode, canvas: canvas, history: history, context: selectionContext) }
-        if !tool.isSelectionTool { tool = .rectangleSelect }
-        selectionDidChange()
-    }
-
     /// Graduated Selection's line, once one is drawn; its ends can be dragged until Return.
-    private(set) var graduatedLine: GraduatedSelection?
+    var graduatedLine: GraduatedSelection?
     /// Which end a drag is moving, or nil when it draws a new line.
-    @ObservationIgnored private var graduatedMoving: GraduatedEnd?
+    @ObservationIgnored var graduatedMoving: GraduatedEnd?
 
-    private enum GraduatedEnd { case start, end }
-
-    /// Near an end of the line, a drag moves that end; anywhere else, it draws a new line from there.
-    private func beginGraduatedDrag(at point: Point2D, viewPoint: Point2D) {
-        if let line = graduatedLine {
-            let ends: [(GraduatedEnd, Point2D)] = [(.end, line.end), (.start, line.start)]
-            if let near = ends.first(where: { distance(viewport.viewPoint(fromImage: $0.1), viewPoint) <= 12 }) {
-                graduatedMoving = near.0
-                return
-            }
-        }
-        graduatedMoving = .end
-        graduatedLine = GraduatedSelection(start: point, end: point)
-        refreshRangePreview()
-    }
-
-    /// Shift keeps the line across, down or at 45°, measured from the end that isn't moving.
-    private func continueGraduatedDrag(to point: Point2D, constrain: Bool) {
-        guard var line = graduatedLine, let moving = graduatedMoving else { return }
-        switch moving {
-        case .end: line.end = constrain ? GraduatedSelection.constrained(point, from: line.start) : point
-        case .start: line.start = constrain ? GraduatedSelection.constrained(point, from: line.end) : point
-        }
-        graduatedLine = line
-        refreshRangePreview()
-    }
-
-    /// A guide at right angles to `line` through `point`, reaching across the canvas and stopping at its edges.
-    private func guideAcross(_ line: GraduatedSelection, through point: Point2D) -> (Point2D, Point2D)? {
-        let dx = line.end.x - line.start.x, dy = line.end.y - line.start.y
-        let length = hypot(dx, dy)
-        guard length > 0 else { return nil }
-        let across = Point2D(x: -dy / length, y: dx / length)
-        // Along the guide, the part inside the canvas (Liang–Barsky clipping).
-        var low = -Double.infinity, high = Double.infinity
-        for (origin, direction, size) in [(point.x, across.x, Double(canvas.size.width)), (point.y, across.y, Double(canvas.size.height))] {
-            if direction == 0 {
-                guard origin >= 0 && origin <= size else { return nil }
-            } else {
-                let a = (0 - origin) / direction, b = (size - origin) / direction
-                low = max(low, min(a, b))
-                high = min(high, max(a, b))
-            }
-        }
-        guard low < high else { return nil }
-        return (Point2D(x: point.x + across.x * low, y: point.y + across.y * low),
-                Point2D(x: point.x + across.x * high, y: point.y + across.y * high))
-    }
+    enum GraduatedEnd { case start, end }
 
     /// Luminance Range's presets, in the order the bar shows them.
     static let luminancePresets: [(title: String, range: LuminanceRange)] =
         [("Shadows", .shadows), ("Midtones", .midtones), ("Highlights", .highlights)]
 
-    /// The preset whose From and To the bar's values match, shown chosen; nil once the handles leave every preset.
-    var luminancePresetIndex: Int? {
-        guard activeEffect == .luminanceRange, effectValues.count > 1 else { return nil }
-        return Self.luminancePresets.firstIndex { $0.range.lower == effectValues[0] && $0.range.upper == effectValues[1] }
-    }
-
-    /// Luminance Range's Shadows, Midtones and Highlights choices.
-    func setLuminanceRange(_ range: LuminanceRange) {
-        guard activeEffect == .luminanceRange, effectValues.count > 1 else { return }
-        effectValues[0] = range.lower
-        effectValues[1] = range.upper
-    }
-
-    func invertSelection() {
-        if !tool.isSelectionTool { tool = .rectangleSelect }
-        performSelectionCommand { SelectionActions.invert(canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    func deleteSelection(named name: String = "Delete") {
-        guard !refusedBecauseLocked() else { return }
-        performSelectionCommand {
-            SelectionActions.deleteSelection(named: name, canvas: canvas, history: history, context: selectionContext)
-        }
-    }
-
-    /// ⌘-arrows: grow or shrink the marquee's outline without touching the pixels.
-    func resizeMarquee(byWidth dx: Int, height dy: Int) {
-        finishInteractions()
-        SelectionActions.resizeMarquee(byWidth: dx, height: dy, canvas: canvas)
-        selectionDidChange()
-    }
-
-    func nudgeSelection(dx: Int, dy: Int) {
-        guard !refusedBecauseLocked() else { return }
-        performSelectionCommand {
-            SelectionActions.nudge(dx: dx, dy: dy, canvas: canvas, history: history, context: selectionContext)
-        }
-    }
-
-    /// The selected pixels, or nil when nothing is selected.
-    /// Copy Merged: the selection as all visible layers show it together.
-    func selectedMergedPixels() -> PixelBuffer? {
-        finishInteractions()
-        return SelectionActions.selectedPixels(canvas: canvas, context: selectionContext, merged: true)
-    }
-
-    func selectedPixels() -> PixelBuffer? {
-        finishInteractions()
-        return SelectionActions.selectedPixels(canvas: canvas, context: selectionContext)
-    }
-
-    /// Where Copy's pixels come from on the canvas, recorded with them for Paste in Place (FR-10.1).
-    func copiedPlace(merged: Bool) -> IntPoint {
-        SelectionActions.selectedPixelsOrigin(canvas: canvas, merged: merged)
-    }
-
-    /// Paste in Place: at `place` when any of the image lands on the canvas there; otherwise, or with no place (a
-    /// picture copied in another app), where ⌘V puts it (Leah, 2026-10-28).
-    func paste(_ image: PixelBuffer, inPlaceAt place: IntPoint?) {
-        guard let place, !IntRect(x: place.x, y: place.y, width: image.width, height: image.height).intersection(canvas.bounds).isEmpty else {
-            return paste(image)
-        }
-        paste(image, at: place)
-    }
-
-    /// Pastes as a floating selection at the top-left of the visible area (FR-10.1), or at `origin`.
-    func paste(_ image: PixelBuffer, at origin: IntPoint? = nil) {
-        guard !refusedBecauseLocked() else { return }
-        let visibleTopLeft = viewport.imagePoint(fromView: .zero)
-        let origin = origin ?? IntPoint(
-            x: min(max(0, Int(visibleTopLeft.x.rounded(.down))), canvas.size.width - 1),
-            y: min(max(0, Int(visibleTopLeft.y.rounded(.down))), canvas.size.height - 1)
-        )
-        if !tool.isSelectionTool { tool = .rectangleSelect }
-        performSelectionCommand {
-            SelectionActions.paste(image, at: origin, canvas: canvas, history: history, context: selectionContext)
-        }
-        onFocusCanvas()
-    }
-
-    private func selectionDidChange() {
-        selectionBounds = marqueePreview?.bounds ?? canvas.selection.bounds
-        if let floating = canvas.selection.floating, floating.destination.size != floating.pixels.size {
-            selectionScalePercent = Int((Double(floating.destination.width) / Double(floating.pixels.width) * 100).rounded())
-        } else {
-            selectionScalePercent = nil
-        }
-        if canvasSize != canvas.size { canvasDidResize() }
-        onRender()
-    }
-
-    // MARK: Image
-
-    func cropToSelection() {
-        performSelectionCommand { ImageActions.cropToSelection(canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    /// Image ▸ Trim: the border found from everything shown, and every layer cropped to what's inside it, as one step.
-    /// Nothing to trim beeps.
-    func trim() {
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        guard let kept = Trim.keptBounds(of: canvas.flattened()) else { return onRefused() }
-        performSelectionCommand { ImageActions.crop(to: kept, named: "Trim", canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    /// Keeps the zoom and recenters on the new canvas.
-    private func canvasDidResize() {
-        canvasSize = canvas.size
-        let center = Point2D(x: Double(canvas.size.width) / 2, y: Double(canvas.size.height) / 2)
-        updateViewport { $0.center = center }
-    }
-
     // MARK: Effects
 
-    /// Opens an effect's dialog and shows its preview. It applies to the selection, or the whole layer.
-    /// Batch Redact ▸ Blur… and Pixelate…: chosen with the bar like the effects, applied to every layer.
-    func beginBatchRedact(_ kind: EffectKind) {
-        beginEffect(kind, coveringAllLayers: true)
-    }
-
-    func beginEffect(_ kind: EffectKind, coveringAllLayers: Bool = false) {
-        // Whole-image tools apply to every layer, locked or not (§23), and picking a subject was already
-        // checked by findSubject, since selecting one doesn't change pixels (review B, findings 4 and 5).
-        guard coveringAllLayers || kind.appliesToWholeImage || kind == .pickSubject || kind.choosesSelection || !refusedBecauseLocked() else { return }
-        effectCoversAllLayers = coveringAllLayers
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        // Spotlight changes what's around the selection, so it needs one.
-        if kind == .spotlight, canvas.selection.marquee == nil { return onRefused() }
-        effectValues = kind.parameters.map(\.defaultValue)
-        effectCurves = .identity
-        photoEdit = PhotoEdit()
-        photoAutoMoved = []
-        if kind == .adjustPhoto { isSidebarOpen = true }
-        effectHistogram = kind == .levels ? Histogram(canvas.paintLayer.buffer, selection: canvas.selection.marquee) : nil
-        decorationPreviewed = false
-        if kind == .crop {
-            cropShape = .free
-            cropPixelSize = nil
-            cropRect = canvas.selection.bounds?.intersection(canvas.bounds) ?? canvas.bounds
-            if cropRect.isEmpty { cropRect = canvas.bounds }
-        }
-        if kind == .perspective {
-            // Inset a little, so the corners are easy to find and grab, until Vision finds better ones.
-            let w = Double(canvas.size.width), h = Double(canvas.size.height), inset = 0.06
-            perspectiveCorners = [Point2D(x: w * inset, y: h * inset), Point2D(x: w * (1 - inset), y: h * inset),
-                                  Point2D(x: w * (1 - inset), y: h * (1 - inset)), Point2D(x: w * inset, y: h * (1 - inset))]
-            perspectiveStartCorners = perspectiveCorners
-            findPerspectiveCorners()
-        }
-        if coveringAllLayers {
-            let (layers, locked) = AutoRedact.layersWithPixels(in: canvas.selection.marquee, canvas: canvas)
-            if let locked {
-                effectCoversAllLayers = false
-                onRefused()
-                redactionMessage = "“\(locked.name)” is locked, so nothing can be redacted there. Unlock it and try again."
-                return
-            }
-            effectLayers = layers
-        }
-        effectEdit = kind.previewsAsStep || kind.isCanvasTool ? nil : history.beginEdit(kind.title, on: canvas)
-        // Batch Redact ▸ Blur… and Pixelate… rename a layer named after its words, as every redaction does (review Y).
-        effectEdit?.isRedaction = coveringAllLayers
-        if kind == .spotlight {
-            effectRegions = canvas.selection.marquee?.inverted(in: canvas.bounds).map { [$0] } ?? []
-        } else if coveringAllLayers {
-            // Redaction is never softened: a partly selected pixel is hidden completely (FR-3.4; review N, finding 1).
-            effectRegions = canvas.selection.marquee?.hardened().connectedRegions()
-        } else {
-            effectRegions = canvas.selection.marquee?.connectedRegions()
-        }
-        activeEffect = kind
-        shownEffect = nil
-        if kind.choosesSelection { beginRange() }
-        // Batch Redact previews several layers, so it's worked out here rather than from a copy of one.
-        effectSource = effectEdit == nil || coveringAllLayers ? nil : canvas.paintLayer.buffer.copy()
-        if effectSource != nil { previewEffect() } else { renderEffectPreview() }
-    }
-
     /// Whether a Drop Shadow, Border or Straighten preview step is in the history right now.
-    @ObservationIgnored private var decorationPreviewed = false
+    @ObservationIgnored var decorationPreviewed = false
     /// Straighten's preview: whether a turn is being worked out in the background, whether newer settings wait for
     /// it, which angle and Crop to fit the preview step shows, and a count that makes a stale turn be dropped.
-    @ObservationIgnored private(set) var straightenRunning = false
-    @ObservationIgnored private var straightenWanted = false
-    @ObservationIgnored private(set) var straightenShown: (angle: Double, cropToFit: Bool)?
-    @ObservationIgnored private var straightenToken = 0
+    @ObservationIgnored var straightenRunning = false
+    @ObservationIgnored var straightenWanted = false
+    @ObservationIgnored var straightenShown: (angle: Double, cropToFit: Bool)?
+    @ObservationIgnored var straightenToken = 0
     /// The running turn's stop flag, and a signal it gives once it no longer reads the original layers.
-    @ObservationIgnored private var straightenWork: (stop: CancelFlag, done: DispatchSemaphore)?
+    @ObservationIgnored var straightenWork: (stop: CancelFlag, done: DispatchSemaphore)?
 
     // MARK: Straighten, Perspective Correction and Crop (FR-9.5)
 
     /// Straighten: a line being drawn along something that should be level.
-    private(set) var straightenLine: (start: Point2D, end: Point2D)?
+    var straightenLine: (start: Point2D, end: Point2D)?
     /// Perspective Correction: top left, top right, bottom right, bottom left, in image coordinates.
-    private(set) var perspectiveCorners: [Point2D] = []
+    var perspectiveCorners: [Point2D] = []
     /// Where the corners started: on the rectangle Vision found, or inset from the edges. Reset puts them back.
-    private(set) var perspectiveStartCorners: [Point2D] = []
-    private(set) var isFindingCorners = false
+    var perspectiveStartCorners: [Point2D] = []
+    var isFindingCorners = false
     /// Counts searches, so one from a Perspective Correction that was closed can't move a later one's corners.
-    @ObservationIgnored private var cornerSearch = 0
+    @ObservationIgnored var cornerSearch = 0
 
-    /// Looks for a rectangle in the picture as shown, on this Mac (FR-9.7 item 7, Q17.1), and moves the corners onto
-    /// it, unless they've been moved meanwhile. With none found, they stay where they are.
-    private func findPerspectiveCorners() {
-        cornerSearch += 1
-        let search = cornerSearch
-        isFindingCorners = true
-        // Flattened from a copy in the background, as Auto-Redact does: a big picture took a moment (review W, finding 7).
-        let copy = UnsafeTransfer(canvas.copy())
-        Task { @MainActor [weak self] in
-            let image = await Task.detached(priority: .userInitiated) {
-                (try? ImageCodec.makeCGImage(copy.value.flattened(), colorSpace: copy.value.colorSpace)).map(UnsafeTransfer.init)
-            }.value
-            let found = if let image { try? await RectangleFinder.find(in: image.value) } else { [Point2D]?.none }
-            guard let self, search == self.cornerSearch else { return }
-            self.isFindingCorners = false
-            guard self.activeEffect == .perspective, self.perspectiveCorners == self.perspectiveStartCorners, let found else { return }
-            let width = Double(self.canvas.size.width), height = Double(self.canvas.size.height)
-            self.perspectiveCorners = found.map { Point2D(x: min(max($0.x, 0), width), y: min(max($0.y, 0), height)) }
-            self.perspectiveStartCorners = self.perspectiveCorners
-            self.onRender()
-        }
-    }
-
-    /// Perspective Correction's Reset: the corners go back to where they started.
-    func resetPerspectiveCorners() {
-        guard activeEffect == .perspective else { return }
-        perspectiveCorners = perspectiveStartCorners
-        onRender()
-    }
     /// Crop: the box, its shape and an exact output size from a pixel-size preset.
     var cropRect = IntRect.zero
     var cropShape = CropShape.free { didSet { renderSoon() } }
     var cropPixelSize: IntSize? { didSet { renderSoon() } }
-    private(set) var isDraggingCrop = false
+    var isDraggingCrop = false
     /// Crop…'s guides (FR-9.7 item 7): the last chosen, in every window, while Colorbee is open.
     var cropOverlay = Editor.lastCropOverlay {
         didSet {
@@ -3200,172 +579,9 @@ final class Editor {
     }
     @ObservationIgnored private static var lastCropOverlay = CropOverlay.thirds
     /// After O, the guides show for a moment though the box isn't being dragged, so you see what you chose.
-    @ObservationIgnored private var cropOverlayShownUntil: ContinuousClock.Instant?
+    @ObservationIgnored var cropOverlayShownUntil: ContinuousClock.Instant?
 
-    /// Crop…'s O key (Q17.2): the next guides, named at the bottom of the canvas.
-    func nextCropOverlay() {
-        guard activeEffect == .crop else { return }
-        cropOverlay = cropOverlay.next
-        showNotice(cropOverlay.title)
-        let until = ContinuousClock.now + .seconds(2)
-        cropOverlayShownUntil = until
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(until: until)
-            self?.renderSoon()
-        }
-    }
-
-    private var showsCropOverlay: Bool {
-        isDraggingCrop || cropOverlayShownUntil.map { ContinuousClock.now < $0 } ?? false
-    }
-    @ObservationIgnored private var toolDrag: (start: Point2D, handle: SelectionHandle?, rect: IntRect, corner: Int?)?
-
-    /// Width ÷ height the crop box keeps, or nil for any shape.
-    var cropAspect: Double? {
-        if let size = cropPixelSize { return Double(size.width) / Double(size.height) }
-        return cropShape.aspect(original: canvas.size)
-    }
-
-    /// Changing the shape or size preset fits the largest box of that shape in the image.
-    func setCrop(shape: CropShape, pixelSize: IntSize?) {
-        cropShape = shape
-        cropPixelSize = pixelSize
-        if let aspect = cropAspect {
-            cropRect = CropBox.fitted(aspect: aspect, in: canvas.bounds)
-        }
-        renderSoon()
-    }
-
-    /// The handles to draw for the open canvas tool, in image coordinates.
-    var canvasToolHandles: [Point2D] {
-        switch activeEffect {
-        case .crop: SelectionHandle.allCases.map { $0.point(on: cropRect) }
-        case .perspective: perspectiveCorners
-        case .graduatedSelection: graduatedLine.map { [$0.start, $0.end] } ?? []
-        default: []
-        }
-    }
-
-    /// Guide lines for the open canvas tool: the crop frame and its guides while dragging, the perspective
-    /// outline, Straighten's grid and the line being drawn.
-    var canvasToolLines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)] {
-        var lines: [(from: Point2D, to: Point2D, color: SIMD4<Float>)] = []
-        let white = SIMD4<Float>(1, 1, 1, 0.95), faint = SIMD4<Float>(1, 1, 1, 0.55), accent = SIMD4<Float>(1, 0.35, 0.2, 1)
-        switch activeEffect {
-        case .crop:
-            let r = cropRect
-            let corners = [Point2D(x: Double(r.minX), y: Double(r.minY)), Point2D(x: Double(r.maxX), y: Double(r.minY)),
-                           Point2D(x: Double(r.maxX), y: Double(r.maxY)), Point2D(x: Double(r.minX), y: Double(r.maxY))]
-            for index in 0..<4 { lines.append((corners[index], corners[(index + 1) % 4], white)) }
-            if showsCropOverlay {
-                lines += cropOverlay.lines(in: r).map { ($0.0, $0.1, faint) }
-            }
-        case .graduatedSelection:
-            // The line, and guides across the canvas where the fade starts and ends, as in Lightroom.
-            guard let line = graduatedLine else { break }
-            lines.append((line.start, line.end, accent))
-            for point in [line.start, line.end] {
-                if let guide = guideAcross(line, through: point) { lines.append((guide.0, guide.1, white)) }
-            }
-        case .perspective where perspectiveCorners.count == 4:
-            for index in 0..<4 { lines.append((perspectiveCorners[index], perspectiveCorners[(index + 1) % 4], accent)) }
-        case .straighten:
-            let width = Double(canvas.size.width), height = Double(canvas.size.height)
-            for step in 1..<8 {
-                let x = width * Double(step) / 8, y = height * Double(step) / 8
-                lines.append((Point2D(x: x, y: 0), Point2D(x: x, y: height), faint))
-                lines.append((Point2D(x: 0, y: y), Point2D(x: width, y: y), faint))
-            }
-            if let line = straightenLine { lines.append((line.start, line.end, accent)) }
-        default:
-            break
-        }
-        return lines
-    }
-
-    /// A drag on the canvas while Straighten, Perspective Correction or Crop is open.
-    func beginCanvasToolDrag(at point: Point2D, viewPoint: Point2D, adding: Bool = false) {
-        switch activeEffect {
-        case .pickSubject:
-            pickSubject(at: point)
-            return
-        case .colorRange:
-            pickRangeColor(at: point, adding: adding)
-            return
-        case .graduatedSelection:
-            beginGraduatedDrag(at: point, viewPoint: viewPoint)
-        case .straighten:
-            straightenLine = (point, point)
-        case .perspective:
-            let nearest = perspectiveCorners.indices.min { a, b in
-                distance(viewport.viewPoint(fromImage: perspectiveCorners[a]), viewPoint) < distance(viewport.viewPoint(fromImage: perspectiveCorners[b]), viewPoint)
-            }
-            guard let nearest, distance(viewport.viewPoint(fromImage: perspectiveCorners[nearest]), viewPoint) <= 16 else { return }
-            toolDrag = (point, nil, .zero, nearest)
-        case .crop:
-            let handle = nearestHandle(SelectionHandle.allCases.map { ($0, $0.point(on: cropRect)) }, to: viewPoint)
-            let inside = point.x >= Double(cropRect.minX) && point.x < Double(cropRect.maxX) && point.y >= Double(cropRect.minY) && point.y < Double(cropRect.maxY)
-            if handle == nil && !inside {
-                // Outside the box: draw a new one from here.
-                let start = IntPoint(x: Int(point.x.rounded()), y: Int(point.y.rounded()))
-                cropRect = CropBox.clamped(IntRect(x: start.x, y: start.y, width: 1, height: 1), to: canvas.bounds, aspect: nil)
-                toolDrag = (point, .bottomRight, cropRect, nil)
-            } else {
-                toolDrag = (point, handle, cropRect, nil)
-            }
-            isDraggingCrop = true
-        default:
-            break
-        }
-        renderSoon()
-    }
-
-    func continueCanvasToolDrag(to point: Point2D, constrain: Bool = false) {
-        switch activeEffect {
-        case .graduatedSelection:
-            continueGraduatedDrag(to: point, constrain: constrain)
-        case .straighten:
-            if let line = straightenLine { straightenLine = (line.start, point) }
-        case .perspective:
-            guard let drag = toolDrag, let corner = drag.corner else { return }
-            perspectiveCorners[corner] = Point2D(x: min(max(point.x, 0), Double(canvas.size.width)), y: min(max(point.y, 0), Double(canvas.size.height)))
-        case .crop:
-            guard let drag = toolDrag else { return }
-            let delta = Point2D(x: point.x - drag.start.x, y: point.y - drag.start.y)
-            if let handle = drag.handle {
-                var start = drag.rect
-                // A new box drawn with a preset shape starts at that shape so it keeps it.
-                if let aspect = cropAspect, start.width <= 1 || start.height <= 1 {
-                    start = IntRect(x: start.minX, y: start.minY, width: max(1, Int(aspect.rounded())), height: max(1, Int((1 / aspect).rounded())))
-                }
-                let resized = handle.resize(start, by: delta, keepProportions: cropAspect != nil)
-                cropRect = CropBox.clamped(resized, to: canvas.bounds, aspect: cropAspect)
-            } else {
-                cropRect = CropBox.moved(drag.rect, by: IntPoint(x: Int(delta.x.rounded()), y: Int(delta.y.rounded())), within: canvas.bounds)
-            }
-        default:
-            break
-        }
-        renderSoon()
-    }
-
-    func endCanvasToolDrag() {
-        if activeEffect == .straighten, let line = straightenLine {
-            straightenLine = nil
-            // The line was drawn on the turned preview, so its tilt adds to the turn already there.
-            if distance(viewport.viewPoint(fromImage: line.start), viewport.viewPoint(fromImage: line.end)) > 8,
-               effectValues.indices.contains(0) {
-                let turned = effectValues[0] + Warp.straighteningAngle(from: line.start, to: line.end)
-                effectValues[0] = (min(max(turned, -45), 45) * 10).rounded() / 10
-            }
-        }
-        toolDrag = nil
-        isDraggingCrop = false
-        graduatedMoving = nil
-        renderSoon()
-    }
-
-    private func distance(_ a: Point2D, _ b: Point2D) -> Double { hypot(a.x - b.x, a.y - b.y) }
+    @ObservationIgnored var toolDrag: (start: Point2D, handle: SelectionHandle?, rect: IntRect, corner: Int?)?
 
     // MARK: Messages and Copy Text (FR-10.4)
 
@@ -3375,84 +591,15 @@ final class Editor {
         let text: String
     }
 
-    private(set) var notice: Notice?
-
-    func showNotice(_ text: String) {
-        let shown = Notice(text: text)
-        notice = shown
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            if self?.notice == shown { self?.notice = nil }
-        }
-    }
+    var notice: Notice?
 
     /// Whether Copy Text is reading now.
-    private(set) var isReadingText = false
-
-    /// Copy Text: reads what you see in the selection (or the whole page) on this Mac and hands the text to `copy`.
-    /// The image is never changed, and it isn't an undo step.
-    /// `copy` puts the text on the clipboard and returns the clipboard's change count after, so a redaction can
-    /// offer to remove it again (Leah, 2026-10-11; review N, finding 3).
-    func copyText(_ copy: @escaping @MainActor (String) -> Int) {
-        guard !isReadingText else { return }
-        let pixels = selectedMergedPixels() ?? canvas.flattened()
-        guard let image = try? ImageCodec.makeCGImage(pixels, colorSpace: canvas.colorSpace) else { return onRefused() }
-        isReadingText = true
-        let history = self.history, revision = history.revision
-        Task { @MainActor [weak self] in
-            let text = (try? await TextReader.read(image)) ?? ""
-            guard let self else { return }
-            self.isReadingText = false
-            // A redaction (or any change) while reading would put the old text on the clipboard after it.
-            guard self.history === history, history.revision == revision else {
-                return self.showNotice("The image changed while reading, so nothing was copied")
-            }
-            // With no text the clipboard is left as it was.
-            guard !text.isEmpty else { return self.showNotice("No text found") }
-            self.copiedTextClipboardCount = copy(text)
-            let words = TextReader.wordCount(text)
-            self.showNotice(words == 1 ? "Copied 1 word" : "Copied \(words) words")
-        }
-    }
+    var isReadingText = false
 
     // MARK: Remove Red-Eye (FR-9.5)
 
     /// Whether Vision is looking for eyes now.
-    private(set) var isFindingEyes = false
-
-    /// Darkens red pupils, as one step. With a selection, the red inside it; otherwise in the eyes Vision finds.
-    func removeRedEye() {
-        guard !isFindingEyes, !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        if let mask = canvas.selection.marquee {
-            let edit = history.beginEdit("Remove Red-Eye", on: canvas)
-            RedEye.fix(in: mask, layer: canvas.paintLayer, edit: edit)
-            var changed = false
-            recordingChanges { changed = history.commit(edit) }
-            if !changed { showNotice("No red-eye found") }
-            return onRender()
-        }
-        let layer = canvas.paintLayer
-        guard let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
-        let revision = history.revision
-        isFindingEyes = true
-        Task { @MainActor [weak self] in
-            let eyes = (try? await RedEye.findEyes(in: image)) ?? []
-            guard let self else { return }
-            self.isFindingEyes = false
-            // Something changed meanwhile, so the eyes may no longer be where they were found.
-            guard self.history.revision == revision, self.canvas.paintLayer.id == layer.id, self.activeLayerTakesEdits else {
-                return self.showNotice("The image changed while finding eyes. Try again.")
-            }
-            let edit = self.history.beginEdit("Remove Red-Eye", on: self.canvas)
-            RedEye.fix(eyes, in: self.canvas.paintLayer, edit: edit)
-            var changed = false
-            self.recordingChanges { changed = self.history.commit(edit) }
-            if !changed { self.showNotice(eyes.isEmpty ? "No eyes found. Select the red pupils and try again." : "No red-eye found") }
-            self.onRender()
-        }
-    }
+    var isFindingEyes = false
 
     // MARK: Subjects (FR-9.5)
 
@@ -3461,290 +608,15 @@ final class Editor {
     }
 
     /// Whether Vision is looking for the subject now.
-    private(set) var isFindingSubject = false
+    var isFindingSubject = false
     /// A message to show, such as "No subject found".
     var subjectMessage: String?
     /// With several subjects, or none: what was found, the image it was found in and what to do with the one you click.
-    @ObservationIgnored private var subjectPick: (scan: SubjectScan, image: CGImage, action: SubjectAction, layer: LayerID)?
+    @ObservationIgnored var subjectPick: (scan: SubjectScan, image: CGImage, action: SubjectAction, layer: LayerID)?
     /// How many subjects the pick found, for Return to take. With none, a click looks closer.
-    private(set) var pickSubjectCount = 0
-    var pickHasSubjects: Bool { pickSubjectCount > 0 }
+    var pickSubjectCount = 0
     /// Counts closer looks, so one that was cancelled can't touch a later search when it finishes.
-    @ObservationIgnored private var closerLook = 0
-
-    /// Finds the subject in the active layer with Vision, on this Mac, then waits for a click on the one to act on
-    /// (Return takes all it found). A click away from them looks closer.
-    func findSubject(_ action: SubjectAction) {
-        guard !isFindingSubject, activeEffect == nil else { return }
-        if action != .select, refusedBecauseLocked() { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        let layer = canvas.paintLayer
-        guard layer.isPixelLayer, let image = try? ImageCodec.makeCGImage(layer.buffer, colorSpace: canvas.colorSpace) else { return onRefused() }
-        let revision = history.revision
-        isFindingSubject = true
-        Task { @MainActor [weak self] in
-            let scan = try? await SubjectScan.find(in: image)
-            guard let self else { return }
-            self.isFindingSubject = false
-            // Something changed the image meanwhile (a step, an undo, or a stroke still being drawn), so the
-            // masks may no longer fit it (review B, finding 2).
-            guard self.history.revision == revision, self.activeStroke == nil, self.gradientDrag == nil,
-                  self.canvas.paintLayer.id == layer.id, self.activeEffect == nil else {
-                self.subjectMessage = "The image changed while Colorbee was looking for the subject. Try again."
-                return
-            }
-            let found = scan ?? SubjectScan(size: layer.buffer.size, masks: [])
-            // Even one subject waits for a click: Vision's first look can miss what's wanted, or merge it with its
-            // neighbors, and a click elsewhere looks closer (Leah, 2026-10-27 and 2026-10-28).
-            self.subjectPick = (found, image, action, layer.id)
-            self.pickSubjectCount = found.masks.count
-            self.beginEffect(.pickSubject)
-        }
-    }
-
-    func perform(_ action: SubjectAction, mask: [UInt8]) {
-        recordingChanges {
-            switch action {
-            case .removeBackground: SubjectActions.removeBackground(mask, canvas: canvas, history: history, context: selectionContext)
-            case .liftToNewLayer:
-                // The picture's layer stays active and is the only one chosen (review T, finding 4; Leah, 2026-10-28).
-                // The Layers panel opens, as after New Layer, so the new layer shows though it isn't active (Leah, 2026-10-28).
-                if SubjectActions.liftToNewLayer(mask, canvas: canvas, history: history, context: selectionContext) {
-                    otherChosenLayerIDs = []
-                    showsLayersPanel = true
-                    isSidebarOpen = true
-                }
-            case .select: SubjectActions.select(mask, canvas: canvas, history: history, context: selectionContext)
-            }
-        }
-        selectionDidChange()
-        onRender()
-    }
-
-    /// A click while picking: that subject, or one found by looking closer around the click, or a beep.
-    private func pickSubject(at point: Point2D) {
-        guard let pick = subjectPick, !isFindingSubject else { return }
-        let pixel = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-        if let index = pick.scan.subject(at: pixel) {
-            subjectPick = nil
-            activeEffect = nil
-            perform(pick.action, mask: pick.scan.mask(for: [index]))
-            return
-        }
-        guard canvas.bounds.contains(pixel) else { return onRefused() }
-        // Vision shrinks the whole image to about 512 px, so a small subject is missed there (Leah, 2026-10-27).
-        isFindingSubject = true
-        closerLook += 1
-        let look = closerLook
-        Task { @MainActor [weak self] in
-            let mask = try? await SubjectScan.findCloser(at: pixel, in: pick.image)
-            guard let self, self.closerLook == look else { return }
-            self.isFindingSubject = false
-            guard self.activeEffect == .pickSubject, self.subjectPick?.layer == pick.layer else { return }
-            guard let mask else { return self.onRefused() }
-            self.subjectPick = nil
-            self.activeEffect = nil
-            self.perform(pick.action, mask: mask)
-        }
-    }
-
-    /// Drop Shadow and Border: takes back the last preview step and draws the new one. Straighten does this in the
-    /// background, unless `now` (Apply needs exactly the settings on screen).
-    private func renderDecorationPreview(_ kind: EffectKind, now: Bool = false) {
-        if kind == .straighten, !now { return renderStraightenPreview() }
-        if decorationPreviewed {
-            history.undo(on: canvas)
-            // The undone preview was never applied, so it mustn't be redoable, even if this tick draws nothing
-            // (review A, finding 5).
-            history.forgetRedo()
-            decorationPreviewed = false
-        }
-        let colors = [color1, color2, .black, .white]
-        let values = effectValues
-        func value(_ index: Int) -> Double { values.indices.contains(index) ? values[index] : kind.parameters[index].defaultValue }
-        let drawn = switch kind {
-        case .straighten:
-            ImageActions.straighten(angle: value(0), cropToFit: value(1) < 0.5, canvas: canvas, history: history, context: selectionContext)
-        case .dropShadow:
-            Decorations.dropShadow(DropShadow(offsetX: value(0), offsetY: value(1), blur: value(2),
-                                              color: value(4) >= 0.5 ? color1 : .black, opacity: value(3)),
-                                   canvas: canvas, history: history, context: selectionContext)
-        default:
-            Decorations.border(Border(width: value(0), color: colors[min(max(Int(value(1).rounded()), 0), 3)]),
-                               canvas: canvas, history: history, context: selectionContext)
-        }
-        decorationPreviewed = drawn
-        if kind == .straighten { straightenShown = (value(0), value(1) < 0.5) }
-        if canvas.size != canvasSize { canvasDidResize() }
-        selectionDidChange()
-        onRender()
-    }
-
-    /// The Straighten slider's settings: the angle, and whether Crop to fit is on.
-    private var straightenSettings: (angle: Double, cropToFit: Bool) {
-        let values = effectValues, parameters = EffectKind.straighten.parameters
-        func value(_ index: Int) -> Double { values.indices.contains(index) ? values[index] : parameters[index].defaultValue }
-        return (value(0), value(1) < 0.5)
-    }
-
-    /// Straighten turns every layer of a big photo in about 0.15 s each, so the preview is worked out in the
-    /// background from the original layers and swapped in when it's ready, keeping the app responsive; settings
-    /// changed meanwhile are merged into the next turn (Leah, 2026-10-11). The preview already on screen stays until then.
-    private func renderStraightenPreview() {
-        guard !straightenRunning else {
-            straightenWanted = true
-            return
-        }
-        let settings = straightenSettings
-        if let shown = straightenShown, shown == settings { return }
-        // The plan reads the original layers: take the shown preview back for a moment, as autosave does.
-        if decorationPreviewed { history.undo(on: canvas) }
-        let plan = StraightenPlan(angle: settings.angle, cropToFit: settings.cropToFit, canvas: canvas, context: selectionContext)
-        if decorationPreviewed { history.redo(on: canvas) }
-        guard let plan else {
-            // Too small an angle to turn: show the original.
-            return renderDecorationPreview(.straighten, now: true)
-        }
-        straightenRunning = true
-        let token = straightenToken, work = UnsafeTransfer(plan)
-        let stop = CancelFlag(), done = DispatchSemaphore(value: 0)
-        straightenWork = (stop, done)
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let buffers = UnsafeTransfer(work.value.render(isCancelled: { stop.isSet }))
-            done.signal()
-            guard let rendered = buffers.value else { return }
-            let result = UnsafeTransfer(rendered)
-            await MainActor.run { [weak self] in self?.showStraightenPreview(work.value, buffers: result.value, token: token) }
-        }
-    }
-
-    private func showStraightenPreview(_ plan: StraightenPlan, buffers: [LayerID: PixelBuffer], token: Int) {
-        guard token == straightenToken, activeEffect == .straighten else { return }
-        straightenRunning = false
-        straightenWork = nil
-        if decorationPreviewed {
-            history.undo(on: canvas)
-            history.forgetRedo()
-            decorationPreviewed = false
-        }
-        decorationPreviewed = ImageActions.straighten(plan, buffers: buffers, canvas: canvas, history: history, context: selectionContext)
-        straightenShown = (plan.angle, plan.cropToFit)
-        if canvas.size != canvasSize { canvasDidResize() }
-        selectionDidChange()
-        onRender()
-        if straightenWanted {
-            straightenWanted = false
-            renderStraightenPreview()
-        }
-    }
-
-    /// Drops a Straighten turn still being worked out; its result won't be shown. It reads the original layers, which
-    /// any command after this may change in place (Rotate and Flip do), so this waits until it has stopped: at most
-    /// the one layer it's turning (review O, finding 2).
-    private func stopStraightenPreview() {
-        if let work = straightenWork {
-            work.stop.set()
-            work.done.wait()
-            straightenWork = nil
-        }
-        straightenToken += 1
-        straightenRunning = false
-        straightenWanted = false
-    }
-
-    /// Called as the slider moves. Updates are merged, so only the latest value is ever computed
-    /// and the slider never waits on a backlog.
-    func previewEffect() {
-        if effectSource != nil, effectEdit != nil {
-            // One background render at a time; settings that change meanwhile are rendered next.
-            if previewRunning { previewWanted = true } else { startBackgroundPreview() }
-            return
-        }
-        guard !effectPreviewScheduled else { return }
-        effectPreviewScheduled = true
-        Task { @MainActor [weak self] in self?.renderEffectPreview() }
-    }
-
-    /// Works out the current settings from the original pixels off the main thread, then shows them.
-    private func startBackgroundPreview() {
-        guard let kind = activeEffect, let source = effectSource else { return }
-        let effect = kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
-        guard effect != shownEffect else { return }
-        let regions = effectRegions, generation = previewGeneration
-        let original = UnsafeTransfer(source)
-        previewRunning = true
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let preview = EffectPreview.render(effect, from: original.value, regions: regions)
-            await MainActor.run { [weak self] in self?.showBackgroundPreview(preview, of: effect, generation: generation) }
-        }
-    }
-
-    private func showBackgroundPreview(_ preview: EffectPreview?, of effect: Effect, generation: Int) {
-        // A render from a closed session mustn't clear the flag for the current one's (review B, finding 6).
-        guard generation == previewGeneration else { return }
-        previewRunning = false
-        guard let edit = effectEdit else { return }
-        edit.restoreOriginals()
-        preview?.write(into: canvas.paintLayer, edit: edit)
-        shownEffect = effect
-        onRender()
-        if activeEffect == .adjustPhoto { refreshPhotoHistogram() }
-        if previewWanted {
-            previewWanted = false
-            startBackgroundPreview()
-        }
-    }
-
-    private func renderEffectPreview() {
-        effectPreviewScheduled = false
-        guard let kind = activeEffect else { return }
-        if kind.previewsAsStep { return renderDecorationPreview(kind) }
-        if kind.choosesSelection { return refreshRangePreview() }
-        if kind.isCanvasTool { return onRender() }
-        guard let edit = effectEdit else { return }
-        edit.restoreOriginals()
-        let effect = kind.effect(effectValues, curves: effectCurves, photo: photoEdit)
-        for layer in effectCoversAllLayers ? effectLayers : [canvas.paintLayer] {
-            if let regions = effectRegions {
-                Effects.apply(effect, to: layer, regions: regions, edit: edit)
-            } else {
-                Effects.apply(effect, to: layer, selection: nil, edit: edit)
-            }
-        }
-        shownEffect = effect
-        onRender()
-        if kind == .adjustPhoto { refreshPhotoHistogram() }
-    }
-
-    /// Levels' Auto button: black and white points at the darkest and lightest values (FR-9.5).
-    func autoLevels() {
-        guard activeEffect == .levels, let histogram = effectHistogram else { return }
-        let levels = Levels.auto(from: histogram)
-        effectValues = [levels.black, levels.gamma, levels.white]
-        previewEffect()
-    }
-
-    func setPhotoEdit(_ edit: PhotoEdit) {
-        guard activeEffect == .adjustPhoto else { return }
-        photoEdit = edit
-        photoAutoMoved = photoAutoMoved.filter { edit.adjustments[$0] != 0 }
-        previewEffect()
-    }
-
-    /// Adjust Photo's Auto: sets the sliders it balances from the original pixels and marks them (FR-9.5).
-    func autoPhoto() {
-        guard activeEffect == .adjustPhoto, let source = effectSource else { return }
-        // From the original pixels, not the preview on screen.
-        let auto = PhotoAdjustments.auto(for: source, selection: canvas.selection.marquee)
-        var changed = photoEdit
-        for slider in PhotoAdjustments.autoSliders {
-            changed.adjustments[slider] = auto[slider]
-        }
-        photoEdit = changed
-        photoAutoMoved = Set(auto.values.keys)
-        previewEffect()
-    }
+    @ObservationIgnored var closerLook = 0
 
     // MARK: Picking from the picture (FR-9.7): the white-balance eyedropper and Point Color
 
@@ -3779,65 +651,10 @@ final class Editor {
         var target: Target
     }
 
-    /// What the next click on the picture is for, while what it was turned on for is still being edited.
-    var picturePickPurpose: PicturePickPurpose? {
-        _ = layersRevision
-        guard let picturePick else { return nil }
-        switch picturePick.target {
-        case .panel: return activeEffect == .adjustPhoto ? picturePick.purpose : nil
-        case .layer(let id):
-            guard activeEffect == nil, canvas.activeLayer.id == id, case .photo = canvas.activeLayer.adjustment else { return nil }
-            return picturePick.purpose
-        }
-    }
-
-    var isPickingFromPicture: Bool { picturePickPurpose != nil }
-
-    func isPicking(_ purpose: PicturePickPurpose) -> Bool { picturePickPurpose == purpose }
-
-    /// An eyedropper button: on for one click, or off again.
-    func togglePicturePick(_ purpose: PicturePickPurpose) {
-        if isPicking(purpose) { return cancelPicturePick() }
-        if activeEffect == .adjustPhoto {
-            picturePick = PicturePick(purpose: purpose, target: .panel)
-        } else if activeEffect == nil, case .photo = canvas.activeLayer.adjustment {
-            picturePick = PicturePick(purpose: purpose, target: .layer(canvas.activeLayer.id))
-        }
-    }
-
-    func cancelPicturePick() {
-        picturePick = nil
-        // A drag on an Adjust Photo layer has already changed it: Esc keeps that as its step (review V, finding 6).
-        if case .layer = pictureDrag?.target { finishLayerSettings() }
-        pictureDrag = nil
-    }
-
-    /// The Color Mixer's hand follows its tab: switching to Saturation, say, makes drags change saturation.
-    func followMixerTab(_ setting: ColorMixer.Setting) {
-        guard case .colorMixer(let old) = picturePick?.purpose, old != setting else { return }
-        picturePick?.purpose = .colorMixer(setting)
-    }
-
-    /// The 5 × 5 pixels around `center`, averaged: in the panel, the active layer as it was before Adjust Photo; for an
-    /// Adjust Photo layer, the layers below it as shown, or with "Only the layer below", that layer as the adjustment
-    /// sees it (review V, finding 9). Nil where there's nothing to read.
-    private func pictureSample(at center: IntPoint, for target: PicturePick.Target) -> Pixel? {
-        let area = IntRect(x: center.x - 2, y: center.y - 2, width: 5, height: 5).intersection(canvas.bounds)
-        guard canvas.bounds.contains(center), !area.isEmpty else { return nil }
-        switch target {
-        case .panel:
-            return effectSource?.averageColor(in: area)
-        case .layer:
-            let index = canvas.activeLayerIndex
-            return (canvas.clipBasePatch(area, under: index) ?? canvas.patchAsShown(area, through: index - 1))
-                .averageColor(in: IntRect(x: 0, y: 0, width: area.width, height: area.height))
-        }
-    }
-
     // MARK: Dragging on the picture to adjust (FR-9.7 item 6)
 
     /// A drag with the hand: what it changes, and where it started.
-    private struct PictureDrag {
+    struct PictureDrag {
         let target: PicturePick.Target
         /// The Tone Curve region, or the Color Mixer setting and range, under the pointer when the drag began.
         let region: ToneCurve.Region?
@@ -3846,175 +663,22 @@ final class Editor {
         let startValue: Double
     }
 
-    @ObservationIgnored private var pictureDrag: PictureDrag?
+    @ObservationIgnored var pictureDrag: PictureDrag?
 
     /// How many slider steps a drag of one view point makes: 200 points is the whole of one side.
     static let pictureDragRate = 0.5
 
-    /// Starts a hand drag at `point` (image) and `viewY`. It reads the picture as it was before Adjust Photo, so the
-    /// target doesn't move while dragging. A press where there's nothing to read, or on a gray in the Color Mixer,
-    /// beeps. False if the hand isn't on, so the press does what it usually does.
-    func beginPictureDrag(at point: Point2D, viewY: Double) -> Bool {
-        guard let purpose = picturePickPurpose, purpose.drags, let pick = picturePick, let edit = currentPhotoEdit(for: pick.target) else {
-            return false
-        }
-        let center = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-        guard let sample = pictureSample(at: center, for: pick.target) else {
-            onRefused()
-            return true
-        }
-        switch purpose {
-        case .toneCurve:
-            let curve = edit.toneCurve ?? ToneCurve()
-            let region = curve.region(for: sample)
-            pictureDrag = PictureDrag(target: pick.target, region: region, mixer: nil, startY: viewY, startValue: curve[region])
-        case .colorMixer(let tab):
-            let mixer = edit.mixer ?? ColorMixer()
-            let setting = mixer.blackAndWhite > 0 ? ColorMixer.Setting.gray : tab
-            guard let range = ColorMixer.range(for: sample) else {
-                onRefused()
-                return true
-            }
-            pictureDrag = PictureDrag(target: pick.target, region: nil, mixer: (setting, range), startY: viewY, startValue: mixer[setting, range])
-        case .whiteBalance, .pointColor:
-            return false
-        }
-        return true
-    }
-
-    /// Up is more (Q16.2).
-    func continuePictureDrag(viewY: Double) {
-        guard let drag = pictureDrag, var edit = currentPhotoEdit(for: drag.target) else { return }
-        let value = min(max((drag.startValue + (drag.startY - viewY) * Self.pictureDragRate).rounded(), -100), 100)
-        if let region = drag.region {
-            var curve = edit.toneCurve ?? ToneCurve()
-            guard curve[region] != value else { return }
-            curve[region] = value
-            edit.toneCurve = curve
-        } else if let (setting, range) = drag.mixer {
-            var mixer = edit.mixer ?? ColorMixer()
-            guard mixer[setting, range] != value else { return }
-            mixer[setting, range] = value
-            edit.mixer = mixer
-        }
-        switch drag.target {
-        case .panel: setPhotoEdit(edit)
-        case .layer: previewAdjustment(.photo(edit))
-        }
-    }
-
-    /// An Adjust Photo layer's drag is one step; in the panel, Apply makes the step.
-    func endPictureDrag() {
-        guard let drag = pictureDrag else { return }
-        pictureDrag = nil
-        if case .layer = drag.target { finishLayerSettings() }
-    }
-
-    var isDraggingOnPicture: Bool { pictureDrag != nil }
-
-    private func currentPhotoEdit(for target: PicturePick.Target) -> PhotoEdit? {
-        switch target {
-        case .panel: activeEffect == .adjustPhoto ? photoEdit : nil
-        case .layer: activePhotoLayerEdit
-        }
-    }
-
-    /// A click on the picture while an eyedropper is on. It reads the 5 × 5 pixels around the click: in the panel, the
-    /// active layer as it was before Adjust Photo; for an Adjust Photo layer, the layers below it as shown. A click
-    /// where there's nothing to read beeps and leaves the eyedropper on (Leah, 2026-10-27). False if no eyedropper
-    /// was on, so the click does what it usually does.
-    func pickFromPicture(at point: Point2D) -> Bool {
-        guard let purpose = picturePickPurpose, let pick = picturePick else {
-            picturePick = nil
-            return false
-        }
-        // The hand takes drags (`beginPictureDrag`), not clicks.
-        guard !purpose.drags else { return false }
-        let center = IntPoint(x: Int(point.x.rounded(.down)), y: Int(point.y.rounded(.down)))
-        guard let sample = pictureSample(at: center, for: pick.target), var changed = currentPhotoEdit(for: pick.target) else {
-            onRefused()
-            return true
-        }
-        switch purpose {
-        case .whiteBalance:
-            changed = changed.neutralizing(sample)
-        case .pointColor:
-            var colors = changed.pointColors ?? PointColors()
-            guard !colors.isFull else {
-                onRefused()
-                return true
-            }
-            colors.add(sample)
-            changed.pointColors = colors
-        case .toneCurve, .colorMixer:
-            return false
-        }
-        picturePick = nil
-        switch pick.target {
-        case .panel:
-            setPhotoEdit(changed)
-            if purpose == .whiteBalance { photoAutoMoved.subtract([.warmth, .tint]) }
-        case .layer:
-            setAdjustment(.photo(changed))
-        }
-        return true
-    }
-
-    /// Adjust Photo's "As Adjustment Layer": the settings become an adjustment layer instead of pixels.
-    func photoAsAdjustmentLayer() {
-        guard activeEffect == .adjustPhoto else { return }
-        let settings = photoEdit.withoutViews
-        cancelEffect()
-        addAdjustmentLayer(.photo(settings), named: settings.filter?.name ?? "Adjust Photo")
-        PhotoSettingsStore.shared.last = settings
-    }
-
     // MARK: Using Adjust Photo settings again (FR-9.7 item 4)
 
-    /// Adjustments ▸ Adjust Photo: Same as Last: the last settings applied, on the selection or active layer, as one
-    /// step. Worked out in the background from a copy, so a big photo doesn't stall the window (review V, finding 4); if
-    /// the image changes meanwhile, nothing is applied.
-    func applySameAsLastPhoto() {
-        guard let last = PhotoSettingsStore.shared.last else { return onRefused() }
-        guard !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        let effect = Effect.photo(last), selection = canvas.selection.marquee
-        let source = UnsafeTransfer(canvas.paintLayer.buffer.copy())
-        let revision = history.revision, layerID = canvas.paintLayer.id, pageID = page.id
-        sameAsLastRunning = true
-        Task { @MainActor [weak self] in
-            let preview = await Task.detached(priority: .userInitiated) {
-                EffectPreview.render(effect, from: source.value, regions: nil, selection: selection, copying: false)
-            }.value
-            guard let self else { return }
-            self.sameAsLastRunning = false
-            guard self.history.revision == revision, self.page.id == pageID, self.canvas.paintLayer.id == layerID else {
-                return self.showNotice("The image changed while Same as Last was working. Try again.")
-            }
-            guard let preview else { return }
-            let edit = self.history.beginEdit(effect.name, on: self.canvas)
-            preview.write(into: self.canvas.paintLayer, edit: edit)
-            self.recordingChanges { self.history.commit(edit) }
-            self.onRender()
-        }
-    }
-
     /// Same as Last is being worked out.
-    @ObservationIgnored private(set) var sameAsLastRunning = false
-
-    /// The settings of the active Adjust Photo layer, if it is one.
-    var activePhotoLayerEdit: PhotoEdit? {
-        guard case .photo(let edit) = activeAdjustment else { return nil }
-        return edit
-    }
+    @ObservationIgnored var sameAsLastRunning = false
 
     // MARK: Adjust Photo's histogram and clipping warnings (FR-9.7 item 6)
 
     /// The picture as it looks now, for Adjust Photo's histogram: worked out from a small copy after each change.
-    private(set) var photoHistogram: Histogram?
-    @ObservationIgnored private var photoHistogramScheduled = false
-    @ObservationIgnored private var lastPhotoHistogram: ContinuousClock.Instant?
+    var photoHistogram: Histogram?
+    @ObservationIgnored var photoHistogramScheduled = false
+    @ObservationIgnored var lastPhotoHistogram: ContinuousClock.Instant?
     /// While a slider is dragged, the histogram follows about ten times a second: worked out on every step, it made
     /// Exposure stutter, taking up to two frames on an Adjust Photo layer (Leah, 2026-10-28).
     static let photoHistogramInterval = Duration.milliseconds(100)
@@ -4028,357 +692,25 @@ final class Editor {
         didSet { renderSoon() }
     }
 
-    /// Adjust Photo's controls are showing: its panel, or the Adjustments panel on an Adjust Photo layer.
-    var showsPhotoControls: Bool {
-        activeEffect == .adjustPhoto || (isSidebarOpen && showsAdjustmentsPanel && activePhotoLayerEdit != nil)
-    }
-
-    /// Works out the histogram again once the current change has been drawn, at most every `photoHistogramInterval`.
-    /// Changes meanwhile wait for that one, so the last change is always shown.
-    func refreshPhotoHistogram() {
-        guard !photoHistogramScheduled else { return }
-        photoHistogramScheduled = true
-        let wait = lastPhotoHistogram.map { max(.zero, Self.photoHistogramInterval - (ContinuousClock.now - $0)) } ?? .zero
-        Task { @MainActor [weak self] in
-            if wait > .zero { try? await Task.sleep(for: wait) }
-            guard let self else { return }
-            photoHistogramScheduled = false
-            lastPhotoHistogram = .now
-            guard showsPhotoControls else { return }
-            photoHistogram = Histogram(canvas.thumbnail(maxSide: Self.photoHistogramSide))
-        }
-    }
-
-    /// Copy Photo Settings: from the Adjust Photo panel while it's open, otherwise from the active Adjust Photo layer.
-    func copyPhotoSettings() {
-        if activeEffect == .adjustPhoto {
-            PhotoSettingsStore.shared.copied = photoEdit.withoutViews
-        } else if let edit = activePhotoLayerEdit {
-            PhotoSettingsStore.shared.copied = edit.withoutViews
-        } else {
-            onRefused()
-        }
-    }
-
-    /// Paste Photo Settings: into the Adjust Photo panel, opening it if needed, so they're seen before Return (Leah,
-    /// 2026-10-27). On an Adjust Photo layer, they become that layer's settings, as one step.
-    func pastePhotoSettings() {
-        guard let copied = PhotoSettingsStore.shared.copied else { return onRefused() }
-        if activeEffect == nil, activePhotoLayerEdit != nil { return setAdjustment(.photo(copied)) }
-        if activeEffect == nil { beginEffect(.adjustPhoto) }
-        guard activeEffect == .adjustPhoto else { return }
-        photoAutoMoved = []
-        setPhotoEdit(copied)
-    }
-
-    /// Paste Photo Settings as Adjustment Layer: a new Adjust Photo layer above the active one.
-    func pastePhotoSettingsAsLayer() {
-        guard let copied = PhotoSettingsStore.shared.copied else { return onRefused() }
-        addAdjustmentLayer(.photo(copied), named: copied.filter?.name ?? "Adjust Photo")
-        PhotoSettingsStore.shared.last = copied
-    }
-
-    /// Save as Filter…: the filter at its intensity, then the sliders a filter may hold, as one filter.
-    /// Returns the settings that now look the same: the new filter at 100%, with the sliders it absorbed
-    /// back at zero (only Sharpness, Definition, Texture and Noise Reduction stay). Nil if there was nothing to save.
-    func saveFilter(from edit: PhotoEdit, named name: String) -> PhotoEdit? {
-        var steps = edit.filter?.steps(atIntensity: edit.filterIntensity / 100) ?? []
-        let own = edit.filterPart
-        if !own.isNeutral { steps.append(.photo(own)) }
-        guard !steps.isEmpty else {
-            onRefused()
-            return nil
-        }
-        let savedName = FilterStore.shared.add(PhotoFilter(name: name, steps: steps))
-        var after = edit.partFiltersLeaveOut
-        after.filter = FilterStore.shared.filter(named: savedName)
-        return after
-    }
-
-    /// Save Filter from Layers: the visible adjustment layers, bottom to top, each with what a filter may hold.
-    /// False when there are none to save.
-    func saveFilterFromLayers(named name: String) -> Bool {
-        guard let filter = PhotoFilter.fromLayers(canvas.shownLayers, name: name) else { return false }
-        FilterStore.shared.add(filter)
-        return true
-    }
-
-    /// Adjustments ▸ Auto Contrast: one step, no settings (FR-9.5, AC-31).
-    func autoContrast() {
-        guard !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        let selection = canvas.selection.marquee
-        let levels = Levels.auto(from: Histogram(canvas.paintLayer.buffer, selection: selection))
-        guard levels != .identity else { return }
-        let edit = history.beginEdit("Auto Contrast", on: canvas)
-        Effects.apply(.levels(levels), to: canvas.paintLayer, selection: selection, edit: edit)
-        recordingChanges { history.commit(edit) }
-        onRender()
-    }
-
-    /// An Auto Contrast adjustment layer: a Levels layer with its points set from what's beneath it now.
-    func addAutoContrastLayer() {
-        let below = canvas.composited(through: canvas.activeLayerIndex)
-        addAdjustmentLayer(.levels(Levels.auto(from: Histogram(below))), named: "Auto Contrast")
-    }
-
-    /// An adjustment with no settings (Invert, Desaturate), applied to the selection or the whole layer.
-    func applyAdjustment(_ effect: Effect) {
-        guard !refusedBecauseLocked() else { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        let edit = history.beginEdit(effect.name, on: canvas)
-        Effects.apply(effect, to: canvas.paintLayer, selection: canvas.selection.marquee, edit: edit)
-        recordingChanges { history.commit(edit) }
-        onRender()
-    }
-
     /// Whether the Resize and Skew dialog (⌘E) is open.
     var isResizeSkewOpen = false
-
-    /// What Resize and Skew starts from: the selection as it appears now, or the whole image.
-    var resizeSkewBaseSize: IntSize {
-        canvas.selection.bounds?.size ?? canvas.size
-    }
-
-    func showResizeSkew() {
-        finishInteractions()
-        isResizeSkewOpen = true
-    }
-
-    /// Resizes and skews the selection, or the whole image when nothing is selected (FR-7.2).
-    func apply(_ settings: ResizeSkew) {
-        isResizeSkewOpen = false
-        if !canvas.selection.isEmpty, refusedBecauseLocked() { return }
-        finishInteractions()
-        recordingChanges {
-            if canvas.selection.isEmpty {
-                ImageActions.resizeAndSkew(settings, canvas: canvas, history: history, context: selectionContext)
-            } else {
-                SelectionActions.resizeAndSkewSelection(settings, canvas: canvas, history: history, context: selectionContext)
-            }
-        }
-        selectionDidChange()
-    }
-
-    /// Rotates or flips the selection, or the whole image when nothing is selected.
-    func apply(_ orientation: Orientation) {
-        // The whole image turns every layer, locked or not; a selection is pixels on the active layer.
-        if !canvas.selection.isEmpty, refusedBecauseLocked() { return }
-        finishInteractions()
-        recordingChanges {
-            if canvas.selection.isEmpty {
-                ImageActions.transform(orientation, canvas: canvas, history: history, context: selectionContext)
-            } else {
-                SelectionActions.transformSelection(orientation, canvas: canvas, history: history, context: selectionContext)
-            }
-        }
-        selectionDidChange()
-    }
-
-    /// The D key: Color 1 black, Color 2 white.
-    /// D: black and white, or on a mask white and black, as in Photoshop (Q28.3).
-    func resetColors() {
-        color1 = canvas.editsMask ? .white : .black
-        color2 = canvas.editsMask ? .black : .white
-    }
-
-    /// Batch redaction with a solid color: every selected region becomes Color 1 in one step (FR-9.4).
-    func applySolidFill() {
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        guard canvas.selection.marquee != nil else { return }
-        redactEveryLayer(with: .solidFill(color1))
-    }
-
-    func applyEffect() {
-        if activeEffect?.choosesSelection == true { return applyRange() }
-        // Masking's edge mask and Point Color's Range are only ever views (Q13.2; review V, finding 1): what's applied is
-        // the photo, re-rendered below if need be.
-        photoEdit = photoEdit.withoutViews
-        if effectPreviewScheduled { renderEffectPreview() }
-        if activeEffect == .pickSubject {
-            // With no subjects of its own there's nothing for Return to take; waiting on a closer look, it waits.
-            guard pickHasSubjects, !isFindingSubject else { return onRefused() }
-            activeEffect = nil
-            if let pick = subjectPick { perform(pick.action, mask: pick.scan.mask()) }
-            subjectPick = nil
-            return
-        }
-        if activeEffect == .crop || activeEffect == .perspective {
-            // Crossed or folded corners can't be straightened; the tool stays open to fix them (review C, finding 1).
-            if activeEffect == .perspective, !Warp.isConvex(perspectiveCorners) { return onRefused() }
-            let kind = activeEffect
-            activeEffect = nil
-            recordingChanges {
-                if kind == .crop {
-                    ImageActions.crop(to: cropRect, resizingTo: cropPixelSize, canvas: canvas, history: history, context: selectionContext)
-                } else {
-                    ImageActions.correctPerspective(corners: perspectiveCorners, canvas: canvas, history: history, context: selectionContext)
-                }
-            }
-            if canvas.size != canvasSize { canvasDidResize() }
-            // The new image can be a very different size; show all of it.
-            zoomToFit()
-            selectionDidChange()
-            onRender()
-            return
-        }
-        if activeEffect?.previewsAsStep == true {
-            if activeEffect == .straighten {
-                // Apply keeps exactly the settings on screen: if they're still being turned, finish it here.
-                let settings = straightenSettings
-                if straightenRunning || straightenShown.map({ $0 != settings }) ?? true {
-                    stopStraightenPreview()
-                    renderDecorationPreview(.straighten, now: true)
-                }
-                straightenShown = nil
-                zoomToFit()
-            }
-            activeEffect = nil
-            // The preview already is the step; it counts as a change only now.
-            if decorationPreviewed {
-                noteEdited()
-            } else {
-                onRefused()
-            }
-            decorationPreviewed = false
-            return
-        }
-        // Apply commits exactly the settings on screen: if the newest ones are still being worked out, do it now.
-        if let kind = activeEffect, effectEdit != nil, kind.effect(effectValues, curves: effectCurves, photo: photoEdit) != shownEffect {
-            renderEffectPreview()
-        }
-        guard let edit = effectEdit else { return }
-        // Batch Redact's preview already covers every layer under the selection; Apply keeps what's shown.
-        let redacting = effectCoversAllLayers
-        let appliedPhoto = activeEffect == .adjustPhoto ? photoEdit : nil
-        endEffectSession()
-        activeEffect = nil
-        var committed = false
-        recordingChanges { committed = history.commit(edit) }
-        if redacting, committed { noteRedaction() }
-        if committed, let appliedPhoto { PhotoSettingsStore.shared.last = appliedPhoto }
-    }
 
     // MARK: After a redaction (review H, findings 1 and 2)
 
     /// A redaction step to report: why one couldn't be done.
     var redactionMessage: String?
-    /// Clipboard History items this document was pasted from, which still hold the image before redaction.
-    /// The Clipboard History items the picture was pasted from, kept with its pages so they're saved and survive a
-    /// relaunch (review AA, finding 4).
-    private var clipboardSources: Set<ClipboardHistory.Item.ID> { Set(pages.pages.flatMap(\.canvas.pastedFrom)) }
     /// After a redaction, the Clipboard History items to offer to remove (Remove is the default).
     var clipboardCleanup: ClipboardCleanup?
     /// The clipboard's change count right after Copy Text put this document's text there; while it's unchanged, the
     /// clipboard still holds that text.
-    @ObservationIgnored private var copiedTextClipboardCount: Int?
+    @ObservationIgnored var copiedTextClipboardCount: Int?
     /// A redaction was applied since the last explicit save, so the save warns about earlier versions.
     @ObservationIgnored var redactedSinceSave = false
-
-    /// After a redacted file's earlier versions are removed: the undo history goes too, so the redaction can't
-    /// be undone and then saved back, and Before/After's "As Opened" becomes the image as it is now (Leah, 2026-10-04).
-    /// Every page's, along with page changes, so a deleted page can't come back either.
-    func forgetHistory() {
-        finishInteractions()
-        pages.forgetHistory()
-        undone = []
-        redactionGroups = []
-        let kept = Set(pages.pages.map(\.id))
-        pageMemory = pageMemory.filter { kept.contains($0.key) }
-        // Every page as opened is now as it is: nothing unredacted is kept (review K, finding 3).
-        for other in pages.pages where other !== page {
-            guard var memory = pageMemory[other.id], let project = try? other.projectData() else { continue }
-            memory.opened = PageBaseline(data: project, describing: other.canvas)
-            memory.savedGeometrySteps = other.history.geometrySteps
-            pageMemory[other.id] = memory
-        }
-        opened = PageBaseline(canvas: canvas.copy())
-        savedGeometrySteps = history.geometrySteps
-        layersRevision += 1
-        onRender()
-    }
-
-    func noteClipboardSource(_ id: ClipboardHistory.Item.ID?) {
-        if let id { canvas.pastedFrom.insert(id) }
-    }
-
-    private func noteRedaction() {
-        redactedSinceSave = true
-        let remaining = clipboardSources.filter(ClipboardHistory.shared.contains)
-        let text = copiedTextClipboardCount.map(ClipboardHistory.clipboardUnchanged) ?? false
-        if !text { copiedTextClipboardCount = nil }
-        if !remaining.isEmpty || text { clipboardCleanup = ClipboardCleanup(images: Array(remaining), text: text) }
-    }
-
-    func removeClipboardSources() {
-        guard let cleanup = clipboardCleanup else { return }
-        cleanup.images.forEach { ClipboardHistory.shared.remove($0, clearingClipboard: true) }
-        for page in pages.pages { page.canvas.pastedFrom.subtract(cleanup.images) }
-        if cleanup.text, let count = copiedTextClipboardCount { ClipboardHistory.clearClipboard(ifUnchangedSince: count) }
-        copiedTextClipboardCount = nil
-        clipboardCleanup = nil
-    }
-
-    /// Batch Redact on every layer under the selection, or the whole image, as one step.
-    /// `mask` is the area, the selection by default.
-    private func redactEveryLayer(with effect: Effect, in mask: SelectionMask? = nil, named name: String? = nil) {
-        guard let area = mask ?? canvas.selection.marquee ?? SelectionMask.rectangle(canvas.bounds, clippedTo: canvas.bounds) else { return }
-        var outcome = AutoRedact.Outcome.nothingChanged
-        recordingChanges { outcome = AutoRedact.apply(effect, in: area, named: name, canvas: canvas, history: history) }
-        if case .locked(let name) = outcome {
-            onRefused()
-            redactionMessage = "“\(name)” is locked, so nothing was redacted. Unlock it and try again."
-        } else if outcome == .redacted {
-            noteRedaction()
-        }
-        onRender()
-    }
-
-    /// Drops the background preview state; a render still running finds a newer generation and is ignored.
-    private func endEffectSession() {
-        picturePick = nil
-        endRange()
-        effectCoversAllLayers = false
-        effectLayers = []
-        effectEdit = nil
-        effectSource = nil
-        shownEffect = nil
-        previewGeneration += 1
-        previewRunning = false
-        previewWanted = false
-        stopStraightenPreview()
-        straightenShown = nil
-    }
-
-    func cancelEffect() {
-        stopStraightenPreview()
-        straightenShown = nil
-        if activeEffect?.previewsAsStep == true, decorationPreviewed {
-            history.undo(on: canvas)
-            history.forgetRedo()
-            if canvas.size != canvasSize { canvasDidResize() }
-            selectionDidChange()
-        }
-        decorationPreviewed = false
-        if subjectPick != nil, isFindingSubject {
-            // A closer look still running is dropped at once (review T, finding 5).
-            closerLook += 1
-            isFindingSubject = false
-        }
-        subjectPick = nil
-        effectEdit?.restoreOriginals()
-        endEffectSession()
-        activeEffect = nil
-        onRender()
-    }
 
     // MARK: Layers
 
     /// Bumped whenever the layers or their pixels may have changed, so the Layers panel refreshes.
-    private(set) var layersRevision = 0
+    var layersRevision = 0
     /// Whether the right sidebar is showing (FR-1.3, FR-8.1), and which of its panels.
     var isSidebarOpen = false {
         didSet { onViewStateChange() }
@@ -4393,872 +725,60 @@ final class Editor {
     @ObservationIgnored var onRefused: () -> Void = {}
     /// Gives the canvas the keyboard, so tool keys work after a toolbar click or a paste (review I, finding 2).
     @ObservationIgnored var onFocusCanvas: () -> Void = {}
-    @ObservationIgnored private var layerSettingsEdit: Edit?
-
-    /// ⌘L and the toolbar's Layers button: show the Layers panel (opening the sidebar), or hide it.
-    /// Each panel shows or hides on its own; the sidebar closes only when none is left (FR-1.3; review J, finding 15).
-    func toggleLayersPanel() {
-        togglePanel(\.showsLayersPanel)
-    }
-
-    /// Shows a sidebar panel (opening the sidebar), or hides it if it's already showing.
-    func togglePanel(_ panel: ReferenceWritableKeyPath<Editor, Bool>) {
-        if isSidebarOpen && self[keyPath: panel] {
-            self[keyPath: panel] = false
-            // During Adjust Photo the sidebar holds its sliders, so it stays (review P, finding 4).
-            if !showsAnyPanel, activeEffect != .adjustPhoto { isSidebarOpen = false }
-        } else {
-            self[keyPath: panel] = true
-            isSidebarOpen = true
-        }
-    }
-
-    func toggleAdjustmentsPanel() {
-        togglePanel(\.showsAdjustmentsPanel)
-    }
-
-    private var showsAnyPanel: Bool { showsLayersPanel || showsAdjustmentsPanel || showsHistoryPanel || showsClipboardPanel || showsInfoPanel }
-
-    /// Adjust Photo's sliders are in the sidebar, so it stays while they're open (review D, finding 5).
-    var canToggleSidebar: Bool { activeEffect != .adjustPhoto }
-
-    /// The toolbar's Sidebar button, View ▸ Sidebar and ⇧S. Opened with no panel chosen, it shows the Layers panel,
-    /// so it's never an empty shell (Leah, 2026-10-10).
-    func toggleSidebar() {
-        guard canToggleSidebar else { return }
-        if isSidebarOpen {
-            isSidebarOpen = false
-        } else {
-            openSidebar()
-        }
-    }
-
-    func openSidebar() {
-        if !showsAnyPanel { showsLayersPanel = true }
-        isSidebarOpen = true
-    }
-
-    /// After the panels are put back as a window was left: an open sidebar with no panel is closed.
-    func settlePanels() {
-        if isSidebarOpen, !showsAnyPanel { isSidebarOpen = false }
-    }
-
-    var layers: [Layer] {
-        _ = layersRevision
-        return canvas.layers
-    }
-
-    var activeLayerIndex: Int {
-        _ = layersRevision
-        return canvas.activeLayerIndex
-    }
-
-    /// Whether the active layer refuses pixel changes: it's locked (or its group is), or it's an adjustment layer or a
-    /// group, with no pixels.
-    var activeLayerIsLocked: Bool {
-        _ = layersRevision
-        return canvas.isLocked(canvas.activeLayer) || !canvas.paintLayer.isPixelLayer
-    }
-
-    /// Makes another layer active, and the only one chosen. Moved pixels are placed on their own layer first; the
-    /// outline stays.
-    func selectLayer(at index: Int) {
-        guard canvas.layers.indices.contains(index) else { return }
-        chooseAnchor = canvas.layers[index].id
-        if !otherChosenLayerIDs.isEmpty {
-            otherChosenLayerIDs = []
-            layersRevision += 1
-        }
-        makeActive(index)
-    }
-
-    private func makeActive(_ index: Int) {
-        guard index != canvas.activeLayerIndex else { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        canvas.activeLayerIndex = index
-        // Another layer: tools paint on it, not on a mask (stage 27).
-        canvas.editsMask = false
-        showsMaskAlone = false
-        layersRevision += 1
-        onRender()
-    }
+    @ObservationIgnored var layerSettingsEdit: Edit?
 
     // MARK: Choosing several layers (FR-8.6)
 
     /// The layers chosen besides the active one, with Shift- or ⌘-click (Leah, 2026-10-27). Choosing isn't an undo step
     /// and isn't saved.
-    private(set) var otherChosenLayerIDs: Set<LayerID> = []
+    var otherChosenLayerIDs: Set<LayerID> = []
     /// Where a Shift-click range starts: the layer last clicked without Shift.
-    @ObservationIgnored private var chooseAnchor: LayerID?
-
-    /// Every chosen layer, the active one included.
-    var chosenLayerIDs: Set<LayerID> {
-        _ = layersRevision
-        return otherChosenLayerIDs.intersection(canvas.layers.map(\.id)).union([canvas.activeLayer.id])
-    }
-
-    var hasSeveralChosenLayers: Bool { chosenLayerIDs.count > 1 }
-
-    /// Shift-click chooses every layer from the anchor to this one; ⌘-click adds it or takes it away. The clicked layer
-    /// becomes active, so drawing goes there.
-    func chooseLayer(at index: Int, extending: Bool, toggling: Bool) {
-        guard canvas.layers.indices.contains(index) else { return }
-        let id = canvas.layers[index].id
-        if extending {
-            let anchor = chooseAnchor.flatMap { anchor in canvas.layers.firstIndex { $0.id == anchor } } ?? canvas.activeLayerIndex
-            otherChosenLayerIDs = Set(canvas.layers[min(anchor, index)...max(anchor, index)].map(\.id))
-            layersRevision += 1
-            makeActive(index)
-        } else if toggling {
-            let chosen = chosenLayerIDs
-            if chosen.contains(id) {
-                // One layer always stays chosen.
-                guard chosen.count > 1 else { return }
-                otherChosenLayerIDs = chosen.subtracting([id])
-                layersRevision += 1
-                if id == canvas.activeLayer.id, let top = canvas.layers.lastIndex(where: { otherChosenLayerIDs.contains($0.id) }) {
-                    makeActive(top)
-                }
-            } else {
-                otherChosenLayerIDs = chosen
-                chooseAnchor = id
-                layersRevision += 1
-                makeActive(index)
-            }
-        } else {
-            selectLayer(at: index)
-        }
-    }
-
-    /// A right-click on a layer that isn't chosen chooses it alone first, as in Finder and Photoshop.
-    func chooseForMenu(layerAt index: Int) {
-        guard canvas.layers.indices.contains(index), !chosenLayerIDs.contains(canvas.layers[index].id) else { return }
-        selectLayer(at: index)
-    }
-
-    /// With several layers chosen, Merge Down is Merge Layers.
-    var mergeCommandTitle: String {
-        _ = layersRevision
-        return hasSeveralChosenLayers ? "Merge Layers" : canvas.activeLayer.isGroup ? "Merge Group" : "Merge Down"
-    }
-
-    var canMerge: Bool {
-        hasSeveralChosenLayers ? LayerActions.canMergeLayers(chosenLayerIDs, in: canvas) : LayerActions.canMergeDown(canvas)
-    }
-
-    var canDeleteLayers: Bool {
-        hasSeveralChosenLayers ? LayerActions.canDeleteLayers(chosenLayerIDs, in: canvas) : LayerActions.canDelete(canvas)
-    }
-
-    /// Hide or show every chosen layer, following the active one: if it's shown, they're all hidden.
-    func toggleChosenLayersVisible() {
-        let visible = !canvas.activeLayer.isVisible
-        chosenLayerSetting(visible ? "Show Layer" : "Hide Layer", includingLocked: true) { $0.isVisible = visible }
-    }
-
-    /// Lock Transparent Pixels on every chosen pixel layer (FR-8.2, stage 23), as one step.
-    func toggleChosenLayersLockTransparency() {
-        let locks = !canvas.activeLayer.locksTransparency
-        chosenLayerSetting(locks ? "Lock Transparent Pixels" : "Unlock Transparent Pixels", includingLocked: true) { layer in
-            if layer.adjustment == nil { layer.locksTransparency = locks }
-        }
-    }
-
-    func setLayerLocksTransparency(_ locks: Bool, at index: Int) {
-        guard canvas.layers.indices.contains(index), canvas.layers[index].adjustment == nil else { return }
-        layerSetting(locks ? "Lock Transparent Pixels" : "Unlock Transparent Pixels", at: index) { $0.locksTransparency = locks }
-    }
-
-    func toggleChosenLayersLocked() {
-        let locked = !canvas.activeLayer.isLocked
-        chosenLayerSetting(locked ? "Lock Layer" : "Unlock Layer", includingLocked: true) { $0.isLocked = locked }
-    }
-
-    /// A settings change on every chosen layer as one step. Locked layers keep their opacity and blend mode.
-    private func chosenLayerSetting(_ name: String, includingLocked: Bool = false, _ body: (Layer) -> Void) {
-        let ids = Set(canvas.layers.filter { chosenLayerIDs.contains($0.id) && (includingLocked || !canvas.isLocked($0)) }.map(\.id))
-        finishInteractions()
-        recordingChanges { LayerActions.update(name, layersWithIDs: ids, canvas: canvas, history: history, body) }
-        layersRevision += 1
-        onRender()
-    }
-
-    func addLayer() {
-        layerCommand { LayerActions.add(canvas: canvas, history: history, context: selectionContext) }
-        // New Layer shows the Layers panel (FR-8.1), never an empty sidebar (review P, finding 3).
-        showsLayersPanel = true
-        isSidebarOpen = true
-    }
-
-    /// Duplicates the chosen layers; the copies are then the chosen ones.
-    func duplicateLayer() {
-        guard hasSeveralChosenLayers else {
-            return layerCommand { LayerActions.duplicate(canvas: canvas, history: history, context: selectionContext) }
-        }
-        var copies: [LayerID]?
-        layerCommand { copies = LayerActions.duplicateLayers(chosenLayerIDs, canvas: canvas, history: history, context: selectionContext); return copies != nil }
-        otherChosenLayerIDs = Set(copies ?? [])
-    }
-
-    func deleteLayer() {
-        let several = hasSeveralChosenLayers, ids = chosenLayerIDs
-        layerCommand {
-            several ? LayerActions.deleteLayers(ids, canvas: canvas, history: history, context: selectionContext)
-                : LayerActions.delete(canvas: canvas, history: history, context: selectionContext)
-        }
-    }
-
-    /// Merge Down, or Merge Layers with several layers chosen (FR-8.6).
-    func mergeDown() {
-        let several = hasSeveralChosenLayers, ids = chosenLayerIDs
-        layerCommand {
-            several ? LayerActions.mergeLayers(ids, canvas: canvas, history: history, context: selectionContext)
-                : LayerActions.mergeDown(canvas: canvas, history: history, context: selectionContext)
-        }
-    }
+    @ObservationIgnored var chooseAnchor: LayerID?
 
     // MARK: Layer masks (stages 27 to 28b)
-
-    /// Whether tools paint on the active layer's mask: true after Add Mask or a click on the mask's thumbnail.
-    var editsMask: Bool {
-        _ = layersRevision
-        return canvas.editsMask && canvas.activeLayer.mask != nil
-    }
 
     /// Option-click on a mask's thumbnail (stage 28a): the picture shows the mask alone, in grays. Only a view.
     var showsMaskAlone = false {
         didSet { renderSoon() }
     }
 
-    /// A click on a layer's thumbnail (`mask` false) or its mask's: that layer becomes active, and tools paint there.
-    func paint(onMask mask: Bool, at index: Int) {
-        guard canvas.layers.indices.contains(index) else { return }
-        selectLayer(at: index)
-        let editsMask = mask && canvas.activeLayer.mask != nil
-        guard editsMask != canvas.editsMask else { return }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        canvas.editsMask = editsMask
-        if editsMask {
-            color1 = color1.maskGray
-            color2 = color2.maskGray
-        } else {
-            showsMaskAlone = false
-        }
-        layersRevision += 1
-        onRender()
-    }
-
-    /// Layer ▸ Layer Mask ▸ Add Mask: from the selection if there is one (Q28.6), otherwise showing everything.
-    func addMask(hidingAll: Bool = false) {
-        let start: MaskStart = hidingAll ? .hideAll : canvas.selection.marquee != nil ? .selection : .revealAll
-        layerCommand(keepingChoice: true) { LayerActions.addMask(start, canvas: canvas, history: history, context: selectionContext) }
-        color1 = color1.maskGray
-        color2 = color2.maskGray
-    }
-
-    func deleteMask() {
-        layerCommand(keepingChoice: true) { LayerActions.deleteMask(canvas: canvas, history: history, context: selectionContext) }
-        showsMaskAlone = false
-    }
-
-    func applyMask() {
-        layerCommand(keepingChoice: true) { LayerActions.applyMask(canvas: canvas, history: history, context: selectionContext) }
-        showsMaskAlone = false
-    }
-
-    func invertMask() {
-        // The mask is what changes, so an adjustment, group or text layer with its own picture chosen is fine (review Z,
-        // finding 4).
-        guard canvas.activeLayer.mask != nil, !canvas.isLocked(canvas.activeLayer) else { return onRefused() }
-        layerCommand(keepingChoice: true) { LayerActions.invertMask(canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    /// Shift-click on the mask, or Layer ▸ Layer Mask ▸ Turn Off Mask: the layer shows everywhere until it's turned on.
-    func toggleMaskEnabled() {
-        let enabled = !canvas.activeLayer.maskEnabled
-        layerCommand(keepingChoice: true) { LayerActions.setMaskEnabled(enabled, canvas: canvas, history: history) }
-    }
-
-    /// Option-click on the mask: see it alone in grays, or the picture again.
-    func toggleMaskAlone(at index: Int) {
-        guard canvas.layers.indices.contains(index), canvas.layers[index].mask != nil else { return }
-        if index != canvas.activeLayerIndex { selectLayer(at: index) }
-        showsMaskAlone.toggle()
-    }
-
-    var canAddMask: Bool {
-        _ = layersRevision
-        return LayerActions.canAddMask(canvas)
-    }
-
-    var activeLayerHasMask: Bool {
-        _ = layersRevision
-        return canvas.activeLayer.mask != nil
-    }
-
-    var canApplyMask: Bool {
-        _ = layersRevision
-        return LayerActions.canApplyMask(canvas)
-    }
-
     // MARK: Layer groups (stages 25 and 26)
-
-    /// Layer ▸ Group (⌘G): the chosen layers into a new group, which becomes active.
-    func groupLayers() {
-        let ids = chosenLayerIDs
-        layerCommand { LayerActions.group(ids, canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    /// Layer ▸ Ungroup (⇧⌘G).
-    func ungroupLayers() {
-        layerCommand { LayerActions.ungroup(canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    var canGroupLayers: Bool {
-        _ = layersRevision
-        return LayerActions.canGroup(chosenLayerIDs, in: canvas)
-    }
-
-    var canUngroupLayers: Bool {
-        _ = layersRevision
-        return LayerActions.canUngroup(canvas)
-    }
-
-    /// Moves the layer `id`, with the other chosen layers if it's one of them, to `drop` (stage 26).
-    func moveLayer(_ id: LayerID, to drop: LayerDrop) {
-        let ids: Set<LayerID> = chosenLayerIDs.count > 1 && chosenLayerIDs.contains(id) ? chosenLayerIDs : [id]
-        layerCommand(keepingChoice: true) { LayerActions.moveLayers(ids, to: drop, canvas: canvas, history: history, context: selectionContext) }
-    }
 
     /// Groups folded shut in the Layers panel. Only a view: not saved, and not an undo step.
     var foldedGroups: Set<LayerID> = []
 
-    func toggleFold(_ group: LayerID) {
-        if foldedGroups.contains(group) { foldedGroups.remove(group) } else { foldedGroups.insert(group) }
-    }
-
-    func mergeVisible() {
-        layerCommand { LayerActions.mergeVisible(canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    /// Layer ▸ Stamp Visible: a merged copy of everything visible, as a new layer above the active one.
-    func stampVisible() {
-        layerCommand { LayerActions.stampVisible(canvas: canvas, history: history, context: selectionContext) }
-    }
-
     // MARK: Align and Distribute (stage 24)
-
-    /// The chosen layers with pixels to line up: adjustment layers have none.
-    /// The chosen pixel layers, and each chosen group's, a group's moving together (stage 26).
-    private var chosenAlignUnits: [LayerAlign.Unit] {
-        LayerAlign.units(chosenLayerIDs, in: canvas)
-    }
-
-    var canAlignChosenLayers: Bool {
-        let units = chosenAlignUnits
-        return !units.isEmpty && !units.contains { $0.layers.contains(where: canvas.isLocked) }
-    }
-
-    var canDistributeChosenLayers: Bool { canAlignChosenLayers && chosenAlignUnits.count >= 3 }
-
-    /// Layer ▸ Align: the chosen layers' visible pixels lined up, as one step. They line up with the selection if
-    /// there is one; otherwise one layer lines up with the canvas, and several with the box around them all (Q24.3).
-    func alignChosenLayers(_ alignment: LayerAlignment) {
-        guard canAlignChosenLayers else { return onRefused() }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        let units = chosenAlignUnits
-        let boxes = units.compactMap(\.box)
-        let reference = canvas.selection.marquee.map { $0.bounds.intersection(canvas.bounds) }
-            ?? (units.count == 1 ? canvas.bounds : boxes.dropFirst().reduce(boxes.first ?? canvas.bounds) { $0.union($1) })
-        moveChosenLayers(LayerAlign.offsets(aligning: units, to: alignment, reference: reference), named: "Align \(alignment.title)")
-    }
-
-    /// Layer ▸ Align ▸ Distribute: equal gaps between three or more chosen layers, as one step.
-    func distributeChosenLayers(_ distribution: LayerDistribution) {
-        guard canDistributeChosenLayers else { return onRefused() }
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        moveChosenLayers(LayerAlign.offsets(distributing: chosenAlignUnits, distribution), named: distribution.title)
-    }
-
-    private func moveChosenLayers(_ offsets: [LayerID: IntPoint], named name: String) {
-        var refusal: LayerAlign.Refusal?
-        recordingChanges { refusal = LayerAlign.move(offsets, named: name, canvas: canvas, history: history, context: selectionContext) }
-        // Pixels past the canvas's edge would be lost, so nothing moves (Q24.1).
-        if case .offCanvas(let layer) = refusal {
-            onRefused()
-            showNotice("That would push part of “\(layer)” off the canvas, so nothing moved.")
-        }
-        layersRevision += 1
-        onRender()
-    }
-
-    /// Layer ▸ Select All Layers (⌥⌘A): every layer is chosen, hidden and adjustment layers too (Q22.2).
-    func selectAllLayers() {
-        finishInteractions()
-        otherChosenLayerIDs = Set(canvas.layers.map(\.id)).subtracting([canvas.activeLayer.id])
-        layersRevision += 1
-    }
 
     /// What Option-clicking an eye last did: which layer it left showing alone, how every layer was before, how they
     /// were right after, and the step, which must still be done for any of it to count (review U, finding 6).
-    private struct Isolation {
+    struct Isolation {
         let layer: LayerID
         let before: [LayerID: Bool]
         let after: [LayerID: Bool]
         weak var step: AnyObject?
     }
 
-    @ObservationIgnored private var isolation: Isolation?
-
-    /// Option-click on a layer's eye (FR-8.6): only that layer shows. Option-clicking it again brings back what was
-    /// showing; if anything was shown or hidden meanwhile, everything shows (Q22.4). Each is one step (Q22.3).
-    func toggleIsolation(at index: Int) {
-        guard canvas.layers.indices.contains(index) else { return }
-        finishInteractions()
-        let layer = canvas.layers[index]
-        let now = Dictionary(uniqueKeysWithValues: canvas.layers.map { ($0.id, $0.isVisible) })
-        if let isolation, isolation.layer == layer.id, let step = isolation.step, history.isDone(step), now != isolation.before {
-            let restored = now == isolation.after ? isolation.before : now.mapValues { _ in true }
-            self.isolation = nil
-            recordingChanges { LayerActions.setVisibility(restored, named: "Show Layers", canvas: canvas, history: history) }
-        } else {
-            // Its groups show too, or it couldn't; inside a group, its own layers keep theirs (stage 25).
-            let inside = layer.isGroup ? canvas.layers[canvas.memberRange(ofGroupAt: index)].map(\.id) : []
-            let alone = now.mapValues { _ in false }
-                .merging(Dictionary(uniqueKeysWithValues: ([layer] + canvas.ancestors(of: layer)).map { ($0.id, true) })) { $1 }
-                .merging(Dictionary(uniqueKeysWithValues: inside.map { ($0, now[$0] ?? true) })) { $1 }
-            // Already showing alone, with nothing to go back to: everything shows, as in Photoshop.
-            if now == alone {
-                isolation = nil
-                recordingChanges { LayerActions.setVisibility(now.mapValues { _ in true }, named: "Show Layers", canvas: canvas, history: history) }
-                return onRender()
-            }
-            recordingChanges { LayerActions.setVisibility(alone, named: "Show Only “\(layer.name)”", canvas: canvas, history: history) }
-            isolation = Isolation(layer: layer.id, before: now, after: alone, step: history.lastStep)
-        }
-        onRender()
-    }
-
-    func flatten() {
-        layerCommand { LayerActions.flatten(canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    /// Moves the layer at `source` so it sits at `destination` (stack indices; 0 is the bottom). A chosen layer brings
-    /// the other chosen layers with it (FR-8.6).
-    func moveLayer(from source: Int, to destination: Int) {
-        let ids = chosenLayerIDs
-        let together = ids.count > 1 && canvas.layers.indices.contains(source) && ids.contains(canvas.layers[source].id)
-        layerCommand(keepingChoice: true) {
-            together ? LayerActions.moveLayers(ids, dragging: source, to: destination, canvas: canvas, history: history, context: selectionContext)
-                : LayerActions.move(from: source, to: destination, canvas: canvas, history: history, context: selectionContext)
-        }
-    }
-
-    func setLayerVisible(_ visible: Bool, at index: Int) {
-        layerSetting(visible ? "Show Layer" : "Hide Layer", at: index) { $0.isVisible = visible }
-    }
-
-    func setLayerLocked(_ locked: Bool, at index: Int) {
-        layerSetting(locked ? "Lock Layer" : "Unlock Layer", at: index) { $0.isLocked = locked }
-    }
-
-    func renameLayer(at index: Int, to name: String) {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        layerSetting("Rename Layer", at: index) { $0.name = trimmed }
-    }
-
-    /// An adjustment layer: change only the layer below it, or everything below (Leah, 2026-10-10).
-    /// An adjustment layer, or since stage 28b a pixel layer: only on the layer below it, or everything below.
-    func setClipsToLayerBelow(_ clips: Bool) {
-        guard !canvas.activeLayer.isGroup, !canvas.isLocked(canvas.activeLayer) else { return }
-        layerSetting(clips ? "Only the Layer Below" : "All Layers Below", at: canvas.activeLayerIndex) { $0.clipsToLayerBelow = clips }
-    }
-
-    /// On every chosen layer (FR-8.6).
-    /// On a group, a blend mode means it's no longer Pass Through (Q25.2).
-    func setBlendMode(_ mode: BlendMode) {
-        chosenLayerSetting("Blend Mode") { layer in
-            layer.blendMode = mode
-            if layer.isGroup { layer.passesThrough = false }
-        }
-    }
-
-    /// A group's Pass Through (Q25.2): its layers blend with everything below.
-    func setPassesThrough() {
-        chosenLayerSetting("Blend Mode") { layer in
-            if layer.isGroup { layer.passesThrough = true }
-        }
-    }
-
-    /// Opacity while its slider is dragged, on every chosen layer: shown live, recorded as one step by
-    /// `finishLayerSettings()`.
-    func previewOpacity(_ opacity: Double) {
-        previewLayerSettings("Layer Opacity", onChosen: true) { $0.opacity = min(1, max(0, opacity)) }
-    }
-
-    /// An adjustment layer's settings while a slider is dragged (FR-8.4), likewise one step.
-    func previewAdjustment(_ adjustment: Effect) {
-        guard canvas.activeLayer.adjustment != nil else { return }
-        previewLayerSettings("Adjustment Settings") { $0.adjustment = adjustment }
-    }
-
-    func finishLayerSettings() {
-        guard let edit = layerSettingsEdit else { return }
-        layerSettingsEdit = nil
-        // A view shown while a slider was held never stays in the layer, however the slider let go (review V, finding 1).
-        for layer in canvas.layers {
-            if case .photo(let photo) = layer.adjustment, photo != photo.withoutViews { layer.adjustment = .photo(photo.withoutViews) }
-        }
-        recordingChanges { history.commit(edit) }
-    }
-
-    private func previewLayerSettings(_ name: String, onChosen: Bool = false, _ change: (Layer) -> Void) {
-        if layerSettingsEdit == nil {
-            finishInteractions()
-            let edit = history.beginEdit(name, on: canvas)
-            edit.willChangeLayers()
-            layerSettingsEdit = edit
-        }
-        if onChosen {
-            let ids = chosenLayerIDs
-            canvas.layers.filter { ids.contains($0.id) && ($0 === canvas.activeLayer || !canvas.isLocked($0)) }.forEach(change)
-        } else {
-            change(canvas.activeLayer)
-        }
-        layersRevision += 1
-        onRender()
-        if activePhotoLayerEdit != nil { refreshPhotoHistogram() }
-    }
-
-    /// Adds an adjustment layer above the active layer and shows its settings.
-    func addAdjustmentLayer(_ adjustment: Effect, named name: String) {
-        layerCommand { LayerActions.addAdjustment(adjustment, named: name, canvas: canvas, history: history, context: selectionContext) }
-        isSidebarOpen = true
-        showsAdjustmentsPanel = true
-    }
-
-    /// Adds an adjustment layer of this kind above the active layer.
-    func addAdjustmentLayer(_ choice: AdjustmentChoice) {
-        if choice == .autoContrast {
-            addAutoContrastLayer()
-        } else {
-            addAdjustmentLayer(choice.startingAdjustment, named: choice.title)
-        }
-    }
-
-    /// Changes whenever the layers beneath the active one may look different, so a Levels layer's histogram
-    /// is worked out again then, and not on every tick of its own sliders (review D, finding 2).
-    var belowActiveLayerKey: Int {
-        // Read so SwiftUI looks at the key again when layers change; layers themselves aren't observed.
-        _ = layersRevision
-        var hasher = Hasher()
-        hasher.combine(undoRedoCount)
-        hasher.combine(canvas.activeLayer.id)
-        for layer in canvas.layers.prefix(canvas.activeLayerIndex) {
-            hasher.combine(layer.id)
-            hasher.combine(ObjectIdentifier(layer.buffer))
-            hasher.combine(layer.isVisible)
-            hasher.combine(layer.opacity)
-            hasher.combine(layer.blendMode)
-            hasher.combine(layer.adjustment)
-            hasher.combine(layer.groupID?.rawValue)
-            hasher.combine(layer.passesThrough)
-        }
-        return hasher.finalize()
-    }
+    @ObservationIgnored var isolation: Isolation?
 
     /// Undo and redo can change pixels below the active layer without changing any layer's settings.
-    private var undoRedoCount = 0
-
-    /// The layers beneath the active one as they look together, by brightness, for a Levels layer.
-    func histogramBelowActiveLayer() -> Histogram {
-        let index = canvas.activeLayerIndex
-        guard index > 0 else { return Histogram(PixelBuffer(width: 1, height: 1)) }
-        return Histogram(canvas.composited(through: index - 1))
-    }
-
-    func applyAdjustmentLayer() {
-        layerCommand { LayerActions.applyAdjustment(canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    /// Sets an adjustment layer's settings in one step (Reset).
-    func setAdjustment(_ adjustment: Effect) {
-        layerSetting("Adjustment Settings", at: canvas.activeLayerIndex) { $0.adjustment = adjustment }
-    }
-
-    var activeAdjustment: Effect? {
-        _ = layersRevision
-        return canvas.activeLayer.adjustment
-    }
-
-    private func layerSetting(_ name: String, at index: Int, _ body: (Layer) -> Void) {
-        finishInteractions()
-        recordingChanges { LayerActions.update(name, layerAt: index, canvas: canvas, history: history, body) }
-        onRender()
-    }
-
-    /// A command that changes the layer stack. Afterwards only the active layer is chosen, unless `keepingChoice`.
-    private func layerCommand(keepingChoice: Bool = false, _ body: () -> Bool) {
-        finishInteractions()
-        var done = false
-        recordingChanges { done = body() }
-        if !done { onRefused() }
-        if done, !keepingChoice { otherChosenLayerIDs = [] }
-        layersRevision += 1
-        selectionDidChange()
-    }
-
-    /// Whether pixel-changing commands work on the active layer (see `refusedBecauseLocked`).
-    /// Its pixels can change: it isn't locked, and it has pixels, or its mask is chosen (stage 27).
-    /// A text layer takes none until it's rasterized (Q29.2).
-    var activeLayerTakesEdits: Bool {
-        !canvas.isLocked(canvas.activeLayer) && canvas.paintLayer.isPixelLayer && canvas.paintLayer.text == nil
-    }
-
-    /// Pixel-changing commands call this first. A locked layer refuses them (FR-8.2), and so does an
-    /// adjustment layer, which has no pixels to change, and a text layer, which says how to paint on it (Q29.2).
-    /// Redaction never asks: it turns a text layer into pixels itself (`Edit.willModify`).
-    private func refusedBecauseLocked() -> Bool {
-        if canvas.paintLayer.text != nil, !canvas.isLocked(canvas.activeLayer) {
-            showNotice("This is a text layer. To paint on it, choose Layer ▸ Rasterize Text first.")
-            return true
-        }
-        guard canvas.isLocked(canvas.activeLayer) || !canvas.paintLayer.isPixelLayer else { return false }
-        onRefused()
-        return true
-    }
-
-    /// Layer ▸ Rasterize Text (stage 30).
-    func rasterizeText() {
-        layerCommand { LayerActions.rasterizeText(canvas: canvas, history: history, context: selectionContext) }
-    }
-
-    var canRasterizeText: Bool {
-        _ = layersRevision
-        return canvas.activeLayer.text != nil && !canvas.isLocked(canvas.activeLayer)
-    }
-
-    // MARK: Undo
-
-    var undoActionName: String? { pages.undoName ?? history.undoActionName }
-    var redoActionName: String? { undone.last == .pageChange ? pages.redoName : history.redoActionName }
-
-    func undo() {
-        // Undo first discards a shape that hasn't been placed yet.
-        if pendingShape != nil {
-            cancelPendingShape()
-            return
-        }
-        if pendingBadge != nil {
-            cancelPendingBadge()
-            return
-        }
-        finishInteractions()
-        stopFillForChange()
-        otherChosenLayerIDs = []
-        // Adding, deleting or moving a page is undone while it's the newest thing done (FR-11.6).
-        if pages.undoName != nil {
-            guard changePages({ try pages.undo() }) else { return }
-            undone.append(.pageChange)
-            onDocumentChange(.undone)
-            return
-        }
-        let step = history.undoStepID
-        // Undoing a badge steps the next number back to it (FR-5.3).
-        if stepShownPage(undoing: true), let step, let badge = badgeSteps[step] { nextBadges[badge.style] = badge.value }
-    }
-
-    func redo() {
-        finishInteractions()
-        stopFillForChange()
-        otherChosenLayerIDs = []
-        if undone.last == .pageChange, pages.redoName != nil {
-            guard changePages({ try pages.redo() }) else { return }
-            undone.removeLast()
-            onDocumentChange(.redone)
-            return
-        }
-        let step = history.redoStepID
-        if stepShownPage(undoing: false), let step, let badge = badgeSteps[step] { nextBadges[badge.style] = badge.value + 1 }
-    }
-
-    /// Undoes or redoes the newest step of the page shown, or of every page of a multi-page Auto-Redact it's part of.
-    @discardableResult
-    private func stepShownPage(undoing: Bool) -> Bool {
-        if let group = redactionGroup(undoing: undoing) {
-            let stepped = stepPages(group, undoing: undoing)
-            // Some pages may have stepped before one failed; they're recorded as changed either way.
-            if stepped < group.count { onRefused() }
-            guard stepped > 0 else { return false }
-        } else {
-            guard (undoing ? history.undo(on: canvas) : history.redo(on: canvas)) != nil else { return false }
-        }
-        if undoing {
-            undone.append(.pageEdit)
-        } else if undone.last == .pageEdit {
-            undone.removeLast()
-        }
-        undoRedoCount += 1
-        layersRevision += 1
-        onDocumentChange(undoing ? .undone : .redone)
-        selectionDidChange()
-        return true
-    }
-
-    /// The pages of the multi-page Auto-Redact that ⌘Z (or ⇧⌘Z) would step on the page shown, if it's still the
-    /// newest change on every one of them. If another page has changed since, only this page's part steps.
-    private func redactionGroup(undoing: Bool) -> [Page]? {
-        guard let top = undoing ? history.undoStepID : history.redoStepID,
-              let group = redactionGroups.first(where: { $0.contains { $0.step == top } }) else { return nil }
-        let parts = group.compactMap { part in pages.pages.first { $0.id == part.page }.map { (page: $0, step: part.step) } }
-        let ready = parts.allSatisfy { (undoing ? $0.page.history.undoStepID : $0.page.history.redoStepID) == $0.step }
-        return ready && parts.count > 1 ? parts.map(\.page) : nil
-    }
-
-    /// Undoes or redoes the newest step on each of `group`, bringing back parked pages just long enough. Returns how
-    /// many pages stepped. A page that stepped but couldn't be parked again stays unparked; saving still includes it.
-    private func stepPages(_ group: [Page], undoing: Bool) -> Int {
-        var stepped = 0
-        for page in group {
-            let step = { undoing ? page.history.undo(on: page.canvas) : page.history.redo(on: page.canvas) }
-            if page === self.page {
-                _ = step()
-                stepped += 1
-                continue
-            }
-            do {
-                try page.unpark()
-                _ = step()
-                stepped += 1
-                try page.park()
-            } catch {
-                break
-            }
-        }
-        return stepped
-    }
+    var undoRedoCount = 0
 
     // MARK: Colors
 
     /// The well a left-click on a swatch sets. Right-clicks always set Color 2.
     var activeWell: ColorWell = .color1
 
-    var activeColor: Pixel {
-        get { activeWell == .color1 ? color1 : color2 }
-        set { if activeWell == .color1 { color1 = newValue } else { color2 = newValue } }
-    }
-
-    /// A swatch click. Swatches carry no alpha, so the well keeps its Alpha setting.
-    func applySwatch(_ swatch: Pixel, secondary: Bool) {
-        var color = swatch
-        color.a = secondary ? color2.a : activeColor.a
-        if secondary { color2 = color } else { activeColor = color }
-    }
-
-    func swapColors() {
-        // One at a time: swapping both in place holds both open while their observers run.
-        let first = color1
-        color1 = color2
-        color2 = first
-    }
-
     // MARK: Viewport
-
-    func updateViewport(_ change: (inout Viewport) -> Void) {
-        var updated = viewport
-        change(&updated)
-        guard updated != viewport else { return }
-        viewport = updated
-        onRender()
-        onViewStateChange()
-    }
 
     /// Zoom and scroll position to show instead of fitting the window, after a relaunch (review J, finding 28).
     @ObservationIgnored var restoredView: (zoom: Double, center: Point2D)?
     /// Tells the window its restorable state (zoom, scroll, panels) changed.
     @ObservationIgnored var onViewStateChange: () -> Void = {}
 
-    private var viewCenter: Point2D {
-        Point2D(x: viewport.viewSize.width / 2, y: viewport.viewSize.height / 2)
-    }
-
-    /// The Magnifier: one zoom step in or out, keeping the clicked point under the pointer (FR-7.1).
-    func magnify(in zoomingIn: Bool, atView anchor: Point2D) {
-        updateViewport { $0.setZoom($0.nextZoomStep(zoomingIn: zoomingIn), anchor: anchor) }
-    }
-
-    func zoomIn() {
-        updateViewport { $0.setZoom($0.nextZoomStep(zoomingIn: true), anchor: viewCenter) }
-    }
-
-    func zoomOut() {
-        updateViewport { $0.setZoom($0.nextZoomStep(zoomingIn: false), anchor: viewCenter) }
-    }
-
-    func zoomToActualSize() {
-        zoom(to: 1)
-    }
-
-    func zoom(to scale: Double) {
-        updateViewport { $0.setZoom(scale, anchor: viewCenter) }
-    }
-
-    func zoomToFit() {
-        updateViewport { $0.fit(canvas.size, margin: 40) }
-    }
-
     // MARK: Auto-Redact
 
-    /// Reads the text on every page, whole, on this Mac and opens the review. A selection is ignored: Batch
-    /// Redact is for chosen areas (Leah, 2026-10-04).
-    func beginAutoRedact() {
-        // Every layer is redacted, so the active one being locked doesn't matter here; Apply checks the layers
-        // under the boxes.
-        finishInteractions()
-        placeFloatingKeepingOutline()
-        let read = pages.pages
-        let session = AutoRedactSession(
-            anyLayered: read.contains { $0.canvas.layers.count > 1 },
-            pages: read.map { .init(pageID: $0.id, revision: $0.history.revision, canvasSize: $0.canvas.size) }
-        )
-        autoRedact = session
-        onRender()
-        // Each page is flattened from a copy (or its parked bytes) in the background, not on the main thread
-        // (review E, finding 6), one page at a time so only one is held in full.
-        let sources = read.map { page in
-            page.parked.map(PageSource.parked) ?? .canvas(UnsafeTransfer(page.canvas.copy()))
-        }
-        Task { [weak self] in
-            for (index, source) in sources.enumerated() {
-                do {
-                    let image = try await Task.detached(priority: .userInitiated) {
-                        let canvas = try source.canvas()
-                        return UnsafeTransfer(try ImageCodec.makeCGImage(canvas.flattened(), colorSpace: canvas.colorSpace))
-                    }.value
-                    let scan = try await TextScan.read(image.value)
-                    let faces = try await FaceFinder.find(in: image.value)
-                    // A scan from a run that was cancelled mustn't fill in a newer one (review E, finding 2).
-                    guard let self, self.autoRedact?.id == session.id else { return }
-                    self.autoRedact?.pages[index].scan = scan
-                    self.autoRedact?.pages[index].faces = faces.map { (UUID(), $0) }
-                    self.refreshAutoRedactMatches()
-                } catch {
-                    guard self?.autoRedact?.id == session.id else { return }
-                    self?.autoRedact?.failedPage = session.pages[index].pageID
-                    self?.autoRedact?.failure = error.localizedDescription
-                    return
-                }
-            }
-        }
-    }
-
     /// Where a page's pixels come from for reading: the page shown, copied, or a parked page's bytes.
-    private enum PageSource: Sendable {
+    enum PageSource: Sendable {
         case canvas(UnsafeTransfer<Canvas>)
         case parked(Data)
 
@@ -5270,339 +790,18 @@ final class Editor {
         }
     }
 
-    private func refreshAutoRedactMatches() {
-        guard let session = autoRedact else { return }
-        // Faces are numbered through the whole document, after each page's text.
-        let findsFaces = redactionPatterns.contains { $0.isFaces && $0.isEnabled }
-        var faceNumber = 1
-        for (index, result) in session.pages.enumerated() {
-            guard let scan = result.scan else { continue }
-            let faces = findsFaces ? FaceFinder.matches(result.faces ?? [], numberedFrom: faceNumber) : []
-            faceNumber += faces.count
-            autoRedact?.pages[index].matches = scan.matches(for: redactionPatterns) + faces
-        }
-        let found = autoRedact?.matches.map(\.id) ?? []
-        autoRedact?.keptVisible.formIntersection(found)
-        onRender()
-    }
-
-    func setRedactionMatch(_ id: UUID, included: Bool) {
-        if included { autoRedact?.keptVisible.remove(id) } else { autoRedact?.keptVisible.insert(id) }
-        onRender()
-    }
-
-    func setRedactionTreatment(_ treatment: RedactionTreatment) {
-        autoRedact?.treatment = treatment
-    }
-
-    /// The page number (from 1) of a page, for the review.
-    func pageNumber(of id: UUID) -> Int? {
-        pages.pages.firstIndex { $0.id == id }.map { $0 + 1 }
-    }
-
-    /// Clicking an item in the review: shows its page, and scrolls its box into view (Leah, 2026-10-04).
-    func focusRedactionMatch(_ id: UUID) {
-        guard let session = autoRedact, session.applying == nil,
-              let result = session.pages.first(where: { $0.matches.contains { $0.id == id } }),
-              let match = result.matches.first(where: { $0.id == id }),
-              let number = pageNumber(of: result.pageID) else { return }
-        autoRedact?.focused = id
-        showPage(at: number - 1)
-        let box = match.rect
-        let corners = [viewport.viewPoint(fromImage: Point2D(x: Double(box.minX), y: Double(box.minY))),
-                       viewport.viewPoint(fromImage: Point2D(x: Double(box.maxX), y: Double(box.maxY)))]
-        let inView = corners.allSatisfy { $0.x >= 0 && $0.y >= 0 && $0.x <= viewport.viewSize.width && $0.y <= viewport.viewSize.height }
-        if !inView {
-            updateViewport { $0.center = Point2D(x: Double(box.minX + box.maxX) / 2, y: Double(box.minY + box.maxY) / 2) }
-        }
-        onRender()
-    }
-
-    /// Redacts every checked match, one step on each page, on every layer under it (review E, findings 1, 3 and
-    /// 4). Nothing is redacted if any page changed since it was read or has a locked layer under a box.
-    func applyAutoRedact() {
-        guard let session = autoRedact, !session.isReading, session.failure == nil, session.applying == nil else { return }
-        let targets = session.pages.compactMap { result -> (page: Page, result: AutoRedactSession.PageResult, matches: [RedactionMatch])? in
-            let matches = session.selectedMatches(onPage: result.pageID)
-            guard !matches.isEmpty, let page = pages.pages.first(where: { $0.id == result.pageID }) else { return nil }
-            return (page, result, matches)
-        }
-        func onPage(_ page: Page) -> String {
-            session.isMultiPage ? "On page \(pageNumber(of: page.id) ?? 0), " : ""
-        }
-        for target in targets where target.page.history.revision != target.result.revision || target.page.canvas.size != target.result.canvasSize {
-            let what = session.isMultiPage ? "Page \(pageNumber(of: target.page.id) ?? 0)" : "The image"
-            autoRedact?.problem = "\(what) changed after it was read. Cancel and run Auto-Redact again."
-            return
-        }
-        for target in targets {
-            let locked: Layer?
-            do { locked = try lockedLayer(under: target.matches, on: target.page) } catch {
-                autoRedact?.problem = "Couldn't check page \(pageNumber(of: target.page.id) ?? 0): \(error.localizedDescription)"
-                return
-            }
-            if let locked {
-                autoRedact?.problem = "\(onPage(target.page))“\(locked.name)” is locked. Cancel, unlock it and run Auto-Redact again; nothing was redacted."
-                return
-            }
-        }
-        autoRedact?.applying = (0, targets.count)
-        Task { [weak self] in
-            guard let self else { return }
-            var redacted = false, changedOtherPages = false
-            var group: [(page: UUID, step: UUID)] = []
-            var redactedPages: [Int] = []
-            for (done, target) in targets.enumerated() {
-                let apply = { AutoRedact.apply(target.matches, treatment: session.treatment, fill: self.color1,
-                                               canvas: target.page.canvas, history: target.page.history) }
-                let number = pageNumber(of: target.page.id) ?? 0
-                if target.page === page {
-                    recordingChanges {
-                        if apply() == .redacted { redacted = true; group += history.undoStepID.map { [(page.id, $0)] } ?? [] }
-                    }
-                    redactedPages.append(number)
-                } else {
-                    // Another page is brought back just long enough to redact it, then compressed again. A page that
-                    // was redacted but can't be parked again stays unparked; saving still includes it.
-                    do {
-                        try target.page.unpark()
-                        if apply() == .redacted {
-                            redacted = true
-                            changedOtherPages = true
-                            group += target.page.history.undoStepID.map { [(target.page.id, $0)] } ?? []
-                        }
-                        redactedPages.append(number)
-                        try target.page.park()
-                    } catch {
-                        // Says plainly what was and wasn't redacted (review K, finding 7).
-                        let done = redactedPages.isEmpty ? "No page was redacted"
-                            : "Page\(redactedPages.count == 1 ? "" : "s") \(redactedPages.map(String.init).joined(separator: ", ")) \(redactedPages.count == 1 ? "was" : "were") redacted"
-                        autoRedact?.problem = "\(done), but page \(number) couldn't be: \(error.localizedDescription) Cancel, then check the pages."
-                        break
-                    }
-                }
-                autoRedact?.applying = (done + 1, targets.count)
-                // Lets the review show its progress between pages.
-                try? await Task.sleep(for: .milliseconds(1))
-            }
-            if group.count > 1 { redactionGroups.append(group) }
-            if changedOtherPages { noteEdited() }
-            if redacted { noteRedaction() }
-            if autoRedact?.problem == nil { autoRedact = nil } else { autoRedact?.applying = nil }
-            onRender()
-        }
-    }
-
-    /// The first locked layer with pixels under `matches` on `page`. A parked page with no locked layer at all
-    /// isn't brought back to look.
-    private func lockedLayer(under matches: [RedactionMatch], on page: Page) throws -> Layer? {
-        guard page.canvas.layers.contains(where: { page.canvas.isLocked($0) && $0.isPixelLayer }) else { return nil }
-        guard page.isParked else { return AutoRedact.lockedLayer(under: matches, canvas: page.canvas) }
-        try page.unpark()
-        defer { try? page.park() }
-        return AutoRedact.lockedLayer(under: matches, canvas: page.canvas)
-    }
-
-    func cancelAutoRedact() {
-        guard autoRedact?.applying == nil else { return }
-        autoRedact = nil
-        onRender()
-    }
-
-    private static let patternsKey = "AutoRedactPatterns"
-
-    /// Saved patterns, with every built-in present (new built-ins are added, their expressions kept current).
-    private static func loadRedactionPatterns() -> [RedactionPattern] {
-        let saved = StoredSettings.list(of: RedactionPattern.self, from: StoredSettings.data(forKey: patternsKey)) ?? []
-        let builtIns = RedactionPattern.builtIns.map { builtIn in
-            var pattern = builtIn
-            pattern.isEnabled = saved.first { $0.id == builtIn.id }?.isEnabled ?? true
-            return pattern
-        }
-        return builtIns + saved.filter { !$0.isBuiltIn }
-    }
-
-    private static func saveRedactionPatterns(_ patterns: [RedactionPattern]) {
-        StoredSettings.save(patterns, forKey: patternsKey)
-    }
-
-    // MARK: Before/After
-
-    var comparisonBaseline: PixelBuffer? {
-        switch comparison?.baseline {
-        case .asOpened: asOpened
-        case .lastSaved: lastSaved
-        case nil: nil
-        }
-    }
-
-    func toggleComparison() {
-        if comparison == nil {
-            finishInteractions()
-            comparison = Comparison()
-        } else {
-            comparison = nil
-        }
-    }
-
-    /// Fits the view to what's being compared: both images side by side, or just the canvas.
-    private func fitComparison() {
-        if comparison?.layout == .sideBySide {
-            // As opened has the page's size, which is known without decoding it.
-            let width = opened.size.width + canvas.size.width + Self.comparisonGap
-            let height = max(opened.size.height, canvas.size.height)
-            updateViewport { $0.fit(IntSize(width: width, height: height), margin: 40) }
-        } else {
-            zoomToFit()
-        }
-    }
-
-    /// Records the image as of an explicit save, for "Last Saved".
-    /// `snapshot` is the copy that was written; nothing else changes it, so its buffers are kept as they are.
-    func markSaved(_ snapshot: SaveSnapshot) {
-        // Each other page's saved state is the bytes that were written for it (review L, finding 12).
-        for other in snapshot.otherPages {
-            guard var memory = pageMemory[other.id],
-                  let described = (pages.pages + pages.restorablePages).first(where: { $0.id == other.id }) else { continue }
-            memory.saved = PageBaseline(data: other.page.project, describing: described.canvas)
-            memory.savedGeometrySteps = other.geometrySteps
-            pageMemory[other.id] = memory
-        }
-        // With any floating selection drawn in, as the file has it (review G, finding 3).
-        let savedPage = PageBaseline(layers: snapshot.canvas.layerBuffersAsSaved(transparentKey: snapshot.transparentKey,
-                                                                                  resampling: snapshot.resampling),
-                                     colorSpace: snapshot.canvas.colorSpace)
-        guard snapshot.pageID == page.id else {
-            // The save finished after another page was shown: it's that page's saved state.
-            if let savedPage, var memory = pageMemory[snapshot.pageID] {
-                savedPage.pack()
-                memory.saved = savedPage
-                memory.savedGeometrySteps = snapshot.geometrySteps
-                pageMemory[snapshot.pageID] = memory
-            }
-            lastSavedSnapshot = snapshot
-            lastSavedImage = nil
-            return
-        }
-        lastSavedSnapshot = snapshot
-        lastSavedImage = nil
-        // Flattened ahead in the background, so Before/After doesn't pause the first time (review E, finding 6).
-        let written = UnsafeTransfer(snapshot)
-        Task { [weak self] in
-            let image = await Task.detached(priority: .utility) {
-                UnsafeTransfer(written.value.canvas.flattened(transparentKey: written.value.transparentKey, resampling: written.value.resampling))
-            }.value
-            guard let self, self.lastSavedSnapshot?.canvas === written.value.canvas, self.lastSavedImage == nil else { return }
-            self.lastSavedImage = image.value
-        }
-        savedGeometrySteps = snapshot.geometrySteps
-        if let savedPage { saved = savedPage }
-    }
-
-    // MARK: Files
-
-    /// The image as it looks, including any floating selection, encoded in `format`.
-    /// Formats without transparency are flattened over Color 2.
-    func encoded(as format: ImageFileFormat, quality: Double = 0.9) throws -> Data {
-        try withoutEffectPreview { try snapshot(of: canvas).encoded(as: format, quality: quality) }
-    }
-
-    /// The whole document as a .colorproj (FR-8.5), without any live effect preview.
-    func encodedProject() throws -> Data {
-        try withoutEffectPreview { try snapshot(of: canvas).encodedProject() }
-    }
-
-    /// A copy of the document for saving or output, without any live effect preview. A shape, text or Step Badge still
-    /// being edited is placed first, so what's written is what's shown (review K, finding 1); autosave passes false, so it
-    /// doesn't fix in place what's still being edited.
-    func saveSnapshot(placingPending: Bool = true) -> SaveSnapshot {
-        // Every save, autosave too, waits for a Match Tone being worked out: closing or quitting autosaves, and the
-        // tone would otherwise never be saved (review S, finding 2). A shape or text box is placed only when asked.
-        finishPendingTone()
-        if placingPending { placePendingObjects() }
-        return withoutEffectPreview { snapshot(of: canvas.copy()) }
-    }
-
-    /// While a sheet or an effect's bar is open, the document's own commands (Save, Export, Share, Print, Revert) wait
-    /// too, as the Edit commands do (review L, finding 2).
-    var blocksDocumentCommands: Bool {
-        // The selection sheet (Feather, Expand and the rest) too: OK puts back the selection as it was when the sheet opened (review P, finding 1).
-        activeEffect != nil || autoRedact != nil || isResizeSkewOpen || isCanvasPropertiesOpen || selectionChange != nil
-    }
-
-    /// Auto-Redact is redacting page after page; a save now would hold only part of it.
-    var isRedacting: Bool { autoRedact?.applying != nil }
-
-    func placePendingObjects() {
-        finishPendingTone()
-        commitPendingShape()
-        commitPendingText()
-        commitPendingBadge()
-    }
-
-    private func snapshot(of canvas: ColorbeeCore.Canvas) -> SaveSnapshot {
-        // Other pages are parked, so their bytes are taken as they are: no copying (FR-11.6).
-        // A page left unparked by a failure is encoded now rather than left out (review K, finding 7).
-        let others = pages.pages.enumerated().compactMap { index, other
-            -> (index: Int, id: UUID, geometrySteps: [ObjectIdentifier], page: ProjectFile.StoredPage)? in
-            guard other !== page, let project = try? other.projectData() else { return nil }
-            return (index, other.id, other.history.geometrySteps,
-                    ProjectFile.StoredPage(project: project, resolution: other.resolution, thumbnail: other.thumbnail()))
-        }
-        return SaveSnapshot(canvas: canvas, transparentKey: selectionContext.transparentKey, resampling: selectionContext.resampling, matte: color2,
-                            geometrySteps: history.geometrySteps, pageID: page.id, pageResolution: page.resolution, otherPages: others,
-                            currentIndex: pages.currentIndex)
-    }
-
-    /// More than one layer, or an adjustment layer: something only a project file can keep.
-    /// More than one layer, an adjustment layer, or more than one page: something only a project file can keep.
-    var isLayered: Bool {
-        // A mask too: a picture saved as a PNG would lose it (stage 27).
-        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains { !$0.isPixelLayer || $0.mask != nil || $0.text != nil }
-    }
-
-    /// An effect's live preview is drawn into the layer before it's applied; an autosave in the
-    /// meantime must write the image without it, in case the effect is cancelled.
-    private func withoutEffectPreview<T>(_ body: () throws -> T) rethrows -> T {
-        // Drop Shadow, Border and Straighten preview as a real step, so it's taken back for the copy
-        // (review B, finding 1).
-        if activeEffect?.previewsAsStep == true, decorationPreviewed {
-            history.undo(on: canvas)
-            defer { history.redo(on: canvas) }
-            return try body()
-        }
-        guard let edit = effectEdit else { return try body() }
-        // The preview's pixels are put back as they were, not worked out again on the main thread
-        // (review B, finding 3).
-        let shown = edit.dirtyRect
-        let layers = effectCoversAllLayers ? effectLayers : [canvas.paintLayer]
-        let pixels = layers.map { $0.buffer.pixels(in: shown) }
-        edit.restoreOriginals()
-        defer { for (layer, values) in zip(layers, pixels) { layer.buffer.setPixels(values, in: shown) } }
-        return try body()
-    }
-
-    func flattenedPNG() throws -> Data {
-        placePendingObjects()
-        return try encoded(as: .png)
-    }
+    static let patternsKey = "AutoRedactPatterns"
 }
 
 /// A finished shape drawing handed back from the background. The buffer is new and nothing else holds it.
-private struct RenderedShape: @unchecked Sendable {
+struct RenderedShape: @unchecked Sendable {
     let pixels: PixelBuffer
     let origin: IntPoint
 }
 
-/// Hands a pixel buffer to a background task that only reads it while nothing else writes to it.
 /// What the after-redaction offer removes: Clipboard History images this document came from or was copied to, and
 /// whether the clipboard still holds text Copy Text read from it before the redaction.
 struct ClipboardCleanup: Equatable {
     var images: [ClipboardHistory.Item.ID]
     var text: Bool
-}
-
-private struct UnsafeTransfer<Value>: @unchecked Sendable {
-    let value: Value
-    init(_ value: Value) { self.value = value }
 }

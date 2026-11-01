@@ -51,10 +51,4 @@ public struct Histogram: Sendable, Equatable {
     public var isEmpty: Bool { lowestValue == nil }
 }
 
-extension Pixel {
-    /// Rec. 709 luminance, as Desaturate uses.
-    var luminance: UInt8 {
-        let red: Double = 0.2126 * Double(r), green: Double = 0.7152 * Double(g), blue: Double = 0.0722 * Double(b)
-        return UInt8((red + green + blue).rounded())
-    }
-}
+

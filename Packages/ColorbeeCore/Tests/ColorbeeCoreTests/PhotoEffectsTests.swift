@@ -95,3 +95,27 @@ struct PhotoEffectsTests {
         #expect(PhotoEdit(effects: PhotoEffects()).effects == nil)
     }
 }
+
+/// Effects ▸ Vignette now asks Adjust Photo's falloff (review round 11, AD 5); this is the formula it had of its own.
+struct VignetteFalloffTests {
+    private func old(x: Int, y: Int, in region: IntRect, size: Double) -> Double {
+        let cx = Double(region.minX) + Double(region.width) / 2, cy = Double(region.minY) + Double(region.height) / 2
+        let nx = (Double(x) + 0.5 - cx) / (Double(region.width) / 2), ny = (Double(y) + 0.5 - cy) / (Double(region.height) / 2)
+        let distance = (nx * nx + ny * ny).squareRoot() / 2.squareRoot()
+        let start = min(max(size, 0), 100) / 100 * 0.95
+        let t = min(max((distance - start) / (1 - start), 0), 1)
+        return t * t * (3 - 2 * t)
+    }
+
+    @Test func everySizeGivesExactlyWhatItAlwaysDid() {
+        for region in [IntRect(x: 0, y: 0, width: 37, height: 21), IntRect(x: 5, y: 9, width: 64, height: 64)] {
+            for size in [-10.0, 0, 20, 50, 73.5, 100, 140] {
+                for y in stride(from: region.minY, to: region.maxY, by: 3) {
+                    for x in stride(from: region.minX, to: region.maxX, by: 2) {
+                        #expect(Vignette.strength(x: x, y: y, in: region, size: size) == old(x: x, y: y, in: region, size: size))
+                    }
+                }
+            }
+        }
+    }
+}

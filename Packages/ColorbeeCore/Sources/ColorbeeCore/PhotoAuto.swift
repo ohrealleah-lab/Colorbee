@@ -29,9 +29,9 @@ extension PhotoAdjustments {
         // Clipped brights are Highlights' job (Leah, 2026-10-27).
         let brightest = stats.percentile(0.998)
         if brightest > 0.05, brightest < 0.9 {
-            let weight = smoothstep(0.3, 1, brightest)
+            let weight = whitesWeight(brightest)
             let whitePoint = 1 / (1 + (0.96 / brightest - 1) / weight)
-            result[.whites] = round(min(max((1 - whitePoint) / 0.25 * 100, 0), 50))
+            result[.whites] = round(min(max((1 - whitePoint) / whitesReach * 100, 0), 50))
         }
 
         // Brilliance: a gentle lift for photos without much tonal range.
@@ -40,11 +40,11 @@ extension PhotoAdjustments {
         // White balance: pull the average color most of the way to gray.
         let mean = stats.meanColor
         if mean.x > 0.02, mean.z > 0.02 {
-            // Solves r(1 + w) = b(1 - w) for the Warmth multiplier w (0.15 per 100).
+            // Solves r(1 + w) = b(1 - w) for the Warmth multiplier w (`warmthReach` per 100).
             let w = (mean.z - mean.x) / (mean.z + mean.x)
-            result[.warmth] = round(min(max(w / 0.15 * 100 * 0.7, -50), 50))
+            result[.warmth] = round(min(max(w / warmthReach * 100 * 0.7, -50), 50))
             let magenta = ((mean.x + mean.z) / 2 - mean.y) / max(mean.y, 0.02)
-            result[.tint] = round(min(max(-magenta / 0.12 * 100 * 0.7, -50), 50))
+            result[.tint] = round(min(max(-magenta / tintGreen * 100 * 0.7, -50), 50))
         }
 
         // Vibrance: muted photos get more.

@@ -137,7 +137,7 @@ extension Effect {
             edit.detail = nil
             edit = edit.withoutViews
             return edit.isNeutral ? nil : .photo(edit)
-        default:
+        case .gaussianBlur, .pixelate, .solidFill, .sharpen, .addNoise, .motionBlur, .emboss, .vignette:
             return nil
         }
     }
@@ -168,7 +168,8 @@ extension Effect {
             edit.pointColors = edit.pointColors?.scaled(by: f)
             edit.toneCurve = edit.toneCurve?.scaled(by: f)
             return .photo(edit)
-        default: return self
+        case .invert, .posterize, .gaussianBlur, .pixelate, .solidFill, .sharpen, .addNoise, .motionBlur, .emboss, .vignette:
+            return self
         }
     }
 }

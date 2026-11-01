@@ -86,6 +86,15 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
 
     // MARK: The math (mirrored in Shaders.metal through ColorLookup, plus photo_fragment for the rest)
 
+    /// How far each slider at 100 reaches, shared with the white-balance eyedropper and Auto, which solve these
+    /// formulas backward (review round 11, AD 2): Warmth multiplies red by 1 + w and blue by 1 − w, w = `warmthReach`
+    /// per 100; Tint multiplies green by 1 − `tintGreen` t and red and blue by 1 + `tintRedBlue` t, t = 1 per 100;
+    /// Whites moves the white point down by `whitesReach`, weighted by `whitesWeight`.
+    static let warmthReach = 0.15, tintGreen = 0.12, tintRedBlue = 0.04, whitesReach = 0.25
+
+    /// How much Whites moves a pixel of luma `l` (0...1): only the brightest parts move much (FR-9.7).
+    static func whitesWeight(_ l: Double) -> Double { smoothstep(0.3, 1, l) }
+
     /// The per-pixel color and tone part, in slider order: light, then color.
     public var colorTransform: (Pixel) -> Pixel {
         let exposure = pow(2, self[.exposure] / 50)
@@ -95,11 +104,11 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
         let contrast = 1 + self[.contrast] / 100
         let brightness = pow(2, -self[.brightness] / 100)
         // Whites moves the white point, like Black Point mirrored: +100 stretches 0.75 up to white.
-        let whitePoint = 1 - self[.whites] / 100 * 0.25
+        let whitePoint = 1 - self[.whites] / 100 * Self.whitesReach
         let blackPoint = self[.blackPoint] / 100 * 0.25
         let saturation = 1 + self[.saturation] / 100
         let vibrance = self[.vibrance] / 100
-        let warmth = self[.warmth] / 100 * 0.15, tint = self[.tint] / 100
+        let warmth = self[.warmth] / 100 * Self.warmthReach, tint = self[.tint] / 100
         return { pixel in
             var c = SIMD3(Double(pixel.r), Double(pixel.g), Double(pixel.b)) / 255
             if exposure != 1 {
@@ -124,8 +133,7 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
             c = Self.clamped(c)
             if brightness != 1 { c = Self.power(c, brightness) }
             if whitePoint != 1 {
-                // Weighted by brightness, so only the brightest parts move much (FR-9.7).
-                let weight = Self.smoothstep(0.3, 1, Self.luma(c))
+                let weight = Self.whitesWeight(Self.luma(c))
                 c = Self.clamped(c + (c / whitePoint - c) * weight)
             }
             if blackPoint > 0 {
@@ -147,9 +155,9 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
             }
             if tint != 0 {
                 // Positive is magenta, negative green.
-                c.y *= 1 - tint * 0.12
-                c.x *= 1 + tint * 0.04
-                c.z *= 1 + tint * 0.04
+                c.y *= 1 - tint * Self.tintGreen
+                c.x *= 1 + tint * Self.tintRedBlue
+                c.z *= 1 + tint * Self.tintRedBlue
             }
             c = Self.clamped(c) * 255
             return Pixel(r: UInt8(c.x.rounded()), g: UInt8(c.y.rounded()), b: UInt8(c.z.rounded()), a: pixel.a)
@@ -271,7 +279,8 @@ public struct PhotoEdit: Sendable, Hashable, Codable {
             switch step {
             case .photo(let edit): edit.needsFineColorTable
             case .look: true
-            default: false
+            case .gaussianBlur, .pixelate, .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation, .sharpen,
+                 .levels, .curves, .sepia, .posterize, .addNoise, .motionBlur, .emboss, .vignette: false
             }
         }
     }

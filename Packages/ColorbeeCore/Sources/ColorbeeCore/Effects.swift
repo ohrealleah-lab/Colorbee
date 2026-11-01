@@ -63,7 +63,8 @@ public enum Effect: Sendable, Hashable {
     public var usesColorLookup: Bool {
         switch self {
         case .sepia, .photo, .look: true
-        default: false
+        case .gaussianBlur, .pixelate, .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation, .sharpen, .levels,
+             .curves, .posterize, .addNoise, .motionBlur, .emboss, .vignette: false
         }
     }
 
@@ -78,7 +79,9 @@ public enum Effect: Sendable, Hashable {
             let blurs = [(amounts.needsFine, PhotoAdjustments.fineRadius), (amounts.needsSharpenBlur, amounts.radius),
                          (amounts.needsMedium, PhotoAdjustments.textureRadius), (amounts.needsWide, PhotoAdjustments.definitionRadius)]
             return blurs.filter(\.0).map { Effects.blurReach(sigma: $0.1) }.max() ?? 0
-        default: return 0
+        // Pixelate, Motion Blur, Emboss and Vignette also look around, but are never adjustment layers.
+        case .pixelate, .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation, .levels, .curves, .sepia,
+             .posterize, .addNoise, .motionBlur, .emboss, .vignette, .look: return 0
         }
     }
 
@@ -86,7 +89,8 @@ public enum Effect: Sendable, Hashable {
     public var usesChannelTable: Bool {
         switch self {
         case .levels, .curves, .posterize: true
-        default: false
+        case .gaussianBlur, .pixelate, .solidFill, .invert, .desaturate, .brightnessContrast, .hueSaturation, .sharpen, .sepia,
+             .addNoise, .motionBlur, .emboss, .vignette, .photo, .look: false
         }
     }
 
@@ -106,10 +110,7 @@ public enum Effect: Sendable, Hashable {
             return { Pixel(r: 255 - $0.r, g: 255 - $0.g, b: 255 - $0.b, a: $0.a) }
         case .desaturate:
             return { pixel in
-                let red = 0.2126 * Double(pixel.r)
-                let green = 0.7152 * Double(pixel.g)
-                let blue = 0.0722 * Double(pixel.b)
-                let luminance = UInt8((red + green + blue).rounded())
+                let luminance = pixel.luminance
                 return Pixel(r: luminance, g: luminance, b: luminance, a: pixel.a)
             }
         case .brightnessContrast(let brightness, let contrast):
@@ -224,18 +225,21 @@ public enum Effects {
         return region
     }
 
-    /// Blurs `region` plus a margin. Unselected pixels are left out of the sampling, so the blur of
-    /// one region never picks up color from outside the selection.
-    /// How far `blurred` reads beyond a pixel, for a blur of `sigma`.
-    static func blurReach(sigma: Double) -> Int {
-        let boxWidth = max(1, Int((12 * sigma * sigma / 3 + 1).squareRoot().rounded()) | 1)
-        return 3 * (boxWidth / 2) + 1
+    /// Three box blurs approximate a Gaussian of `sigma`; each box is this wide (odd, about 2σ). Feather uses it too.
+    static func boxWidth(sigma: Double) -> Int {
+        max(1, Int((12 * sigma * sigma / 3 + 1).squareRoot().rounded()) | 1)
     }
 
+    /// How far `blurred` reads beyond a pixel, for a blur of `sigma`.
+    static func blurReach(sigma: Double) -> Int {
+        3 * (boxWidth(sigma: sigma) / 2) + 1
+    }
+
+    /// Blurs `region` plus a margin. Unselected pixels are left out of the sampling, so the blur of
+    /// one region never picks up color from outside the selection.
     static func blurred(_ buffer: PixelBuffer, region: IntRect, sigma: Double, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
-        // Three box blurs approximate a Gaussian; each box is about 2σ wide.
-        let boxWidth = max(1, Int((12 * sigma * sigma / 3 + 1).squareRoot().rounded()) | 1)
-        let margin = 3 * (boxWidth / 2) + 1
+        let boxWidth = boxWidth(sigma: sigma)
+        let margin = blurReach(sigma: sigma)
         let work = IntRect(x: region.minX - margin, y: region.minY - margin, width: region.width + 2 * margin, height: region.height + 2 * margin)
             .intersection(buffer.bounds)
         let scratch = PixelBuffer(width: work.width, height: work.height)

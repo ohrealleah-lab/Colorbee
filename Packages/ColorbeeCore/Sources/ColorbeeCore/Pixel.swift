@@ -18,10 +18,15 @@ public struct Pixel: Hashable, Sendable {
 }
 
 extension Pixel {
+    /// Rec. 709 luminance, rounded to a byte: the gray Desaturate, masks and histograms use.
+    var luminance: UInt8 {
+        let red: Double = 0.2126 * Double(r), green: Double = 0.7152 * Double(g), blue: Double = 0.0722 * Double(b)
+        return UInt8((red + green + blue).rounded())
+    }
+
     /// The gray a mask uses for this color (Q28.3): its brightness, at the same opacity.
     public var maskGray: Pixel {
-        let red: Double = 0.2126 * Double(r), green: Double = 0.7152 * Double(g), blue: Double = 0.0722 * Double(b)
-        let gray = UInt8((red + green + blue).rounded())
+        let gray = luminance
         return Pixel(r: gray, g: gray, b: gray, a: a)
     }
 }

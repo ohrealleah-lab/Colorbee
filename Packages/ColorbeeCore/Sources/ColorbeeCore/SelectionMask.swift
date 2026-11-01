@@ -180,10 +180,10 @@ public struct SelectionMask: Sendable {
     public func feathered(radius: Double, clippedTo canvasBounds: IntRect) -> SelectionMask? {
         guard radius >= 0.5 else { return self }
         let sigma = radius / 2
-        // Three box blurs come close to a Gaussian; each box is this wide.
-        var box = Int((4 * sigma * sigma + 1).squareRoot())
-        if box % 2 == 0 { box += 1 }
-        let reach = 3 * (box / 2) + 1
+        // As Gaussian Blur sizes its boxes. Feather's radius is whole pixels, where this rounding and the truncation it
+        // once had agree (review round 11, AD 6).
+        let box = Effects.boxWidth(sigma: sigma)
+        let reach = Effects.blurReach(sigma: sigma)
         let area = IntRect(x: bounds.minX - reach, y: bounds.minY - reach, width: bounds.width + 2 * reach, height: bounds.height + 2 * reach)
             .intersection(canvasBounds)
         guard !area.isEmpty else { return nil }

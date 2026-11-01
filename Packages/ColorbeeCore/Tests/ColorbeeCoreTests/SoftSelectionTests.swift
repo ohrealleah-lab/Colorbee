@@ -99,3 +99,16 @@ struct SoftSelectionTests {
         for x in 0..<100 where mask[x, 50] > 0 { #expect(canvas.activeLayer.buffer[x, 50] == .black) }
     }
 }
+
+/// Feather sizes its boxes as Gaussian Blur does (review round 11, AD 6); for every radius Feather offers, that's the
+/// box it always had.
+struct FeatherBoxTests {
+    @Test func everyFeatherRadiusKeepsItsBox() {
+        for radius in 1...100 {
+            let sigma = Double(radius) / 2
+            var old = Int((4 * sigma * sigma + 1).squareRoot())
+            if old % 2 == 0 { old += 1 }
+            #expect(Effects.boxWidth(sigma: sigma) == old, "radius \(radius)")
+        }
+    }
+}

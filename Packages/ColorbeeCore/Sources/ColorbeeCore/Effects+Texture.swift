@@ -119,13 +119,9 @@ enum Noise {
 /// The vignette's falloff, shared by Effects ▸ Vignette and Adjust Photo's Vignette slider.
 public enum Vignette {
     /// 0 in the middle, rising to 1 at the corners of `region`. `size` 0...100 is how far out it starts.
+    /// Adjust Photo's falloff with a round shape and an even feather (review round 11, AD 5).
     public static func strength(x: Int, y: Int, in region: IntRect, size: Double) -> Double {
-        let cx = Double(region.minX) + Double(region.width) / 2, cy = Double(region.minY) + Double(region.height) / 2
-        let nx = (Double(x) + 0.5 - cx) / (Double(region.width) / 2), ny = (Double(y) + 0.5 - cy) / (Double(region.height) / 2)
-        let distance = (nx * nx + ny * ny).squareRoot() / 2.squareRoot()
-        let start = min(max(size, 0), 100) / 100 * 0.95
-        let t = min(max((distance - start) / (1 - start), 0), 1)
-        return t * t * (3 - 2 * t)
+        strength(x: x, y: y, in: region, shape: Shape(amount: 0, midpoint: size))
     }
 
     /// Positive strength darkens, negative lightens.

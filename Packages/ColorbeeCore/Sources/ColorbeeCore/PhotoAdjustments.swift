@@ -337,13 +337,19 @@ extension PhotoAdjustments {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init()
-        // Name and value, one after the other: how a dictionary keyed by `Slider` was always saved.
-        var list = try container.nestedUnkeyedContainer(forKey: .values)
-        while !list.isAtEnd {
-            let name = try list.decode(String.self), value = try list.decode(Double.self)
-            set(name, value)
+        // Name and value, one after the other: how a dictionary keyed by `Slider` was always saved. A damaged name or
+        // value loses just that slider (review round 11, D4).
+        var name: String?
+        for item in container.lenient([NameOrNumber].self, forKey: .values) ?? [] {
+            switch item {
+            case .name(let next): name = next
+            case .number(let value):
+                if let name { set(name, value) }
+                name = nil
+            case .other: name = nil
+            }
         }
-        for (name, value) in try container.decodeIfPresent([String: Double].self, forKey: .added) ?? [:] {
+        for (name, value) in container.lenient([String: Double].self, forKey: .added) ?? [:] {
             set(name, value)
         }
     }
@@ -377,16 +383,17 @@ extension PhotoEdit {
 
     /// A control this version can't read is left at neutral rather than losing the whole adjustment.
     public init(from decoder: Decoder) throws {
+        // Every part reads on its own: a damaged one is dropped and the rest of the layer opens (review round 11, D4).
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let intensity = try container.decode(Double.self, forKey: .filterIntensity)
-        self.init(adjustments: try container.decode(PhotoAdjustments.self, forKey: .adjustments),
-                  filter: try container.decodeIfPresent(PhotoFilter.self, forKey: .filter),
-                  filterIntensity: intensity.isFinite ? min(max(intensity, 0), 100) : 100,
-                  mixer: try? container.decodeIfPresent(ColorMixer.self, forKey: .mixer),
-                  grading: try? container.decodeIfPresent(ColorGrading.self, forKey: .grading),
-                  pointColors: try? container.decodeIfPresent(PointColors.self, forKey: .pointColors),
-                  detail: try? container.decodeIfPresent(PhotoDetail.self, forKey: .detail),
-                  effects: try? container.decodeIfPresent(PhotoEffects.self, forKey: .effects),
-                  toneCurve: try? container.decodeIfPresent(ToneCurve.self, forKey: .toneCurve))
+        let intensity = container.lenient(Double.self, forKey: .filterIntensity) ?? 100
+        self.init(adjustments: container.lenient(PhotoAdjustments.self, forKey: .adjustments) ?? PhotoAdjustments(),
+                  filter: container.lenient(PhotoFilter.self, forKey: .filter),
+                  filterIntensity: intensity.clamped(to: 0...100, orIfNotFinite: 100),
+                  mixer: container.lenient(ColorMixer.self, forKey: .mixer),
+                  grading: container.lenient(ColorGrading.self, forKey: .grading),
+                  pointColors: container.lenient(PointColors.self, forKey: .pointColors),
+                  detail: container.lenient(PhotoDetail.self, forKey: .detail),
+                  effects: container.lenient(PhotoEffects.self, forKey: .effects),
+                  toneCurve: container.lenient(ToneCurve.self, forKey: .toneCurve))
     }
 }

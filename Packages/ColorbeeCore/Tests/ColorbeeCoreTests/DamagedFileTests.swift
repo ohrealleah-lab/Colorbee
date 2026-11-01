@@ -90,3 +90,51 @@ struct ProjectColorSpaceTests {
         #expect(reopened.colorSpace.model == .rgb)
     }
 }
+
+/// A damaged part of an Adjust Photo layer is dropped and the rest opens (Leah, 2026-10-31; review round 11, D4).
+struct DamagedAdjustPhotoTests {
+    private var edit: PhotoEdit {
+        var mixer = ColorMixer()
+        mixer[.saturation, .blue] = -40
+        return PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20, .contrast: 15, .vignette: -30]), filter: PhotoFilter.builtIn[1],
+                         filterIntensity: 60, mixer: mixer)
+    }
+
+    /// `edit` as saved, with `change` made to its JSON.
+    private func damaged(_ change: (inout [String: Any]) -> Void) throws -> PhotoEdit {
+        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(edit)) as? [String: Any])
+        change(&json)
+        return try JSONDecoder().decode(PhotoEdit.self, from: JSONSerialization.data(withJSONObject: json))
+    }
+
+    @Test func aDamagedIntensityReadsAsFullAndTheRestStays() throws {
+        let read = try damaged { $0["filterIntensity"] = "sixty" }
+        #expect(read.filterIntensity == 100 && read.filter == edit.filter && read.adjustments == edit.adjustments && read.mixer == edit.mixer)
+    }
+
+    @Test func aDamagedFilterIsDroppedAndTheRestStays() throws {
+        let read = try damaged { $0["filter"] = ["name": 7] }
+        #expect(read.filter == nil && read.adjustments == edit.adjustments && read.mixer == edit.mixer)
+    }
+
+    @Test func aDamagedSliderLosesOnlyThatSlider() throws {
+        let read = try damaged { json in
+            var adjustments = json["adjustments"] as! [String: Any]
+            var values = adjustments["values"] as! [Any]
+            let index = values.firstIndex { ($0 as? String) == "contrast" }!
+            values[index + 1] = "lots"
+            adjustments["values"] = values
+            json["adjustments"] = adjustments
+        }
+        #expect(read.adjustments[.contrast] == 0 && read.adjustments[.exposure] == 20 && read.adjustments[.vignette] == -30)
+        #expect(read.filter == edit.filter && read.mixer == edit.mixer)
+    }
+
+    @Test func missingSlidersAndIntensityStillOpen() throws {
+        let read = try damaged { json in
+            json["adjustments"] = nil
+            json["filterIntensity"] = nil
+        }
+        #expect(read.adjustments == PhotoAdjustments() && read.filterIntensity == 100 && read.mixer == edit.mixer)
+    }
+}

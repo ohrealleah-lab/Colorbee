@@ -23,16 +23,13 @@ public struct PhotoEffects: Sendable, Hashable {
     public var isDefault: Bool { self == PhotoEffects() }
 
     func clamped() -> PhotoEffects {
-        func clamp(_ value: Double, _ range: ClosedRange<Double>, _ start: Double) -> Double {
-            value.isFinite ? min(max(value, range.lowerBound), range.upperBound) : start
-        }
         let start = PhotoEffects()
         var result = PhotoEffects()
-        result.midpoint = clamp(midpoint, Self.range, start.midpoint)
-        result.roundness = clamp(roundness, Self.roundnessRange, start.roundness)
-        result.feather = clamp(feather, Self.range, start.feather)
-        result.grainSize = clamp(grainSize, Self.range, start.grainSize)
-        result.grainRoughness = clamp(grainRoughness, Self.range, start.grainRoughness)
+        result.midpoint = midpoint.clamped(to: Self.range, orIfNotFinite: start.midpoint)
+        result.roundness = roundness.clamped(to: Self.roundnessRange, orIfNotFinite: start.roundness)
+        result.feather = feather.clamped(to: Self.range, orIfNotFinite: start.feather)
+        result.grainSize = grainSize.clamped(to: Self.range, orIfNotFinite: start.grainSize)
+        result.grainRoughness = grainRoughness.clamped(to: Self.range, orIfNotFinite: start.grainRoughness)
         return result
     }
 }
@@ -47,7 +44,7 @@ extension PhotoEffects: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         var effects = PhotoEffects()
         func read(_ key: CodingKeys, into value: inout Double) {
-            if let stored = try? container.decodeIfPresent(Double.self, forKey: key) { value = stored }
+            if let stored = container.lenient(Double.self, forKey: key) { value = stored }
         }
         read(.midpoint, into: &effects.midpoint)
         read(.roundness, into: &effects.roundness)

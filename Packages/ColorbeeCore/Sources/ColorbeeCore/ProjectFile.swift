@@ -148,14 +148,8 @@ public enum ProjectFile {
         }
     }
 
-    /// An adjustment that reads back as none if it's of a kind this version doesn't know.
-    struct AdjustmentEntry: Codable {
-        var effect: Effect?
-
-        init(_ effect: Effect) { self.effect = effect }
-        init(from decoder: Decoder) throws { effect = try? Effect(from: decoder) }
-        func encode(to encoder: Encoder) throws { try effect?.encode(to: encoder) }
-    }
+    /// An adjustment that reads back as none if it's damaged or of a kind this version doesn't know.
+    typealias AdjustmentEntry = LenientEffect
 
     /// Encodes `canvas`. A floating selection is stamped into a copy of its layer, so what's saved is what's seen.
     /// `stampingFloating` off writes the layers exactly as they are, for parking a page (FR-11.6).

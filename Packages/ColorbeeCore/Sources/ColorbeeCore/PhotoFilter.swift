@@ -62,14 +62,9 @@ public struct PhotoFilter: Sendable, Hashable, Codable {
         var laterSteps: [LaterStep]?
     }
 
-    /// A step that reads back as none if it's of a kind this version doesn't know, so the filter keeps the rest.
-    struct LenientStep: Codable {
-        var effect: Effect?
-
-        init(_ effect: Effect) { self.effect = effect }
-        init(from decoder: Decoder) throws { effect = try? Effect(from: decoder) }
-        func encode(to encoder: Encoder) throws { try effect?.encode(to: encoder) }
-    }
+    /// A step that reads back as none if it's damaged or of a kind this version doesn't know, so the filter keeps the
+    /// rest.
+    typealias LenientStep = LenientEffect
 
     public func exported() throws -> Data {
         let encoder = JSONEncoder()

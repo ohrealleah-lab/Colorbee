@@ -27,17 +27,14 @@ public struct PhotoDetail: Sendable, Hashable {
 
     /// Every setting within its range; values that aren't numbers are put back to their start.
     func clamped() -> PhotoDetail {
-        func clamp(_ value: Double, _ range: ClosedRange<Double>, _ start: Double) -> Double {
-            value.isFinite ? min(max(value, range.lowerBound), range.upperBound) : start
-        }
         let start = PhotoDetail()
         var result = PhotoDetail()
-        result.radius = clamp(radius, Self.radiusRange, start.radius)
-        result.sharpnessDetail = clamp(sharpnessDetail, Self.range, start.sharpnessDetail)
-        result.masking = clamp(masking, Self.range, start.masking)
-        result.luminanceDetail = clamp(luminanceDetail, Self.range, start.luminanceDetail)
-        result.color = clamp(color, Self.range, start.color)
-        result.colorDetail = clamp(colorDetail, Self.range, start.colorDetail)
+        result.radius = radius.clamped(to: Self.radiusRange, orIfNotFinite: start.radius)
+        result.sharpnessDetail = sharpnessDetail.clamped(to: Self.range, orIfNotFinite: start.sharpnessDetail)
+        result.masking = masking.clamped(to: Self.range, orIfNotFinite: start.masking)
+        result.luminanceDetail = luminanceDetail.clamped(to: Self.range, orIfNotFinite: start.luminanceDetail)
+        result.color = color.clamped(to: Self.range, orIfNotFinite: start.color)
+        result.colorDetail = colorDetail.clamped(to: Self.range, orIfNotFinite: start.colorDetail)
         return result
     }
 }
@@ -52,7 +49,7 @@ extension PhotoDetail: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         var detail = PhotoDetail()
         func read(_ key: CodingKeys, into value: inout Double) {
-            if let stored = try? container.decodeIfPresent(Double.self, forKey: key) { value = stored }
+            if let stored = container.lenient(Double.self, forKey: key) { value = stored }
         }
         read(.radius, into: &detail.radius)
         read(.sharpnessDetail, into: &detail.sharpnessDetail)

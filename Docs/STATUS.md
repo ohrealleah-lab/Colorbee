@@ -95,7 +95,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 31. Stroke smoothing | ✅ Done; passed Leah's test 2026-10-31 ("feels great") | High |
 | 14 · 32. Overnight monkey test | Built 2026-10-31; waiting for Leah's first overnight run | High |
 | 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done, fixed, and passed Leah's test 2026-10-31 ([Review/RESULTS.md](Review/RESULTS.md)); the stricter monkey's new reports are being sorted | High |
-| 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tier 1 done 2026-10-31 (R5 moved to tier 3, Leah); paused before tiers 2 and 4 (Leah). A 30-minute monkey run after it found 5 breaks (2 projects reopening different after a paste on an "Only the layer below" layer, 3 thumbnails not matching the export); all 5 replay the same on 08094b7, before round 11, so none came from it. Not yet looked into ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
+| 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tier 1 done 2026-10-31 (R5 moved to tier 3, Leah); paused before tiers 2 and 4 (Leah). A 30-minute monkey run after it found 5 breaks (2 projects reopening different after a paste on an "Only the layer below" layer, 3 thumbnails not matching the export); all 5 replay the same on 08094b7, before round 11, so none came from it. Fixed (Leah, 2026-10-31); the five seeds and a 5-minute run now pass ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -404,6 +404,12 @@ Mostly reorganized code, so these check that everyday things still work, plus th
    Expected: both come back.
 9. Pick the Text tool. In the bar at the top, Styles > Save Current Style…, any name. Quit Colorbee and open it again.
    Expected: the style is still in the Styles menu.
+10. Layer > New Layer. Paint a big patch on it with the Brush, then Layer > New Layer again.
+11. Turn on "Only the layer below" in the Layers panel.
+12. Copy any picture in another app, then Edit > Paste, and drag the piece so it half covers the patch.
+    Expected: the piece shows only over the patch, before you press Return.
+13. Press Return.
+    Expected: nothing changes.
 
 ### Test: Photo test coverage: screen drawing, Curves and color wheels
 

@@ -262,6 +262,13 @@ fragment float4 blend_isolated_fragment(QuadOut in [[stage_in]],
     float4 premultiplied = isolated.read(uint2(in.position.xy));
     if (premultiplied.a <= 0) discard_fragment();
     float alpha = premultiplied.a * u.opacity * mask_reveal(mask, in.uv, u);
+    // "Only the layer below", as in blend_layer_fragment: a clipped layer with a piece floating on it.
+    if (u.maskParams.y > 0.5) {
+        if (backdrop.a <= 0) discard_fragment();
+        float3 b = backdrop.rgb / backdrop.a;
+        float3 mixed = b + (blendColor(int(u.blendMode + 0.5), b, premultiplied.rgb / premultiplied.a) - b) * alpha;
+        return float4(mixed * backdrop.a, backdrop.a);
+    }
     return blendOnto(backdrop, premultiplied.rgb / premultiplied.a, alpha, int(u.blendMode + 0.5));
 }
 

@@ -232,7 +232,12 @@ public final class Canvas {
                 if let adjustment = clip.adjustment {
                     buffer = Compositing.adjust(buffer, by: adjustment, opacity: clip.opacity, mode: clip.blendMode, mask: clip.activeMask, placement: placement)
                 } else {
-                    buffer = Compositing.blendAtop(buffer, clip.buffer, opacity: clip.opacity, mode: clip.blendMode, mask: clip.activeMask)
+                    // A piece floating on the clipped layer itself shows in it too, as placing will leave it (the monkey
+                    // test, 2026-10-31).
+                    let pixels = selection.floating.flatMap { $0.layerID == clip.id ? $0 : nil }.map {
+                        $0.placedCopy(of: clip, locked: locksTransparency(clip), resampling: resampling, transparentKey: transparentKey)
+                    } ?? clip.buffer
+                    buffer = Compositing.blendAtop(buffer, pixels, opacity: clip.opacity, mode: clip.blendMode, mask: clip.activeMask)
                 }
             }
             return layer.copy(buffer: buffer, id: floating == nil ? nil : LayerID())
@@ -275,6 +280,9 @@ public final class Canvas {
             for tx in 0..<width {
                 let x = min(size.width - 1, Int((Double(tx) + 0.5) / scale))
                 // Groups as `composite` does them: Pass Through over what's below, any other on their own first.
+                // Rounded to bytes where `composite` keeps a picture between steps, so the two match (the monkey test,
+                // 2026-10-31): Saturation and hue shifts make much of a near-gray pixel's rounding.
+                func rounded(_ color: SIMD4<Float>) -> SIMD4<Float> { Compositing.premultiplied(Compositing.pixel(color)) }
                 func shade(_ nodes: [LayerNode], onto start: SIMD4<Float>) -> SIMD4<Float> {
                     var color = start
                     for node in nodes {
@@ -282,7 +290,10 @@ public final class Canvas {
                         if layer.isGroup {
                             let opacity = Float(layer.opacity) * reveal(layer, x, y)
                             if layer.passesThrough {
-                                color += (shade(node.children, onto: color) - color) * opacity
+                                let backdrop = rounded(color)
+                                let inside = rounded(shade(node.children, onto: backdrop))
+                                color = layer.opacity >= 1 && layer.activeMask == nil ? inside
+                                    : rounded(Compositing.mixed(backdrop, Compositing.pixel(inside), fade: opacity, mode: .normal))
                             } else {
                                 Compositing.blend(&color, Compositing.pixel(shade(node.children, onto: .zero)), opacity: opacity, mode: layer.blendMode)
                             }
@@ -293,7 +304,7 @@ public final class Canvas {
                             let below = Compositing.pixel(color)
                             var adjusted = transform(below)
                             adjusted.a = below.a
-                            color = Compositing.mixed(color, adjusted, fade: Float(layer.opacity) * reveal(layer, x, y), mode: layer.blendMode)
+                            color = rounded(Compositing.mixed(Compositing.premultiplied(below), adjusted, fade: Float(layer.opacity) * reveal(layer, x, y), mode: layer.blendMode))
                         } else {
                             var pixel = buffer(of: layer)[x, y]
                             for clip in clips[ObjectIdentifier(layer)] ?? [] {

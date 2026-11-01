@@ -159,3 +159,33 @@ struct ClippedAdjustmentTests {
         #expect(!LayerActions.canDelete(canvas))
     }
 }
+
+/// The monkey test, 2026-10-31: a piece pasted onto a pixel layer set to "Only the layer below" was hidden until placed,
+/// on screen and in exports, though a saved project kept it.
+struct FloatingOnAClippedLayerTests {
+    private let context = SelectionContext(color2: .white)
+
+    @Test func aPieceFloatingOnAClippedLayerShowsAsPlacingWillLeaveIt() throws {
+        for mode in [BlendMode.normal, .multiply] {
+            let canvas = Canvas(size: IntSize(width: 30, height: 20), colorSpace: Canvas.defaultColorSpace, background: Pixel(r: 200, g: 200, b: 200))
+            let history = History(byteBudget: .max)
+            LayerActions.add(canvas: canvas, history: history, context: context)
+            canvas.activeLayer.buffer.fill(Pixel(r: 240, g: 180, b: 60), in: IntRect(x: 4, y: 4, width: 14, height: 10))
+            LayerActions.add(canvas: canvas, history: history, context: context)
+            canvas.activeLayer.clipsToLayerBelow = true
+            canvas.activeLayer.blendMode = mode
+            canvas.activeLayer.opacity = 0.7
+            SelectionActions.paste(PixelBuffer(width: 12, height: 9, fill: Pixel(r: 40, g: 60, b: 160)), at: IntPoint(x: 10, y: 8),
+                                   canvas: canvas, history: history, context: context)
+            #expect(canvas.selection.floating?.layerID == canvas.activeLayer.id)
+            let shown = canvas.flattened()
+            let reopened = try ProjectFile.decode(ProjectFile.encode(canvas)).flattened()
+            #expect(SelectionActions.placeFloating(canvas: canvas, history: history, context: context))
+            let placed = canvas.flattened()
+            #expect(shown.contentHash() == placed.contentHash(), "\(mode)")
+            #expect(reopened.contentHash() == placed.contentHash(), "\(mode)")
+            // It's on the clipped layer, so only where the layer below has pixels.
+            #expect(placed[20, 16] == Pixel(r: 200, g: 200, b: 200) && placed[12, 10] != Pixel(r: 240, g: 180, b: 60))
+        }
+    }
+}

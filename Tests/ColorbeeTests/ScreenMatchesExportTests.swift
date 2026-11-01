@@ -249,6 +249,29 @@ struct ScreenMatchesExportTests {
         Self.expectShowsAsExported(editor.canvas, before: before, looksAtNeighbors: true, "Pass Through at 60%, masked layer, blur")
     }
 
+    /// The monkey test, 2026-10-31: a piece pasted onto a pixel layer set to "Only the layer below" shows, before it's
+    /// placed, as placing will leave it, at any blend mode and on a layer that locks its transparency.
+    @Test func aPieceFloatingOnAClippedLayerShowsAsItExports() {
+        for (mode, locked) in [(BlendMode.normal, false), (.multiply, false), (.normal, true)] {
+            let editor = Self.picture()
+            editor.addLayer()
+            editor.canvas.activeLayer.buffer.fill(Pixel(r: 240, g: 180, b: 60), in: IntRect(x: 10, y: 6, width: 40, height: 30))
+            editor.addLayer()
+            editor.canvas.activeLayer.buffer.fill(Pixel(r: 20, g: 120, b: 40), in: IntRect(x: 30, y: 10, width: 10, height: 30))
+            editor.setClipsToLayerBelow(true)
+            editor.setBlendMode(mode)
+            editor.previewOpacity(0.8)
+            editor.finishLayerSettings()
+            if locked { editor.setLayerLocksTransparency(true, at: editor.activeLayerIndex) }
+            editor.paste(PixelBuffer(width: 24, height: 20, fill: Pixel(r: 40, g: 60, b: 200)), at: IntPoint(x: 20, y: 18))
+            #expect(editor.canvas.selection.floating?.layerID == editor.canvas.activeLayer.id)
+            let export = editor.canvas.flattened()
+            #expect(Self.difference(Self.screen(editor.canvas), export).largest <= 1, "\(mode), locked \(locked)")
+            editor.placeFloatingSelection()
+            #expect(editor.canvas.flattened().contentHash() == export.contentHash(), "\(mode), locked \(locked): placing changes nothing")
+        }
+    }
+
     /// In a group of its own (stage 25) it changes only the group's layers, drawn into a picture of their own.
     @Test func insideAGroupItShowsAsItExports() {
         let editor = Self.picture()

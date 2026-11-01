@@ -61,9 +61,9 @@ enum MonkeyRules {
         let canvas = editor.canvas
         let flat = canvas.flattened()
         // Thumbnails are a quick sketch by design: they leave out blurs and sharpening (adjustments with no color
-        // transform) and a floating piece, and round a little differently.
+        // transform). They show a floating piece, and round where the export does (review round 11).
         // Posterize turns a rounding difference of one level into a whole step, so it's left out too.
-        let sketched = canvas.selection.floating != nil || canvas.shownLayers.contains { layer in
+        let sketched = canvas.shownLayers.contains { layer in
             guard let adjustment = layer.adjustment else { return false }
             if case .posterize = adjustment { return true }
             return adjustment.colorTransform == nil

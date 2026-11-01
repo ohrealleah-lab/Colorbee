@@ -115,6 +115,8 @@ final class Renderer {
     /// The layers are composited here, on a transparent background, so blend modes see only the layers
     /// below and never the checkerboard. Half floats keep a deep stack from losing precision.
     private var layerTarget: MTLTexture?
+    /// A pixel layer set to "Only the layer below" with a piece floating on it, put together before it's blended.
+    private var clipTarget: MTLTexture?
     /// One layer with its unplaced objects drawn in, before it's blended.
     /// One picture per level of groups for a layer drawn on its own (stage 25), and per level a group's own picture and
     /// a copy of its backdrop.
@@ -549,14 +551,51 @@ final class Renderer {
                             continue
                         }
                         // A pixel layer set to "Only the layer below" (stage 28b): onto this one only where it has pixels.
+                        // A piece floating on it is drawn into it first, on a picture of its own, as placing will leave
+                        // it (the monkey test, 2026-10-31).
+                        let floatsOnClip = floating?.layerID == clip.id
+                        let together = floatsOnClip ? clipTarget(width: output.width, height: output.height) : nil
+                        if let together, let floating {
+                            guard resume(together, clearing: true) else { return false }
+                            uniforms.rect = deviceRect(canvas.bounds)
+                            uniforms.keyEnabled = 0
+                            uniforms.opacity = 1
+                            uniforms.blendMode = 0
+                            encoder.setFragmentTexture(texture(for: clip.buffer, live: &liveBuffers), index: 0)
+                            draw(blendLayerPipeline)
+                            if canvas.locksTransparency(clip),
+                               let patch = floating.placedPatch(on: clip, resampling: scene.smoothFloating ? .smooth : .nearestNeighbor, transparentKey: scene.transparentKey) {
+                                uniforms.rect = deviceRect(patch.area)
+                                uniforms.blendMode = -1
+                                encoder.setFragmentTexture(texture(for: patch.pixels, live: &liveBuffers), index: 0)
+                                draw(blendLayerPipeline)
+                                uniforms.blendMode = 0
+                            } else {
+                                uniforms.rect = deviceRect(floating.destination)
+                                sampling(floating.destination.size != floating.pixels.size && scene.smoothFloating)
+                                if let key = scene.transparentKey {
+                                    uniforms.keyEnabled = 1
+                                    uniforms.keyColor = SIMD4(Float(key.r) / 255, Float(key.g) / 255, Float(key.b) / 255, 1)
+                                }
+                                encoder.setFragmentTexture(texture(for: floating.pixels, live: &liveBuffers), index: 0)
+                                draw(blendLayerPipeline)
+                                sampling(zoom < 1)
+                            }
+                            guard let isolatedTexture, resume(isolatedTexture) else { return false }
+                        }
                         uniforms.rect = deviceRect(canvas.bounds)
                         uniforms.keyEnabled = 0
                         uniforms.opacity = Float(clip.opacity)
                         uniforms.blendMode = Float(clip.blendMode.rawValue)
                         uniforms.maskParams.y = 1
-                        encoder.setFragmentTexture(texture(for: clip.buffer, live: &liveBuffers), index: 0)
                         masking(clip.activeMask)
-                        draw(blendLayerPipeline)
+                        if let together {
+                            encoder.setFragmentTexture(together, index: 0)
+                            draw(blendIsolatedPipeline)
+                        } else {
+                            encoder.setFragmentTexture(texture(for: clip.buffer, live: &liveBuffers), index: 0)
+                            draw(blendLayerPipeline)
+                        }
                         masking(nil)
                         uniforms.maskParams.y = 0
                     }
@@ -850,6 +889,13 @@ final class Renderer {
         descriptor.usage = [.renderTarget, .shaderRead]
         descriptor.storageMode = .private
         guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create a layer target") }
+        return texture
+    }
+
+    private func clipTarget(width: Int, height: Int) -> MTLTexture {
+        if let clipTarget, clipTarget.width == width, clipTarget.height == height { return clipTarget }
+        let texture = makeLayerTarget(width: width, height: height)
+        clipTarget = texture
         return texture
     }
 

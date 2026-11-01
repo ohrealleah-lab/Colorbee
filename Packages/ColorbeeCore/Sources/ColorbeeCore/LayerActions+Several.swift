@@ -180,9 +180,9 @@ extension LayerActions {
     public static func update(_ name: String, layersWithIDs ids: Set<LayerID>, canvas: Canvas, history: History, _ body: (Layer) -> Void) -> Bool {
         let chosen = canvas.layers.filter { ids.contains($0.id) }
         guard !chosen.isEmpty else { return false }
-        let edit = history.beginEdit(name, on: canvas)
-        edit.willChangeLayers()
-        chosen.forEach(body)
-        return history.commit(edit)
+        return changeLayers(name, canvas: canvas, history: history) {
+            chosen.forEach(body)
+            return true
+        }
     }
 }

@@ -259,12 +259,12 @@ public enum LayerActions {
     /// Layers not in `visibility` keep theirs.
     @discardableResult
     public static func setVisibility(_ visibility: [LayerID: Bool], named name: String, canvas: Canvas, history: History) -> Bool {
-        let edit = history.beginEdit(name, on: canvas)
-        edit.willChangeLayers()
-        for layer in canvas.layers {
-            if let visible = visibility[layer.id] { layer.isVisible = visible }
+        changeLayers(name, canvas: canvas, history: history) {
+            for layer in canvas.layers {
+                if let visible = visibility[layer.id] { layer.isVisible = visible }
+            }
+            return true
         }
-        return history.commit(edit)
     }
 
     public static func canMergeVisible(_ canvas: Canvas) -> Bool {
@@ -320,10 +320,10 @@ public enum LayerActions {
     @discardableResult
     public static func update(_ name: String, layerAt index: Int, canvas: Canvas, history: History, _ body: (Layer) -> Void) -> Bool {
         guard canvas.layers.indices.contains(index) else { return false }
-        let edit = history.beginEdit(name, on: canvas)
-        edit.willChangeLayers()
-        body(canvas.layers[index])
-        return history.commit(edit)
+        return changeLayers(name, canvas: canvas, history: history) {
+            body(canvas.layers[index])
+            return true
+        }
     }
 
     /// "Layer 1", "Layer 2"… one more than the highest number in use.
@@ -335,8 +335,15 @@ public enum LayerActions {
         return "Layer \((numbers.max() ?? 0) + 1)"
     }
 
+    /// A layer step that places a floating piece first.
     static func change(_ name: String, canvas: Canvas, history: History, context: SelectionContext, _ body: () -> Bool) -> Bool {
         SelectionActions.placeFloating(canvas: canvas, history: history, context: context)
+        return changeLayers(name, canvas: canvas, history: history, body)
+    }
+
+    /// Every layer step ends here, so whatever `body` changes (even a layer's group, through a settings closure from the
+    /// app), each group's layers stay just below it (review round 11, AE 7).
+    static func changeLayers(_ name: String, canvas: Canvas, history: History, _ body: () -> Bool) -> Bool {
         let edit = history.beginEdit(name, on: canvas)
         edit.willChangeLayers()
         guard body() else { return false }

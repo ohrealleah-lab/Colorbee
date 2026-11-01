@@ -182,10 +182,7 @@ public enum ProjectFile {
                 continue
             }
             if let pixels = compressed[layer.id] {
-                entry.pixels = blobs.count..<(blobs.count + pixels.data.count)
-                entry.pieceRows = pixels.pieceRows
-                entry.pieces = pixels.pieces
-                blobs.append(pixels.data)
+                append(pixels, to: &entry, blobs: &blobs)
             }
             entries.append(entry)
         }
@@ -194,10 +191,7 @@ public enum ProjectFile {
             var entry = LayerEntry(id: mask.id.rawValue, name: mask.name, isVisible: true, opacity: 1, blendMode: 0, isLocked: false,
                                    adjustment: nil, pixels: nil)
             if let pixels = compressed[mask.id], !mask.buffer.isUntouched {
-                entry.pixels = blobs.count..<(blobs.count + pixels.data.count)
-                entry.pieceRows = pixels.pieceRows
-                entry.pieces = pixels.pieces
-                blobs.append(pixels.data)
+                append(pixels, to: &entry, blobs: &blobs)
             }
             masks.append(MaskEntry(owner: owner.id.rawValue, layer: entry, enabled: owner.maskEnabled ? nil : false))
         }
@@ -215,13 +209,7 @@ public enum ProjectFile {
             masks: masks.isEmpty ? nil : masks,
             pastedFrom: canvas.pastedFrom.isEmpty ? nil : canvas.pastedFrom.sorted { $0.uuidString < $1.uuidString }
         )
-        let json = try JSONEncoder().encode(manifest)
-        var data = magic
-        var length = UInt32(json.count).littleEndian
-        data.append(Data(bytes: &length, count: 4))
-        data.append(json)
-        data.append(blobs)
-        return data
+        return framed(magic, json: try JSONEncoder().encode(manifest), body: blobs)
     }
 
     /// Puts a parked page's pixels back into the very layers they came from (FR-11.6), so the page's history
@@ -235,9 +223,8 @@ public enum ProjectFile {
         let pairs = zip(allEntries(manifest).map(\.entry), canvas.layers).map { ($0, $1) }
             + (manifest.masks ?? []).compactMap { mask in canvas.layer(withID: LayerID(rawValue: mask.layer.id)).map { (mask.layer, $0) } }
         for (entry, layer) in pairs where layers.contains(layer.id) {
-            guard let range = entry.pixels, range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
-            stored.append(LayerPixels.Stored(data: blobs[(blobs.startIndex + range.lowerBound)..<(blobs.startIndex + range.upperBound)],
-                                             pieceRows: entry.pieceRows, pieces: entry.pieces, buffer: layer.buffer))
+            guard let pixels = try storedPixels(entry, in: blobs, into: layer.buffer) else { throw Failure.damaged }
+            stored.append(pixels)
         }
         for layer in stored { layer.buffer.reuseContents() }
         try LayerPixels.decompress(stored)
@@ -245,13 +232,30 @@ public enum ProjectFile {
     }
 
     private static func manifestAndBlobs(_ data: Data) throws -> (Manifest, Data) {
-        guard data.starts(with: magic), data.count >= magic.count + 4 else { throw Failure.notAProject }
+        guard data.starts(with: magic) else { throw Failure.notAProject }
+        let (json, blobs) = try unframed(data, magic: magic, tooShort: .notAProject)
+        return (try JSONDecoder().decode(Manifest.self, from: json), blobs)
+    }
+
+    /// How both kinds of project are laid out: `magic`, the JSON's length (4 bytes, little-endian), the JSON, then
+    /// `body`. `settingResolution` rewrites what `encode` wrote, so both go through here.
+    private static func framed(_ magic: Data, json: Data, body: Data) -> Data {
+        var data = magic
+        var length = UInt32(json.count).littleEndian
+        data.append(Data(bytes: &length, count: 4))
+        data.append(json)
+        data.append(body)
+        return data
+    }
+
+    /// The JSON and the body of data that starts with `magic`.
+    private static func unframed(_ data: Data, magic: Data, tooShort: Failure) throws -> (json: Data, body: Data) {
+        guard data.count >= magic.count + 4 else { throw tooShort }
         let lengthStart = data.startIndex + magic.count
         let length = data[lengthStart..<(lengthStart + 4)].withUnsafeBytes { Int(UInt32(littleEndian: $0.loadUnaligned(as: UInt32.self))) }
         let jsonStart = lengthStart + 4
         guard data.endIndex >= jsonStart + length else { throw Failure.damaged }
-        let manifest = try JSONDecoder().decode(Manifest.self, from: data[jsonStart..<(jsonStart + length)])
-        return (manifest, data[(jsonStart + length)...])
+        return (data[jsonStart..<(jsonStart + length)], data[(jsonStart + length)...])
     }
 
     // MARK: Pages (FR-11.6)
@@ -313,13 +317,7 @@ public enum ProjectFile {
             entries.append(PageEntry(resolution: page.resolution, project: projects.count..<(projects.count + project.count), thumbnail: thumbnail))
             projects.append(project)
         }
-        let json = try JSONEncoder().encode(PagesManifest(currentIndex: currentIndex, pages: entries))
-        var data = pagesMagic
-        var length = UInt32(json.count).littleEndian
-        data.append(Data(bytes: &length, count: 4))
-        data.append(json)
-        data.append(projects)
-        return data
+        return framed(pagesMagic, json: try JSONEncoder().encode(PagesManifest(currentIndex: currentIndex, pages: entries)), body: projects)
     }
 
     /// Makes `count` pages (PDF pages, image frames), four at a time, and stores each at once as a one-page project
@@ -343,13 +341,7 @@ public enum ProjectFile {
         var (manifest, blobs) = try manifestAndBlobs(project)
         guard manifest.resolution != resolution else { return project }
         manifest.resolution = resolution == Page.defaultResolution ? nil : resolution
-        let json = try JSONEncoder().encode(manifest)
-        var data = magic
-        var length = UInt32(json.count).littleEndian
-        data.append(Data(bytes: &length, count: 4))
-        data.append(json)
-        data.append(blobs)
-        return data
+        return framed(magic, json: try JSONEncoder().encode(manifest), body: blobs)
     }
 
     /// The pages of a project, one-page or several, without decoding their pixels.
@@ -359,13 +351,8 @@ public enum ProjectFile {
             let resolution = manifest.resolution.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } ?? Page.defaultResolution
             return ([StoredPage(project: data, resolution: resolution, thumbnail: nil)], 0)
         }
-        guard data.count >= pagesMagic.count + 4 else { throw Failure.damaged }
-        let lengthStart = data.startIndex + pagesMagic.count
-        let length = data[lengthStart..<(lengthStart + 4)].withUnsafeBytes { Int(UInt32(littleEndian: $0.loadUnaligned(as: UInt32.self))) }
-        let jsonStart = lengthStart + 4
-        guard data.endIndex >= jsonStart + length else { throw Failure.damaged }
-        let manifest = try JSONDecoder().decode(PagesManifest.self, from: data[jsonStart..<(jsonStart + length)])
-        let projects = data[(jsonStart + length)...]
+        let (json, projects) = try unframed(data, magic: pagesMagic, tooShort: .damaged)
+        let manifest = try JSONDecoder().decode(PagesManifest.self, from: json)
         guard !manifest.pages.isEmpty else { throw Failure.damaged }
         let pages = try manifest.pages.map { entry -> StoredPage in
             guard entry.project.lowerBound >= 0, entry.project.upperBound <= projects.count,
@@ -400,26 +387,34 @@ public enum ProjectFile {
         var stored: [LayerPixels.Stored] = []
         let layers = try checkedEntries(manifest).map { entry, group -> Layer in
             let buffer = PixelBuffer(width: manifest.width, height: manifest.height)
-            if let range = entry.pixels, group == nil {
-                // Checked against the size before adding, so a huge offset can't overflow (review J, finding 20).
-                guard range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
-                let start = blobs.startIndex + range.lowerBound, end = blobs.startIndex + range.upperBound
-                stored.append(LayerPixels.Stored(data: blobs[start..<end], pieceRows: entry.pieceRows, pieces: entry.pieces, buffer: buffer))
-            }
+            if group == nil, let pixels = try storedPixels(entry, in: blobs, into: buffer) { stored.append(pixels) }
             return layer(from: entry, group: group, buffer: buffer)
         }
         let canvas = makeCanvas(manifest, layers: layers)
         _ = try attachMasks(manifest, to: canvas) { entry in
             let buffer = PixelBuffer(width: manifest.width, height: manifest.height)
-            if let range = entry.pixels {
-                guard range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
-                let start = blobs.startIndex + range.lowerBound, end = blobs.startIndex + range.upperBound
-                stored.append(LayerPixels.Stored(data: blobs[start..<end], pieceRows: entry.pieceRows, pieces: entry.pieces, buffer: buffer))
-            }
+            if let pixels = try storedPixels(entry, in: blobs, into: buffer) { stored.append(pixels) }
             return buffer
         }
         try LayerPixels.decompress(stored)
         return canvas
+    }
+
+    /// Adds `pixels` to the end of `blobs` and records where in `entry`.
+    private static func append(_ pixels: LayerPixels.Compressed, to entry: inout LayerEntry, blobs: inout Data) {
+        entry.pixels = blobs.count..<(blobs.count + pixels.data.count)
+        entry.pieceRows = pixels.pieceRows
+        entry.pieces = pixels.pieces
+        blobs.append(pixels.data)
+    }
+
+    /// `entry`'s compressed pixels in `blobs`, to go into `buffer`; nil for an entry with none. A range outside `blobs`
+    /// is damage: it's checked against the size before adding, so a huge offset can't overflow (review J, finding 20).
+    private static func storedPixels(_ entry: LayerEntry, in blobs: Data, into buffer: PixelBuffer) throws -> LayerPixels.Stored? {
+        guard let range = entry.pixels else { return nil }
+        guard range.lowerBound >= 0, range.upperBound <= blobs.count else { throw Failure.damaged }
+        let start = blobs.startIndex + range.lowerBound, end = blobs.startIndex + range.upperBound
+        return LayerPixels.Stored(data: blobs[start..<end], pieceRows: entry.pieceRows, pieces: entry.pieces, buffer: buffer)
     }
 
     /// Puts each mask in the manifest on its layer, its pixels in the buffer `buffer` gives. Masks of layers that aren't

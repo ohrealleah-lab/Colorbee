@@ -711,9 +711,7 @@ public final class History {
         let finished = finishedEvictions
         evictionQueue.async {
             // One core, band by band: it isn't waited for, and the other cores stay free for the next step (AC-27).
-            let bands = GeometryChange.bands(of: job.buffer.size)
-            let compressed = bands.map { try? SpillStore.compress(job.buffer.pixels(in: $0)) }
-            finished.add(job.buffer, compressed.allSatisfy { $0 != nil } ? compressed.map { $0! } : nil)
+            finished.add(job.buffer, SpillStore.compressedBands(of: job.buffer, parallel: false))
         }
     }
 
@@ -727,12 +725,7 @@ public final class History {
             guard let compressed else { continue }
             if spillStore == nil { spillStore = try? SpillStore() }
             guard let store = spillStore else { continue }
-            var locations: [SpillStore.Location] = []
-            for data in compressed {
-                guard let location = try? store.append(data) else { break }
-                locations.append(location)
-            }
-            guard locations.count == compressed.count else { continue }
+            guard let locations = store.appendAll(compressed) else { continue }
             diskCopies[id] = nil
             buffer.discardContents()
             evicted[id] = EvictedBuffer(buffer: buffer, locations: locations)
@@ -743,16 +736,12 @@ public final class History {
     /// read back) and frees its memory in place.
     private func evict(_ buffer: PixelBuffer, store: SpillStore) -> Bool {
         let id = ObjectIdentifier(buffer)
-        var locations: [SpillStore.Location] = []
+        let locations: [SpillStore.Location]
         if let earlier = diskCopies[id], earlier.copy.buffer === buffer, earlier.hash == buffer.fingerprint() {
             locations = earlier.copy.locations
         } else {
-            let bands = GeometryChange.bands(of: buffer.size)
-            let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(buffer.pixels(in: bands[$0])) }
-            for data in compressed {
-                guard let data, let location = try? store.append(data) else { return false }
-                locations.append(location)
-            }
+            guard let compressed = SpillStore.compressedBands(of: buffer), let written = store.appendAll(compressed) else { return false }
+            locations = written
         }
         diskCopies[id] = nil
         buffer.discardContents()
@@ -770,23 +759,9 @@ public final class History {
             return true
         }
         guard let stored = evicted[id], stored.buffer === buffer else { return true }
-        guard let store = spillStore else { return false }
-        let bands = GeometryChange.bands(of: buffer.size)
-        guard stored.locations.count == bands.count else { return false }
-        var data: [Data] = []
-        for location in stored.locations {
-            guard let compressed = try? store.readCompressed(location) else { return false }
-            data.append(compressed)
+        guard let store = spillStore, let hashes = store.readBands(stored.locations, into: buffer, preparing: { buffer.reuseContents() }) else {
+            return false
         }
-        buffer.reuseContents()
-        // Each band writes only its own rows, and hashes them while they're in cache, for `diskCopies`.
-        let decoded = ParallelRows.map(bands.count) { index -> Int? in
-            guard let pixels = try? SpillStore.decompress(data[index], count: bands[index].area) else { return nil }
-            buffer.setPixels(pixels, in: bands[index])
-            return PixelBuffer.fingerprint(band: pixels, width: buffer.width)
-        }
-        let hashes = decoded.compactMap { $0 }
-        guard hashes.count == bands.count else { return false }
         evicted[id] = nil
         diskCopies[id] = (stored, PixelBuffer.fingerprint(combining: hashes))
         return true
@@ -854,6 +829,8 @@ public final class History {
 }
 
 /// An append-only scratch file of LZ4-compressed tile data, deleted when the history goes away.
+/// The scratch file undo steps and History Snapshots are written to, compressed (LZ4). A whole buffer goes in bands of
+/// rows (`GeometryChange.bands`), each compressed on its own, so they compress and decompress on all cores.
 final class SpillStore {
     struct Location {
         let offset: UInt64
@@ -911,6 +888,45 @@ final class SpillStore {
         let location = Location(offset: end, length: compressed.count)
         end += UInt64(compressed.count)
         return location
+    }
+
+    /// `buffer`'s bands compressed, on all cores or, with `parallel` off, on this one; nil if any band couldn't be.
+    static func compressedBands(of buffer: PixelBuffer, parallel: Bool = true) -> [Data]? {
+        let bands = GeometryChange.bands(of: buffer.size)
+        let compress = { (index: Int) in try? Self.compress(buffer.pixels(in: bands[index])) }
+        let compressed = parallel ? ParallelRows.map(bands.count, compress) : bands.indices.map(compress)
+        return compressed.allSatisfy { $0 != nil } ? compressed.map { $0! } : nil
+    }
+
+    /// Appends each in order; nil if any couldn't be written.
+    func appendAll(_ compressed: [Data]) -> [Location]? {
+        var locations: [Location] = []
+        for data in compressed {
+            guard let location = try? append(data) else { return nil }
+            locations.append(location)
+        }
+        return locations
+    }
+
+    /// Reads a buffer's bands back into it, on all cores, calling `preparing` once they're all read and before any is
+    /// written. Each band's fingerprint, hashed while its rows are in cache; nil if anything couldn't be read.
+    func readBands(_ locations: [Location], into buffer: PixelBuffer, preparing: () -> Void = {}) -> [Int]? {
+        let bands = GeometryChange.bands(of: buffer.size)
+        guard locations.count == bands.count else { return nil }
+        var data: [Data] = []
+        for location in locations {
+            guard let compressed = try? readCompressed(location) else { return nil }
+            data.append(compressed)
+        }
+        preparing()
+        // Each band writes only its own rows.
+        let decoded = ParallelRows.map(bands.count) { index -> Int? in
+            guard let pixels = try? Self.decompress(data[index], count: bands[index].area) else { return nil }
+            buffer.setPixels(pixels, in: bands[index])
+            return PixelBuffer.fingerprint(band: pixels, width: buffer.width)
+        }
+        let hashes = decoded.compactMap { $0 }
+        return hashes.count == bands.count ? hashes : nil
     }
 
     func readCompressed(_ location: Location) throws -> Data {

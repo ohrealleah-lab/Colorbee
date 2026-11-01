@@ -12,17 +12,13 @@ extension History {
         guard snapshots.count < Self.snapshotLimit else { throw .full }
         if snapshotStore == nil { snapshotStore = try? SpillStore() }
         guard let store = snapshotStore else { throw .unreadable }
-        let bands = GeometryChange.bands(of: canvas.size)
         // One layer at a time, its bands on all cores, so only one layer's compressed copy is held at once (review U,
         // finding 7).
         var layers: [HistorySnapshot.StoredLayer] = []
         func stored(_ layer: Layer) throws(HistorySnapshot.Failure) -> [SpillStore.Location]? {
             guard !layer.holdsNoPixels else { return nil }
-            let compressed = ParallelRows.map(bands.count) { try? SpillStore.compress(layer.buffer.pixels(in: bands[$0])) }
-            var locations: [SpillStore.Location] = []
-            for data in compressed {
-                guard let data, let location = try? store.append(data) else { throw .unreadable }
-                locations.append(location)
+            guard let compressed = SpillStore.compressedBands(of: layer.buffer), let locations = store.appendAll(compressed) else {
+                throw .unreadable
             }
             return locations
         }
@@ -45,24 +41,12 @@ extension History {
     /// canvas gets fresh copies, so later edits never change the snapshot.
     public func goToSnapshot(_ id: HistorySnapshot.ID, on canvas: Canvas) throws(HistorySnapshot.Failure) {
         guard let snapshot = snapshots.first(where: { $0.id == id }) else { throw .unreadable }
-        let bands = GeometryChange.bands(of: snapshot.size)
         // Layers with no pixels stay empty, which takes no memory. Each layer's bands are read and decoded together,
         // one layer at a time (review U, finding 7).
         func read(_ locations: [SpillStore.Location]?) throws(HistorySnapshot.Failure) -> PixelBuffer {
             let buffer = PixelBuffer(size: snapshot.size)
             guard let locations else { return buffer }
-            guard locations.count == bands.count else { throw .unreadable }
-            var data: [Data] = []
-            for location in locations {
-                guard let compressed = try? snapshotStore?.readCompressed(location) else { throw .unreadable }
-                data.append(compressed)
-            }
-            let decoded = ParallelRows.map(bands.count) { index -> Bool in
-                guard let pixels = try? SpillStore.decompress(data[index], count: bands[index].area) else { return false }
-                buffer.setPixels(pixels, in: bands[index])
-                return true
-            }
-            guard decoded.allSatisfy({ $0 }) else { throw .unreadable }
+            guard snapshotStore?.readBands(locations, into: buffer) != nil else { throw .unreadable }
             return buffer
         }
         var buffers: [PixelBuffer] = []

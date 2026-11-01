@@ -23,13 +23,22 @@ struct QuadUniforms {
     float4 maskParams;    // x: 1 when a layer mask is in texture 10; y: 1 to blend only where the backdrop has pixels
 };
 
-// How much a layer mask lets show at uv, 0...1, as Compositing.reveal: black ink over white paper (stage 27).
+// How much a mask's color lets show, 0...1, as Compositing.reveal: black ink over white paper (stage 27).
+static float reveal(float4 m) {
+    return 1 - m.a * (1 - (m.r + m.g + m.b) / 3);
+}
+
+// How much a layer mask lets show at uv.
 static float mask_reveal(texture2d<float> mask, float2 uv, constant QuadUniforms &u) {
     if (u.maskParams.x < 0.5) return 1;
     constexpr sampler nearest(filter::nearest, address::clamp_to_edge);
     constexpr sampler linear(filter::linear, address::clamp_to_edge);
-    float4 m = u.smooth > 0.5 ? mask.sample(linear, uv) : mask.sample(nearest, uv);
-    return 1 - m.a * (1 - (m.r + m.g + m.b) / 3);
+    return reveal(u.smooth > 0.5 ? mask.sample(linear, uv) : mask.sample(nearest, uv));
+}
+
+// The Transparent Selection color, which a floating piece leaves out.
+static bool is_key_color(float4 color, constant QuadUniforms &u) {
+    return u.keyEnabled > 0.5 && color.a > 0 && all(abs(color.rgb - u.keyColor.rgb) < 0.5 / 255.0);
 }
 
 struct QuadOut {
@@ -87,9 +96,7 @@ fragment float4 layer_fragment(QuadOut in [[stage_in]],
                                sampler layerSampler [[sampler(0)]],
                                constant QuadUniforms &u [[buffer(0)]]) {
     float4 color = sampleLayer(layer, layerSampler, in.uv, u.smooth);
-    if (u.keyEnabled > 0.5 && color.a > 0 && all(abs(color.rgb - u.keyColor.rgb) < 0.5 / 255.0)) {
-        discard_fragment();
-    }
+    if (is_key_color(color, u)) discard_fragment();
     float alpha = color.a * u.opacity;
     return float4(color.rgb * alpha, alpha);
 }
@@ -236,9 +243,7 @@ fragment float4 blend_layer_fragment(QuadOut in [[stage_in]],
     // A selection floating over a layer that locks its transparency, already placed on its patch of that layer,
     // replaces what's under it (review U, finding 3).
     if (u.blendMode < -0.5) return float4(color.rgb * color.a, color.a);
-    if (u.keyEnabled > 0.5 && color.a > 0 && all(abs(color.rgb - u.keyColor.rgb) < 0.5 / 255.0)) {
-        discard_fragment();
-    }
+    if (is_key_color(color, u)) discard_fragment();
     float sourceAlpha = color.a * u.opacity * mask_reveal(mask, in.uv, u);
     if (sourceAlpha <= 0) discard_fragment();
     // A pixel layer set to "Only the layer below" (stage 28b): onto the layer it sits on only where that has pixels,
@@ -288,8 +293,7 @@ fragment float4 mask_alone_fragment(QuadOut in [[stage_in]],
                                     texture2d<float> mask [[texture(0)]],
                                     sampler layerSampler [[sampler(0)]],
                                     constant QuadUniforms &u [[buffer(0)]]) {
-    float4 m = mask.sample(layerSampler, in.uv);
-    float shown = 1 - m.a * (1 - (m.r + m.g + m.b) / 3);
+    float shown = reveal(mask.sample(layerSampler, in.uv));
     return float4(shown, shown, shown, 1);
 }
 
@@ -340,12 +344,15 @@ static float3 hueSaturation(float3 c, float shift, float saturationChange, float
     return clamp(rgb + (lightness - outChroma / 2), 0.0, 1.0);
 }
 
+// QuadUniforms.adjustKind. Must match Renderer.ShaderAdjustment.
+constant int kAdjustInvert = 1, kAdjustDesaturate = 2, kAdjustBrightnessContrast = 3, kAdjustHueSaturation = 4, kAdjustBlur = 5;
+
 static float3 pointAdjustment(int kind, float4 p, float3 c) {
     switch (kind) {
-    case 1: return 1 - c;
-    case 2: return float3(dot(c, float3(0.2126, 0.7152, 0.0722)));
-    case 3: return clamp(((c * 255 - 128) * (1 + p.y / 100) + 128 + p.x * 2.55) / 255, 0.0, 1.0);
-    case 4: return hueSaturation(c, p.x, p.y, p.z);
+    case kAdjustInvert: return 1 - c;
+    case kAdjustDesaturate: return float3(dot(c, float3(0.2126, 0.7152, 0.0722)));
+    case kAdjustBrightnessContrast: return clamp(((c * 255 - 128) * (1 + p.y / 100) + 128 + p.x * 2.55) / 255, 0.0, 1.0);
+    case kAdjustHueSaturation: return hueSaturation(c, p.x, p.y, p.z);
     default: return c;
     }
 }
@@ -462,10 +469,15 @@ static float grain_offset(int2 pixel, float3 grain) {
     return (even * (1 - k) + rough * k) * clamp(grain.x, 0.0, 100.0) / 100 * 0.2;
 }
 
-static float3 unblurred(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel, float3 fallback) {
+// A blurred pixel with the canvas edge's darkening taken back out: divided by how much of its blur fell on the canvas.
+static float4 uncovered(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel) {
     float4 soft = blurred.read(pixel);
     float weight = coverage.read(pixel).r;
-    if (weight > 0.001) soft /= weight;
+    return weight > 0.001 ? soft / weight : soft;
+}
+
+static float3 unblurred(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel, float3 fallback) {
+    float4 soft = uncovered(blurred, coverage, pixel);
     return soft.a > 0 ? clamp(soft.rgb / soft.a, 0.0, 1.0) : fallback;
 }
 
@@ -557,10 +569,8 @@ fragment float4 adjust_blur_fragment(QuadOut in [[stage_in]],
                                      float4 backdrop [[color(0)]]) {
     float reveal = mask_reveal(mask, in.uv, u);
     uint2 pixel = uint2(in.position.xy);
-    float4 soft = blurred.read(pixel);
-    float weight = coverage.read(pixel).r;
-    if (weight > 0.001) soft /= weight;
-    if (int(u.adjustKind + 0.5) == 5) {
+    float4 soft = uncovered(blurred, coverage, pixel);
+    if (int(u.adjustKind + 0.5) == kAdjustBlur) {
         if (soft.a <= 0) return backdrop + (float4(0) - backdrop) * u.opacity * reveal;
         return fadeIn(backdrop, clamp(soft.rgb / soft.a, 0.0, 1.0), min(soft.a, 1.0), u, reveal);
     }

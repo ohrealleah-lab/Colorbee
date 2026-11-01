@@ -4,6 +4,7 @@ import MetalPerformanceShaders
 import QuartzCore
 import simd
 
+/// Must match `QuadUniforms` in Shaders.metal, field for field.
 struct QuadUniforms {
     var rect: SIMD4<Float> = .zero
     var keyColor: SIMD4<Float> = .zero
@@ -335,7 +336,7 @@ final class Renderer {
             uniforms.rect = deviceRect(canvas.bounds)
             uniforms.keyEnabled = 0
             let (kind, params) = Self.adjustmentUniforms(adjustment)
-            uniforms.adjustKind = kind
+            uniforms.adjustKind = Float(kind.rawValue)
             uniforms.adjustParams = params
             uniforms.blendMode = Float(layer.blendMode.rawValue)
             masking(layer.activeMask)
@@ -389,10 +390,10 @@ final class Renderer {
                 uniforms.adjustParams = SIMD4(Float(lookup.width), 0, 0, 0)
                 encoder.setFragmentTexture(lookup, index: 0)
                 draw(adjustLookupPipeline)
-            } else if kind >= 5 {
+            } else if kind.needsNeighbors {
                 // Blur and Sharpen need the neighbors of each pixel: pause the layer pass, blur on the GPU, resume.
                 encoder.endEncoding()
-                let radius = kind == 5 ? Double(params.x) : 1
+                let radius = kind == .blur ? Double(params.x) : 1
                 let canvasRect = uniforms.rect
                 blur(target, canvasRect: canvasRect, sigma: Float(radius * zoom * scale), slot: 0, commandBuffer: commandBuffer)
                 guard startPass(on: target), let targets = blurTargets.first else { return false }
@@ -764,16 +765,23 @@ final class Renderer {
     }
 
     /// An adjustment's kind code and settings for the shaders.
-    private static func adjustmentUniforms(_ effect: Effect) -> (Float, SIMD4<Float>) {
+    private static func adjustmentUniforms(_ effect: Effect) -> (ShaderAdjustment, SIMD4<Float>) {
         switch effect {
-        case .invert: (1, .zero)
-        case .desaturate: (2, .zero)
-        case .brightnessContrast(let brightness, let contrast): (3, SIMD4(Float(brightness), Float(contrast), 0, 0))
-        case .hueSaturation(let hue, let saturation, let lightness): (4, SIMD4(Float(hue), Float(saturation), Float(lightness), 0))
-        case .gaussianBlur(let radius): (5, SIMD4(Float(radius), 0, 0, 0))
-        case .sharpen(let amount): (6, SIMD4(Float(amount), 0, 0, 0))
-        default: (0, .zero)
+        case .invert: (.invert, .zero)
+        case .desaturate: (.desaturate, .zero)
+        case .brightnessContrast(let brightness, let contrast): (.brightnessContrast, SIMD4(Float(brightness), Float(contrast), 0, 0))
+        case .hueSaturation(let hue, let saturation, let lightness): (.hueSaturation, SIMD4(Float(hue), Float(saturation), Float(lightness), 0))
+        case .gaussianBlur(let radius): (.blur, SIMD4(Float(radius), 0, 0, 0))
+        case .sharpen(let amount): (.sharpen, SIMD4(Float(amount), 0, 0, 0))
+        default: (.none, .zero)
         }
+    }
+
+    /// `QuadUniforms.adjustKind`. Must match the `kAdjust` constants in Shaders.metal.
+    private enum ShaderAdjustment: Int {
+        case none, invert, desaturate, brightnessContrast, hueSaturation, blur, sharpen
+
+        var needsNeighbors: Bool { self == .blur || self == .sharpen }
     }
 
     /// The 3D table for a color adjustment layer, made once per setting. A slider drag makes a new one

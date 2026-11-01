@@ -3,7 +3,7 @@ import simd
 extension Effects {
     /// Adjust Photo on a region: detail (from the original pixels), then color and tone, then the vignettes and then
     /// the grain (the filter's, then the panel's own).
-    /// Shaders.metal's photo_fragment does the same for adjustment layers on screen.
+    /// Shaders.metal's adjust_photo_fragment does the same for adjustment layers on screen.
     /// With `placement`, `buffer` is a patch of a bigger canvas, and the vignette and grain are placed by the whole.
     static func photoAdjusted(_ buffer: PixelBuffer, region: IntRect, edit: PhotoEdit, selection: SelectionMask?,
                               placement: Placement? = nil) -> (PixelBuffer, IntPoint) {

@@ -101,7 +101,9 @@ public enum Effect: Sendable, Hashable {
         return pointwise
     }
 
-    /// The per-pixel function for effects that don't look at neighbors.
+    /// The per-pixel function for effects that don't look at neighbors. For adjustment layers, `Shaders.metal`'s
+    /// `pointAdjustment` does the same for Invert, Desaturate and Brightness/Contrast, and `hueSaturation` for
+    /// Hue/Saturation (`HSL`).
     var pointwise: ((Pixel) -> Pixel)? {
         switch self {
         case .solidFill(let color):
@@ -390,7 +392,7 @@ public enum Effects {
     }
 }
 
-/// Hue (0...360), saturation and lightness (0...1).
+/// Hue (0...360), saturation and lightness (0...1). `Shaders.metal`'s `hueSaturation` does the same on screen.
 struct HSL {
     var hue: Double
     var saturation: Double

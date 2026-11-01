@@ -84,7 +84,7 @@ public struct PhotoAdjustments: Sendable, Hashable, Codable {
         PhotoAdjustments(values.filter { $0.key.inFilters })
     }
 
-    // MARK: The math (mirrored in Shaders.metal through ColorLookup, plus photo_fragment for the rest)
+    // MARK: The math (mirrored in Shaders.metal through ColorLookup, plus adjust_photo_fragment for the rest)
 
     /// How far each slider at 100 reaches, shared with the white-balance eyedropper and Auto, which solve these
     /// formulas backward (review round 11, AD 2): Warmth multiplies red by 1 + w and blue by 1 − w, w = `warmthReach`

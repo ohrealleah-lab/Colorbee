@@ -158,7 +158,8 @@ extension Compositing {
     }
 
     /// `source` blended onto `backdrop` only where the backdrop has pixels, keeping its opacity: a pixel layer set to
-    /// "Only the layer below" on the layer it sits on (stage 28b). `Shaders.metal` does the same (`blendMode` −2).
+    /// "Only the layer below" on the layer it sits on (stage 28b). `Shaders.metal` does the same: `blend_layer_fragment`, and
+    /// `blend_isolated_fragment` for one with a piece floating on it, when `maskParams.y` is 1.
     @inline(__always)
     static func blendAtop(_ backdrop: Pixel, _ source: Pixel, opacity: Float, mode: BlendMode) -> Pixel {
         guard backdrop.a > 0, source.a > 0, opacity > 0 else { return backdrop }

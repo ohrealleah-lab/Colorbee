@@ -32,7 +32,7 @@ Ordered by worth, then size. S = under an hour, M = a few hours, L = a day or mo
 | R2 | Split `Editor.swift` (5,600 lines) into one file per section; stored properties stay put | M | AB 2 |
 | R3 | One "a step was recorded" helper (fixes D1) | S | AB 1 |
 | R4 | One shared way for the eight settings stores to load and save (fixes D3) | M | AC 1 (+ AC 12, AC 14 folders) |
-| R5 | One "newest settings win" background worker instead of five hand-made ones | M | AB 3 |
+| ~~R5~~ | Moved to tier 3 (Leah, 2026-10-31): it belongs with the effect session, and the five copies differ in ways a shared helper would special-case | M | AB 3 |
 | R6 | The History thumbnail and the export share their per-pixel compositing steps (fixes D5); compositing moves to `Canvas+Compositing.swift` | M | AE 2 |
 | R7 | `Renderer.encode`: one "start a pass" and one "blend back" helper | M | AC 2 |
 | R8 | Menu commands checked by the compiler (`#selector`), and the `return true` cases in one list | S–M | AC 3 (a, b) |
@@ -54,6 +54,7 @@ Ordered by worth, then size. S = under an hour, M = a few hours, L = a day or mo
 ### Tier 3: large, later or never
 
 - The effect session as one value (AB 4, L): the biggest win for the Editor, and the riskiest. Only after R2 and R5.
+- One "newest settings win" background worker (AB 3, M), moved here from tier 1: do it with the effect session.
 - History steps as one payload enum (AE 3, M): the heart of undo; a 30-minute monkey run after.
 - One drag state for the Editor and the view (AB 12, L).
 - Whole-image loops onto `ParallelRows` (AD 9): speed only; needs `make perf`.

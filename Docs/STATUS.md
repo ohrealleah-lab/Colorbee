@@ -95,7 +95,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 31. Stroke smoothing | ✅ Done; passed Leah's test 2026-10-31 ("feels great") | High |
 | 14 · 32. Overnight monkey test | Built 2026-10-31; waiting for Leah's first overnight run | High |
 | 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done, fixed, and passed Leah's test 2026-10-31 ([Review/RESULTS.md](Review/RESULTS.md)); the stricter monkey's new reports are being sorted | High |
-| 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tier 1 done 2026-10-31 except R5 (to Leah); tiers 2 and 4 next ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
+| 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tier 1 done 2026-10-31 (R5 moved to tier 3, Leah); paused before tiers 2 and 4 (Leah) ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built

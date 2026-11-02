@@ -258,6 +258,8 @@ final class HistoryEntry {
     let selectionBefore: SelectionState
     var selectionAfter: SelectionState
     var isSpilled = false
+    /// See `Edit.isRedaction`: redoing it puts back covered words, so History Snapshots may not stay (review AH, finding 1).
+    var isRedaction = false
 
     init(name: String, changes: [TileChange], selectionBefore: SelectionState, selectionAfter: SelectionState) {
         self.name = name
@@ -370,6 +372,8 @@ public final class History {
         undoStack.map { ($0.name, $0.thumbnail, false) } + redoStack.reversed().map { ($0.name, $0.thumbnail, true) }
     }
     public var redoActionName: String? { redoStack.last?.name }
+    /// Whether the next `count` redos would bring back a redaction.
+    public func redoes(redactionWithin count: Int) -> Bool { redoStack.suffix(count).contains(where: \.isRedaction) }
     /// How much has been written to the spill file, for tests.
     var spillFileSize: UInt64 { spillStore?.end ?? 0 }
     var spilledEntryCount: Int { (undoStack + redoStack).filter(\.isSpilled).count }
@@ -461,6 +465,7 @@ public final class History {
             tileBytes += entry.byteCount
             revision += 1
         }
+        if edit.isRedaction { undoStack.last?.isRedaction = true }
         spillToBudget(canvas: edit.canvas)
         return true
     }

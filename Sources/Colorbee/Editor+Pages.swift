@@ -125,6 +125,11 @@ extension Editor {
         finishInteractions()
         // Like Undo and Redo, it leaves just the active layer chosen (review T, finding 4).
         otherChosenLayerIDs = []
+        if count > history.undoCount, askBeforeRedoingRedaction(steps: count - history.undoCount, then: { [weak self] in self?.stepHistory(to: count) }) { return }
+        stepHistory(to: count)
+    }
+
+    private func stepHistory(to count: Int) {
         while history.undoCount > count, history.canUndo, stepShownPage(undoing: true) {}
         while history.undoCount < count, history.canRedo, stepShownPage(undoing: false) {}
     }

@@ -91,6 +91,9 @@ struct SubjectTests {
         #expect(!SubjectActions.removeBackground(short, canvas: canvas, history: history, context: context))
         #expect(!SubjectActions.liftToNewLayer(short, canvas: canvas, history: history, context: context))
         #expect(canvas.layers.count == 1 && !history.canUndo)
+        // Selecting one (the wand's Object mode) does nothing instead of stopping the app (review AG, finding 2).
+        SubjectActions.select(short, canvas: canvas, history: history, context: context)
+        #expect(canvas.selection.isEmpty && !history.canUndo)
     }
 
     // Looking closer around a click, for a subject too small to find in the whole image.
@@ -100,6 +103,18 @@ struct SubjectTests {
         #expect(squares.map(\.width) == [1200, 840, 588, 412, 288, 202])
         #expect(squares.allSatisfy { $0.width == $0.height })
         #expect(squares[1] == IntRect(x: 540, y: 340, width: 840, height: 840))
+    }
+
+    /// Review AG, finding 1: on a square picture the first square was the whole picture, so the closer look saw what the
+    /// first look saw and never separated anything.
+    @Test func noCloserSquareIsTheWholePicture() {
+        for size in [IntSize(width: 1000, height: 1000), IntSize(width: 150, height: 150), IntSize(width: 600, height: 1600)] {
+            let squares = SubjectScan.closerSquares(around: IntPoint(x: size.width / 2, y: size.height / 2), in: size)
+            #expect(!squares.isEmpty)
+            #expect(!squares.contains { $0.width >= size.width && $0.height >= size.height })
+        }
+        let square = SubjectScan.closerSquares(around: IntPoint(x: 500, y: 500), in: IntSize(width: 1000, height: 1000))
+        #expect(square.first?.width == 700)
     }
 
     @Test func closerSquaresStayInsideTheImage() {

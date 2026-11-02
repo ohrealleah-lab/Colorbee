@@ -91,17 +91,20 @@ public struct SubjectScan: Sendable {
 
     /// The squares to look in, largest first, kept inside the image. Vision looks at about 512 × 512, so each is 0.7 of
     /// the one before, down to about 200 px. The first is the image's whole shorter side, so a tall subject isn't cut
-    /// off (Leah, 2026-11-01).
+    /// off (Leah, 2026-11-01), unless that is the whole picture.
     static func closerSquares(around point: IntPoint, in size: IntSize) -> [IntRect] {
         let shorter = min(size.width, size.height)
         var squares: [IntRect] = []
         var side = Double(shorter)
         while side >= 200 || squares.isEmpty {
             let length = max(1, Int(side.rounded()))
+            defer { side *= 0.7 }
+            // On a square picture the first square is the whole picture: Vision would see what it saw the first time
+            // (review AG, finding 1).
+            if length >= size.width && length >= size.height { continue }
             let x = min(max(0, point.x - length / 2), size.width - length)
             let y = min(max(0, point.y - length / 2), size.height - length)
             squares.append(IntRect(x: x, y: y, width: length, height: length))
-            side *= 0.7
         }
         return squares
     }
@@ -220,6 +223,7 @@ public enum SubjectActions {
     /// Selects the subject, keeping Vision's soft edge (FR-3.4), or adds it to the selection or takes it away, for the
     /// Magic Wand's Object mode.
     public static func select(_ mask: [UInt8], mode: SelectionCombineMode = .replace, canvas: Canvas, history: History, context: SelectionContext) {
+        guard mask.count == canvas.bounds.area else { return }
         let selection = SelectionMask(bounds: canvas.bounds, values: mask).trimmed()
         SelectionActions.select(selection, mode: mode, canvas: canvas, history: history, context: context)
     }

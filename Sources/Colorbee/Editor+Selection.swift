@@ -591,7 +591,7 @@ extension Editor {
     func selectObject(at pixel: IntPoint, mode: SelectionCombineMode) {
         guard !isFindingSubject, canvas.bounds.contains(pixel) else { return onRefused() }
         let layer = canvas.paintLayer
-        let key = WandSubjectsKey(canvas: ObjectIdentifier(canvas), layer: wandSamplesAllLayers ? nil : layer.id, revision: history.revision)
+        let key = WandSubjectsKey(page: page.id, layer: wandSamplesAllLayers ? nil : layer.id, revision: history.revision)
         let cached = wandSubjects?.key == key ? wandSubjects : nil
         guard let image = cached?.image ?? (try? ImageCodec.makeCGImage(wandSamplesAllLayers ? canvas.flattened() : layer.buffer,
                                                                           colorSpace: canvas.colorSpace)) else { return onRefused() }
@@ -607,7 +607,7 @@ extension Editor {
             self.isFindingSubject = false
             self.isFindingObject = false
             // Something changed the image meanwhile, so what was found may no longer fit it.
-            guard self.history.revision == key.revision, ObjectIdentifier(self.canvas) == key.canvas, self.canvas.paintLayer.id == layer.id,
+            guard self.history.revision == key.revision, self.page.id == key.page, self.canvas.paintLayer.id == layer.id,
                   self.activeStroke == nil, self.activeEffect == nil else {
                 return self.showNotice("The image changed while Colorbee was looking. Try again.")
             }

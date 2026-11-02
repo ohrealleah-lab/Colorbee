@@ -7,12 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-02 · 858 core tests and 346 app tests passing (review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-02 · 859 core tests and 349 app tests passing (review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Review round 12, tier 1 fixes (AH 1, AG 1, AG 2)](#test-review-round-12-tier-1-fixes-ah-1-ag-1-ag-2)
 - [Review round 12, session AF: History thumbnails with a floating piece](#test-review-round-12-session-af-history-thumbnails-with-a-floating-piece)
 
 ---
@@ -395,6 +396,28 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Review round 12, tier 1 fixes (AH 1, AG 1, AG 2)
+
+From [Review/findings-AH.md](Review/findings-AH.md) and [findings-AG.md](Review/findings-AG.md). Redo of a redaction now
+asks about snapshots; untangling works on square pictures; Object mode's cache can't mix up pages.
+
+1. Open `TestImages/Help/Sample Screenshot.png`. Choose the Redact Brush and paint over the email address.
+   Expected: it's covered at once.
+2. Edit > Undo. Expected: the email shows again.
+3. Edit > New Snapshot…, click Take Snapshot.
+4. Edit > Redo.
+   Expected: "Delete 1 History Snapshot?" appears and the email is still showing.
+5. Choose Cancel. Expected: the email still shows, and View > History still lists Snapshot 1.
+6. Edit > Redo again, choose Delete Snapshots and Redact.
+   Expected: the email is covered and View > History lists no snapshot.
+7. Repeat steps 2 to 4, then close the question with Cancel. Click the last step in the History panel.
+   Expected: the same question; Cancel changes nothing.
+8. Square picture: open your untangling picture (`test.jpeg` or `nin.png`). Image > Canvas Properties…, make the
+   height the same as the width (keep the width), anchor in the middle, OK.
+9. Edit > Select Subject, click the catgirl's vest.
+   Expected: just the catgirl, as on the original picture (not the catgirl and the doll together).
+   Object mode (finding 2) has nothing to try by hand: it only mattered after deleting a page and adding another.
 
 ### Test: Review round 12, session AF: History thumbnails with a floating piece
 

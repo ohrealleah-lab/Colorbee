@@ -100,4 +100,47 @@ struct RedactionSnapshotTests {
         #expect(editor.activeEffect == nil && editor.stepNames == drawn + ["Pixelate"])
         #expect(editor.historySnapshots.isEmpty)
     }
+
+    /// Review AH, finding 1: redo, or a click forward in the History panel, brings a redaction back, so a snapshot taken
+    /// after the undo has to go too (Leah, 2026-11-02).
+    @Test func redoingARedactionAsksThenDeletesTheSnapshotsTakenSince() throws {
+        let editor = makeEditor()
+        editor.selectTool(.redactBrush)
+        editor.redactTreatment = .solidFill
+        editor.color1 = red
+        redactStroke(editor)
+        let redacted = editor.imageHash
+        editor.undo()
+        editor.redactedSinceSave = false
+        try editor.takeSnapshot(named: "After undo")
+        editor.redo()
+        #expect(editor.snapshotQuestion?.count == 1 && editor.imageHash != redacted)
+        editor.deleteSnapshotsAndRedact()
+        #expect(editor.imageHash == redacted && editor.historySnapshots.isEmpty && editor.redactedSinceSave)
+    }
+
+    @Test func cancelingARedoKeepsTheSnapshotAndTheRedoStep() throws {
+        let editor = makeEditor()
+        editor.selectTool(.redactBrush)
+        editor.redactTreatment = .solidFill
+        redactStroke(editor)
+        editor.undo()
+        try editor.takeSnapshot(named: "After undo")
+        let uncovered = editor.imageHash
+        editor.redo()
+        editor.snapshotQuestion = nil
+        #expect(editor.imageHash == uncovered && editor.historySnapshots.count == 1)
+        editor.jump(toStep: 1)
+        #expect(editor.snapshotQuestion?.count == 1 && editor.imageHash == uncovered)
+    }
+
+    @Test func redoingARedactionWithoutSnapshotsAsksNothingButNotesIt() {
+        let editor = makeEditor()
+        editor.selectTool(.redactBrush)
+        redactStroke(editor)
+        editor.undo()
+        editor.redactedSinceSave = false
+        editor.redo()
+        #expect(editor.snapshotQuestion == nil && editor.stepNames == ["Redact Brush"] && editor.redactedSinceSave)
+    }
 }

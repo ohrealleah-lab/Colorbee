@@ -45,13 +45,39 @@ extension Editor {
             onDocumentChange(.redone)
             return
         }
+        if askBeforeRedoingRedaction(steps: 1, then: { [weak self] in self?.redoNewestStep() }) { return }
+        redoNewestStep()
+    }
+
+    private func redoNewestStep() {
         let step = history.redoStepID
         if stepShownPage(undoing: false), let step, let badge = badgeSteps[step] { nextBadges[badge.style] = badge.value + 1 }
+    }
+
+    /// Redoing a redaction covers words again that a History Snapshot taken in the meantime still shows, so it asks
+    /// first and deletes the snapshots, as the redaction did (review AH, finding 1; Leah, 2026-11-02). True when it
+    /// asked: `then` runs on the answer, and nothing happens on Cancel. `steps` is how many redos are coming.
+    func askBeforeRedoingRedaction(steps: Int, then proceed: @escaping @MainActor () -> Void) -> Bool {
+        let pages = (steps == 1 ? redactionGroup(undoing: false) : nil) ?? [page]
+        let covering = pages.filter { $0.history.redoes(redactionWithin: steps) && !$0.history.snapshots.isEmpty }
+        let count = covering.reduce(0) { $0 + $1.history.snapshots.count }
+        guard count > 0 else { return false }
+        let revision = history.revision, pageID = page.id
+        snapshotQuestion = SnapshotQuestion(count: count) { [weak self] in
+            guard let self, self.history.revision == revision, self.page.id == pageID else { return }
+            covering.forEach(self.deleteSnapshotsAfterRedacting)
+            proceed()
+        }
+        onRender()
+        return true
     }
 
     /// Undoes or redoes the newest step of the page shown, or of every page of a multi-page Auto-Redact it's part of.
     @discardableResult
     func stepShownPage(undoing: Bool) -> Bool {
+        let redoesRedaction = !undoing && (redactionGroup(undoing: false) ?? [page]).contains { $0.history.redoes(redactionWithin: 1) }
+        let countBefore = undoRedoCount
+        defer { if redoesRedaction, undoRedoCount > countBefore { noteRedaction() } }
         if let group = redactionGroup(undoing: undoing) {
             let stepped = stepPages(group, undoing: undoing)
             // Some pages may have stepped before one failed; they're recorded as changed either way.

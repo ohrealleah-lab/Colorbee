@@ -632,7 +632,8 @@ final class Editor {
 
     /// What Object mode's first look was made from: this page, this layer (nil for every layer) and this version.
     struct WandSubjectsKey: Equatable {
-        let canvas: ObjectIdentifier
+        /// The page, not its canvas's address: a deleted page's address can be reused (review AG, finding 2).
+        let page: UUID
         let layer: LayerID?
         let revision: Int
     }

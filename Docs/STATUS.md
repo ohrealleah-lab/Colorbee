@@ -13,9 +13,6 @@ _Last updated: 2026-11-02 · 855 core tests and 345 app tests passing (untanglin
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Tall photos aren't cut off](#test-tall-photos-arent-cut-off) (2026-11-02)
-- [Refine Edge](#test-refine-edge) (2026-11-02)
-- [Subject outlines, Shift-click and the wand's Object mode](#test-subject-outlines-shift-click-and-the-wands-object-mode) (2026-11-01)
 - [Redaction deletes History Snapshots](#test-redaction-deletes-history-snapshots) (2026-11-01)
 - [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
 - [The monkey's thumbnail and export fixes](#test-the-monkeys-thumbnail-and-export-fixes) (2026-10-31)
@@ -454,7 +451,7 @@ nothing changed. Use `TestImages/Photo Editing/Old Adjust Photo.colorproj`.
 10. Drag sideways across a slider's name, such as Exposure.
     Expected: the slider moves as if you dragged it.
 
-### Test: Tall photos aren't cut off
+### Test: Tall photos aren't cut off (passed 2026-11-02)
 
 Leah's bug (2026-11-02): Lift Subject on her portrait lost the top of her head and the bottom of her dress, in
 straight lines. Untangling had taken a closer look's cut-off piece as a separate subject. Use the portrait she sent
@@ -467,7 +464,7 @@ straight lines. Untangling had taken a closer look's cut-off piece as a separate
 3. Open `test.jpeg`. Choose Edit > Select Subject and click the catgirl's vest.
    Expected: just the catgirl is selected, without the doll, as before.
 
-### Test: Refine Edge
+### Test: Refine Edge (passed 2026-11-02)
 
 Step 4 of `Docs/Proposals/Magic Wand on Game Screenshots.md` (2026-11-02). Use Leah's `Pictures/Final Fantasy/nin.png`
 and the portrait she sent for the before-and-after (neither is in the repo). Run `make run` first.
@@ -480,7 +477,7 @@ and the portrait she sent for the before-and-after (neither is in the repo). Run
    Expected: the hair's ends follow the hair, rather than being cut off square by the left shoulder, and the arm's
    edge is clean.
 
-### Test: Subject outlines, Shift-click and the wand's Object mode
+### Test: Subject outlines, Shift-click and the wand's Object mode (passed 2026-11-02)
 
 Steps 1 to 3 of `Docs/Proposals/Magic Wand on Game Screenshots.md` (2026-11-01). Use Leah's `Downloads/test.jpeg`
 and `Pictures/Final Fantasy/nin.png` (not in the repo: personal screenshots). Run `make run` first.

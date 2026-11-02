@@ -1,6 +1,6 @@
 # Proposal: Selecting things in game screenshots, and other Vision updates
 
-Status: **steps 1–4 built, waiting for Leah's hand test** (2026-11-02); steps 5 and 6 waiting to be scheduled. All questions answered.
+Status: **steps 1–4 built and passed Leah's hand tests** (2026-11-02); steps 5 and 6 waiting to be scheduled. All questions answered.
 This is separate from the Lightroom-style development plan.
 
 ## The problem

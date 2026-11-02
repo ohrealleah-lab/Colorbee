@@ -173,7 +173,7 @@ struct MonkeyEpisode {
                 throw MonkeyFailure(rule: "A background save didn't keep the picture as it was",
                                     detail: "Editing went on while it saved, and in the saved page " + UndoTracker.difference(save.layers, layers))
             }
-            guard canvas.flattened().contentHash() == save.look else {
+            guard MonkeyRules.shownHash(canvas.flattened()) == save.look else {
                 throw MonkeyFailure(rule: "A background save didn't keep the picture as it was",
                                     detail: "Editing went on while it saved, and the saved page looks different.")
             }
@@ -215,7 +215,7 @@ struct MonkeyEpisode {
                     continue
                 case .saveInBackground:
                     let snapshot = editor.saveSnapshot()
-                    pendingSave = BackgroundSave(snapshot: snapshot, look: editor.canvas.flattened().contentHash(),
+                    pendingSave = BackgroundSave(snapshot: snapshot, look: MonkeyRules.shownHash(editor.canvas.flattened()),
                                                  layers: MonkeyRules.layerStates(of: editor.canvas, floatingOn: editor.canvas.selection.floating?.layerID),
                                                  floatingOn: editor.canvas.selection.floating?.layerID, pages: editor.pages.pages.count, due: done + 3)
                 case .forgetHistory:
@@ -233,7 +233,9 @@ struct MonkeyEpisode {
                 try MonkeyRules.checkDocument(editor)
                 if redacted, editor.canvas === canvas {
                     try MonkeyRules.checkRedacted(editor)
-                    let changed = editor.canvas.layers.filter { layer in hashes[layer.id].map { $0 != layer.buffer.contentHash() } ?? false }
+                    // Placing a floating piece first changes its layer too, so which layers the redaction itself touched
+                    // can't be told then.
+                    let changed = leaving == nil ? [] : editor.canvas.layers.filter { layer in hashes[layer.id].map { $0 != layer.buffer.contentHash() } ?? false }
                     try MonkeyRules.checkNothingLeft(editor, redacted: changed, words: words)
                 }
                 if editor.page !== shownPage {
@@ -294,6 +296,9 @@ struct UndoTracker {
     private var pagesTouched = false
     /// Each undo count along the current line of history; nil where it can't be known.
     private var line: [Mark?]
+    /// Whether the line covers all redo can reach. After a restart (another page, a reopen) it doesn't know the steps
+    /// redo still holds, until a new step clears them.
+    private var knowsRedo = true
 
     init(editor: Editor) {
         self.editor = editor
@@ -313,6 +318,10 @@ struct UndoTracker {
         case .undo, .redo:
             guard count != before.undoCount else { break }
             guard line.indices.contains(count) else {
+                guard knowsRedo else {
+                    line += Array(repeating: nil, count: count - line.count) + [nil]
+                    return
+                }
                 throw MonkeyFailure(rule: "\(step) went somewhere history never was", detail: "Undo count \(count), but only \(line.count - 1) steps were recorded.")
             }
             if let want = line[count] {
@@ -351,6 +360,7 @@ struct UndoTracker {
         if count > before.undoCount, line.indices.contains(before.undoCount) {
             line[before.undoCount]?.before = before.selection
         }
+        knowsRedo = true
         if case .undoOnActiveLayer = step {
             // It took one older step out of history, leaving its change in the steps before: none of them can be checked.
             line = Array(repeating: nil, count: count) + [now]
@@ -367,6 +377,7 @@ struct UndoTracker {
         self.editor = editor
         self.pagesTouched = self.pagesTouched || pagesTouched
         line = Array(repeating: nil, count: editor.history.undoCount) + [Self.mark(editor)]
+        knowsRedo = false
     }
 
     /// At the end: undo all the way back, checking each picture, then redo all the way, likewise. Across pages, only
@@ -408,9 +419,10 @@ struct UndoTracker {
         for redoing in [false, true] {
             for _ in 0..<10_000 {
                 guard let name = redoing ? editor.redoActionName : editor.undoActionName else { break }
-                let canvas = editor.canvas, count = editor.history.undoCount
+                let canvas = editor.canvas, count = editor.history.undoCount, order = editor.pages.pages.map(ObjectIdentifier.init)
                 if redoing { editor.redo() } else { editor.undo() }
-                guard editor.canvas !== canvas || editor.history.undoCount != count
+                // Two page changes in a row can share a name, and undoing one may leave the page shown as it was.
+                guard editor.canvas !== canvas || editor.history.undoCount != count || editor.pages.pages.map(ObjectIdentifier.init) != order
                         || (redoing ? editor.redoActionName : editor.undoActionName) != name else {
                     throw MonkeyFailure(rule: "\(redoing ? "Redo" : "Undo") stopped working", detail: "\(name) did nothing, across pages.")
                 }

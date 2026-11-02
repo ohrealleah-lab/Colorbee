@@ -89,6 +89,18 @@ enum MonkeyRules {
         }
     }
 
+    /// A picture's hash as it shows: a fully clear pixel's color can't be seen, and a save may keep a leftover one.
+    static func shownHash(_ buffer: PixelBuffer) -> Int {
+        var hasher = Hasher()
+        for y in 0..<buffer.height {
+            for x in 0..<buffer.width {
+                let pixel = buffer[x, y]
+                hasher.combine(pixel.a == 0 ? Pixel.clear : pixel)
+            }
+        }
+        return hasher.finalize()
+    }
+
     /// The size, then each layer's state with its id; a layer a piece floats on (or whose mask it floats on) without its
     /// pixels, since saving stamps the piece in.
     static func layerStates(of canvas: Canvas, floatingOn: LayerID?) -> [String] {
@@ -132,7 +144,7 @@ enum MonkeyRules {
         let floatingOn = saved.selection.floating?.layerID
         let before = saved.layers.map { state(of: $0, pixels: $0.id != floatingOn && $0.mask?.id != floatingOn) }
         let after = reopened.layers.map { state(of: $0, pixels: $0.id != floatingOn && $0.mask?.id != floatingOn) }
-        guard reopened.flattened().contentHash() == saved.flattened().contentHash() else {
+        guard shownHash(reopened.flattened()) == shownHash(saved.flattened()) else {
             throw MonkeyFailure(rule: "A saved project reopens looking different", detail: "The page shown came back looking different.")
         }
         guard before == after else {
@@ -176,7 +188,7 @@ enum MonkeyRules {
         } catch {
             throw MonkeyFailure(rule: "Saving or reopening a project failed", detail: "\(error)")
         }
-        guard reopened.flattened().contentHash() == flat.contentHash() else {
+        guard shownHash(reopened.flattened()) == shownHash(flat) else {
             throw MonkeyFailure(rule: "A saved project reopens looking different", detail: "The reopened picture differs from what was saved.")
         }
         // Every layer as it was, hidden ones too (review Z, finding 2); a floating piece is saved stamped in, so its layer's

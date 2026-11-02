@@ -1,7 +1,7 @@
-# Proposal: Selecting things in game screenshots
+# Proposal: Selecting things in game screenshots, and other Vision updates
 
-Status: **planned, waiting to be scheduled** (2026-10-27). All questions answered. Planning only; nothing is built. This is separate from
-the Lightroom-style development plan.
+Status: **planned, waiting to be scheduled** (2026-10-27; Vision updates added 2026-11-01). Five questions are open (below).
+Planning only; nothing is built. This is separate from the Lightroom-style development plan.
 
 ## The problem
 
@@ -100,6 +100,36 @@ C. **Quick Selection brush** (later, larger): paint roughly over the thing you w
 5. **Follow Gradients** (a separate mode): compare each pixel to its neighbor instead of to the click, so a
    shaded area is selected as one. On the lamp picture it selected everything. Not recommended.
 
+## Vision updates batched with this (Leah, 2026-11-01)
+
+Leah added these because they share the same code (`SubjectScan`, `Editor.findSubject` and `pickSubject`) and the
+same test pictures. Items 1–4 change the "click the subject you want" step that Select Subject, Lift Subject,
+Remove Background and Object mode all use.
+
+1. **Untangle merged subjects.** Vision's first look sometimes joins neighbors into one subject: in Leah's catgirl
+   screenshot (`Downloads/test.jpeg`) the catgirl comes with the doll and the chair, and in her cats photo
+   (`Downloads/toughcat.png`) a click on the white cat takes the black cat too. When a click lands on a subject,
+   Colorbee also looks closer around the click; if that finds a smaller subject under the click that sits mostly
+   inside the big one, it takes the smaller one. A closer look at the catgirl in a square as tall as the picture
+   separated her (tested 2026-10-28).
+2. **Bigger closer looks.** The closer look's first square is half the picture's shorter side, which cut off the
+   catgirl's hat and boots (a 1117 px square). It starts at the full shorter side instead (2234 px worked), then
+   shrinks as today. This costs one more Vision look, a fraction of a second.
+3. **Show what Vision found.** While the bar waits for a click, the subjects found are outlined, and the one under
+   the pointer is tinted, so you can see what a click will take before you click.
+4. **Pick more than one.** Shift-click adds a subject, so you can take two cats and leave the third. (Multi-subject
+   Shift-click was dropped with the feature freeze on 2026-10-19; Leah brought it back here.)
+5. **Auto Straighten.** Straighten… asks Vision for the horizon's angle (`VNDetectHorizonRequest`, on this Mac) and
+   starts the slider there, for you to nudge, as Perspective Correction already starts on the corners Vision finds.
+   With no horizon found it starts at 0° as today.
+6. **Better people outlines.** Apple has a people-only mask (`VNGeneratePersonInstanceMaskRequest`, up to four
+   people, each separately) that follows hair and fingers better than the general subject finder. When the subject
+   you pick is a person, Colorbee uses the people mask for them. Like Refine Edge, it's judged by eye, so it starts
+   with a before-and-after on a photo of a person, side by side with Refine Edge, since both make edges better.
+
+Perspective Correction already finds its corners with Vision (built in stage 17, 2026-10-28), so it isn't in this
+list. Auto-redacting faces is built too (FR-9.7 item 10).
+
 ## Decided (Leah, 2026-10-27; FRD §23)
 
 - **Object mode:** a Color / Object choice on the Magic Wand (idea A).
@@ -109,17 +139,36 @@ C. **Quick Selection brush** (later, larger): paint roughly over the thing you w
 
 - **Refine Edge:** try it first as a before-and-after on the lamp, outside the app, then decide whether to build it.
 
-## Open questions for Leah
+## Open questions for Leah (2026-11-01)
 
-None for now.
+Claude's recommendation is first in each.
+
+- **Q1. Untangling merged subjects: automatically, or with a second click?** Recommended: automatically. You clicked
+  the white cat, so you meant the white cat; asking for a second click makes every pick slower. To avoid taking just
+  a piece of someone (a hat), the smaller subject must be at least a fifth of the big one's size.
+- **Q2. Showing what Vision found: outlines on all of them plus a tint under the pointer, or only the tint?**
+  Recommended: both. The outlines show at a glance whether Vision merged things, before you click.
+- **Q3. Picking more than one: does a plain click still take the subject at once?** Recommended: yes. A plain click
+  takes it as today; Shift-click marks subjects (tinted), and Return takes the marked ones. With none marked, Return
+  takes all of them, as today.
+- **Q4. Auto Straighten: every time Straighten opens, or only with an Auto button?** Recommended: every time, with
+  "Finding the horizon…" for a moment and a Reset button, matching Perspective Correction, which you chose to find
+  its corners every time it opens.
+- **Q5. Better people outlines: whenever the picked subject is a person, or as its own command?** Recommended:
+  whenever it's a person, with no new command, if the before-and-after shows it's better. Nothing new to learn.
 
 ## Plan
 
 - **Done:** lamp, sky and steps tests (above).
 - **When Leah says go, in this order:**
-  1. Object mode on the wand (small: it reuses Select Subject's search).
-  2. Refine Edge: a before-and-after on the lamp outside the app, then build into `SubjectScan` if Leah likes it.
-  3. Wand ideas 1–4 for Fill and the wand, in `SelectionMask.magicWand` and `FloodFill`, with exact-value tests
+  1. Bigger closer looks and untangling merged subjects (Vision updates 1 and 2): they make every pick better,
+     Object mode included, so they come first. Tested on the catgirl and cats pictures.
+  2. Object mode on the wand (small: it reuses Select Subject's search).
+  3. Showing what Vision found, and Shift-click for more than one (updates 3 and 4).
+  4. Refine Edge and better people outlines (update 6): before-and-afters outside the app, on the lamp and on a
+     photo of a person (Leah's choice of photo, kept out of the repo), then build into `SubjectScan` what Leah likes.
+  5. Wand ideas 1–4 for Fill and the wand, in `SelectionMask.magicWand` and `FloodFill`, with exact-value tests
      on small images and a speed check on a large screenshot (the wand must stay instant).
-  Each with tests, the help page update and hand-test steps.
+  6. Auto Straighten (update 5): separate from the rest, small. Tested on a tilted photo.
+  Each with tests, the help page update and hand-test steps. Steps 1–3 can be hand-tested together.
 - Recommended model and effort: **Opus, high** (careful image work).

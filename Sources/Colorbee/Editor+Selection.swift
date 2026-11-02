@@ -207,6 +207,7 @@ extension Editor {
     /// Runs `body` and tells the document it changed if a history step was recorded.
     func recordingChanges(_ body: () -> Void) {
         let revision = history.revision
+        history.thumbnailKey = selectionContext.transparentKey
         body()
         if history.revision != revision { noteEdited() }
     }

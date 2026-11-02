@@ -38,6 +38,28 @@ struct RectangleFinderTests {
         #expect(try await RectangleFinder.find(in: picture(nil, circle: true)) == nil)
     }
 
+    private func picture(rectangles: [CGRect]) throws -> CGImage {
+        let context = try #require(CGContext(data: nil, width: 600, height: 400, bitsPerComponent: 8, bytesPerRow: 0,
+                                             space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.translateBy(x: 0, y: 400)
+        context.scaleBy(x: 1, y: -1)
+        context.setFillColor(CGColor(gray: 0.25, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: 600, height: 400))
+        context.setFillColor(CGColor(gray: 0.95, alpha: 1))
+        rectangles.forEach { context.fill($0) }
+        return try #require(context.makeImage())
+    }
+
+    @Test func theBiggestRectangleWinsOverASmallerOne() async throws {
+        let found = try #require(try await RectangleFinder.find(
+            in: picture(rectangles: [CGRect(x: 20, y: 20, width: 400, height: 300), CGRect(x: 450, y: 280, width: 120, height: 100)])))
+        #expect(abs(found[0].x - 20) <= 3 && abs(found[2].x - 420) <= 3, "\(found)")
+    }
+
+    @Test func aDocumentFillingThePictureIsStillFound() async throws {
+        #expect(try await RectangleFinder.find(in: picture(rectangles: [CGRect(x: 1, y: 1, width: 598, height: 398)])) != nil)
+    }
+
     private func testImage(_ name: String) throws -> CGImage {
         let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../../../TestImages/\(name)")
         let decoded = try ImageCodec.decode(Data(contentsOf: url))

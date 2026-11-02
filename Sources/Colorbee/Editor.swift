@@ -396,7 +396,7 @@ final class Editor {
     /// A page's undo history, as the app keeps it.
     nonisolated static func makeHistory() -> History {
         let history = History(byteBudget: Editor.historyByteBudget)
-        history.makeThumbnail = { $0.thumbnail(maxSide: 64) }
+        history.makeThumbnail = { $0.thumbnail(maxSide: 64, transparentKey: $1) }
         // Flatten and Merge don't wait for replaced layers to be written out (AC-27).
         history.evictsInBackground = true
         return history

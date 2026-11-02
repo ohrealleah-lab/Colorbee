@@ -37,7 +37,7 @@ struct SoakTests {
     private func soakRound(canvas: Canvas, seed: UInt64) {
         // The app's budget, so old steps spill to disk as they would in use.
         let history = History(byteBudget: 512 << 20)
-        history.makeThumbnail = { $0.thumbnail(maxSide: 64) }
+        history.makeThumbnail = { canvas, _ in canvas.thumbnail(maxSide: 64) }
         // As in the app: layers moved out of memory are compressed without holding up the step.
         history.evictsInBackground = true
         let original = canvas.flattened().contentHash()

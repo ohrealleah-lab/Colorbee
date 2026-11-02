@@ -55,7 +55,7 @@ final class ClipboardHistory {
             id = item.id
         } else {
             let item = Item(id: UUID(), date: .now, width: width, height: height, fingerprint: fingerprint)
-            guard (try? data.write(to: imageURL(item), options: .atomic)) != nil else { return nil }
+            guard !StoredSettings.canWrite || (try? data.write(to: imageURL(item), options: .atomic)) != nil else { return nil }
             items.insert(item, at: 0)
             while items.count > Self.capacity { forget(items.removeLast()) }
             id = item.id
@@ -117,6 +117,7 @@ final class ClipboardHistory {
 
     private func forget(_ item: Item) {
         thumbnails[item.id] = nil
+        guard StoredSettings.canWrite else { return }
         try? FileManager.default.removeItem(at: imageURL(item))
     }
 

@@ -45,7 +45,7 @@ struct CanvasPropertiesTests {
     @Test func historyListsStepsWithThumbnails() {
         let canvas = Canvas(size: IntSize(width: 40, height: 20), colorSpace: Canvas.defaultColorSpace, background: .white)
         let history = History(byteBudget: .max)
-        history.makeThumbnail = { $0.thumbnail(maxSide: 10) }
+        history.makeThumbnail = { canvas, _ in canvas.thumbnail(maxSide: 10) }
         for name in ["One", "Two", "Three"] {
             let edit = history.beginEdit(name, on: canvas)
             edit.willModify(IntRect(x: 0, y: 0, width: 40, height: 20), in: canvas.layers[0])

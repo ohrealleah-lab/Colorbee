@@ -360,7 +360,10 @@ public final class History {
     public var redoStepID: UUID? { redoStack.last?.id }
 
     /// Makes the History panel's picture of the image after each step. Nil makes none (tests, scratch work).
-    public var makeThumbnail: ((Canvas) -> Thumbnail)?
+    public var makeThumbnail: ((Canvas, Pixel?) -> Thumbnail)?
+    /// The color a floating piece leaves out in thumbnails while Transparent Selection is on; the app sets it before
+    /// recording a step.
+    public var thumbnailKey: Pixel?
 
     /// Every step, oldest first: the ones that can be undone, then the ones that can be redone.
     public var steps: [(name: String, thumbnail: Thumbnail?, isUndone: Bool)] {
@@ -386,7 +389,7 @@ public final class History {
     public func commit(_ edit: Edit, mergingIntoPrevious: Bool = false) -> Bool {
         let recorded = record(edit, mergingIntoPrevious: mergingIntoPrevious)
         if recorded, let makeThumbnail, let entry = undoStack.last {
-            entry.thumbnail = makeThumbnail(edit.canvas)
+            entry.thumbnail = makeThumbnail(edit.canvas, thumbnailKey)
         }
         return recorded
     }
@@ -600,7 +603,7 @@ public final class History {
         tileBytes -= entry.byteCount
         undoStack.remove(at: index)
         discardRedo()
-        reversal.thumbnail = makeThumbnail?(canvas)
+        reversal.thumbnail = makeThumbnail?(canvas, thumbnailKey)
         undoStack.append(reversal)
         tileBytes += reversal.byteCount
         revision += 1

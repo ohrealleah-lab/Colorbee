@@ -254,8 +254,9 @@ public final class Canvas {
     // MARK: Thumbnails
 
     /// A small picture of the whole image for the History panel, made by compositing only the sampled
-    /// pixels, so it costs almost nothing even on a huge image. Blur and Sharpen adjustments are skipped.
-    public func thumbnail(maxSide: Int) -> Thumbnail {
+    /// pixels, so it costs almost nothing even on a huge image, a floating piece included. `transparentKey` leaves out
+    /// a piece's pixels of that color, as the screen does. Blur and Sharpen adjustments are skipped.
+    public func thumbnail(maxSide: Int, transparentKey: Pixel? = nil) -> Thumbnail {
         let scale = min(1, Double(maxSide) / Double(max(size.width, size.height)))
         let width = max(1, Int(Double(size.width) * scale)), height = max(1, Int(Double(size.height) * scale))
         var pixels: [Pixel] = []
@@ -271,16 +272,18 @@ public final class Canvas {
         let transforms = Dictionary(uniqueKeysWithValues: visible.compactMap { layer in
             layer.adjustment?.colorTransform.map { (ObjectIdentifier(layer), $0) }
         })
-        // A floating piece shows placed in its layer or mask, as in `flattened` (review round 11, AE B).
+        // A floating piece shows placed in its layer or mask, as in `flattened` (review round 11, AE B). Each sampled
+        // pixel is placed on its own, so a big piece costs no copy of its layer (review AF, finding 1).
         let placed = selection.floating.flatMap { floating in
-            allLayers.first { $0.id == floating.layerID }.map { layer in
-                (id: layer.id, buffer: floating.placedCopy(of: layer, locked: locksTransparency(layer), resampling: .nearestNeighbor, transparentKey: nil))
-            }
+            allLayers.first { $0.id == floating.layerID }.map { (floating: floating, locked: locksTransparency($0)) }
         }
-        func buffer(of layer: Layer) -> PixelBuffer { placed?.id == layer.id ? placed!.buffer : layer.buffer }
+        func sample(_ id: LayerID, _ buffer: PixelBuffer, _ x: Int, _ y: Int) -> Pixel {
+            guard let placed, placed.floating.layerID == id else { return buffer[x, y] }
+            return placed.floating.placedPixel(over: buffer[x, y], x: x, y: y, locked: placed.locked, transparentKey: transparentKey)
+        }
         func reveal(_ layer: Layer, _ x: Int, _ y: Int) -> Float {
             guard layer.maskEnabled, let mask = layer.mask else { return 1 }
-            return Compositing.reveal((placed?.id == mask.id ? placed!.buffer : mask.buffer)[x, y])
+            return Compositing.reveal(sample(mask.id, mask.buffer, x, y))
         }
         for ty in 0..<height {
             let y = min(size.height - 1, Int((Double(ty) + 0.5) / scale))
@@ -313,11 +316,11 @@ public final class Canvas {
                             adjusted.a = below.a
                             color = rounded(Compositing.mixed(Compositing.premultiplied(below), adjusted, fade: Float(layer.opacity) * reveal(layer, x, y), mode: layer.blendMode))
                         } else {
-                            var pixel = buffer(of: layer)[x, y]
+                            var pixel = sample(layer.id, layer.buffer, x, y)
                             for clip in clips[ObjectIdentifier(layer)] ?? [] {
                                 let fade = Float(clip.opacity) * reveal(clip, x, y)
                                 if clip.isPixelLayer {
-                                    pixel = Compositing.blendAtop(pixel, buffer(of: clip)[x, y], opacity: fade, mode: clip.blendMode)
+                                    pixel = Compositing.blendAtop(pixel, sample(clip.id, clip.buffer, x, y), opacity: fade, mode: clip.blendMode)
                                     continue
                                 }
                                 guard let transform = transforms[ObjectIdentifier(clip)] else { continue }

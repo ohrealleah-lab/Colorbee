@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-02 · 855 core tests and 345 app tests passing (untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-02 · 858 core tests and 346 app tests passing (review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing is waiting right now.
+- [Review round 12, session AF: History thumbnails with a floating piece](#test-review-round-12-session-af-history-thumbnails-with-a-floating-piece)
 
 ---
 
@@ -395,6 +395,23 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Review round 12, session AF: History thumbnails with a floating piece
+
+From [Review/findings-AF.md](Review/findings-AF.md). Findings 1 and 2: with a piece floating, a History thumbnail no
+longer copies the whole layer (it placed the piece on the main thread for every step), and it leaves out the piece's
+Color 2 pixels while Transparent Selection is on, as the screen and export do. Finding 3 (tests could touch the real
+Clipboard History folder) is covered by an app test; nothing to try by hand.
+
+1. Open `TestImages/Stage 9 Practice Photo.png`.
+2. Image > Resize and Skew…, choose Percentage, type 500 in Horizontal (Maintain aspect ratio on), click OK.
+3. Edit > Select All.
+4. Press the Right Arrow key 10 times.
+   Expected: each press moves the picture at once, with no pause or jerking.
+5. Close without saving. Open `TestImages/Help/Sample Screenshot.png`, Edit > Select All, Edit > Copy.
+6. Open `TestImages/Stage 9 Practice Photo.png`. Press D, then click the Transparent Selection button in the toolbar.
+7. Edit > Paste, then View > History.
+   Expected: the Paste step's thumbnail shows the photo through the screenshot's white areas, as the canvas does.
 
 ### Test: Review round 11, tier 1 (passed 2026-11-02)
 

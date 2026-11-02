@@ -30,7 +30,7 @@ extension History {
                                                       pixels: written))
         }
         let selection: SelectionState = canvas.selection.marquee.map { .marquee($0) } ?? .none
-        let snapshot = HistorySnapshot(name: name, thumbnail: makeThumbnail?(canvas), size: canvas.size, layers: layers,
+        let snapshot = HistorySnapshot(name: name, thumbnail: makeThumbnail?(canvas, thumbnailKey), size: canvas.size, layers: layers,
                                        activeIndex: canvas.activeLayerIndex, hasTransparentBackground: canvas.hasTransparentBackground,
                                        selection: selection)
         snapshots.append(snapshot)

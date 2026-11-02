@@ -122,6 +122,17 @@ public struct FloatingSelection {
         return (patch, area)
     }
 
+    /// What one canvas pixel shows when this piece is placed over `base`, sampled nearest-neighbor from the source
+    /// without placing the whole piece: for thumbnails, which read a few thousand pixels of a possibly huge layer.
+    func placedPixel(over base: Pixel, x: Int, y: Int, locked: Bool, transparentKey: Pixel?) -> Pixel {
+        guard destination.contains(IntPoint(x: x, y: y)) else { return base }
+        let sourceX = min(pixels.width - 1, (x - destination.minX) * pixels.width / destination.width)
+        let sourceY = min(pixels.height - 1, (y - destination.minY) * pixels.height / destination.height)
+        let top = pixels[sourceX, sourceY]
+        if let transparentKey, top.matchesColor(of: transparentKey) { return base }
+        return locked ? .placedOnLocked(base, top) : Compositing.over(base, top)
+    }
+
     private func place(_ pixels: PixelBuffer, at origin: IntPoint, onto buffer: PixelBuffer, in area: IntRect) {
         ParallelRows.forEach(area.minY..<area.maxY) { rows in
             for y in rows {

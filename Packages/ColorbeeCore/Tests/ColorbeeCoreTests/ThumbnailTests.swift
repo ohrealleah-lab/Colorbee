@@ -62,4 +62,28 @@ struct ThumbnailTests {
         #expect(canvas.selection.floating != nil)
         #expect(largestDifference(canvas) <= 2)
     }
+
+    /// AF 2: the screen and the export leave out a piece's Color 2 pixels while Transparent Selection is on.
+    @Test func aFloatingPieceHonorsTransparentSelection() {
+        let (canvas, history) = busyStack()
+        canvas.activeLayerIndex = 0
+        var piece = PixelBuffer(width: 4, height: 3, fill: .white)
+        piece[0, 0] = Pixel(r: 10, g: 10, b: 240)
+        SelectionActions.paste(piece, at: IntPoint(x: 1, y: 8), canvas: canvas, history: history, context: context)
+        let flat = canvas.flattened(transparentKey: .white).pixels(in: canvas.bounds)
+        let thumbnail = canvas.thumbnail(maxSide: 16, transparentKey: .white).pixels
+        #expect(flat == thumbnail)
+        #expect(flat != canvas.thumbnail(maxSide: 16).pixels)
+    }
+
+    /// AF 1: a piece on a layer that locks its transparency, or stretched, still matches the export.
+    @Test func aStretchedPieceOnALockedLayerMatchesTheExport() {
+        let (canvas, history) = busyStack()
+        canvas.activeLayerIndex = 1
+        canvas.activeLayer.locksTransparency = true
+        SelectionActions.paste(PixelBuffer(width: 4, height: 3, fill: Pixel(r: 10, g: 200, b: 40)), at: IntPoint(x: 3, y: 3),
+                               canvas: canvas, history: history, context: context)
+        SelectionActions.resize(to: IntRect(x: 2, y: 2, width: 8, height: 6), canvas: canvas)
+        #expect(largestDifference(canvas) <= 2)
+    }
 }

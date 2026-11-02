@@ -478,11 +478,11 @@ and `Pictures/Final Fantasy/nin.png` (not in the repo: personal screenshots). Ru
 3. Click the catgirl's vest.
    Expected: "Looking closer…" for a moment, then just the catgirl is selected, without the doll.
 4. Press ⌘D. Choose Edit > Select Subject. Shift-click the left doll.
-   Expected: it gets a stronger orange tint. The bar stays open.
+   Expected: it turns blue. The bar stays open.
 5. Shift-click the right doll.
-   Expected: after a moment, the right doll gets its own outline and the stronger tint.
+   Expected: after a moment, the right doll gets its own outline and turns blue.
 6. Shift-click the left doll again.
-   Expected: its stronger tint goes away.
+   Expected: it's no longer blue.
 7. Press Return.
    Expected: only the right doll is selected.
 8. Choose Layer > Lift Subject to New Layer. Press Return.

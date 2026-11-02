@@ -100,6 +100,20 @@ C. **Quick Selection brush** (later, larger): paint roughly over the thing you w
 5. **Follow Gradients** (a separate mode): compare each pixel to its neighbor instead of to the click, so a
    shaded area is selected as one. On the lamp picture it selected everything. Not recommended.
 
+### Step 4's before-and-after (2026-11-02)
+
+Claude tried Refine Edge (a color guided filter: it moves a soft mask's edge onto the picture's own edges) and
+Apple's people mask outside the app, on the lamp and on a portrait Leah supplied (kept out of the repo: a personal
+photo). The comparison pictures were shown to Leah in chat.
+
+- **Refine Edge helps a little, everywhere.** The lamp's stem and base come out crisper; on the portrait, the arm's
+  edge is cleaner and the hair's ends come back where the subject mask had cut them off square. The strength
+  matters: about 8 px is the middle ground; 16 px brings back more hair but leaves smears of the wall beside it;
+  4 px barely changes anything. About 0.5–0.75 s on these pictures, in a plain scratch script.
+- **The people mask did worse on this portrait.** Its edge is softer, with a blurry band of wall around the hair,
+  and it took in part of the radiator behind. On the lamp it even reported a "person" under the click (a ghost of
+  the lamp), so it could only ever be used when it closely matches the subject clicked.
+
 ## Vision updates batched with this (Leah, 2026-11-01)
 
 Leah added these because they share the same code (`SubjectScan`, `Editor.findSubject` and `pickSubject`) and the
@@ -152,9 +166,12 @@ list. Auto-redacting faces is built too (FR-9.7 item 10).
 - **Better people outlines are used whenever the picked subject is a person**, with no new command, if the
   before-and-after shows they're better.
 
-## Open questions for Leah
+## Open questions for Leah (2026-11-02)
 
-None for now.
+- **Q6. Build Refine Edge?** Recommended: yes, always on, for Select Subject, Lift Subject, Remove Background and the
+  wand's Object mode, at about 8 px (scaled to the picture's size), with no new setting.
+- **Q7. Build the better people outlines?** Recommended: no. On the portrait it was worse than the general subject
+  finder, and it can mistake things for people.
 
 ## Plan
 

@@ -143,4 +143,15 @@ struct RedactionSnapshotTests {
         editor.redo()
         #expect(editor.snapshotQuestion == nil && editor.stepNames == ["Redact Brush"] && editor.redactedSinceSave)
     }
+
+    /// Review AH, finding 8: if the picture changes while the question is up, the answer says so instead of doing nothing.
+    @Test func aPictureThatChangedWhileAskingIsSaidOutLoud() throws {
+        let editor = try editorWithSnapshot()
+        redactStroke(editor)
+        #expect(editor.snapshotQuestion != nil)
+        editor.addLayer()
+        editor.deleteSnapshotsAndRedact()
+        #expect(editor.redactionMessage != nil && editor.historySnapshots.count == 1)
+        #expect(!editor.stepNames.contains("Redact Brush"))
+    }
 }

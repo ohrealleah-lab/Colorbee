@@ -65,7 +65,12 @@ extension Editor {
                 let revision = history.revision, pageID = page.id
                 snapshotQuestion = SnapshotQuestion(count: history.snapshots.count) { [weak self] in
                     // If the picture changed while the question was up, the area asked about may not fit it.
-                    guard let self, self.history.revision == revision, self.page.id == pageID else { return }
+                    guard let self else { return }
+                    guard self.history.revision == revision, self.page.id == pageID else {
+                        self.onRefused()
+                        self.redactionMessage = "The picture changed while Colorbee was asking, so nothing was redacted. Try again."
+                        return
+                    }
                     self.redact(with: effect, in: area, named: name)
                 }
                 return onRender()

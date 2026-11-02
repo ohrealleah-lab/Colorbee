@@ -36,7 +36,9 @@ enum MonkeyRules {
             }
         }
         let history = editor.history
-        if history.byteCount > history.byteBudget + 64 << 20 {
+        // Pictures here are tiny, so one step (a crop holds every layer twice) is a few MB at most; the old 64 MB slack
+        // let a history that never spilled pass (review AH, finding 3).
+        if history.byteCount > history.byteBudget + (8 << 20) {
             throw MonkeyFailure(rule: "History went over its memory budget", detail: "\(history.byteCount >> 20) MB held, budget \(history.byteBudget >> 20) MB.")
         }
     }

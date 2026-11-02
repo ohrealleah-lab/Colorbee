@@ -71,10 +71,12 @@ struct SubjectPickTests {
     }
 
     // Shift-click and Return (Leah, 2026-11-01), with two made-up subjects, the left and right halves, so no Vision.
+    // The left half is black, so Refine Edge keeps the edge between them where it is.
 
     private func pickingTwoHalves(_ action: Editor.SubjectAction = .select) throws -> Editor {
         let editor = makeEditor()
         let layer = editor.canvas.paintLayer
+        layer.buffer.fill(.black, in: IntRect(x: 0, y: 0, width: 32, height: 64))
         let left = (0..<(64 * 64)).map { $0 % 64 < 32 ? UInt8(255) : 0 }
         let scan = SubjectScan(size: editor.canvas.size, masks: [left, left.map { 255 - $0 }])
         let image = try ImageCodec.makeCGImage(layer.buffer, colorSpace: editor.canvas.colorSpace)
@@ -85,18 +87,31 @@ struct SubjectPickTests {
         return editor
     }
 
-    @Test func returnTakesTheShiftClickedSubjects() throws {
+    @Test func returnTakesTheShiftClickedSubjects() async throws {
         let editor = try pickingTwoHalves()
         editor.pickMarked = [1]
         editor.applyEffect()
-        #expect(editor.activeEffect == nil && editor.canvas.selection.bounds == IntRect(x: 32, y: 0, width: 32, height: 64))
-        #expect(editor.pickMarked.isEmpty && editor.pickLabels == nil)
+        // Refine Edge works in the background, and Esc can still stop it meanwhile.
+        #expect(editor.isFindingSubject && editor.activeEffect == .pickSubject)
+        try await waitUntil { editor.activeEffect == nil }
+        #expect(editor.canvas.selection.bounds == IntRect(x: 32, y: 0, width: 32, height: 64))
+        #expect(editor.pickMarked.isEmpty && editor.pickLabels == nil && !editor.isFindingSubject)
     }
 
-    @Test func returnWithNoneMarkedTakesThemAll() throws {
+    @Test func returnWithNoneMarkedTakesThemAll() async throws {
         let editor = try pickingTwoHalves()
         editor.applyEffect()
+        try await waitUntil { editor.activeEffect == nil }
         #expect(editor.canvas.selection.bounds == editor.canvas.bounds)
+    }
+
+    @Test func escWhileRefiningTakesNothing() async throws {
+        let editor = try pickingTwoHalves()
+        editor.applyEffect()
+        editor.cancelEffect()
+        #expect(!editor.isFindingSubject && editor.activeEffect == nil)
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(!editor.hasSelection)
     }
 
     @Test func shiftClickingAMarkedSubjectUnmarksItWithoutLooking() throws {

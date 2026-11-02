@@ -1,6 +1,6 @@
 # Proposal: Selecting things in game screenshots, and other Vision updates
 
-Status: **steps 1–3 built, waiting for Leah's hand test** (2026-11-01); steps 4–6 waiting to be scheduled. All questions answered.
+Status: **steps 1–4 built, waiting for Leah's hand test** (2026-11-02); steps 5 and 6 waiting to be scheduled. All questions answered.
 This is separate from the Lightroom-style development plan.
 
 ## The problem
@@ -166,19 +166,22 @@ list. Auto-redacting faces is built too (FR-9.7 item 10).
 - **Better people outlines are used whenever the picked subject is a person**, with no new command, if the
   before-and-after shows they're better.
 
-## Open questions for Leah (2026-11-02)
+## Decided after the before-and-after (Leah, 2026-11-02; FRD §23)
 
-- **Q6. Build Refine Edge?** Recommended: yes, always on, for Select Subject, Lift Subject, Remove Background and the
-  wand's Object mode, at about 8 px (scaled to the picture's size), with no new setting.
-- **Q7. Build the better people outlines?** Recommended: no. On the portrait it was worse than the general subject
-  finder, and it can mistake things for people.
+- **Refine Edge is built**, always on, for Select Subject, Lift Subject, Remove Background and Object mode, with no
+  setting: 8 px on most pictures (`RefineEdge.radius`), about 0.14 s on a 12-megapixel photo.
+- **Better people outlines are dropped**: on the portrait the people mask was worse than the general subject finder.
+
+## Open questions for Leah
+
+None for now.
 
 ## Plan
 
 - **Done:** lamp, sky and steps tests (above). Untangling, tried on the catgirl screenshot before building: the
   first look's subject (catgirl and right doll, 1.38 million pixels) gave way to the catgirl alone (0.76 million, 95%
   inside), in about 0.15 s; the lamp is still found by the bigger closer looks, in the second square (1501 px).
-- **Built 2026-11-01:** steps 1 to 3 below (hand test in `Docs/STATUS.md`).
+- **Built:** steps 1 to 3 (2026-11-01) and Refine Edge from step 4 (2026-11-02); hand tests in `Docs/STATUS.md`.
 - **When Leah says go, in this order:**
   1. Bigger closer looks and untangling merged subjects (Vision updates 1 and 2): they make every pick better,
      Object mode included, so they come first. Tested on the catgirl and cats pictures.

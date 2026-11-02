@@ -585,7 +585,8 @@ extension Editor {
 
 extension Editor {
     /// Selects the thing under the click, as Select Subject finds it: the subject Vision's first look found there,
-    /// untangled from its neighbors, or else one a closer look finds. Nothing found beeps and leaves the selection.
+    /// untangled from its neighbors, or else one a closer look finds, with Refine Edge. Nothing found beeps and leaves
+    /// the selection.
     func selectObject(at pixel: IntPoint, mode: SelectionCombineMode) {
         guard !isFindingSubject, canvas.bounds.contains(pixel) else { return onRefused() }
         let layer = canvas.paintLayer
@@ -599,7 +600,8 @@ extension Editor {
         let look = objectLook
         Task { @MainActor [weak self] in
             let scan = if let cached { cached.scan } else { (try? await SubjectScan.find(in: image)) ?? SubjectScan(size: IntSize(width: image.width, height: image.height), masks: []) }
-            let mask = try? await scan.subjectMask(at: pixel, in: image)
+            var mask = try? await scan.subjectMask(at: pixel, in: image)
+            if let found = mask { mask = await RefineEdge.refined(found, in: image) }
             guard let self, self.objectLook == look else { return }
             self.isFindingSubject = false
             self.isFindingObject = false

@@ -450,14 +450,35 @@ extension Editor {
         Task { @MainActor [weak self] in
             let mask = try? await pick.scan.subjectMask(at: pixel, in: pick.image)
             guard let self, self.closerLook == look else { return }
+            guard self.activeEffect == .pickSubject, let current = self.subjectPick, current.layer == pick.layer else {
+                self.isFindingSubject = false
+                return
+            }
+            guard let mask else {
+                self.isFindingSubject = false
+                return self.onRefused()
+            }
+            if marking {
+                self.isFindingSubject = false
+                return self.mark(mask)
+            }
+            self.take(SubjectScan(size: current.scan.size, masks: self.pickMarked.map { current.scan.masks[$0] } + [mask]).mask(), look: look)
+        }
+    }
+
+    /// Takes the picked subjects, with Refine Edge moving their outline onto the picture's own edges first (Leah,
+    /// 2026-11-02). It keeps looking while it refines, so Esc still cancels.
+    func take(_ mask: [UInt8], look: Int) {
+        guard let pick = subjectPick else { return }
+        isFindingSubject = true
+        Task { @MainActor [weak self] in
+            let refined = await RefineEdge.refined(mask, in: pick.image)
+            guard let self, self.closerLook == look else { return }
             self.isFindingSubject = false
-            guard self.activeEffect == .pickSubject, let current = self.subjectPick, current.layer == pick.layer else { return }
-            guard let mask else { return self.onRefused() }
-            if marking { return self.mark(mask) }
-            let taken = SubjectScan(size: current.scan.size, masks: self.pickMarked.map { current.scan.masks[$0] } + [mask]).mask()
+            guard self.activeEffect == .pickSubject, self.subjectPick?.layer == pick.layer else { return }
             self.endPick()
             self.activeEffect = nil
-            self.perform(pick.action, mask: taken)
+            self.perform(pick.action, mask: refined)
         }
     }
 

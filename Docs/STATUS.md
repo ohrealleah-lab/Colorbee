@@ -7,12 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-01 · 847 core tests and 344 app tests passing (subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-02 · 853 core tests and 345 app tests passing (Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Refine Edge](#test-refine-edge) (2026-11-02)
 - [Subject outlines, Shift-click and the wand's Object mode](#test-subject-outlines-shift-click-and-the-wands-object-mode) (2026-11-01)
 - [Redaction deletes History Snapshots](#test-redaction-deletes-history-snapshots) (2026-11-01)
 - [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
@@ -451,6 +452,19 @@ nothing changed. Use `TestImages/Photo Editing/Old Adjust Photo.colorproj`.
    Expected: the dot follows the mouse; with Option it moves a quarter as far.
 10. Drag sideways across a slider's name, such as Exposure.
     Expected: the slider moves as if you dragged it.
+
+### Test: Refine Edge
+
+Step 4 of `Docs/Proposals/Magic Wand on Game Screenshots.md` (2026-11-02). Use Leah's `Pictures/Final Fantasy/nin.png`
+and the portrait she sent for the before-and-after (neither is in the repo). Run `make run` first.
+
+1. Open `nin.png`. Choose Layer > Lift Subject to New Layer. Click the genie lamp.
+   Expected: "Looking closer…" for a moment, then a new Subject layer.
+2. In the Layers panel, hide the Background layer.
+   Expected: the lamp's stem narrows at its waist, and the base's edge is crisp, with no strip of grey ground.
+3. Open the portrait. Choose Image > Remove Background. Click the person.
+   Expected: the hair's ends follow the hair, rather than being cut off square by the left shoulder, and the arm's
+   edge is clean.
 
 ### Test: Subject outlines, Shift-click and the wand's Object mode
 

@@ -47,6 +47,23 @@ struct PerformanceTests {
         #expect(offsets.allSatisfy { abs($0.x - 90) < 2 })
     }
 
+    /// Refine Edge on a 12-megapixel photo with a large subject, whose edge crosses many tiles (Leah, 2026-11-02). It
+    /// runs after each subject click, so it should feel like part of the look. About 0.14 s when set.
+    @Test func refineEdgeOnALargePhoto() {
+        let size = IntSize(width: 4000, height: 3000)
+        let guide = (0..<(size.width * size.height)).flatMap { index -> [UInt8] in
+            let x = index % size.width, y = index / size.width
+            return [UInt8((x * 7 + y * 3) % 256), UInt8((x / 3) % 256), UInt8((y / 5) % 256), 255]
+        }
+        let mask = (0..<(size.width * size.height)).map { index -> UInt8 in
+            let x = Double(index % size.width) - 2000, y = Double(index / size.width) - 1500
+            let distance = (x * x / 2_250_000 + y * y / 1_210_000).squareRoot()
+            return UInt8((min(max((1 - distance) * 40, 0), 1) * 255).rounded())
+        }
+        let time = fastest { _ = RefineEdge.refined(mask, guide: guide, size: size, radius: RefineEdge.radius(for: size)) }
+        #expect(time < .milliseconds(300), "took \(time)")
+    }
+
     /// A thin stroke corner to corner of 8000 × 8000: its box is the whole image, but its work is only its own pixels.
     @Test func matchToneOverAThinStrokeAcrossTheImage() throws {
         let bounds = IntRect(x: 0, y: 0, width: Self.side, height: Self.side)

@@ -392,11 +392,10 @@ extension Editor {
         if effectPreviewScheduled { renderEffectPreview() }
         if activeEffect == .pickSubject {
             // With no subjects of its own there's nothing for Return to take; waiting on a closer look, it waits.
-            guard pickHasSubjects, !isFindingSubject else { return onRefused() }
-            activeEffect = nil
+            guard pickHasSubjects, !isFindingSubject, let pick = subjectPick else { return onRefused() }
             // The Shift-clicked subjects, or with none, all of them (Leah, 2026-11-01).
-            if let pick = subjectPick { perform(pick.action, mask: pick.scan.mask(for: pickMarked.isEmpty ? nil : pickMarked.sorted())) }
-            endPick()
+            closerLook += 1
+            take(pick.scan.mask(for: pickMarked.isEmpty ? nil : pickMarked.sorted()), look: closerLook)
             return
         }
         if activeEffect == .crop || activeEffect == .perspective {

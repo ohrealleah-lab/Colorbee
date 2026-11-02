@@ -7,12 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-02 · 853 core tests and 345 app tests passing (Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-02 · 855 core tests and 345 app tests passing (untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Tall photos aren't cut off](#test-tall-photos-arent-cut-off) (2026-11-02)
 - [Refine Edge](#test-refine-edge) (2026-11-02)
 - [Subject outlines, Shift-click and the wand's Object mode](#test-subject-outlines-shift-click-and-the-wands-object-mode) (2026-11-01)
 - [Redaction deletes History Snapshots](#test-redaction-deletes-history-snapshots) (2026-11-01)
@@ -452,6 +453,19 @@ nothing changed. Use `TestImages/Photo Editing/Old Adjust Photo.colorproj`.
    Expected: the dot follows the mouse; with Option it moves a quarter as far.
 10. Drag sideways across a slider's name, such as Exposure.
     Expected: the slider moves as if you dragged it.
+
+### Test: Tall photos aren't cut off
+
+Leah's bug (2026-11-02): Lift Subject on her portrait lost the top of her head and the bottom of her dress, in
+straight lines. Untangling had taken a closer look's cut-off piece as a separate subject. Use the portrait she sent
+(not in the repo) and her `Downloads/test.jpeg`. Run `make run` first; quit any Colorbee that's open.
+
+1. Open the portrait. Choose Layer > Lift Subject to New Layer. Click the face.
+   Expected: the new layer has the whole person, from the top of the head to the bottom of the dress.
+2. Press ⌘Z. Press W, choose **Object**, and click the dress.
+   Expected: the selection goes all the way round the person, with no straight cuts.
+3. Open `test.jpeg`. Choose Edit > Select Subject and click the catgirl's vest.
+   Expected: just the catgirl is selected, without the doll, as before.
 
 ### Test: Refine Edge
 

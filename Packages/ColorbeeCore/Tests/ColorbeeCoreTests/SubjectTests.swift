@@ -136,6 +136,28 @@ struct SubjectTests {
         #expect(SubjectScan.prefers(rows(0..<9), over: rows(0..<10)))
     }
 
+    /// A 20 × 40 portrait, its closer square the middle 20 × 20.
+    private let portrait = IntSize(width: 20, height: 40)
+    private let middle = IntRect(x: 0, y: 10, width: 20, height: 20)
+
+    private func filled(_ rect: IntRect, in size: IntSize) -> [UInt8] {
+        (0..<(size.width * size.height)).map { rect.contains(IntPoint(x: $0 % size.width, y: $0 / size.width)) ? 255 : 0 }
+    }
+
+    @Test func aSubjectRunningIntoTheSquaresSideWasCutOff() {
+        // Leah's portrait: the square cut her off at the top and bottom.
+        #expect(SubjectScan.isCut(filled(IntRect(x: 4, y: 10, width: 12, height: 20), in: portrait), by: middle, in: portrait))
+        #expect(SubjectScan.isCut(filled(IntRect(x: 4, y: 20, width: 12, height: 10), in: portrait), by: middle, in: portrait))
+    }
+
+    @Test func aSubjectInsideTheSquareOrAtThePicturesEdgeWasntCutOff() {
+        #expect(!SubjectScan.isCut(filled(IntRect(x: 4, y: 12, width: 12, height: 16), in: portrait), by: middle, in: portrait))
+        // The square's left and right sides are the picture's own edges.
+        #expect(!SubjectScan.isCut(filled(IntRect(x: 0, y: 12, width: 20, height: 16), in: portrait), by: middle, in: portrait))
+        // A few stray pixels on a side don't count.
+        #expect(!SubjectScan.isCut(filled(IntRect(x: 4, y: 10, width: 8, height: 16), in: portrait), by: middle, in: portrait))
+    }
+
     // Labels, for outlining what was found.
 
     @Test func labelsShowTheStrongestSubjectAndTheLaterOneOnATie() {

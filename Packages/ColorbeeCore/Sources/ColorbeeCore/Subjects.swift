@@ -34,12 +34,17 @@ public struct SubjectScan: Sendable {
     /// Looks again in ever smaller squares around `point`, for a subject too small for Vision to see in the whole
     /// image, and returns the mask of the one under `point`, the size of the whole image (Leah, 2026-10-27).
     public static func findCloser(at point: IntPoint, in image: CGImage) async throws -> [UInt8]? {
+        try await closerSubject(at: point, in: image)?.mask
+    }
+
+    /// The closer look's subject under `point`, and the square it was found in.
+    static func closerSubject(at point: IntPoint, in image: CGImage) async throws -> (mask: [UInt8], square: IntRect)? {
         let size = IntSize(width: image.width, height: image.height)
         for square in closerSquares(around: point, in: size) {
             guard let crop = image.cropping(to: CGRect(x: square.x, y: square.y, width: square.width, height: square.height)) else { continue }
             let scan = try await find(in: crop)
             if let index = scan.subject(at: IntPoint(x: point.x - square.x, y: point.y - square.y)) {
-                return placed(scan.masks[index], from: square, in: size)
+                return (placed(scan.masks[index], from: square, in: size), square)
             }
         }
         return nil
@@ -48,8 +53,26 @@ public struct SubjectScan: Sendable {
     /// The subject under `point` in `mask`'s place, when Vision's first look joined it with its neighbors: a closer
     /// look around the click often sees them apart (Leah, 2026-11-01). Otherwise `mask` itself.
     public static func untangled(_ mask: [UInt8], at point: IntPoint, in image: CGImage) async throws -> [UInt8] {
-        guard let closer = try await findCloser(at: point, in: image) else { return mask }
-        return prefers(closer, over: mask) ? closer : mask
+        guard let closer = try await closerSubject(at: point, in: image) else { return mask }
+        let size = IntSize(width: image.width, height: image.height)
+        return !isCut(closer.mask, by: closer.square, in: size) && prefers(closer.mask, over: mask) ? closer.mask : mask
+    }
+
+    /// Whether a subject found in `square` runs into one of its sides inside the picture: then the square cut it off,
+    /// and it only looks smaller than the first look's. In a tall portrait, the square as wide as the picture cut off
+    /// the head and the dress (Leah, 2026-11-02). A few stray pixels on a side don't count.
+    static func isCut(_ mask: [UInt8], by square: IntRect, in size: IntSize) -> Bool {
+        var touching = 0
+        func count(_ x: Int, _ y: Int) { if mask[y * size.width + x] >= 128 { touching += 1 } }
+        for x in square.x..<square.maxX {
+            if square.y > 0 { count(x, square.y) }
+            if square.maxY < size.height { count(x, square.maxY - 1) }
+        }
+        for y in square.y..<square.maxY {
+            if square.x > 0 { count(square.x, y) }
+            if square.maxX < size.width { count(square.maxX - 1, y) }
+        }
+        return touching > 8
     }
 
     /// Whether a closer look's subject is a separate one inside the first look's: mostly within it, clearly smaller,

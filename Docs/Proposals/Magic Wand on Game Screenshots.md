@@ -1,6 +1,6 @@
 # Proposal: Selecting things in game screenshots, and other Vision updates
 
-Status: **planned, waiting to be scheduled** (2026-10-27; Vision updates added 2026-11-01). Five questions are open (below).
+Status: **planned, waiting to be scheduled** (2026-10-27; Vision updates added 2026-11-01). All questions answered.
 Planning only; nothing is built. This is separate from the Lightroom-style development plan.
 
 ## The problem
@@ -139,23 +139,22 @@ list. Auto-redacting faces is built too (FR-9.7 item 10).
 
 - **Refine Edge:** try it first as a before-and-after on the lamp, outside the app, then decide whether to build it.
 
-## Open questions for Leah (2026-11-01)
+## Decided for the Vision updates (Leah, 2026-11-01: "use your recs"; FRD §23)
 
-Claude's recommendation is first in each.
+- **Untangling merged subjects is automatic.** You clicked the white cat, so you meant the white cat. To avoid
+  taking just a piece of someone (a hat), the smaller subject must be at least a fifth of the big one's size.
+- **Showing what Vision found:** outlines on every subject found, plus a tint on the one under the pointer, so you
+  can see at a glance whether Vision merged things.
+- **Picking more than one:** a plain click still takes a subject at once. Shift-click marks subjects (tinted), and
+  Return takes the marked ones; with none marked, Return takes all of them, as today.
+- **Auto Straighten runs every time Straighten opens**, with "Finding the horizon…" for a moment and a Reset button,
+  matching Perspective Correction.
+- **Better people outlines are used whenever the picked subject is a person**, with no new command, if the
+  before-and-after shows they're better.
 
-- **Q1. Untangling merged subjects: automatically, or with a second click?** Recommended: automatically. You clicked
-  the white cat, so you meant the white cat; asking for a second click makes every pick slower. To avoid taking just
-  a piece of someone (a hat), the smaller subject must be at least a fifth of the big one's size.
-- **Q2. Showing what Vision found: outlines on all of them plus a tint under the pointer, or only the tint?**
-  Recommended: both. The outlines show at a glance whether Vision merged things, before you click.
-- **Q3. Picking more than one: does a plain click still take the subject at once?** Recommended: yes. A plain click
-  takes it as today; Shift-click marks subjects (tinted), and Return takes the marked ones. With none marked, Return
-  takes all of them, as today.
-- **Q4. Auto Straighten: every time Straighten opens, or only with an Auto button?** Recommended: every time, with
-  "Finding the horizon…" for a moment and a Reset button, matching Perspective Correction, which you chose to find
-  its corners every time it opens.
-- **Q5. Better people outlines: whenever the picked subject is a person, or as its own command?** Recommended:
-  whenever it's a person, with no new command, if the before-and-after shows it's better. Nothing new to learn.
+## Open questions for Leah
+
+None for now.
 
 ## Plan
 

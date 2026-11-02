@@ -239,4 +239,19 @@ struct TextLayerTests {
             #expect(canvas.layers.map(\.text) == texts, "seed \(seed)")
         }
     }
+
+    @Test func undoingRasterizeTextAfterUndoOnActiveLayerGivesBackJustTheText() throws {
+        let (canvas, history) = picture()
+        let layer = canvas.layers[1]
+        LayerActions.rasterizeText(canvas: canvas, history: history, context: context)
+        let edit = history.beginEdit("Brush", on: canvas)
+        edit.willModify(IntRect(x: 0, y: 0, width: 10, height: 10), in: layer)
+        layer.buffer.fill(.black, in: IntRect(x: 0, y: 0, width: 10, height: 10))
+        history.commit(edit)
+        #expect(history.undoOnLayer(layer.id, canvas: canvas))
+        // Undo everything back: the reversal, then Rasterize Text.
+        history.undo(on: canvas)
+        history.undo(on: canvas)
+        #expect(layer.text != nil && matchesItsText(layer, canvas))
+    }
 }

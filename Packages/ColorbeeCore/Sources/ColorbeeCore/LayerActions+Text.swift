@@ -54,6 +54,9 @@ extension LayerActions {
     public static func rasterizeText(canvas: Canvas, history: History, context: SelectionContext) -> Bool {
         guard canvas.activeLayer.text != nil, !canvas.isLocked(canvas.activeLayer) else { return false }
         return change("Rasterize Text", canvas: canvas, history: history, context: context) {
+            // Its own pixels from here, so undoing this always gives back exactly the text, whatever painting since was
+            // taken back out of order by Undo on Active Layer (the overnight monkey test, 2026-11-02).
+            canvas.activeLayer.buffer = canvas.activeLayer.buffer.copy()
             canvas.activeLayer.text = nil
             return true
         }

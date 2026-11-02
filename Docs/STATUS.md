@@ -7,12 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-01 · 842 core tests and 338 app tests passing (a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-01 · 847 core tests and 344 app tests passing (subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Subject outlines, Shift-click and the wand's Object mode](#test-subject-outlines-shift-click-and-the-wands-object-mode) (2026-11-01)
 - [Redaction deletes History Snapshots](#test-redaction-deletes-history-snapshots) (2026-11-01)
 - [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
 - [The monkey's thumbnail and export fixes](#test-the-monkeys-thumbnail-and-export-fixes) (2026-10-31)
@@ -450,6 +451,38 @@ nothing changed. Use `TestImages/Photo Editing/Old Adjust Photo.colorproj`.
    Expected: the dot follows the mouse; with Option it moves a quarter as far.
 10. Drag sideways across a slider's name, such as Exposure.
     Expected: the slider moves as if you dragged it.
+
+### Test: Subject outlines, Shift-click and the wand's Object mode
+
+Steps 1 to 3 of `Docs/Proposals/Magic Wand on Game Screenshots.md` (2026-11-01). Use Leah's `Downloads/test.jpeg`
+and `Pictures/Final Fantasy/nin.png` (not in the repo: personal screenshots). Run `make run` first.
+
+1. Open `test.jpeg`. Choose Edit > Select Subject.
+   Expected: orange outlines around what Colorbee found.
+2. Rest the pointer on the catgirl.
+   Expected: she and the right doll both get a light orange tint (Vision sees them as one subject).
+3. Click the catgirl's vest.
+   Expected: "Looking closer…" for a moment, then just the catgirl is selected, without the doll.
+4. Press ⌘D. Choose Edit > Select Subject. Shift-click the left doll.
+   Expected: it gets a stronger orange tint. The bar stays open.
+5. Shift-click the right doll.
+   Expected: after a moment, the right doll gets its own outline and the stronger tint.
+6. Shift-click the left doll again.
+   Expected: its stronger tint goes away.
+7. Press Return.
+   Expected: only the right doll is selected.
+8. Choose Layer > Lift Subject to New Layer. Press Return.
+   Expected: everything outlined is lifted onto one new layer. ⌘Z.
+9. Open `nin.png`. Press W. In the palette bar, click **Object**.
+   Expected: Tolerance and Contiguous grey out.
+10. Click the genie lamp.
+    Expected: "Looking closer… Esc stops" for a moment, then the whole lamp is selected.
+11. Shift-click the lalafell.
+    Expected: she's added to the selection.
+12. Option-click the lamp.
+    Expected: the lamp leaves the selection; she stays.
+13. Click **Color**, then click the sky.
+    Expected: the wand selects by color, as before.
 
 ### Test: Redaction deletes History Snapshots
 

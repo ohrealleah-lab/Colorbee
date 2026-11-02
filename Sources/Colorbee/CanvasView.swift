@@ -50,6 +50,8 @@ final class CanvasView: NSView {
     private var spaceHeld = false
     /// Where the pointer is over the view, in image coordinates, for the eraser's outline.
     private var hoverPoint: Point2D?
+    /// The subject tinted under the pointer in the last frame drawn, so moving within it doesn't redraw.
+    private var shownHoveredLabel = 0
     private var sprayTimer: Timer?
     /// The latest Force Touch trackpad pressure in this drag, if the trackpad has sent any.
     private var trackpadPressure: Double?
@@ -275,6 +277,8 @@ final class CanvasView: NSView {
             tintsOutsideSelection: editor.selectionChange != nil || (editor.activeEffect?.choosesSelection == true && editor.marqueePreview != nil),
             clipsHighlights: !comparing && editor.showsPhotoControls && editor.clipsHighlights,
             clipsShadows: !comparing && editor.showsPhotoControls && editor.clipsShadows,
+            subjects: comparing || editor.activeEffect != .pickSubject ? nil
+                : editor.pickLabels.map { ($0, editor.pickHoveredLabel, editor.pickMarkedBits) },
             comparison: comparisonScene
         )
     }
@@ -435,6 +439,7 @@ final class CanvasView: NSView {
         let processingLatency = processingLatency
         let screenLatency = screenLatency
         let signpostState = Diagnostics.signposter.beginInterval("Render")
+        shownHoveredLabel = editor.pickHoveredLabel
         renderer.render(
             renderScene,
             into: metalLayer,
@@ -495,6 +500,8 @@ final class CanvasView: NSView {
         editor.pointer = editor.canvas.bounds.contains(pixel) ? pixel : nil
         hoverPoint = point
         if editor.tool == .eraser || editor.tool == .retouch || editor.areaBrushSize != nil { setNeedsRender() }
+        // The subject under the pointer is tinted while picking (Leah, 2026-11-01).
+        if editor.activeEffect == .pickSubject, editor.pickHoveredLabel != shownHoveredLabel { setNeedsRender() }
         if drag == nil { currentCursor(at: point).set() }
     }
 
@@ -981,7 +988,9 @@ final class CanvasView: NSView {
         default:
             switch (event.charactersIgnoringModifiers, plain) {
             case ("\u{1b}", true):
-                if editor.fillProgress != nil {
+                if editor.isFindingObject {
+                    editor.cancelObjectSearch()
+                } else if editor.fillProgress != nil {
                     editor.cancelFill()
                 } else if editor.pendingShape != nil {
                     editor.cancelPendingShape()

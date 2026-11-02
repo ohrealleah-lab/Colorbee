@@ -109,6 +109,14 @@ final class Editor {
     /// Magic Wand tolerance, 0...1.
     var wandTolerance = 0.1
     var wandContiguous = true
+    /// Object mode selects the thing under the click, found with Vision, rather than similar colors (Leah, 2026-10-27).
+    var wandMode = WandMode.color
+    /// Object mode's first look, kept until the image changes, so later clicks on the same picture are quick.
+    @ObservationIgnored var wandSubjects: (key: WandSubjectsKey, scan: SubjectScan, image: CGImage)?
+    /// Whether Object mode is looking now; Esc stops it.
+    var isFindingObject = false
+    /// Counts Object mode searches, so one stopped with Esc can't select when it finishes.
+    @ObservationIgnored var objectLook = 0
     /// Fill and the wand find their area in all visible layers together, not just the active one (Leah, 2026-10-04).
     var fillSamplesAllLayers = false
     var wandSamplesAllLayers = false
@@ -616,6 +624,19 @@ final class Editor {
         case removeBackground, liftToNewLayer, select
     }
 
+    enum WandMode: CaseIterable {
+        case color, object
+
+        var name: String { self == .color ? "Color" : "Object" }
+    }
+
+    /// What Object mode's first look was made from: this page, this layer (nil for every layer) and this version.
+    struct WandSubjectsKey: Equatable {
+        let canvas: ObjectIdentifier
+        let layer: LayerID?
+        let revision: Int
+    }
+
     /// Whether Vision is looking for the subject now.
     var isFindingSubject = false
     /// A message to show, such as "No subject found".
@@ -626,6 +647,12 @@ final class Editor {
     var pickSubjectCount = 0
     /// Counts closer looks, so one that was cancelled can't touch a later search when it finishes.
     @ObservationIgnored var closerLook = 0
+    /// Subjects Shift-clicked while picking, for Return to take (Leah, 2026-11-01).
+    @ObservationIgnored var pickMarked: Set<Int> = [] {
+        didSet { renderSoon() }
+    }
+    /// The pick's subjects, one label per pixel, so they're outlined while Colorbee waits (Leah, 2026-11-01).
+    @ObservationIgnored var pickLabels: SubjectLabelMap?
 
     // MARK: Picking from the picture (FR-9.7): the white-balance eyedropper and Point Color
 

@@ -157,6 +157,36 @@ fragment float4 tint_fragment(QuadOut in [[stage_in]],
     return float4(0.9 * alpha, 0.15 * alpha, 0.2 * alpha, alpha);
 }
 
+// Subjects waiting for a click (Leah, 2026-11-01): each subject's edge in the accent color with a dark line beside it,
+// so it shows on any picture, and a tint over the one under the pointer (adjustParams.x, a label) and the marked ones
+// (adjustParams.y, a bit per label). Labels are the subject's index plus 1, read with a nearest sampler.
+fragment float4 subjects_fragment(QuadOut in [[stage_in]],
+                                  texture2d<float> labels [[texture(0)]],
+                                  sampler nearest [[sampler(0)]],
+                                  constant QuadUniforms &u [[buffer(0)]]) {
+    float2 uv = in.uv;
+    int here = int(round(labels.sample(nearest, uv).r * 255.0));
+    float2 dx = dfdx(uv);
+    float2 dy = dfdy(uv);
+    bool edge = false, near = false;
+    for (int step = 1; step <= 2; step++) {
+        float2 offsets[4] = { dx * float(step), -dx * float(step), dy * float(step), -dy * float(step) };
+        for (int i = 0; i < 4; i++) {
+            if (int(round(labels.sample(nearest, uv + offsets[i]).r * 255.0)) != here) {
+                if (step == 1) edge = true; else near = true;
+            }
+        }
+    }
+    float3 accent = u.keyColor.rgb;
+    if (edge) return float4(accent, 1);
+    if (near) return float4(0, 0, 0, 0.6);
+    if (here == 0) discard_fragment();
+    uint marked = uint(u.adjustParams.y);
+    float alpha = ((marked >> uint(here - 1)) & 1u) != 0 ? 0.4 : here == int(u.adjustParams.x) ? 0.25 : 0.0;
+    if (alpha == 0) discard_fragment();
+    return float4(accent * alpha, alpha);
+}
+
 // Pixel grid: one drawable pixel along each image pixel's top and left edge, in whichever of
 // black or white contrasts with what's underneath.
 fragment float4 grid_fragment(QuadOut in [[stage_in]],

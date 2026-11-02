@@ -209,7 +209,7 @@ extension Editor {
     func beginCanvasToolDrag(at point: Point2D, viewPoint: Point2D, adding: Bool = false) {
         switch activeEffect {
         case .pickSubject:
-            pickSubject(at: point)
+            pickSubject(at: point, marking: adding)
             return
         case .colorRange:
             pickRangeColor(at: point, adding: adding)
@@ -372,6 +372,7 @@ extension Editor {
         isFindingSubject = true
         Task { @MainActor [weak self] in
             let scan = try? await SubjectScan.find(in: image)
+            let labels = await Task.detached { scan?.labels() }.value
             guard let self else { return }
             self.isFindingSubject = false
             // Something changed the image meanwhile (a step, an undo, or a stroke still being drawn), so the
@@ -386,8 +387,28 @@ extension Editor {
             // neighbors, and a click elsewhere looks closer (Leah, 2026-10-27 and 2026-10-28).
             self.subjectPick = (found, image, action, layer.id)
             self.pickSubjectCount = found.masks.count
+            self.pickMarked = []
+            self.pickLabels = SubjectLabelMap(size: found.size, values: labels ?? found.labels())
             self.beginEffect(.pickSubject)
         }
+    }
+
+    /// The subject under the pointer while picking, as a label (0 for none), for its tint.
+    var pickHoveredLabel: Int {
+        guard activeEffect == .pickSubject, !isFindingSubject, let pointer, let pickLabels else { return 0 }
+        return pickLabels.label(at: pointer)
+    }
+
+    /// The Shift-clicked subjects, one bit each, for the renderer. The shader reads them as a float, exact to 24 bits.
+    var pickMarkedBits: UInt32 {
+        pickMarked.reduce(0) { $1 < 24 ? $0 | 1 << UInt32($1) : $0 }
+    }
+
+    /// Ends picking, whether a subject was taken or not.
+    func endPick() {
+        subjectPick = nil
+        pickMarked = []
+        pickLabels = nil
     }
 
     func perform(_ action: SubjectAction, mask: [UInt8]) {
@@ -409,31 +430,49 @@ extension Editor {
         onRender()
     }
 
-    /// A click while picking: that subject, or one found by looking closer around the click, or a beep.
-    private func pickSubject(at point: Point2D) {
+    /// A click while picking: the subject there, untangled from its neighbors, or one found by looking closer around
+    /// the click, or a beep. A plain click takes it, with any Shift-clicked ones; Shift-click marks it for Return, or
+    /// unmarks it (Leah, 2026-11-01).
+    private func pickSubject(at point: Point2D, marking: Bool) {
         guard let pick = subjectPick, !isFindingSubject else { return }
         let pixel = IntPoint(containing: point)
-        if let index = pick.scan.subject(at: pixel) {
-            subjectPick = nil
-            activeEffect = nil
-            perform(pick.action, mask: pick.scan.mask(for: [index]))
+        guard canvas.bounds.contains(pixel) else { return onRefused() }
+        let index = pixel.y * canvas.size.width + pixel.x
+        if marking, let marked = pickMarked.first(where: { pick.scan.masks[$0][index] >= 128 }) {
+            pickMarked.remove(marked)
             return
         }
-        guard canvas.bounds.contains(pixel) else { return onRefused() }
-        // Vision shrinks the whole image to about 512 px, so a small subject is missed there (Leah, 2026-10-27).
+        // Vision shrinks the whole image to about 512 px, so a small subject is missed there, and neighbors can run
+        // together (Leah, 2026-10-27 and 2026-11-01).
         isFindingSubject = true
         closerLook += 1
         let look = closerLook
         Task { @MainActor [weak self] in
-            let mask = try? await SubjectScan.findCloser(at: pixel, in: pick.image)
+            let mask = try? await pick.scan.subjectMask(at: pixel, in: pick.image)
             guard let self, self.closerLook == look else { return }
             self.isFindingSubject = false
-            guard self.activeEffect == .pickSubject, self.subjectPick?.layer == pick.layer else { return }
+            guard self.activeEffect == .pickSubject, let current = self.subjectPick, current.layer == pick.layer else { return }
             guard let mask else { return self.onRefused() }
-            self.subjectPick = nil
+            if marking { return self.mark(mask) }
+            let taken = SubjectScan(size: current.scan.size, masks: self.pickMarked.map { current.scan.masks[$0] } + [mask]).mask()
+            self.endPick()
             self.activeEffect = nil
-            self.perform(pick.action, mask: mask)
+            self.perform(pick.action, mask: taken)
         }
+    }
+
+    /// Marks a subject for Return: one already found, or a new one from a closer look, added so it's outlined too.
+    private func mark(_ mask: [UInt8]) {
+        guard var pick = subjectPick else { return }
+        if let index = pick.scan.masks.firstIndex(of: mask) {
+            pickMarked.insert(index)
+            return
+        }
+        pick.scan = SubjectScan(size: pick.scan.size, masks: pick.scan.masks + [mask])
+        subjectPick = pick
+        pickSubjectCount = pick.scan.masks.count
+        pickLabels = SubjectLabelMap(size: pick.scan.size, values: pick.scan.labels())
+        pickMarked.insert(pick.scan.masks.count - 1)
     }
 
     /// Drop Shadow and Border: takes back the last preview step and draws the new one. Straighten does this in the

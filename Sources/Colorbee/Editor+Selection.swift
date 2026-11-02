@@ -61,6 +61,7 @@ extension Editor {
             // A floating paste is placed first, so the wand sees it rather than what's under it (review I, finding 2).
             placeFloatingKeepingOutline()
             let seed = IntPoint(containing: point)
+            if wandMode == .object { return selectObject(at: seed, mode: mode) }
             let sampled = wandSamplesAllLayers ? canvas.flattened() : canvas.paintLayer.buffer
             let mask = SelectionMask.magicWand(in: sampled, at: seed, tolerance: wandTolerance, contiguous: wandContiguous)
             recordingChanges {
@@ -577,5 +578,50 @@ extension Editor {
         }
         if canvasSize != canvas.size { canvasDidResize() }
         onRender()
+    }
+}
+
+// MARK: Object mode on the Magic Wand (Leah, 2026-10-27)
+
+extension Editor {
+    /// Selects the thing under the click, as Select Subject finds it: the subject Vision's first look found there,
+    /// untangled from its neighbors, or else one a closer look finds. Nothing found beeps and leaves the selection.
+    func selectObject(at pixel: IntPoint, mode: SelectionCombineMode) {
+        guard !isFindingSubject, canvas.bounds.contains(pixel) else { return onRefused() }
+        let layer = canvas.paintLayer
+        let key = WandSubjectsKey(canvas: ObjectIdentifier(canvas), layer: wandSamplesAllLayers ? nil : layer.id, revision: history.revision)
+        let cached = wandSubjects?.key == key ? wandSubjects : nil
+        guard let image = cached?.image ?? (try? ImageCodec.makeCGImage(wandSamplesAllLayers ? canvas.flattened() : layer.buffer,
+                                                                          colorSpace: canvas.colorSpace)) else { return onRefused() }
+        isFindingSubject = true
+        isFindingObject = true
+        objectLook += 1
+        let look = objectLook
+        Task { @MainActor [weak self] in
+            let scan = if let cached { cached.scan } else { (try? await SubjectScan.find(in: image)) ?? SubjectScan(size: IntSize(width: image.width, height: image.height), masks: []) }
+            let mask = try? await scan.subjectMask(at: pixel, in: image)
+            guard let self, self.objectLook == look else { return }
+            self.isFindingSubject = false
+            self.isFindingObject = false
+            // Something changed the image meanwhile, so what was found may no longer fit it.
+            guard self.history.revision == key.revision, ObjectIdentifier(self.canvas) == key.canvas, self.canvas.paintLayer.id == layer.id,
+                  self.activeStroke == nil, self.activeEffect == nil else {
+                return self.showNotice("The image changed while Colorbee was looking. Try again.")
+            }
+            self.wandSubjects = (key, scan, image)
+            guard let mask else { return self.onRefused() }
+            self.recordingChanges {
+                SubjectActions.select(mask, mode: mode, canvas: self.canvas, history: self.history, context: self.selectionContext)
+            }
+            self.selectionDidChange()
+        }
+    }
+
+    /// Esc while Object mode looks: stops it, and nothing changes.
+    func cancelObjectSearch() {
+        guard isFindingObject else { return }
+        objectLook += 1
+        isFindingObject = false
+        isFindingSubject = false
     }
 }

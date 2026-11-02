@@ -34,6 +34,22 @@ struct QuadUniforms {
     var maskParams: SIMD4<Float> = .zero
 }
 
+/// The subjects a pick found, one label per pixel (`SubjectScan.labels`), for the renderer to outline.
+final class SubjectLabelMap {
+    let size: IntSize
+    let values: [UInt8]
+
+    init(size: IntSize, values: [UInt8]) {
+        self.size = size
+        self.values = values
+    }
+
+    func label(at point: IntPoint) -> Int {
+        guard point.x >= 0, point.y >= 0, point.x < size.width, point.y < size.height else { return 0 }
+        return Int(values[point.y * size.width + point.x])
+    }
+}
+
 /// Everything needed to draw one frame of a document.
 struct RenderScene {
     let canvas: Canvas
@@ -71,6 +87,9 @@ struct RenderScene {
     /// Adjust Photo's clipping warnings (FR-9.7 item 6), on screen only: blown highlights red, crushed shadows blue.
     var clipsHighlights = false
     var clipsShadows = false
+    /// Select Subject and the like, waiting for a click: every subject found is outlined, and the one under the pointer
+    /// (a label) and the Shift-clicked ones (a bit per label, from bit 0 for label 1) are tinted.
+    var subjects: (labels: SubjectLabelMap, hovered: Int, marked: UInt32)? = nil
     /// Before/After: the earlier image and how to show it.
     let comparison: (before: PixelBuffer, layout: Comparison.Layout, dividerX: Double)?
 }
@@ -87,6 +106,8 @@ final class Renderer {
     private let checkerPipeline: MTLRenderPipelineState
     private let shadowPipeline: MTLRenderPipelineState
     private let tintPipeline: MTLRenderPipelineState
+    private let subjectsPipeline: MTLRenderPipelineState
+    private var labelTexture: (map: SubjectLabelMap, texture: MTLTexture)?
     private let antsPipeline: MTLRenderPipelineState
     private let gridPipeline: MTLRenderPipelineState
     private let solidPipeline: MTLRenderPipelineState
@@ -173,6 +194,7 @@ final class Renderer {
         shadowPipeline = pipeline(fragment: "shadow_fragment")
         antsPipeline = pipeline(fragment: "ants_fragment")
         tintPipeline = pipeline(fragment: "tint_fragment")
+        subjectsPipeline = pipeline(fragment: "subjects_fragment")
         gridPipeline = pipeline(fragment: "grid_fragment", blended: false)
         solidPipeline = pipeline(fragment: "solid_fragment")
         linePipeline = pipeline(fragment: "solid_fragment", vertex: "line_vertex")
@@ -676,6 +698,16 @@ final class Renderer {
         }
         pixelTextures = pixelTextures.filter { liveBuffers.contains($0.key) }
 
+        if let subjects = scene.subjects {
+            uniforms.rect = deviceRect(canvas.bounds)
+            uniforms.adjustParams = SIMD4(Float(subjects.hovered), Float(subjects.marked), 0, 0)
+            uniforms.keyColor = SIMD4(1, 0.35, 0.2, 1)
+            encoder.setFragmentSamplerState(nearestSampler, index: 0)
+            encoder.setFragmentTexture(texture(for: subjects.labels), index: 0)
+            draw(subjectsPipeline)
+        } else {
+            labelTexture = nil
+        }
         if let outline = scene.outline, scene.tintsOutsideSelection {
             uniforms.rect = deviceRect(canvas.bounds)
             uniforms.adjustParams = SIMD4(Float(outline.rect.minX), Float(outline.rect.minY), Float(outline.rect.width), Float(outline.rect.height))
@@ -943,6 +975,20 @@ final class Renderer {
             fatalError("Couldn't create the pixel texture")
         }
         pixelTextures[key] = PixelTexture(buffer: buffer, generation: buffer.generation, metalBuffer: metalBuffer, texture: texture)
+        return texture
+    }
+
+    private func texture(for labels: SubjectLabelMap) -> MTLTexture {
+        if let labelTexture, labelTexture.map === labels { return labelTexture.texture }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .r8Unorm, width: labels.size.width, height: labels.size.height, mipmapped: false)
+        descriptor.usage = .shaderRead
+        descriptor.storageMode = .shared
+        guard let texture = device.makeTexture(descriptor: descriptor) else { fatalError("Couldn't create the subjects texture") }
+        labels.values.withUnsafeBytes { bytes in
+            texture.replace(region: MTLRegionMake2D(0, 0, labels.size.width, labels.size.height), mipmapLevel: 0,
+                            withBytes: bytes.baseAddress!, bytesPerRow: labels.size.width)
+        }
+        labelTexture = (labels, texture)
         return texture
     }
 

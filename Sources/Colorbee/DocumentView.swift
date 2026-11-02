@@ -37,6 +37,7 @@ struct DocumentView: View {
                         .padding(.top, 12)
                     } else if editor.isFindingSubject || editor.isReadingText || editor.isFindingEyes {
                         Label(editor.isReadingText ? "Reading text…" : editor.isFindingEyes ? "Finding eyes…"
+                              : editor.isFindingObject ? "Looking closer… Esc stops"
                               : editor.activeEffect == .pickSubject ? "Looking closer…" : "Finding the subject…",
                               systemImage: editor.isReadingText ? "text.viewfinder" : editor.isFindingEyes ? "eye" : "person.crop.rectangle")
                             .font(.system(size: 12))
@@ -245,17 +246,28 @@ private struct ToolOptions: View {
         case .magnifier:
             hint("Click to zoom in · right-click or Option-click to zoom out")
         case .magicWand:
-            Text("Tolerance")
-            Slider(value: $editor.wandTolerance, in: 0...1)
-                .frame(width: 100)
-            Text("\(Int((editor.wandTolerance * 100).rounded()))%")
-                .monospacedDigit()
-                .frame(width: 36, alignment: .trailing)
-                .scrubs($editor.wandTolerance, in: 0...1, step: 0.01)
-            Toggle("Contiguous", isOn: $editor.wandContiguous)
-                .help("Contiguous selects only the connected area; off selects every matching pixel")
+            Picker("Select by", selection: $editor.wandMode) {
+                ForEach(Editor.WandMode.allCases, id: \.self) { Text($0.name).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("Color selects similar colors; Object selects the thing you click, found on this Mac")
+            Group {
+                Text("Tolerance")
+                Slider(value: $editor.wandTolerance, in: 0...1)
+                    .frame(width: 100)
+                Text("\(Int((editor.wandTolerance * 100).rounded()))%")
+                    .monospacedDigit()
+                    .frame(width: 36, alignment: .trailing)
+                    .scrubs($editor.wandTolerance, in: 0...1, step: 0.01)
+                Toggle("Contiguous", isOn: $editor.wandContiguous)
+                    .help("Contiguous selects only the connected area; off selects every matching pixel")
+            }
+            .disabled(editor.wandMode == .object)
             Toggle("Sample All Layers", isOn: $editor.wandSamplesAllLayers)
-                .help("Select by the colors of all visible layers together, not just this layer")
+                .help(editor.wandMode == .object ? "Look for the object in all visible layers together, not just this layer"
+                      : "Select by the colors of all visible layers together, not just this layer")
             selectionOptions
         case .rectangleSelect, .ellipseSelect, .lassoSelect:
             Text("Feather")
@@ -454,9 +466,9 @@ private struct EffectBar: View {
                     .fixedSize()
             }
             if kind == .pickSubject {
-                Text(editor.pickSubjectCount > 1 ? "There's more than one subject. Click the one you want, even a small one, or press Return for all of them."
-                     : editor.pickSubjectCount == 1 ? "Click the subject you want, even a small one, or press Return for the one Colorbee found."
-                     : "Colorbee didn't find a subject by itself. Click the one you want, and it looks closer.")
+                Text(editor.pickSubjectCount > 1 ? "Click the subject you want, even a small one. Shift-click to pick several, then press Return. Return alone takes all of them."
+                     : editor.pickSubjectCount == 1 ? "Click the subject you want, even a small one. Shift-click to pick several, then press Return. Return alone takes the one outlined."
+                     : "Colorbee didn't find a subject by itself. Click the one you want, and it looks closer. Shift-click to pick several.")
                     .foregroundStyle(.secondary)
             }
             if kind == .perspective {

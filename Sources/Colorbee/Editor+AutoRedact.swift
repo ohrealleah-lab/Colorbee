@@ -133,7 +133,7 @@ extension Editor {
             closerLook += 1
             isFindingSubject = false
         }
-        subjectPick = nil
+        endPick()
         effectEdit?.restoreOriginals()
         endEffectSession()
         activeEffect = nil

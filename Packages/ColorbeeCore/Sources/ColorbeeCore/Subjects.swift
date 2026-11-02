@@ -45,12 +45,34 @@ public struct SubjectScan: Sendable {
         return nil
     }
 
-    /// The squares to look in, largest first, kept inside the image. Vision looks at about 512 × 512, so the first is
-    /// half the image's shorter side and each is 0.7 of the one before, down to about 200 px.
+    /// The subject under `point` in `mask`'s place, when Vision's first look joined it with its neighbors: a closer
+    /// look around the click often sees them apart (Leah, 2026-11-01). Otherwise `mask` itself.
+    public static func untangled(_ mask: [UInt8], at point: IntPoint, in image: CGImage) async throws -> [UInt8] {
+        guard let closer = try await findCloser(at: point, in: image) else { return mask }
+        return prefers(closer, over: mask) ? closer : mask
+    }
+
+    /// Whether a closer look's subject is a separate one inside the first look's: mostly within it, clearly smaller,
+    /// and at least a fifth of its size, so a click on someone never takes just their hat (Leah, 2026-11-01).
+    static func prefers(_ closer: [UInt8], over mask: [UInt8]) -> Bool {
+        guard closer.count == mask.count else { return false }
+        var area = 0, closerArea = 0, inside = 0
+        for index in mask.indices {
+            let inMask = mask[index] >= 128, inCloser = closer[index] >= 128
+            if inMask { area += 1 }
+            if inCloser { closerArea += 1 }
+            if inMask && inCloser { inside += 1 }
+        }
+        return closerArea * 5 >= area && closerArea * 10 <= area * 9 && inside * 5 >= closerArea * 4
+    }
+
+    /// The squares to look in, largest first, kept inside the image. Vision looks at about 512 × 512, so each is 0.7 of
+    /// the one before, down to about 200 px. The first is the image's whole shorter side, so a tall subject isn't cut
+    /// off (Leah, 2026-11-01).
     static func closerSquares(around point: IntPoint, in size: IntSize) -> [IntRect] {
         let shorter = min(size.width, size.height)
         var squares: [IntRect] = []
-        var side = Double(shorter) / 2
+        var side = Double(shorter)
         while side >= 200 || squares.isEmpty {
             let length = max(1, Int(side.rounded()))
             let x = min(max(0, point.x - length / 2), size.width - length)
@@ -98,6 +120,36 @@ public struct SubjectScan: Sendable {
         return best.flatMap { masks[$0][index] >= 128 ? $0 : nil }
     }
 
+    /// What a click at `point` takes: the subject found there, untangled from its neighbors, or else one a closer look
+    /// finds (Leah, 2026-10-27 and 2026-11-01).
+    public func subjectMask(at point: IntPoint, in image: CGImage) async throws -> [UInt8]? {
+        if let index = subject(at: point) { return try await Self.untangled(masks[index], at: point, in: image) }
+        return try await Self.findCloser(at: point, in: image)
+    }
+
+    /// Which subject each pixel shows, for outlining them: 0 for none, otherwise the subject's index plus 1. Where
+    /// subjects overlap the strongest wins, and on a tie the later one, since a subject added after a closer look sits
+    /// inside the one it was untangled from.
+    public func labels() -> [UInt8] {
+        var result = [UInt8](repeating: 0, count: size.width * size.height)
+        let count = min(masks.count, 255), width = size.width
+        result.withUnsafeMutableBufferPointer { labels in
+            // Each band writes only its own rows.
+            let labels = UnsafeSendable(labels)
+            ParallelRows.forEach(0..<size.height) { rows in
+                for index in (rows.lowerBound * width)..<(rows.upperBound * width) {
+                    var best: UInt8 = 127, label: UInt8 = 0
+                    for subject in 0..<count where masks[subject][index] >= max(best, 128) {
+                        best = masks[subject][index]
+                        label = UInt8(subject + 1)
+                    }
+                    labels.value[index] = label
+                }
+            }
+        }
+        return result
+    }
+
     /// The chosen subjects together (nil for all of them).
     public func mask(for subjects: [Int]? = nil) -> [UInt8] {
         let chosen = (subjects ?? Array(masks.indices)).filter { masks.indices.contains($0) }
@@ -142,10 +194,11 @@ public enum SubjectActions {
         return history.commit(edit)
     }
 
-    /// Selects the subject, keeping Vision's soft edge (FR-3.4).
-    public static func select(_ mask: [UInt8], canvas: Canvas, history: History, context: SelectionContext) {
+    /// Selects the subject, keeping Vision's soft edge (FR-3.4), or adds it to the selection or takes it away, for the
+    /// Magic Wand's Object mode.
+    public static func select(_ mask: [UInt8], mode: SelectionCombineMode = .replace, canvas: Canvas, history: History, context: SelectionContext) {
         let selection = SelectionMask(bounds: canvas.bounds, values: mask).trimmed()
-        SelectionActions.select(selection, mode: .replace, canvas: canvas, history: history, context: context)
+        SelectionActions.select(selection, mode: mode, canvas: canvas, history: history, context: context)
     }
 
     private static func apply(_ mask: [UInt8], to buffer: PixelBuffer) {

@@ -97,9 +97,9 @@ struct SubjectTests {
 
     @Test func closerSquaresShrinkAroundTheClick() {
         let squares = SubjectScan.closerSquares(around: IntPoint(x: 960, y: 760), in: IntSize(width: 1920, height: 1200))
-        #expect(squares.map(\.width) == [600, 420, 294, 206])
+        #expect(squares.map(\.width) == [1200, 840, 588, 412, 288, 202])
         #expect(squares.allSatisfy { $0.width == $0.height })
-        #expect(squares[1] == IntRect(x: 750, y: 550, width: 420, height: 420))
+        #expect(squares[1] == IntRect(x: 540, y: 340, width: 840, height: 840))
     }
 
     @Test func closerSquaresStayInsideTheImage() {
@@ -112,7 +112,43 @@ struct SubjectTests {
     }
 
     @Test func aSmallImageGetsOneCloserSquare() {
-        #expect(SubjectScan.closerSquares(around: IntPoint(x: 50, y: 20), in: IntSize(width: 100, height: 40)) == [IntRect(x: 40, y: 10, width: 20, height: 20)])
+        #expect(SubjectScan.closerSquares(around: IntPoint(x: 50, y: 20), in: IntSize(width: 100, height: 40)) == [IntRect(x: 30, y: 0, width: 40, height: 40)])
+    }
+
+    // Untangling: a closer look's subject replaces the first look's only when it's a separate one inside it.
+
+    /// A 10 × 10 mask, 255 in the given rows (whole rows, so areas are easy to count).
+    private func rows(_ range: Range<Int>) -> [UInt8] {
+        (0..<100).map { range.contains($0 / 10) ? 255 : 0 }
+    }
+
+    @Test func aSmallerSubjectInsideIsPreferred() {
+        #expect(SubjectScan.prefers(rows(0..<5), over: rows(0..<10)))
+        #expect(SubjectScan.prefers(rows(0..<2), over: rows(0..<10)))
+    }
+
+    @Test func aPieceUnderAFifthIsntPreferred() {
+        #expect(!SubjectScan.prefers(rows(0..<1), over: rows(0..<10)))
+    }
+
+    @Test func nearlyTheSameSubjectIsntPreferred() {
+        #expect(!SubjectScan.prefers(rows(0..<10), over: rows(0..<10)))
+        #expect(SubjectScan.prefers(rows(0..<9), over: rows(0..<10)))
+    }
+
+    // Labels, for outlining what was found.
+
+    @Test func labelsShowTheStrongestSubjectAndTheLaterOneOnATie() {
+        let scan = SubjectScan(size: IntSize(width: 4, height: 1), masks: [[255, 200, 255, 100],
+                                                                           [0, 255, 255, 127]])
+        #expect(scan.labels() == [1, 2, 2, 0])
+    }
+
+    @Test func aSubjectMostlyOutsideIsntPreferred() {
+        // 4 rows, 3 of them inside: 75%, under the 80% needed.
+        #expect(!SubjectScan.prefers(rows(4..<8), over: rows(0..<7)))
+        // 5 rows, 4 inside: 80%.
+        #expect(SubjectScan.prefers(rows(3..<8), over: rows(0..<7)))
     }
 
     @Test func aCloserMaskIsPlacedWhereItWasFound() {

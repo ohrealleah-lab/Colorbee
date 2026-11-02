@@ -1,7 +1,7 @@
 # Proposal: Selecting things in game screenshots, and other Vision updates
 
-Status: **planned, waiting to be scheduled** (2026-10-27; Vision updates added 2026-11-01). All questions answered.
-Planning only; nothing is built. This is separate from the Lightroom-style development plan.
+Status: **steps 1–3 built, waiting for Leah's hand test** (2026-11-01); steps 4–6 waiting to be scheduled. All questions answered.
+This is separate from the Lightroom-style development plan.
 
 ## The problem
 
@@ -158,7 +158,10 @@ None for now.
 
 ## Plan
 
-- **Done:** lamp, sky and steps tests (above).
+- **Done:** lamp, sky and steps tests (above). Untangling, tried on the catgirl screenshot before building: the
+  first look's subject (catgirl and right doll, 1.38 million pixels) gave way to the catgirl alone (0.76 million, 95%
+  inside), in about 0.15 s; the lamp is still found by the bigger closer looks, in the second square (1501 px).
+- **Built 2026-11-01:** steps 1 to 3 below (hand test in `Docs/STATUS.md`).
 - **When Leah says go, in this order:**
   1. Bigger closer looks and untangling merged subjects (Vision updates 1 and 2): they make every pick better,
      Object mode included, so they come first. Tested on the catgirl and cats pictures.

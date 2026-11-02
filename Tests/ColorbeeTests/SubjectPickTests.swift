@@ -69,6 +69,86 @@ struct SubjectPickTests {
         #expect(refusals == 1 && !editor.isFindingSubject)
         editor.cancelEffect()
     }
+
+    // Shift-click and Return (Leah, 2026-11-01), with two made-up subjects, the left and right halves, so no Vision.
+
+    private func pickingTwoHalves(_ action: Editor.SubjectAction = .select) throws -> Editor {
+        let editor = makeEditor()
+        let layer = editor.canvas.paintLayer
+        let left = (0..<(64 * 64)).map { $0 % 64 < 32 ? UInt8(255) : 0 }
+        let scan = SubjectScan(size: editor.canvas.size, masks: [left, left.map { 255 - $0 }])
+        let image = try ImageCodec.makeCGImage(layer.buffer, colorSpace: editor.canvas.colorSpace)
+        editor.subjectPick = (scan, image, action, layer.id)
+        editor.pickSubjectCount = 2
+        editor.pickLabels = SubjectLabelMap(size: scan.size, values: scan.labels())
+        editor.beginEffect(.pickSubject)
+        return editor
+    }
+
+    @Test func returnTakesTheShiftClickedSubjects() throws {
+        let editor = try pickingTwoHalves()
+        editor.pickMarked = [1]
+        editor.applyEffect()
+        #expect(editor.activeEffect == nil && editor.canvas.selection.bounds == IntRect(x: 32, y: 0, width: 32, height: 64))
+        #expect(editor.pickMarked.isEmpty && editor.pickLabels == nil)
+    }
+
+    @Test func returnWithNoneMarkedTakesThemAll() throws {
+        let editor = try pickingTwoHalves()
+        editor.applyEffect()
+        #expect(editor.canvas.selection.bounds == editor.canvas.bounds)
+    }
+
+    @Test func shiftClickingAMarkedSubjectUnmarksItWithoutLooking() throws {
+        let editor = try pickingTwoHalves()
+        editor.pickMarked = [0, 1]
+        editor.beginCanvasToolDrag(at: pt(10, 10), viewPoint: pt(10, 10), adding: true)
+        #expect(editor.pickMarked == [1] && !editor.isFindingSubject)
+        editor.cancelEffect()
+        #expect(editor.pickMarked.isEmpty && editor.pickLabels == nil && editor.subjectPick == nil)
+    }
+
+    @Test func theSubjectUnderThePointerIsTinted() throws {
+        let editor = try pickingTwoHalves()
+        editor.pointer = IntPoint(x: 50, y: 5)
+        #expect(editor.pickHoveredLabel == 2)
+        editor.pickMarked = [0]
+        #expect(editor.pickMarkedBits == 1)
+        editor.cancelEffect()
+        #expect(editor.pickHoveredLabel == 0)
+    }
+
+    // The Magic Wand's Object mode (Leah, 2026-10-27).
+
+    @Test func objectModeOnNothingBeepsAndKeepsTheSelection() async throws {
+        let editor = makeEditor()
+        var refusals = 0
+        editor.onRefused = { refusals += 1 }
+        editor.wandMode = .object
+        editor.selectTool(.rectangleSelect)
+        editor.selectionDrag(from: pt(5, 5), to: pt(20, 20))
+        let selection = editor.canvas.selection.bounds
+        editor.selectTool(.magicWand)
+        editor.beginSelectionDrag(at: pt(40, 40), modifiers: DragModifiers(shift: true))
+        #expect(editor.isFindingObject)
+        try await waitForTheLook(editor)
+        #expect(refusals == 1 && editor.canvas.selection.bounds == selection)
+        // The first look is kept for the next click, until the image changes.
+        #expect(editor.wandSubjects?.key.revision == editor.history.revision)
+    }
+
+    @Test func escStopsObjectModeAndNothingIsSelected() async throws {
+        let editor = makeEditor()
+        var refusals = 0
+        editor.onRefused = { refusals += 1 }
+        editor.selectTool(.magicWand)
+        editor.wandMode = .object
+        editor.beginSelectionDrag(at: pt(40, 40), modifiers: DragModifiers())
+        editor.cancelObjectSearch()
+        #expect(!editor.isFindingObject && !editor.isFindingSubject)
+        try await Task.sleep(for: .seconds(2))
+        #expect(refusals == 0 && !editor.hasSelection)
+    }
 }
 
 /// Tooltips show after half a second in Colorbee (Leah, 2026-10-27), set where nothing is saved.

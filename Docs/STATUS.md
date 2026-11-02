@@ -13,11 +13,7 @@ _Last updated: 2026-11-02 · 855 core tests and 345 app tests passing (untanglin
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Redaction deletes History Snapshots](#test-redaction-deletes-history-snapshots) (2026-11-01)
-- [Stage 32: Overnight monkey test](#test-stage-32-overnight-monkey-test) (2026-10-31)
-- [The monkey's thumbnail and export fixes](#test-the-monkeys-thumbnail-and-export-fixes) (2026-10-31)
-- [Photo test coverage: screen drawing, Curves and color wheels](#test-photo-test-coverage-screen-drawing-curves-and-color-wheels) (2026-10-31)
-- [Review round 11, tier 1: undo after a page change, thumbnails, saved settings](#test-review-round-11-tier-1) (2026-10-31)
+Nothing is waiting right now.
 
 ---
 
@@ -400,7 +396,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Review round 11, tier 1
+### Test: Review round 11, tier 1 (passed 2026-11-02)
 
 Mostly reorganized code, so these check that everyday things still work, plus the two fixes. Use
 `TestImages/Several Layers/Opacity Test.colorproj`.
@@ -427,7 +423,7 @@ Mostly reorganized code, so these check that everyday things still work, plus th
 13. Press Return.
     Expected: nothing changes.
 
-### Test: Photo test coverage: screen drawing, Curves and color wheels
+### Test: Photo test coverage: screen drawing, Curves and color wheels (passed 2026-11-02)
 
 Only tests were added, but three pieces of code were reorganized so tests could reach them. These steps check that
 nothing changed. Use `TestImages/Photo Editing/Old Adjust Photo.colorproj`.
@@ -509,7 +505,7 @@ and `Pictures/Final Fantasy/nin.png` (not in the repo: personal screenshots). Ru
 13. Click **Color**, then click the sky.
     Expected: the wand selects by color, as before.
 
-### Test: Redaction deletes History Snapshots
+### Test: Redaction deletes History Snapshots (passed 2026-11-02)
 
 Use `TestImages/Help/Sample Screenshot.png`.
 
@@ -540,7 +536,7 @@ Use `TestImages/Help/Sample Screenshot.png`.
 16. With no snapshots, paint with the Redact Brush once more.
     Expected: no question; it's covered at once.
 
-### Test: The monkey's thumbnail and export fixes
+### Test: The monkey's thumbnail and export fixes (passed 2026-11-02)
 
 Close each picture with **Don't Save**. ⌘L shows the Layers panel.
 
@@ -626,7 +622,7 @@ Close each picture with **Don't Save** unless a step says otherwise. ⌘L shows 
     - Click Invert. ⌘-click the layer above it. Press ⌘G.
     - Expected: Invert stays outside the group, right above its layer.
 
-### Test: Stage 32: Overnight monkey test
+### Test: Stage 32: Overnight monkey test (passed 2026-11-02)
 
 No hand testing: it runs on its own while you sleep. Leave Colorbee closed, so nothing else competes.
 

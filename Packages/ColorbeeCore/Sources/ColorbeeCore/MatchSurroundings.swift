@@ -508,6 +508,8 @@ public enum MatchSurroundings {
             let r = MatchSurroundings.patchRadius
             var updated = pixels
             let snapshot = pixels
+            // The bands only read these; copies keep the closure from capturing `self`, which this function can change.
+            let (bandStarts, holeIndices, width, height, hole) = (bandStarts, holeIndices, width, height, hole)
             updated.withUnsafeMutableBufferPointer { output in
                 // Each band writes only its own pixels.
                 let shared = UnsafeSendable(output)

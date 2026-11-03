@@ -57,7 +57,7 @@ final class RawDeveloper: Sendable {
     private let previewFilter = Mutex<CIRAWFilter?>(nil)
 
     // CIContext is safe to share between threads.
-    nonisolated(unsafe) private static let context = CIContext(options: [.cacheIntermediates: false, .workingFormat: CIFormat.RGBAh])
+    private static let context = CIContext(options: [.cacheIntermediates: false, .workingFormat: CIFormat.RGBAh])
     private static let colorSpace = Canvas.defaultColorSpace
 
     static func isRAW(_ url: URL) -> Bool {

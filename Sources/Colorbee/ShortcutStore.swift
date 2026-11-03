@@ -74,7 +74,7 @@ final class ShortcutStore {
         book = ShortcutBook(commands: commands + Self.canvasCommands)
         system = SystemShortcuts.read()
         if let data = UserDefaults.standard.data(forKey: Self.key) {
-            try? book.importChanges(from: data, system: system)
+            _ = try? book.importChanges(from: data, system: system)
         }
         applyToMenus()
     }

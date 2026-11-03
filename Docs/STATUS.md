@@ -13,9 +13,7 @@ _Last updated: 2026-11-02 · 859 core tests and 350 app tests passing (review ro
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- Review round 12, AH 3 and AH 8: nothing to try by hand (a monkey rule that can now fire; a message after a changed picture, covered by an app test).
-- [Review round 12, tier 1 fixes (AH 1, AG 1, AG 2)](#test-review-round-12-tier-1-fixes-ah-1-ag-1-ag-2)
-- [Review round 12, session AF: History thumbnails with a floating piece](#test-review-round-12-session-af-history-thumbnails-with-a-floating-piece)
+Nothing is waiting right now.
 
 ---
 
@@ -95,6 +93,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 32. Overnight monkey test | Built 2026-10-31; waiting for Leah's first overnight run | High |
 | 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done, fixed, and passed Leah's test 2026-10-31 ([Review/RESULTS.md](Review/RESULTS.md)); the stricter monkey's new reports are being sorted | High |
 | 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tiers 1, 2 and 4 done 2026-11-01 (the rest of tier 4 left as not worth the churn; R5, AB 5 and AD 8 with Leah / tier 3). The monkey after tier 1 found 5 older bugs, fixed; 5 minutes after tier 2 found none ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
+| 14 · 33c. Review round 12: refactors checked, subjects, redaction safety (Leah, 2026-11-02) | Sessions AF, AG, AH done ([Review/PLAN-13.md](Review/PLAN-13.md)). Fixed and passed Leah's tests 2026-11-02: AF's three, and tier 1 (AH 1, AG 1, AG 2), plus AH 3 and AH 8. Open: the other monkey-strength items (AH 2, 4, 5, 7) and the Low findings (AG 3 to 7, AH 6); seven `ImageDocument.swift` Release warnings left on purpose | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -398,7 +397,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Review round 12, tier 1 fixes (AH 1, AG 1, AG 2)
+### Test: Review round 12, tier 1 fixes (AH 1, AG 1, AG 2) (passed 2026-11-02)
 
 From [Review/findings-AH.md](Review/findings-AH.md) and [findings-AG.md](Review/findings-AG.md). Redo of a redaction now
 asks about snapshots; untangling works on square pictures; Object mode's cache can't mix up pages.
@@ -420,7 +419,7 @@ asks about snapshots; untangling works on square pictures; Object mode's cache c
    Expected: just the catgirl, as on the original picture (not the catgirl and the doll together).
    Object mode (finding 2) has nothing to try by hand: it only mattered after deleting a page and adding another.
 
-### Test: Review round 12, session AF: History thumbnails with a floating piece
+### Test: Review round 12, session AF: History thumbnails with a floating piece (passed 2026-11-02)
 
 From [Review/findings-AF.md](Review/findings-AF.md). Findings 1 and 2: with a piece floating, a History thumbnail no
 longer copies the whole layer (it placed the piece on the main thread for every step), and it leaves out the piece's

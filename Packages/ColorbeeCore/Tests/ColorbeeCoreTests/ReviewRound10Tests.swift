@@ -141,7 +141,7 @@ struct ReviewRound10Tests {
 
     private func redactEverything(_ canvas: Canvas, _ history: History) {
         let all = SelectionMask.rectangle(canvas.bounds, clippedTo: canvas.bounds)!
-        AutoRedact.apply(.solidFill(.black), in: all, canvas: canvas, history: history)
+        _ = AutoRedact.apply(.solidFill(.black), in: all, canvas: canvas, history: history)
     }
 
     @Test func noRedactedWordsSurviveInAName() throws {

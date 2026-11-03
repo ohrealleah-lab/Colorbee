@@ -157,7 +157,7 @@ struct PageTests {
     @Test func aDeletedPageIsFreedOnceItCantComeBack() throws {
         let stack = PageStack(pages: [page(1)])
         try stack.insert(page(2), at: 1)
-        weak var deleted = stack.pages[1]
+        weak let deleted = stack.pages[1]
         try stack.remove(at: 1)
         #expect(deleted != nil)
         stack.noteEdit()

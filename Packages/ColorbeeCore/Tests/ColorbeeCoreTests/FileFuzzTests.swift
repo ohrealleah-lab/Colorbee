@@ -144,7 +144,7 @@ struct FileFuzzTests {
 
     static func pagesProject() throws -> Data {
         let one = try project()
-        let pages = try (0..<3).map { _ in ProjectFile.StoredPage(project: one, resolution: 144, thumbnail: nil) }
+        let pages = (0..<3).map { _ in ProjectFile.StoredPage(project: one, resolution: 144, thumbnail: nil) }
         return try ProjectFile.encode(stored: pages, currentIndex: 1)
     }
 

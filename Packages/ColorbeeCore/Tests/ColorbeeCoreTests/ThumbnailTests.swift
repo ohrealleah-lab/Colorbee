@@ -67,7 +67,7 @@ struct ThumbnailTests {
     @Test func aFloatingPieceHonorsTransparentSelection() {
         let (canvas, history) = busyStack()
         canvas.activeLayerIndex = 0
-        var piece = PixelBuffer(width: 4, height: 3, fill: .white)
+        let piece = PixelBuffer(width: 4, height: 3, fill: .white)
         piece[0, 0] = Pixel(r: 10, g: 10, b: 240)
         SelectionActions.paste(piece, at: IntPoint(x: 1, y: 8), canvas: canvas, history: history, context: context)
         let flat = canvas.flattened(transparentKey: .white).pixels(in: canvas.bounds)

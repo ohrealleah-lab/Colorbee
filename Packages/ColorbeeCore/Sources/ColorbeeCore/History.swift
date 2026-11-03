@@ -526,6 +526,7 @@ public final class History {
             entry.geometry = canvas.currentGeometry
             tileBytes += entry.geometry?.byteCount ?? 0
             canvas.replaceContents(size: geometry.size, buffers: buffers)
+            redrawStaleText(on: canvas)
             return canvas.bounds
         }
         var changed = IntRect.zero
@@ -536,6 +537,17 @@ public final class History {
             changed = changed.union(change.rect)
         }
         return changed
+    }
+
+    /// A text layer is always its words drawn. Undo on Active Layer can take an Edit Text step out from under a later
+    /// resize or crop, so the buffers that step swaps back may show older words than the layer now has (the overnight
+    /// monkey test, 2026-11-03).
+    private func redrawStaleText(on canvas: Canvas) {
+        for layer in canvas.layers {
+            guard let text = layer.text, text.isUpright, text.hasFont else { continue }
+            let drawn = text.drawn(size: canvas.size, colorSpace: canvas.colorSpace)
+            if layer.buffer.contentHash() != drawn.contentHash() { layer.buffer = drawn }
+        }
     }
 
     /// Forgets the steps that could be redone. Used when a preview that was a real step is cancelled.

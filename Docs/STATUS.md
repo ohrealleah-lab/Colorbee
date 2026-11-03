@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-02 · 859 core tests and 350 app tests passing (review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-03 · 860 core tests and 350 app tests passing (review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing is waiting right now.
+- [Text stays in step after Undo on Active Layer](#test-text-stays-in-step-after-undo-on-active-layer)
 
 ---
 
@@ -1986,3 +1986,16 @@ Stage 5b tested by hand on 2026-10-02, including trackpad pressure. Stage 6a tes
 - `make beta` uses Leah's signing key and notary profile: ask her before running it (macOS may ask for her keychain password).
 - Xcode 26 needs the Metal Toolchain component (already installed on this Mac).
 - Trackpad pressure arrives only in `pressureChange` events (drag events always say 1.0), and only when System Settings ▸ Trackpad ▸ Force Click and haptic feedback is on. Leah turned it on 2026-10-02. Each brush stroke logs its pressure range: `/usr/bin/log show --last 10m --predicate 'subsystem == "com.leah.Colorbee"' | grep pressure` (plain `log` is a zsh builtin).
+
+### Test: Text stays in step after Undo on Active Layer
+
+The overnight monkey test (2026-11-02) found that undoing the canvas resize after Undo on Active Layer could leave a text layer showing old pixels under new words. Fixed 2026-11-03 by redrawing text layers when a resize or crop is undone or redone.
+
+1. File > New, any size.
+2. Choose the Text tool, turn Editable on, type "x", and place it.
+3. Change the canvas size to something bigger (Image > Canvas Size).
+4. Double-click the text layer and change it to "API key". Place it.
+5. Layer's Undo on Active Layer (Edit > Undo on Active Layer).
+6. Edit > Undo. Expected: the text reads "API key".
+7. Edit > Undo again. Expected: the canvas is back to its old size and the text layer reads "API key" in the picture, matching its words (not "x").
+8. Edit > Redo twice. Expected: the text still matches its words each time.

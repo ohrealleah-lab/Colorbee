@@ -402,7 +402,7 @@ struct UndoTracker {
         }
         while history.undoCount < end, guardSteps < 20_000 {
             let count = history.undoCount, name = history.redoActionName ?? "a step"
-            editor.redo()
+            editor.redoAnsweringSnapshots()
             guardSteps += 1
             guard history.undoCount > count else {
                 throw MonkeyFailure(rule: "Redo stopped working", detail: "Redo did nothing at step \(count) of \(end).")
@@ -420,7 +420,7 @@ struct UndoTracker {
             for _ in 0..<10_000 {
                 guard let name = redoing ? editor.redoActionName : editor.undoActionName else { break }
                 let canvas = editor.canvas, count = editor.history.undoCount, order = editor.pages.pages.map(ObjectIdentifier.init)
-                if redoing { editor.redo() } else { editor.undo() }
+                if redoing { editor.redoAnsweringSnapshots() } else { editor.undo() }
                 // Two page changes in a row can share a name, and undoing one may leave the page shown as it was.
                 guard editor.canvas !== canvas || editor.history.undoCount != count || editor.pages.pages.map(ObjectIdentifier.init) != order
                         || (redoing ? editor.redoActionName : editor.undoActionName) != name else {
@@ -448,4 +448,13 @@ extension Editor {
     /// Everything undo and saving must keep, hidden or not (review Z, finding 2): the picture's size, then each layer's
     /// settings, pixels and mask.
     var documentState: [String] { MonkeyRules.layerStates(of: canvas, floatingOn: nil) }
+}
+
+extension Editor {
+    /// Redo, answering "Delete Snapshots and Redact" when it asks because the redo brings a redaction back over a
+    /// History Snapshot (review AH, finding 1). Like the Redact steps, the monkey always agrees.
+    func redoAnsweringSnapshots() {
+        redo()
+        if snapshotQuestion != nil { deleteSnapshotsAndRedact() }
+    }
 }

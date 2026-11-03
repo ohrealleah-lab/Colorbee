@@ -309,7 +309,7 @@ enum MonkeyStep: CustomStringConvertible {
             guard !snapshots.isEmpty else { return }
             editor.goToSnapshot(snapshots[index % snapshots.count].id)
         case .undo: editor.undo()
-        case .redo: editor.redo()
+        case .redo: editor.redoAnsweringSnapshots()
         case .undoOnActiveLayer: editor.undoOnActiveLayer()
         case .newPage:
             guard editor.pages.pages.count < 4 else { return }

@@ -255,7 +255,6 @@ enum MainMenu {
         menu.addItem(item("Undo", "undo:", "z"))
         menu.addItem(item("Redo", "redo:", "z", [.command, .shift]))
         menu.addItem(item("Undo on Active Layer", "undoOnActiveLayer:", "z", [.command, .option]))
-        menu.addItem(item("New Snapshot…", "newSnapshot:", ""))
         menu.addItem(.separator())
         menu.addItem(item("Cut", "cut:", "x"))
         menu.addItem(item("Copy", "copy:", "c"))
@@ -266,6 +265,8 @@ enum MainMenu {
         menu.addItem(item("Paste in Place", "pasteInPlace:", "v", [.command, .option, .shift]))
         // The canvas handles the Delete key itself, so text fields keep their own Delete.
         menu.addItem(item("Delete", "delete:"))
+        menu.addItem(.separator())
+        menu.addItem(item("New Snapshot…", "newSnapshot:", ""))
         menu.addItem(.separator())
         menu.addItem(item("Select All", "selectAll:", "a"))
         menu.addItem(item("Deselect", "deselect:", "d"))
@@ -419,10 +420,13 @@ enum MainMenu {
     /// One item per kind of adjustment layer; the tag is its position in `AdjustmentChoice.allCases`.
     private static func adjustmentLayerMenu() -> NSMenu {
         let menu = NSMenu(title: "New Adjustment Layer")
-        for (index, choice) in AdjustmentChoice.allCases.enumerated() {
-            let choiceItem = item(choice.title, "newAdjustmentLayer:")
-            choiceItem.tag = index
-            menu.addItem(choiceItem)
+        for (index, group) in AdjustmentChoice.menuGroups.enumerated() {
+            if index > 0 { menu.addItem(.separator()) }
+            for choice in group {
+                let choiceItem = item(choice.title, "newAdjustmentLayer:")
+                choiceItem.tag = AdjustmentChoice.allCases.firstIndex(of: choice) ?? 0
+                menu.addItem(choiceItem)
+            }
         }
         return menu
     }

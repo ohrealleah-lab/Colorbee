@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-03 · 860 core tests and 350 app tests passing (review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-06 · 860 core tests and 350 app tests passing (menu tidy-up: adjustment layers grouped, New Snapshot moved; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing is waiting right now.
+- [Menu tidy-up](#test-menu-tidy-up)
 
 ---
 
@@ -396,6 +396,25 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Menu tidy-up
+
+Use any picture, or a new blank image.
+
+1. Click the Edit menu.
+Expected: Undo on Active Layer is followed by a line, then Cut. New Snapshot… sits alone between two lines, below Delete.
+2. Choose Edit > New Snapshot…, name it, and click to confirm.
+Expected: The snapshot appears at the top of the History panel.
+3. Open Layer > New Adjustment Layer.
+Expected: Adjust Photo / line / Levels, Curves, Hue/Saturation, Auto Contrast, Desaturate / line / Gaussian Blur, Sharpen / line / Sepia, Posterize, Invert.
+4. Choose Invert.
+Expected: An Invert layer is added and the picture inverts.
+5. Open Layer > New Adjustment Layer again and choose Adjust Photo.
+Expected: An Adjust Photo layer is added.
+6. Right-click a layer in the Layers panel and open New Adjustment Layer.
+Expected: Same order and lines as step 3, with icons.
+7. Click Adjustment ▾ at the bottom of the Layers panel.
+Expected: Same order and lines as step 3, with icons.
 
 ### Test: Review round 12, tier 1 fixes (AH 1, AG 1, AG 2) (passed 2026-11-02)
 

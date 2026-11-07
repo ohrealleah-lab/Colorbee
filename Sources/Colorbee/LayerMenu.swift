@@ -15,10 +15,13 @@ enum LayerMenu {
         menu.addItem(ClosureMenuItem("New Layer") { editor.addLayer() })
         let adjustments = NSMenuItem(title: "New Adjustment Layer", action: nil, keyEquivalent: "")
         adjustments.submenu = NSMenu(title: "New Adjustment Layer")
-        for choice in AdjustmentChoice.allCases {
-            let item = ClosureMenuItem(choice.title) { editor.addAdjustmentLayer(choice) }
-            item.image = NSImage(systemSymbolName: choice.symbol, accessibilityDescription: nil)
-            adjustments.submenu?.addItem(item)
+        for (index, group) in AdjustmentChoice.menuGroups.enumerated() {
+            if index > 0 { adjustments.submenu?.addItem(.separator()) }
+            for choice in group {
+                let item = ClosureMenuItem(choice.title) { editor.addAdjustmentLayer(choice) }
+                item.image = NSImage(systemSymbolName: choice.symbol, accessibilityDescription: nil)
+                adjustments.submenu?.addItem(item)
+            }
         }
         menu.addItem(adjustments)
         menu.addItem(.separator())

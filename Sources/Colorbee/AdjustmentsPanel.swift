@@ -15,6 +15,15 @@ enum AdjustmentChoice: CaseIterable {
     case sharpen
     case adjustPhoto
 
+    /// How the add menus show them, with a separator between groups: Adjust Photo, the whole engine, on its own
+    /// above tone and color, then blur and sharpen, then the graphic looks.
+    static let menuGroups: [[AdjustmentChoice]] = [
+        [.adjustPhoto],
+        [.levels, .curves, .hueSaturation, .autoContrast, .desaturate],
+        [.gaussianBlur, .sharpen],
+        [.sepia, .posterize, .invert],
+    ]
+
     var title: String {
         switch self {
         case .hueSaturation: "Hue/Saturation"
@@ -124,8 +133,12 @@ struct AddAdjustmentMenu: View {
 
     var body: some View {
         Menu {
-            ForEach(AdjustmentChoice.allCases, id: \.self) { choice in
-                Button(choice.title, systemImage: choice.symbol) { editor.addAdjustmentLayer(choice) }
+            ForEach(AdjustmentChoice.menuGroups, id: \.self) { group in
+                Section {
+                    ForEach(group, id: \.self) { choice in
+                        Button(choice.title, systemImage: choice.symbol) { editor.addAdjustmentLayer(choice) }
+                    }
+                }
             }
         } label: {
             HStack(spacing: 3) {

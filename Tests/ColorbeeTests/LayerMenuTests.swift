@@ -67,7 +67,11 @@ struct LayerMenuTests {
         #expect(editor.canvas.layers.map(\.name) == ["Background", "Layer 1", "Layer 2", "Layer 4", "Layer 3"])
         editor.chooseForMenu(layerAt: 1)
         let adjustments = try #require(item(LayerMenu.make(for: editor, layerAt: 1) {}, "New Adjustment Layer")?.submenu)
-        #expect(adjustments.items.map(\.title) == AdjustmentChoice.allCases.map(\.title))
+        #expect(adjustments.items.filter { !$0.isSeparatorItem }.map(\.title) == AdjustmentChoice.menuGroups.joined().map(\.title))
+        #expect(adjustments.items.filter(\.isSeparatorItem).count == AdjustmentChoice.menuGroups.count - 1)
+        #expect(adjustments.items.first?.title == AdjustmentChoice.adjustPhoto.title)
+        #expect(AdjustmentChoice.menuGroups.joined().count == AdjustmentChoice.allCases.count)
+        #expect(Set(AdjustmentChoice.menuGroups.joined()) == Set(AdjustmentChoice.allCases))
         choose(adjustments.items.first { $0.title == AdjustmentChoice.invert.title })
         #expect(editor.canvas.layers[2].adjustment != nil && editor.canvas.activeLayerIndex == 2)
     }

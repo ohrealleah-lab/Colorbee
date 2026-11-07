@@ -13,7 +13,7 @@ _Last updated: 2026-11-06 · 860 core tests and 351 app tests passing (menu tidy
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Menu tidy-up](#test-menu-tidy-up)
+Nothing is waiting right now.
 
 ---
 
@@ -396,38 +396,6 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
-
-### Test: Menu tidy-up
-
-Use any picture, or a new blank image.
-
-1. Click the Edit menu.
-Expected: Undo on Active Layer is followed by a line, then Cut. New Snapshot… sits alone between two lines, below Delete.
-2. Choose Edit > New Snapshot…, name it, and click to confirm.
-Expected: The snapshot appears at the top of the History panel.
-3. Open Layer > New Adjustment Layer.
-Expected: Adjust Photo / line / Levels, Curves, Hue/Saturation, Auto Contrast, Desaturate / line / Gaussian Blur, Sharpen / line / Sepia, Posterize, Invert.
-4. Choose Invert.
-Expected: An Invert layer is added and the picture inverts.
-5. Open Layer > New Adjustment Layer again and choose Adjust Photo.
-Expected: An Adjust Photo layer is added.
-6. Right-click a layer in the Layers panel and open New Adjustment Layer.
-Expected: Same order and lines as step 3, with icons.
-7. Click Adjustment ▾ at the bottom of the Layers panel.
-Expected: Same order and lines as step 3, with icons.
-8. Open a photo with a clear subject, such as a person or a pet. Right-click its layer.
-Expected: Lift Subject to New Layer and Remove Background sit in their own section, just below New Adjustment Layer.
-9. Choose Lift Subject to New Layer, then click the subject.
-Expected: A Subject layer appears just above the photo's layer.
-10. Right-click the photo's layer. Choose Remove Background, then click the subject.
-Expected: The background turns transparent.
-11. Choose Edit > Undo.
-Expected: The background comes back.
-12. Right-click the photo's layer. Choose Lock Layer, then right-click it again.
-Expected: Both new items are greyed out.
-13. Right-click it. Choose Unlock Layer.
-14. Click the photo's layer, then Shift-click the Subject layer. Right-click one of them.
-Expected: Both new items are greyed out.
 
 ### Test: Review round 12, tier 1 fixes (AH 1, AG 1, AG 2) (passed 2026-11-02)
 

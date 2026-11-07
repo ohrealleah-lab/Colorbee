@@ -25,6 +25,11 @@ enum LayerMenu {
         }
         menu.addItem(adjustments)
         menu.addItem(.separator())
+        // They search one layer, so with several chosen it wouldn't be clear which (Leah, 2026-11-06).
+        let canFindSubject = editor.canChangeLayerBySubject && !editor.hasSeveralChosenLayers
+        menu.addItem(ClosureMenuItem("Lift Subject to New Layer", enabled: canFindSubject) { editor.findSubject(.liftToNewLayer) })
+        menu.addItem(ClosureMenuItem("Remove Background", enabled: canFindSubject) { editor.findSubject(.removeBackground) })
+        menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(editor.mergeCommandTitle, enabled: editor.canMerge) { editor.mergeDown() })
         menu.addItem(ClosureMenuItem("Duplicate \(layers)") { editor.duplicateLayer() })
         menu.addItem(ClosureMenuItem("Delete \(layers)", enabled: editor.canDeleteLayers) { editor.deleteLayer() })

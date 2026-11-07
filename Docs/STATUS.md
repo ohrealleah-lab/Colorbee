@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-06 · 860 core tests and 350 app tests passing (menu tidy-up: adjustment layers grouped, New Snapshot moved; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-06 · 860 core tests and 351 app tests passing (menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
@@ -415,6 +415,19 @@ Expected: An Adjust Photo layer is added.
 Expected: Same order and lines as step 3, with icons.
 7. Click Adjustment ▾ at the bottom of the Layers panel.
 Expected: Same order and lines as step 3, with icons.
+8. Open a photo with a clear subject, such as a person or a pet. Right-click its layer.
+Expected: Lift Subject to New Layer and Remove Background sit in their own section, just below New Adjustment Layer.
+9. Choose Lift Subject to New Layer, then click the subject.
+Expected: A Subject layer appears just above the photo's layer.
+10. Right-click the photo's layer. Choose Remove Background, then click the subject.
+Expected: The background turns transparent.
+11. Choose Edit > Undo.
+Expected: The background comes back.
+12. Right-click the photo's layer. Choose Lock Layer, then right-click it again.
+Expected: Both new items are greyed out.
+13. Right-click it. Choose Unlock Layer.
+14. Click the photo's layer, then Shift-click the Subject layer. Right-click one of them.
+Expected: Both new items are greyed out.
 
 ### Test: Review round 12, tier 1 fixes (AH 1, AG 1, AG 2) (passed 2026-11-02)
 

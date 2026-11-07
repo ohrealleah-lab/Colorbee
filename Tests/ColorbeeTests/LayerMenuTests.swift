@@ -24,20 +24,38 @@ struct LayerMenuTests {
     @Test func oneLayerReadsInTheSingular() throws {
         let editor = editor()
         let menu = LayerMenu.make(for: editor, layerAt: 1) {}
-        #expect(menu.items.map(\.title) == ["New Layer", "New Adjustment Layer", "", "Merge Down", "Duplicate Layer", "Delete Layer", "",
+        #expect(menu.items.map(\.title) == ["New Layer", "New Adjustment Layer", "", "Lift Subject to New Layer", "Remove Background", "",
+                                            "Merge Down", "Duplicate Layer", "Delete Layer", "",
                                             "Group Layer", "", "Hide Layer", "Lock Layer", "", "Rename…", "Layer Properties…"])
         #expect(try #require(item(menu, "Rename…")).isEnabled)
         #expect(try #require(item(menu, "Merge Down")).isEnabled)
+    }
+
+    @Test func subjectCommandsNeedOneUnlockedPictureLayer() throws {
+        let editor = editor()
+        let titles = ["Lift Subject to New Layer", "Remove Background"]
+        func enabled(_ layer: Int) throws -> [Bool] {
+            let menu = LayerMenu.make(for: editor, layerAt: layer) {}
+            return try titles.map { try #require(item(menu, $0)).isEnabled }
+        }
+        #expect(try enabled(1) == [true, true])
+        editor.toggleChosenLayersLocked()
+        #expect(try enabled(1) == [false, false])
+        editor.toggleChosenLayersLocked()
+        editor.addAdjustmentLayer(.invert)
+        #expect(try enabled(editor.canvas.activeLayerIndex) == [false, false])
     }
 
     @Test func severalLayersReadInThePluralAndRenameIsGreyedOut() throws {
         let editor = editor()
         editor.chooseLayer(at: 3, extending: false, toggling: true)
         let menu = LayerMenu.make(for: editor, layerAt: 3) {}
-        #expect(menu.items.map(\.title).filter { !$0.isEmpty } == ["New Layer", "New Adjustment Layer", "Merge Layers", "Duplicate Layers",
-                                                                    "Delete Layers", "Group Chosen Layers", "Hide Layers", "Lock Layers",
+        #expect(menu.items.map(\.title).filter { !$0.isEmpty } == ["New Layer", "New Adjustment Layer", "Lift Subject to New Layer", "Remove Background",
+                                                                    "Merge Layers", "Duplicate Layers", "Delete Layers", "Group Chosen Layers", "Hide Layers", "Lock Layers",
                                                                     "Rename…", "Layer Properties…"])
         #expect(try !#require(item(menu, "Rename…")).isEnabled)
+        #expect(try !#require(item(menu, "Lift Subject to New Layer")).isEnabled)
+        #expect(try !#require(item(menu, "Remove Background")).isEnabled)
         #expect(try #require(item(menu, "Merge Layers")).isEnabled)
     }
 

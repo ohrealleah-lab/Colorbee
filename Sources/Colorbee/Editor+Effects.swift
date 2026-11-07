@@ -359,6 +359,12 @@ extension Editor {
 
     var pickHasSubjects: Bool { pickSubjectCount > 0 }
 
+    /// Whether Lift Subject and Remove Background can start, as in the menu bar: one search at a time, on a picture
+    /// layer that takes edits, with no effect's bar open.
+    var canChangeLayerBySubject: Bool {
+        !blocksDocumentCommands && !isFindingSubject && canvas.activeLayer.isPixelLayer && activeLayerTakesEdits
+    }
+
     /// Finds the subject in the active layer with Vision, on this Mac, then waits for a click on the one to act on
     /// (Return takes all it found). A click away from them looks closer.
     func findSubject(_ action: SubjectAction) {

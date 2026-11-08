@@ -28,6 +28,24 @@ struct MonkeyTests {
         }
     }
 
+    /// The end still compares exact pictures after another page was shown (review AH, finding 2). Here a change History
+    /// never recorded, on the first page's background, stands in for an undo that gives back the wrong picture.
+    @Test func aWrongPictureIsCaughtAfterShowingAnotherPage() async {
+        var steps: IndexingIterator<[MonkeyStep]> = [.fill(at: Point2D(x: 2, y: 2), color: Pixel(r: 255, g: 0, b: 0)), .addLayer,
+                                                     .newPage, .showPage(0)].makeIterator()
+        do {
+            try await MonkeyEpisode.drive(MonkeyEpisode.random(seed: 1).makeEditor(), finishing: true) { editor in
+                if let step = steps.next() { return step }
+                editor.canvas.layers[0].buffer[1, 1] = Pixel(r: 0, g: 200, b: 0)
+                return nil
+            }
+            Issue.record("The monkey missed a picture that undo didn't give back.")
+        } catch {
+            #expect(error.failure.rule == "Undoing everything didn't give back each picture")
+            #expect(error.atEnd)
+        }
+    }
+
     @Test(.enabled(if: minutes != nil, "Run with make monkey")) func overnight() async {
         let started = Date()
         let deadline = started.addingTimeInterval((Self.minutes ?? 0) * 60)

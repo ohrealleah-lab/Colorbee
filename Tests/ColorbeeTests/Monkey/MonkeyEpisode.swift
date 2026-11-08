@@ -142,7 +142,9 @@ struct MonkeyEpisode {
         let due: Int
     }
 
-    private static func drive(_ start: Editor, finishing: Bool, next: (Editor) -> MonkeyStep?) async throws(MonkeyFailureAt) {
+    /// Does each step `next` gives, checking the rules after each, until it gives nil; then, if `finishing`, the checks
+    /// at the end.
+    static func drive(_ start: Editor, finishing: Bool, next: (Editor) -> MonkeyStep?) async throws(MonkeyFailureAt) {
         var editor = start
         var tracker = UndoTracker(editor: editor)
         var done = 0
@@ -252,7 +254,7 @@ struct MonkeyEpisode {
                             throw MonkeyFailure(rule: "A page changed while it wasn't shown", detail: UndoTracker.difference(left.layers, now))
                         }
                     }
-                    tracker.restart(on: editor, pagesTouched: true)
+                    tracker.showPage(of: editor, leaving: shownPage, revisionBefore: before.revision)
                 } else {
                     try tracker.note(step, before: before)
                 }
@@ -292,13 +294,17 @@ struct UndoTracker {
     }
 
     private(set) var editor: Editor
-    /// Pages were added, switched or reopened: undo can then cross pages, so the end only checks that it works.
+    /// Pages were added, switched or reopened: the end then also checks that undo and redo work across pages.
     private var pagesTouched = false
-    /// Each undo count along the current line of history; nil where it can't be known.
+    /// Each undo count along the shown page's line of history; nil where it can't be known.
     private var line: [Mark?]
-    /// Whether the line covers all redo can reach. After a restart (another page, a reopen) it doesn't know the steps
-    /// redo still holds, until a new step clears them.
+    /// Whether the line covers all redo can reach. After a restart (a reopen, a page that changed while away) it
+    /// doesn't know the steps redo still holds, until a new step clears them.
     private var knowsRedo = true
+    /// The lines of pages not shown, by page, each with its page's History revision when it was left. Each page has
+    /// its own history, so a page that's shown again carries on with its line, unless it changed meanwhile (an
+    /// Auto-Redact on every page, a step placed on the way out); then it starts a new one (review AH, finding 2).
+    private var leftLines: [UUID: (line: [Mark?], knowsRedo: Bool, revision: Int)] = [:]
 
     init(editor: Editor) {
         self.editor = editor
@@ -372,24 +378,67 @@ struct UndoTracker {
         }
     }
 
-    /// Starts again on `editor`'s shown page, as nothing on it can be checked against what came before.
+    /// Starts again on `editor`'s shown page, as nothing in the document can be checked against what came before (a
+    /// reopen, or Forget History).
     mutating func restart(on editor: Editor, pagesTouched: Bool) {
         self.editor = editor
         self.pagesTouched = self.pagesTouched || pagesTouched
+        leftLines = [:]
+        startLine()
+    }
+
+    private mutating func startLine() {
         line = Array(repeating: nil, count: editor.history.undoCount) + [Self.mark(editor)]
         knowsRedo = false
     }
 
-    /// At the end: undo all the way back, checking each picture, then redo all the way, likewise. Across pages, only
-    /// that every undo and redo does something.
-    func undoAndRedoEverything() throws(MonkeyFailure) {
-        if pagesTouched { return try undoAndRedoAcrossPages() }
+    /// Another page is shown. The page left keeps its line if nothing was recorded on it on the way out
+    /// (`revisionBefore` is its revision before the step); the page shown takes back its own.
+    mutating func showPage(of editor: Editor, leaving old: Page, revisionBefore: Int) {
+        if old.history.revision == revisionBefore { leftLines[old.id] = (line, knowsRedo, revisionBefore) }
+        self.editor = editor
+        pagesTouched = true
+        takeLine()
+    }
+
+    private mutating func takeLine() {
+        let page = editor.page
+        if let left = leftLines.removeValue(forKey: page.id), left.revision == page.history.revision {
+            (line, knowsRedo) = (left.line, left.knowsRedo)
+        } else {
+            startLine()
+        }
+    }
+
+    /// At the end: undo all the way back, checking each picture, then redo all the way, likewise. With pages, each
+    /// page is checked like that in turn, then undo and redo are checked to work across pages.
+    mutating func undoAndRedoEverything() throws(MonkeyFailure) {
+        guard pagesTouched else { return try walk(undo: { $0.undo() }, redo: { $0.redoAnsweringSnapshots() }) }
+        let shown = editor.pages.currentIndex
+        for index in editor.pages.pages.indices {
+            show(index)
+            // ⌘Z undoes a page change before the page's own steps, so they're stepped directly, as ⌘Z does otherwise.
+            try walk(undo: { $0.stepShownPageAnsweringSnapshots(undoing: true) },
+                     redo: { $0.stepShownPageAnsweringSnapshots(undoing: false) })
+        }
+        show(shown)
+        try undoAndRedoAcrossPages()
+    }
+
+    private mutating func show(_ index: Int) {
+        let old = editor.page, revision = old.history.revision
+        guard index != editor.pages.currentIndex else { return }
+        editor.showPage(at: index)
+        showPage(of: editor, leaving: old, revisionBefore: revision)
+    }
+
+    private func walk(undo: (Editor) -> Void, redo: (Editor) -> Void) throws(MonkeyFailure) {
         let history = editor.history
         let end = history.undoCount
         var guardSteps = 0
         while history.undoCount > 0, guardSteps < 10_000 {
             let count = history.undoCount, name = history.undoActionName ?? "a step"
-            editor.undo()
+            undo(editor)
             guardSteps += 1
             guard history.undoCount < count else {
                 throw MonkeyFailure(rule: "Undo stopped working", detail: "Undo did nothing with \(count) steps still in History.")
@@ -402,7 +451,7 @@ struct UndoTracker {
         }
         while history.undoCount < end, guardSteps < 20_000 {
             let count = history.undoCount, name = history.redoActionName ?? "a step"
-            editor.redoAnsweringSnapshots()
+            redo(editor)
             guardSteps += 1
             guard history.undoCount > count else {
                 throw MonkeyFailure(rule: "Redo stopped working", detail: "Redo did nothing at step \(count) of \(end).")
@@ -456,5 +505,16 @@ extension Editor {
     func redoAnsweringSnapshots() {
         redo()
         if snapshotQuestion != nil { deleteSnapshotsAndRedact() }
+    }
+
+    /// Undo or redo of the shown page's own newest step, as ⌘Z and ⇧⌘Z do when no page change is newer, answering the
+    /// snapshot question as `redoAnsweringSnapshots` does.
+    func stepShownPageAnsweringSnapshots(undoing: Bool) {
+        finishInteractions()
+        if !undoing, askBeforeRedoingRedaction(steps: 1, then: { [weak self] in self?.stepShownPage(undoing: false) }) {
+            deleteSnapshotsAndRedact()
+        } else {
+            stepShownPage(undoing: undoing)
+        }
     }
 }

@@ -134,7 +134,8 @@ struct MonkeyEpisode {
 
     /// A save taken in the background while editing goes on (monkey gaps, R5): what it must hold, and when to check.
     private struct BackgroundSave {
-        let snapshot: SaveSnapshot
+        /// Encoding starts when the copy is taken and runs while the next steps edit (review AH, finding 4).
+        let encoding: Task<Data, Error>
         let look: Int
         let layers: [String]
         let floatingOn: LayerID?
@@ -157,10 +158,9 @@ struct MonkeyEpisode {
         func checkPendingSave(force: Bool) async throws(MonkeyFailure) {
             guard let save = pendingSave, force || done >= save.due else { return }
             pendingSave = nil
-            let snapshot = save.snapshot
             let data: Data
             do {
-                data = try await Task.detached { try snapshot.encodedProject() }.value
+                data = try await save.encoding.value
             } catch {
                 throw MonkeyFailure(rule: "Saving in the background failed", detail: "\(error)")
             }
@@ -187,6 +187,8 @@ struct MonkeyEpisode {
             let canvas = editor.canvas, shownPage = editor.page
             let leaving = canvas.selection.floating == nil ? MonkeyRules.layerStates(of: canvas, floatingOn: nil) : nil
             let hashes = step.redacts ? Dictionary(uniqueKeysWithValues: canvas.layers.map { ($0.id, $0.buffer.contentHash()) }) : [:]
+            // Each page's History, for which pages a redaction changed, and that a Cancel changed none (review AH, finding 5).
+            let histories = step.redacts ? MonkeyRules.histories(of: editor) : [:]
             // Whether this step really redacted: a redaction that finds nothing, or places a floating piece first, isn't one.
             let redactedBefore = editor.redactedSinceSave
             if step.redacts { editor.redactedSinceSave = false }
@@ -217,7 +219,7 @@ struct MonkeyEpisode {
                     continue
                 case .saveInBackground:
                     let snapshot = editor.saveSnapshot()
-                    pendingSave = BackgroundSave(snapshot: snapshot, look: MonkeyRules.shownHash(editor.canvas.flattened()),
+                    pendingSave = BackgroundSave(encoding: Task.detached { try snapshot.encodedProject() }, look: MonkeyRules.shownHash(editor.canvas.flattened()),
                                                  layers: MonkeyRules.layerStates(of: editor.canvas, floatingOn: editor.canvas.selection.floating?.layerID),
                                                  floatingOn: editor.canvas.selection.floating?.layerID, pages: editor.pages.pages.count, due: done + 3)
                 case .forgetHistory:
@@ -233,8 +235,11 @@ struct MonkeyEpisode {
                     break
                 }
                 try MonkeyRules.checkDocument(editor)
+                if step.redacts {
+                    try MonkeyRules.checkRedacted(editor, before: histories, redacted: redacted,
+                                                  placing: leaving == nil ? shownPage.id : nil)
+                }
                 if redacted, editor.canvas === canvas {
-                    try MonkeyRules.checkRedacted(editor)
                     // Placing a floating piece first changes its layer too, so which layers the redaction itself touched
                     // can't be told then.
                     let changed = leaving == nil ? [] : editor.canvas.layers.filter { layer in hashes[layer.id].map { $0 != layer.buffer.contentHash() } ?? false }

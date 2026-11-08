@@ -13,7 +13,8 @@ enum MonkeyStep: CustomStringConvertible {
     case shape(kind: ShapeKind, from: Point2D, to: Point2D, outline: PaintStyle?, fill: PaintStyle?, secondary: Bool, color: Pixel)
     case text(String, at: Point2D, editable: Bool, color: Pixel)
     case editText(layer: Int, String)
-    case redact(points: [Point2D], treatment: RedactionTreatment)
+    /// `cancels`: answers Cancel if asked to delete History Snapshots, rather than Delete Snapshots and Redact.
+    case redact(points: [Point2D], treatment: RedactionTreatment, cancels: Bool)
     case select(from: Point2D, to: Point2D)
     case selectAll
     case deselect
@@ -65,9 +66,9 @@ enum MonkeyStep: CustomStringConvertible {
     case showPage(Int)
     case movePage(from: Int, to: Int)
     /// Batch Redact ▸ Blur… or Pixelate… on the selection, applied or cancelled after its preview.
-    case batchRedact(blur: Bool, apply: Bool)
+    case batchRedact(blur: Bool, apply: Bool, cancels: Bool)
     /// Auto-Redact: reads the picture in the background, then applies what it found.
-    case autoRedact
+    case autoRedact(cancels: Bool)
     /// Saves the project and carries on in the reopened copy (`MonkeyEpisode.drive` does it).
     case saveAndReopen
     /// An Adjust Photo layer made directly, so nothing is saved as "last used".
@@ -81,8 +82,8 @@ enum MonkeyStep: CustomStringConvertible {
     /// A Retouch tool along a path; the Clone Stamp copies from `source`. Remove and Spot Heal land in the background.
     case retouch(RetouchKind, points: [Point2D], source: Point2D)
 
-    /// Redacts, so it must leave no History Snapshots on the page it changed (Leah, 2026-11-01). The monkey always
-    /// answers the question with Delete Snapshots and Redact.
+    /// Redacts, so it must leave no History Snapshots on the pages it changed (Leah, 2026-11-01). Asked first, the
+    /// monkey answers Delete Snapshots and Redact, or sometimes Cancel, which must change nothing.
     var redacts: Bool {
         switch self {
         case .redact, .batchRedact, .autoRedact: true
@@ -109,7 +110,7 @@ enum MonkeyStep: CustomStringConvertible {
         case let .text(words, point, editable, color):
             return "Text \"\(words)\" at \(point.words) in \(color.words), Editable \(editable ? "on" : "off"), placed"
         case let .editText(layer, words): return "Double-click text layer \(layer + 1) and change it to \"\(words)\""
-        case let .redact(points, treatment): return "Redact Brush (\(treatment)) through \(points.words)"
+        case let .redact(points, treatment, cancels): return "Redact Brush (\(treatment)) through \(points.words)" + Self.answer(cancels)
         case let .select(from, to): return "Rectangle Select from \(from.words) to \(to.words)"
         case .selectAll: return "Select All"
         case .deselect: return "Deselect"
@@ -160,9 +161,9 @@ enum MonkeyStep: CustomStringConvertible {
         case .deletePage: return "Page > Delete Page"
         case let .showPage(index): return "Show page \(index + 1)"
         case let .movePage(from, to): return "Drag page \(from + 1) to place \(to + 1)"
-        case let .batchRedact(blur, apply):
-            return "Batch Redact > \(blur ? "Blur" : "Pixelate")…, then \(apply ? "Apply" : "Cancel")"
-        case .autoRedact: return "Auto-Redact, then Apply"
+        case let .batchRedact(blur, apply, cancels):
+            return "Batch Redact > \(blur ? "Blur" : "Pixelate")…, then \(apply ? "Apply" : "Cancel")" + (apply ? Self.answer(cancels) : "")
+        case let .autoRedact(cancels): return "Auto-Redact, then Apply" + Self.answer(cancels)
         case .saveAndReopen: return "Save, close and reopen"
         case let .photoLayer(slider, value): return "New Adjust Photo layer with \(slider.title) \(Int(value))"
         case let .photoSetting(slider, value): return "Set the Adjust Photo layer's \(slider.title) to \(Int(value))"
@@ -226,13 +227,13 @@ enum MonkeyStep: CustomStringConvertible {
             guard editor.pendingText != nil else { return }
             editor.updatePendingText(words)
             editor.commitPendingText()
-        case let .redact(points, treatment):
+        case let .redact(points, treatment, cancels):
             editor.selectTool(.redactBrush)
             editor.redactTreatment = treatment
             editor.beginRedactStroke(at: points[0], secondary: false)
             for point in points.dropFirst() { editor.continueRedactStroke(to: point, constrain: false) }
             editor.endRedactStroke()
-            editor.deleteSnapshotsAndRedact()
+            Self.answerSnapshots(editor, cancels: cancels)
         case let .select(from, to):
             editor.selectTool(.rectangleSelect)
             editor.selectionDrag(from: from, to: to)
@@ -323,16 +324,16 @@ enum MonkeyStep: CustomStringConvertible {
             let count = editor.pages.pages.count
             guard count > 1 else { return }
             editor.movePage(from: from % count, to: to % count)
-        case let .batchRedact(blur, apply):
+        case let .batchRedact(blur, apply, cancels):
             guard editor.hasSelection else { return }
             editor.beginBatchRedact(blur ? .gaussianBlur : .pixelate)
             if apply {
                 editor.applyEffect()
-                editor.deleteSnapshotsAndRedact()
-            } else {
-                editor.cancelEffect()
+                Self.answerSnapshots(editor, cancels: cancels)
             }
-        case .autoRedact:
+            // Cancel leaves the bar open, with nothing applied.
+            if editor.activeEffect != nil { editor.cancelEffect() }
+        case let .autoRedact(cancels):
             editor.beginAutoRedact()
             // Reading happens in the background; wait for it, a few seconds at most.
             for _ in 0..<400 where editor.autoRedact?.isReading == true {
@@ -340,8 +341,8 @@ enum MonkeyStep: CustomStringConvertible {
             }
             if let session = editor.autoRedact, !session.isReading, session.problem == nil {
                 editor.applyAutoRedact()
-                editor.deleteSnapshotsAndRedact()
-                for _ in 0..<400 where editor.autoRedact != nil {
+                Self.answerSnapshots(editor, cancels: cancels)
+                for _ in 0..<400 where editor.autoRedact?.applying != nil {
                     try? await Task.sleep(for: .milliseconds(25))
                 }
             }
@@ -385,4 +386,15 @@ extension Point2D {
 
 extension [Point2D] {
     fileprivate var words: String { map(\.words).joined(separator: ", ") }
+}
+
+extension MonkeyStep {
+    /// Answers the question asked before a redaction over History Snapshots, if one is up.
+    @MainActor
+    static func answerSnapshots(_ editor: Editor, cancels: Bool) {
+        guard editor.snapshotQuestion != nil else { return }
+        if cancels { editor.snapshotQuestion = nil } else { editor.deleteSnapshotsAndRedact() }
+    }
+
+    static func answer(_ cancels: Bool) -> String { cancels ? " (Cancel if asked about snapshots)" : "" }
 }

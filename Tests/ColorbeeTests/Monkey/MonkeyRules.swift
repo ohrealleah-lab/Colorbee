@@ -43,12 +43,32 @@ enum MonkeyRules {
         }
     }
 
-    /// After a redaction that changed the page shown: none of its snapshots are left to show what was redacted
-    /// (Leah, 2026-11-01).
-    static func checkRedacted(_ editor: Editor) throws(MonkeyFailure) {
-        let left = editor.history.snapshots.count
-        guard left == 0 else {
-            throw MonkeyFailure(rule: "A redaction left History Snapshots", detail: "\(left) snapshots still show what was redacted.")
+    /// Each page's History revision, undo count and snapshot count, by page.
+    static func histories(of editor: Editor) -> [UUID: (revision: Int, undoCount: Int, snapshots: Int)] {
+        Dictionary(uniqueKeysWithValues: editor.pages.pages.map { ($0.id, ($0.history.revision, $0.history.undoCount, $0.history.snapshots.count)) })
+    }
+
+    /// After a redaction step: no page it changed keeps snapshots that show what was redacted (Leah, 2026-11-01), on
+    /// any page an Auto-Redact reached too. With nothing redacted (Cancel, or nothing to cover), no page lost a
+    /// snapshot or gained a step, except the page `placing` a floating piece first, which is a step of its own when it
+    /// can't join the step that made it.
+    static func checkRedacted(_ editor: Editor, before: [UUID: (revision: Int, undoCount: Int, snapshots: Int)],
+                              redacted: Bool, placing: UUID?) throws(MonkeyFailure) {
+        for (index, page) in editor.pages.pages.enumerated() {
+            guard let was = before[page.id] else { continue }
+            let history = page.history
+            if redacted {
+                guard history.revision == was.revision || history.snapshots.isEmpty else {
+                    throw MonkeyFailure(rule: "A redaction left History Snapshots",
+                                        detail: "\(history.snapshots.count) snapshots on page \(index + 1) still show what was redacted.")
+                }
+            } else {
+                let steps = history.undoCount - was.undoCount
+                guard history.snapshots.count == was.snapshots, steps == 0 || (steps == 1 && page.id == placing) else {
+                    throw MonkeyFailure(rule: "A redaction that did nothing changed History",
+                                        detail: "Page \(index + 1) had \(was.snapshots) snapshots and \(was.undoCount) steps; now \(history.snapshots.count) and \(history.undoCount).")
+                }
+            }
         }
     }
 
@@ -77,7 +97,9 @@ enum MonkeyRules {
         }
     }
 
-    /// After Forget History (monkey gaps, R1b): no page can undo, redo or go to a snapshot, and the picture is as it was.
+    /// After Forget History (monkey gaps, R1b): no page can undo, redo or go to a snapshot, no page change can be undone
+    /// or redone (bringing back a deleted page), the picture is as it was, and Before/After's As Opened is the picture
+    /// now on every page (review AH, finding 7).
     static func checkForgotten(_ editor: Editor, before: [String]?) throws(MonkeyFailure) {
         for (index, page) in editor.pages.pages.enumerated() {
             let history = page.history
@@ -86,8 +108,27 @@ enum MonkeyRules {
                                     detail: "Page \(index + 1) can still undo, redo or go to a snapshot.")
             }
         }
-        if let before, before != layerStates(of: editor.canvas, floatingOn: nil) {
+        guard editor.undoActionName == nil, editor.redoActionName == nil, editor.pages.restorablePages.isEmpty else {
+            throw MonkeyFailure(rule: "Forget History left something behind",
+                                detail: "Undo or Redo can still bring back \(editor.undoActionName ?? editor.redoActionName ?? "a deleted page").")
+        }
+        guard let before else { return }
+        if before != layerStates(of: editor.canvas, floatingOn: nil) {
             throw MonkeyFailure(rule: "Forget History changed the picture", detail: UndoTracker.difference(before, layerStates(of: editor.canvas, floatingOn: nil)))
+        }
+        for (index, page) in editor.pages.pages.enumerated() {
+            let opened: PixelBuffer?, now: PixelBuffer?
+            if page === editor.page {
+                (opened, now) = (editor.asOpened, editor.canvas.flattened())
+            } else {
+                guard let memory = editor.pageMemory[page.id] else { continue }
+                opened = memory.opened.flattened
+                now = (try? page.projectData()).flatMap { try? ProjectFile.decode($0) }?.flattened()
+            }
+            guard let opened, let now, shownHash(opened) == shownHash(now) else {
+                throw MonkeyFailure(rule: "Forget History kept an older As Opened picture",
+                                    detail: "Before/After on page \(index + 1) can still show the picture as it was.")
+            }
         }
     }
 

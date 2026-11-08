@@ -27,7 +27,7 @@ enum MonkeyGenerator {
         func sliderValue(_ slider: PhotoAdjustments.Slider) -> Double {
             Double(random.int(Int(max(-60, slider.range.lowerBound))...Int(min(60, slider.range.upperBound))))
         }
-        func words() -> String { random.pick(["Hi", "Step 2", "Look here", "API key", "OK", "x"]) }
+        func words() -> String { random.pick(["Hi", "Step 2", "Look here", "API key", "OK", "x", "a@b.io", "1.2.3.4"]) }
 
         let roll = random.int(0..<120)
         switch roll {
@@ -44,7 +44,7 @@ enum MonkeyGenerator {
                           fill: random.chance(0.5) ? .solid : nil, secondary: random.chance(0.3), color: color())
         case 27..<31: return .text(words(), at: point(), editable: random.chance(0.7), color: color())
         case 31..<33: return .editText(layer: random.int(0..<8), words())
-        case 33..<35: return .redact(points: path(), treatment: random.pick([.solidFill, .blur, .pixelate]))
+        case 33..<35: return .redact(points: path(), treatment: random.pick([.solidFill, .blur, .pixelate]), cancels: random.chance(0.3))
         case 35..<39: return .select(from: point(), to: point())
         case 39: return .selectAll
         case 40..<42: return .deselect
@@ -98,8 +98,8 @@ enum MonkeyGenerator {
         case 102: return .deletePage
         case 103..<105: return .showPage(random.int(0..<4))
         case 105: return .movePage(from: random.int(0..<4), to: random.int(0..<4))
-        case 106: return .batchRedact(blur: random.chance(0.5), apply: random.chance(0.6))
-        case 107: return .autoRedact
+        case 106: return .batchRedact(blur: random.chance(0.5), apply: random.chance(0.6), cancels: random.chance(0.3))
+        case 107: return .autoRedact(cancels: random.chance(0.3))
         case 108: return .saveAndReopen
         case 112: return .saveInBackground
         case 113: return random.chance(0.3) ? .forgetHistory : .saveInBackground

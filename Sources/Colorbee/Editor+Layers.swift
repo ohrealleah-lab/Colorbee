@@ -605,6 +605,8 @@ extension Editor {
     /// adjustment layer, which has no pixels to change, and a text layer, which says how to paint on it (Q29.2).
     /// Redaction never asks: it turns a text layer into pixels itself (`Edit.willModify`).
     func refusedBecauseLocked() -> Bool {
+        // New editable text becomes the active layer when it's placed, so that's the layer to ask about.
+        if textIsEditable, let text = pendingText, text.layerID == nil { commitPendingText() }
         if canvas.paintLayer.text != nil, !canvas.isLocked(canvas.activeLayer) {
             showNotice("This is a text layer. To paint on it, choose Layer ▸ Rasterize Text first.")
             return true

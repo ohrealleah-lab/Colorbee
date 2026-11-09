@@ -189,9 +189,13 @@ enum MonkeyRules {
         return "shape"
     }
 
-    /// After any step but Undo (which discards an open shape): an open object that's gone must be in history.
+    /// An open object that's gone must be in history. Not after Undo, which discards an open shape, or after a new shape
+    /// or text: its settings land on the open one first, and None or Editable off can rightly leave nothing to place.
     static func checkLanded(_ editor: Editor, open: String?, step: MonkeyStep, page: Page, revisionBefore: Int) throws(MonkeyFailure) {
-        if case .undo = step { return }
+        switch step {
+        case .undo, .shape, .text: return
+        default: break
+        }
         guard let open, editor.pendingShape == nil, editor.pendingText == nil, page.history.revision == revisionBefore else { return }
         throw MonkeyFailure(rule: "A \(open) left open vanished", detail: "\(step) closed it, but nothing was placed.")
     }

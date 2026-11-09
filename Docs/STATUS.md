@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-09 · 860 core tests and 357 app tests passing (monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-09 · 860 core tests and 358 app tests passing (pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing is waiting right now.
+- [Pixel commands with new text still open](#test-pixel-commands-with-new-text-still-open)
 
 ---
 
@@ -90,7 +90,7 @@ Nothing is waiting right now.
 | 14 · 29. Re-editable text 1: text layers | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 30. Re-editable text 2: when text becomes pixels | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 31. Stroke smoothing | ✅ Done; passed Leah's test 2026-10-31 ("feels great") | High |
-| 14 · 32. Overnight monkey test | Built 2026-10-31. 8-hour runs on 2026-11-01 (12 rules broken, since fixed) and 2026-11-02 (1, fixed). Audited 2026-11-09 ([Review/monkey-gaps.md](Review/monkey-gaps.md)); first 8-hour run with the newest rules planned that night | High |
+| 14 · 32. Overnight monkey test | Built 2026-10-31. 8-hour runs on 2026-11-01 (12 rules broken, since fixed) and 2026-11-02 (1, fixed). Audited 2026-11-09 ([Review/monkey-gaps.md](Review/monkey-gaps.md)). 2 h 48 min with the newest rules that day (stopped by an app relaunch; 554,609 steps) found the open-text bug, fixed; a full 8 hours with them is still to do | High |
 | 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done, fixed, and passed Leah's test 2026-10-31 ([Review/RESULTS.md](Review/RESULTS.md)); the stricter monkey's new reports are being sorted | High |
 | 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tiers 1, 2 and 4 done 2026-11-01 (the rest of tier 4 left as not worth the churn; R5, AB 5 and AD 8 with Leah / tier 3). The monkey after tier 1 found 5 older bugs, fixed; 5 minutes after tier 2 found none ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
 | 14 · 33c. Review round 12: refactors checked, subjects, redaction safety (Leah, 2026-11-02) | Sessions AF, AG, AH done ([Review/PLAN-13.md](Review/PLAN-13.md)). Fixed and passed Leah's tests 2026-11-02: AF's three, and tier 1 (AH 1, AG 1, AG 2), plus AH 3 and AH 8. AH 2 fixed 2026-11-07: the monkey keeps an undo line per page, so episodes with pages check undo and redo exactly again (a self-test proves it catches a wrong picture after another page was shown). AH 4, 5 and 7 fixed 2026-11-08: background saves now encode while the next steps edit; after a redaction every page it changed is checked for snapshots, Cancel is answered sometimes and must change nothing, and the monkey's words include an email and an IP address so Auto-Redact finds something; Forget History also checks page undo and Before/After's As Opened. A 5-minute monkey (615 pictures) broke no rule. The rest (AG 3 to 7, AH 6) set aside by Leah 2026-11-08 as not worth doing; seven `ImageDocument.swift` Release warnings left on purpose | High |
@@ -401,6 +401,26 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Pixel commands with new text still open
+
+Found by the monkey, 2026-11-09. A menu command that changes pixels checked for a text layer before an open box became
+one, so it went through and turned the new words into plain pixels. Use `TestImages/Help/Sample Screenshot.png`.
+
+1. Open `Sample Screenshot.png`.
+2. Edit > Select All.
+3. Edit > Copy.
+4. Edit > Deselect.
+5. Press T. In the bar at the top, turn on Editable.
+6. Click the picture and type Hello. Don't click anywhere else.
+7. Adjustments > Invert Colors.
+   Expected: a message says "This is a text layer." The colors don't change. Hello is placed, and the Layers panel has
+   a new layer named Hello.
+8. Edit > Undo.
+   Expected: Hello goes away.
+9. Click the picture and type Hello.
+10. Edit > Paste in Place.
+    Expected: the same message, Hello is placed, and no pasted piece appears.
 
 ### Test: Review round 12, tier 1 fixes (AH 1, AG 1, AG 2) (passed 2026-11-02)
 

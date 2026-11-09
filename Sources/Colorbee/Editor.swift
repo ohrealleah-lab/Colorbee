@@ -68,6 +68,13 @@ enum HistoryBudget {
     @TaskLocal static var forTests: Int?
 }
 
+/// Where a redaction went, never what was there, so the monkey test can check that it really covered it.
+struct RedactedArea {
+    let page: UUID
+    let effect: Effect
+    let area: SelectionMask
+}
+
 @MainActor
 @Observable
 final class Editor {
@@ -319,6 +326,7 @@ final class Editor {
     @ObservationIgnored var effectSource: PixelBuffer?
     /// What the canvas shows now, so Apply knows whether the newest settings still need working out.
     @ObservationIgnored var shownEffect: Effect?
+    @ObservationIgnored var lastRedaction: [RedactedArea] = []
     /// Bumped when the effect closes, so a background preview finishing late is ignored.
     @ObservationIgnored var previewGeneration = 0
     @ObservationIgnored var previewRunning = false

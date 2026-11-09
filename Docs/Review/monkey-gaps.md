@@ -3,6 +3,13 @@
 Where the overnight monkey (`Tests/ColorbeeTests/Monkey`) could catch bugs but doesn't look yet. Review only: no code
 was changed and nothing was run.
 
+**Where this list stands (audit, 2026-11-09).** Closed: C12, R2, R5, R6. Partly closed: C1 (default settings only), C14,
+R1 (pixels now proven covered; the transparency lock isn't separately checked), R1b (spill files aren't checked), R1c
+(the report now counts finds: about 3 Auto-Redacts in 110 find anything), R3 (marquee outlines aren't compared). C3 is
+closed for leaving objects open; handles and cancel by Escape aren't driven. Still open: C2, C4 to C11, C13, R4, R7 to
+R14. New since the review: pictures never passed one 256 px undo tile (fixed: one episode in sixteen does), and the
+monkey has no timeout, so a hang would use up the night. Next in line: R4 (real exports), then C2 (effect dialogs).
+
 **Priorities.** High: lost work, crashes, secrets left after a redaction, or exports that don't match the screen, and
 the monkey could reach it. Medium: a real bug class, but rarer or less harmful. Low: worth having, little risk.
 

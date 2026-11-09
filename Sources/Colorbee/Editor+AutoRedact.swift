@@ -86,10 +86,18 @@ extension Editor {
             onRefused()
             redactionMessage = "“\(name)” is locked, so nothing was redacted. Unlock it and try again."
         } else if outcome == .redacted {
+            lastRedaction = [RedactedArea(page: page.id, effect: effect, area: area.hardened())]
             deleteSnapshotsAfterRedacting(page)
             noteRedaction()
         }
         onRender()
+    }
+
+    /// Solid Fill only: Blur and Pixelate are as strong as each item's height, and need the picture before to check.
+    private func noteRedacted(_ matches: [RedactionMatch], on page: Page, treatment: RedactionTreatment) {
+        guard treatment == .solidFill else { return }
+        lastRedaction += matches.compactMap { SelectionMask.rectangle($0.rect, clippedTo: page.canvas.bounds) }
+            .map { RedactedArea(page: page.id, effect: .solidFill(color1), area: $0) }
     }
 
     /// A redacted page's History Snapshots still show what was redacted, so they go (Leah, 2026-11-01). Not a step:
@@ -274,6 +282,7 @@ extension Editor {
             return
         }
         autoRedact?.applying = (0, targets.count)
+        lastRedaction = []
         Task { [weak self] in
             guard let self else { return }
             var redacted = false, changedOtherPages = false
@@ -288,6 +297,7 @@ extension Editor {
                         if apply() == .redacted {
                             redacted = true
                             group += history.undoStepID.map { [(page.id, $0)] } ?? []
+                            noteRedacted(target.matches, on: page, treatment: session.treatment)
                             deleteSnapshotsAfterRedacting(page)
                         }
                     }
@@ -301,6 +311,7 @@ extension Editor {
                             redacted = true
                             changedOtherPages = true
                             group += target.page.history.undoStepID.map { [(target.page.id, $0)] } ?? []
+                            noteRedacted(target.matches, on: target.page, treatment: session.treatment)
                             deleteSnapshotsAfterRedacting(target.page)
                         }
                         redactedPages.append(number)

@@ -14,10 +14,12 @@ struct MonkeyTests {
     nonisolated private static let minutes = environment["COLORBEE_MONKEY_MINUTES"].flatMap(Double.init)
     static let stepsPerEpisode = 60
     static let maxFailures = 20
+    /// How many Auto-Redacts ran and how many found something to cover, for the report: rules about it need it to.
+    static var autoRedacts = (tried: 0, found: 0)
 
     /// A few short episodes on every `make test`, so the monkey itself keeps working and today's code breaks no rule.
     @Test func aShortRunBreaksNoRules() async {
-        for seed in UInt64(1)...4 {
+        for seed in [UInt64(1), 2, 3, 4, 11] {
             var episode = MonkeyEpisode.random(seed: seed)
             do {
                 try await episode.explore(count: 40)
@@ -44,6 +46,64 @@ struct MonkeyTests {
             #expect(error.failure.rule == "Undoing everything didn't give back each picture")
             #expect(error.atEnd)
         }
+    }
+
+    /// A layer the redaction didn't reach is caught, whichever way it covers.
+    @Test func aRedactionThatMissesALayerIsCaught() throws {
+        let size = IntSize(width: 20, height: 20)
+        let canvas = Canvas(size: size, colorSpace: Canvas.defaultColorSpace, background: .white)
+        let area = try #require(SelectionMask.rectangle(IntRect(x: 2, y: 2, width: 12, height: 12), clippedTo: canvas.bounds))
+        let black = Pixel(r: 0, g: 0, b: 0)
+        #expect(throws: MonkeyFailure.self) { try MonkeyRules.checkCovered(canvas, area: area, effect: .solidFill(black), before: [:]) }
+
+        canvas.layers[0].buffer[3, 3] = Pixel(r: 255, g: 0, b: 0)
+        let before = MonkeyRules.pixels(of: canvas)
+        #expect(throws: MonkeyFailure.self) { try MonkeyRules.checkCovered(canvas, area: area, effect: .gaussianBlur(radius: 6), before: before) }
+        #expect(throws: MonkeyFailure.self) { try MonkeyRules.checkCovered(canvas, area: area, effect: .pixelate(cellSize: 6), before: before) }
+
+        for y in 2..<14 { for x in 2..<14 { canvas.layers[0].buffer[x, y] = black } }
+        try MonkeyRules.checkCovered(canvas, area: area, effect: .solidFill(black), before: [:])
+        try MonkeyRules.checkCovered(canvas, area: area, effect: .pixelate(cellSize: 6), before: before)
+    }
+
+    /// One flat layer has nothing a blur or pixelate could change, so it isn't a miss.
+    @Test func aFlatLayerNeedsNoChange() throws {
+        let canvas = Canvas(size: IntSize(width: 20, height: 20), colorSpace: Canvas.defaultColorSpace, background: .white)
+        let area = try #require(SelectionMask.rectangle(IntRect(x: 2, y: 2, width: 12, height: 12), clippedTo: canvas.bounds))
+        try MonkeyRules.checkCovered(canvas, area: area, effect: .gaussianBlur(radius: 6), before: MonkeyRules.pixels(of: canvas))
+    }
+
+    /// Text left open and then closed with nothing placed is caught.
+    @Test func openTextThatVanishesIsCaught() {
+        let episode = MonkeyEpisode.random(seed: 1), editor = episode.makeEditor()
+        editor.textIsEditable = true
+        editor.selectTool(.text)
+        editor.beginText(at: Point2D(x: 4, y: 4), wrapWidth: nil)
+        editor.updatePendingText("Hi")
+        let open = MonkeyRules.certainToLand(editor), revision = editor.history.revision
+        #expect(open == "text")
+        editor.pendingText = nil
+        #expect(throws: MonkeyFailure.self) {
+            try MonkeyRules.checkLanded(editor, open: open, step: .addLayer, page: editor.page, revisionBefore: revision)
+        }
+    }
+
+    /// Objects left open meet the next step, and Undo with text open still lines up with what happened.
+    @Test func objectsLeftOpenMeetTheNextStep() async throws {
+        let red = Pixel(r: 255, g: 0, b: 0)
+        let shape = MonkeyStep.shape(kind: .rectangle, from: Point2D(x: 4, y: 4), to: Point2D(x: 20, y: 20), outline: .solid, fill: nil, secondary: false, color: red, leavesOpen: true)
+        let text = MonkeyStep.text("Hi", at: Point2D(x: 4, y: 4), editable: true, color: red, leavesOpen: true)
+        for script in [[.addLayer, .opacity(0.5), .undo, shape], [shape, .addLayer, .undo, .redo], [shape, .undo, .redo], [text, .undo, .redo, .undo], [text, .redo, .undo], [text, .newPage, .showPage(0), .undo],
+                       [text, .saveInBackground, .addLayer, .undo, .undo], [shape, .forgetHistory], [text, .saveAndReopen]] as [[MonkeyStep]] {
+            var steps = script.makeIterator()
+            try await MonkeyEpisode.drive(MonkeyEpisode.random(seed: 1).makeEditor(), finishing: true) { _ in steps.next() }
+        }
+    }
+
+    @Test func someEpisodesCrossAnUndoTile() {
+        let episode = MonkeyEpisode.random(seed: 11)
+        #expect(episode.large && episode.width > TileGrid.tileSize && episode.height > TileGrid.tileSize)
+        #expect(!MonkeyEpisode.random(seed: 1).large)
     }
 
     @Test(.enabled(if: minutes != nil, "Run with make monkey")) func overnight() async {
@@ -137,7 +197,7 @@ struct MonkeyTests {
         } else {
             text += ", still running"
         }
-        text += ". \(episodes) small pictures, \(steps) steps.\n\n"
+        text += ". \(episodes) pictures (one in sixteen large), \(steps) steps. Auto-Redact found something to cover \(autoRedacts.found) of \(autoRedacts.tried) times.\n\n"
         if found.isEmpty {
             text += "No rule was broken.\n"
         } else {

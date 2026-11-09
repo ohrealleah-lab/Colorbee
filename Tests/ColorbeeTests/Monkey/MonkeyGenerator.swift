@@ -6,9 +6,11 @@ import Foundation
 /// whole-picture changes, which replace every layer, less often.
 @MainActor
 enum MonkeyGenerator {
-    static func step(_ random: inout MonkeyRandom, editor: Editor) -> MonkeyStep {
+    static func step(_ random: inout MonkeyRandom, editor: Editor, large: Bool = false) -> MonkeyStep {
         let size = editor.canvas.size
         let layers = editor.canvas.layers.count
+        // Large pictures reach past one 256-pixel undo tile, so strokes, pastes and resizes have to as well.
+        let reach = large ? 90 : 20, maxSide = large ? 480 : 160
         func point() -> Point2D {
             Point2D(x: Double(random.int(-4...(size.width + 4))) + 0.5, y: Double(random.int(-4...(size.height + 4))) + 0.5)
         }
@@ -16,7 +18,7 @@ enum MonkeyGenerator {
             var points = [point()]
             for _ in 0..<random.int(1...8) {
                 let last = points.last!
-                points.append(Point2D(x: last.x + Double(random.int(-20...20)), y: last.y + Double(random.int(-20...20))))
+                points.append(Point2D(x: last.x + Double(random.int(-reach...reach)), y: last.y + Double(random.int(-reach...reach))))
             }
             return points
         }
@@ -41,8 +43,8 @@ enum MonkeyGenerator {
         case 22..<27:
             return .shape(kind: random.pick([.line, .arrow, .rectangle, .ellipse, .star5, .heart, .roundedRectangleCallout]), from: point(), to: point(),
                           outline: random.chance(0.8) ? random.pick([.solid, .solid, .marker]) : nil,
-                          fill: random.chance(0.5) ? .solid : nil, secondary: random.chance(0.3), color: color())
-        case 27..<31: return .text(words(), at: point(), editable: random.chance(0.7), color: color())
+                          fill: random.chance(0.5) ? .solid : nil, secondary: random.chance(0.3), color: color(), leavesOpen: random.chance(0.35))
+        case 27..<31: return .text(words(), at: point(), editable: random.chance(0.7), color: color(), leavesOpen: random.chance(0.35))
         case 31..<33: return .editText(layer: random.int(0..<8), words())
         case 33..<35: return .redact(points: path(), treatment: random.pick([.solidFill, .blur, .pixelate]), cancels: random.chance(0.3))
         case 35..<39: return .select(from: point(), to: point())
@@ -52,15 +54,15 @@ enum MonkeyGenerator {
         case 43..<45: return .moveSelection(dx: random.int(-15...15), dy: random.int(-15...15))
         case 45: return .nudge(dx: random.int(-3...3), dy: random.int(-3...3))
         case 46: return .deleteSelection
-        case 47..<49: return .paste(width: random.int(2...40), height: random.int(2...30), color: color(), at: IntPoint(x: random.int(-10...size.width), y: random.int(-10...size.height)))
+        case 47..<49: return .paste(width: random.int(2...(large ? 320 : 40)), height: random.int(2...(large ? 300 : 30)), color: color(), at: IntPoint(x: random.int(-10...size.width), y: random.int(-10...size.height)))
         case 49: return .cropToSelection
         case 50: return .orientation(random.pick(Orientation.allCases))
         case 51:
             let scale = random.pick([0.5, 0.75, 1.25, 1.5])
             let stretch = random.chance(0.3) ? 1.3 : 1
-            return .resize(width: max(4, min(160, Int(Double(size.width) * scale * stretch))), height: max(4, min(160, Int(Double(size.height) * scale))),
+            return .resize(width: max(4, min(maxSide, Int(Double(size.width) * scale * stretch))), height: max(4, min(maxSide, Int(Double(size.height) * scale))),
                            skew: random.chance(0.2) ? Double(random.int(-20...20)) : 0)
-        case 52: return .resizeCanvas(width: random.int(16...150), height: random.int(16...120))
+        case 52: return .resizeCanvas(width: random.int(16...(large ? 460 : 150)), height: random.int(16...(large ? 380 : 120)))
         case 53..<57: return .addLayer
         case 57: return .duplicateLayer
         case 58: return layers > 1 ? .deleteLayer : .addLayer

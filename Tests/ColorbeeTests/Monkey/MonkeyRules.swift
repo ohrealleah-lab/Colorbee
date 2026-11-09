@@ -37,8 +37,9 @@ enum MonkeyRules {
         }
         let history = editor.history
         // Pictures here are tiny, so one step (a crop holds every layer twice) is a few MB at most; the old 64 MB slack
-        // let a history that never spilled pass (review AH, finding 3).
-        if history.byteCount > history.byteBudget + (8 << 20) {
+        // let a history that never spilled pass (review AH, finding 3). The rare larger pictures need more.
+        let oneStep = 2 * (canvas.layers.count + canvas.layers.compactMap(\.mask).count) * canvas.size.width * canvas.size.height * 4
+        if history.byteCount > history.byteBudget + max(8 << 20, oneStep) {
             throw MonkeyFailure(rule: "History went over its memory budget", detail: "\(history.byteCount >> 20) MB held, budget \(history.byteBudget >> 20) MB.")
         }
     }
@@ -95,6 +96,104 @@ enum MonkeyRules {
         for text in lost where data.range(of: Data(text.utf8)) != nil {
             throw MonkeyFailure(rule: "Redacted words survive in the saved project", detail: "\"\(text)\" is still in the file.")
         }
+    }
+
+    /// Each pixel layer's pixels, to compare with after a redaction.
+    static func pixels(of canvas: Canvas) -> [LayerID: [Pixel]] {
+        Dictionary(uniqueKeysWithValues: canvas.layers.filter(\.isPixelLayer).map { ($0.id, $0.buffer.pixels(in: canvas.bounds)) })
+    }
+
+    /// The layers that had something under `area` before the redaction.
+    static func layersUnder(_ area: SelectionMask, in canvas: Canvas, before: [LayerID: [Pixel]]) -> [Layer] {
+        canvas.layers.filter { layer in
+            guard let pixels = before[layer.id] else { return false }
+            return points(of: area).contains { pixels[$0.y * canvas.size.width + $0.x].a > 0 }
+        }
+    }
+
+    private static func points(of area: SelectionMask) -> [IntPoint] {
+        var points: [IntPoint] = []
+        for y in area.bounds.minY..<area.bounds.maxY {
+            for x in area.bounds.minX..<area.bounds.maxX where area[x, y] > 0 { points.append(IntPoint(x: x, y: y)) }
+        }
+        return points
+    }
+
+    /// Whether two pixels look different by enough that blurring or pixelating them together must change something.
+    private static func differ(_ a: Pixel, _ b: Pixel) -> Bool {
+        if abs(Int(a.a) - Int(b.a)) >= 8 { return true }
+        guard a.a >= 128, b.a >= 128 else { return false }
+        return max(abs(Int(a.r) - Int(b.r)), abs(Int(a.g) - Int(b.g)), abs(Int(a.b) - Int(b.b))) >= 8
+    }
+
+    /// After a redaction: what's under the area is really covered on every layer, hidden ones too. A Solid Fill leaves
+    /// only its color on a layer that had anything there. Blur and Pixelate can only be told apart from nothing where
+    /// the layer wasn't flat, and need `before`; without it (a floating piece was placed first) they aren't checked.
+    static func checkCovered(_ canvas: Canvas, area: SelectionMask, effect: Effect, before: [LayerID: [Pixel]]) throws(MonkeyFailure) {
+        let inArea = points(of: area), width = canvas.size.width
+        for layer in canvas.layers where layer.isPixelLayer {
+            if case .solidFill(let color) = effect {
+                let left = inArea.first { point in
+                    let pixel = layer.buffer[point.x, point.y]
+                    return pixel.a > 0 && pixel != color
+                }
+                if let left {
+                    throw MonkeyFailure(rule: "A redaction left pixels showing",
+                                        detail: "\"\(layer.name)\" still has something other than the fill at (\(left.x), \(left.y)).")
+                }
+                continue
+            }
+            guard let was = before[layer.id] else { continue }
+            let mustChange: Bool
+            switch effect {
+            case .pixelate(let cellSize):
+                let cells = Dictionary(grouping: inArea) { IntPoint(x: $0.x / cellSize, y: $0.y / cellSize) }
+                mustChange = cells.values.contains { cell in
+                    cell.dropFirst().contains { differ(was[$0.y * width + $0.x], was[cell[0].y * width + cell[0].x]) }
+                }
+            case .gaussianBlur:
+                guard let first = inArea.first else { continue }
+                mustChange = inArea.contains { differ(was[$0.y * width + $0.x], was[first.y * width + first.x]) }
+            default:
+                continue
+            }
+            let changed = inArea.contains { layer.buffer[$0.x, $0.y] != was[$0.y * width + $0.x] }
+            if mustChange, !changed {
+                throw MonkeyFailure(rule: "A redaction skipped a layer", detail: "\"\(layer.name)\" had something under \(effect.name) and didn't change.")
+            }
+        }
+    }
+
+    /// `checkCovered` for everything the newest redaction reports, on whichever pages it reached.
+    static func checkCovered(_ editor: Editor, before: [LayerID: [Pixel]]) throws(MonkeyFailure) {
+        for record in editor.lastRedaction {
+            guard let page = editor.pages.pages.first(where: { $0.id == record.page }) else { continue }
+            if page === editor.page {
+                try checkCovered(editor.canvas, area: record.area, effect: record.effect, before: before)
+            } else if let canvas = (try? page.projectData()).flatMap({ try? ProjectFile.decode($0) }) {
+                try checkCovered(canvas, area: record.area, effect: record.effect, before: [:])
+            }
+        }
+    }
+
+    /// What an open shape or text box is, if placing it is certain to leave a step: words on a text layer of their own,
+    /// or a plain outline in Color 1 between two points well inside the picture, on a layer that can take it.
+    static func certainToLand(_ editor: Editor) -> String? {
+        if let text = editor.pendingText, editor.textIsEditable, text.layerID == nil, !text.string.isEmpty { return "text" }
+        guard let shape = editor.pendingShape, !shape.swapped, !shape.isBuilding, editor.shapeOutline != nil else { return nil }
+        let canvas = editor.canvas, layer = canvas.activeLayer
+        guard canvas.bounds.contains(IntPoint(x: Int(shape.start.x), y: Int(shape.start.y))),
+              canvas.bounds.contains(IntPoint(x: Int(shape.end.x), y: Int(shape.end.y))),
+              abs(shape.start.x - shape.end.x) >= 4, abs(shape.start.y - shape.end.y) >= 4,
+              layer.isPixelLayer, !canvas.isLocked(layer), !canvas.locksTransparency(layer), !canvas.editsMask else { return nil }
+        return "shape"
+    }
+
+    /// After any step but Undo (which discards an open shape): an open object that's gone must be in history.
+    static func checkLanded(_ editor: Editor, open: String?, step: MonkeyStep, page: Page, revisionBefore: Int) throws(MonkeyFailure) {
+        if case .undo = step { return }
+        guard let open, editor.pendingShape == nil, editor.pendingText == nil, page.history.revision == revisionBefore else { return }
+        throw MonkeyFailure(rule: "A \(open) left open vanished", detail: "\(step) closed it, but nothing was placed.")
     }
 
     /// After Forget History (monkey gaps, R1b): no page can undo, redo or go to a snapshot, no page change can be undone

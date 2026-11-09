@@ -445,12 +445,16 @@ extension Editor {
         guard let edit = effectEdit else { return }
         // Batch Redact's preview already covers every layer under the selection; Apply keeps what's shown.
         let redacting = effectCoversAllLayers
+        let redactedWith = shownEffect
         let appliedPhoto = activeEffect == .adjustPhoto ? photoEdit : nil
         endEffectSession()
         activeEffect = nil
         var committed = false
         recordingChanges { committed = history.commit(edit) }
         if redacting, committed {
+            if let redactedWith, let area = canvas.selection.marquee {
+                lastRedaction = [RedactedArea(page: page.id, effect: redactedWith, area: area.hardened())]
+            }
             deleteSnapshotsAfterRedacting(page)
             noteRedaction()
         }

@@ -33,17 +33,23 @@ struct MonkeyFailure: Error {
 @MainActor
 struct MonkeyEpisode {
     let seed: UInt64
-    let width: Int
-    let height: Int
+    var width: Int
+    var height: Int
     let background: Pixel
     var steps: [MonkeyStep] = []
 
     /// A new episode: a small picture, with no steps yet.
     static func random(seed: UInt64) -> MonkeyEpisode {
         var random = MonkeyRandom(seed: seed)
-        return MonkeyEpisode(seed: seed, width: random.int(24...140), height: random.int(24...100),
-                             background: random.pick([.white, Pixel(r: 200, g: 200, b: 200), Pixel(r: 30, g: 40, b: 60)]))
+        var episode = MonkeyEpisode(seed: seed, width: random.int(24...140), height: random.int(24...100),
+                                    background: random.pick([.white, Pixel(r: 200, g: 200, b: 200), Pixel(r: 30, g: 40, b: 60)]))
+        if episode.large { (episode.width, episode.height) = (random.int(260...420), random.int(260...340)) }
+        return episode
     }
+
+    /// One episode in sixteen is past a 256-pixel undo tile both ways, as nearly every real picture is; they take about
+    /// twenty times as long as the small ones. Two seeds, so one has a tiny history budget and one doesn't.
+    var large: Bool { seed % 32 == 11 || seed % 32 == 12 }
 
     /// Every other episode's history gets a tiny budget, so it spills to disk and frees layers as a long session's
     /// would (monkey gaps, R6).
@@ -103,11 +109,12 @@ struct MonkeyEpisode {
     mutating func explore(count: Int) async throws(MonkeyFailureAt) {
         var random = MonkeyRandom(seed: seed &* 31 &+ 7)
         var chosen: [MonkeyStep] = []
+        let large = large
         defer { steps = chosen }
         try await withBudget {
             try await Self.drive(makeEditor(), finishing: true) { editor in
                 guard chosen.count < count else { return nil }
-                let step = MonkeyGenerator.step(&random, editor: editor)
+                let step = MonkeyGenerator.step(&random, editor: editor, large: large)
                 chosen.append(step)
                 return step
             }
@@ -185,18 +192,25 @@ struct MonkeyEpisode {
             let before = (revision: editor.history.revision, undoCount: editor.history.undoCount,
                           selection: MonkeyRules.selectionState(of: editor.canvas))
             let canvas = editor.canvas, shownPage = editor.page
-            let leaving = canvas.selection.floating == nil ? MonkeyRules.layerStates(of: canvas, floatingOn: nil) : nil
-            let hashes = step.redacts ? Dictionary(uniqueKeysWithValues: canvas.layers.map { ($0.id, $0.buffer.contentHash()) }) : [:]
+            // Whatever is still open gets placed by most steps, so what's there now isn't what those steps leave behind.
+            let hadOpen = editor.pendingShape != nil || editor.pendingText != nil
+            let landing = MonkeyRules.certainToLand(editor)
+            let leaving = canvas.selection.floating == nil && !hadOpen ? MonkeyRules.layerStates(of: canvas, floatingOn: nil) : nil
+            let pixelsBefore = step.redacts && leaving != nil ? MonkeyRules.pixels(of: canvas) : [:]
             // Each page's History, for which pages a redaction changed, and that a Cancel changed none (review AH, finding 5).
             let histories = step.redacts ? MonkeyRules.histories(of: editor) : [:]
             // Whether this step really redacted: a redaction that finds nothing, or places a floating piece first, isn't one.
             let redactedBefore = editor.redactedSinceSave
-            if step.redacts { editor.redactedSinceSave = false }
+            if step.redacts {
+                editor.redactedSinceSave = false
+                editor.lastRedaction = []
+            }
             await step.perform(on: editor)
             let redacted = step.redacts && editor.redactedSinceSave
             if step.redacts { editor.redactedSinceSave = editor.redactedSinceSave || redactedBefore }
             done += 1
             do {
+                try MonkeyRules.checkLanded(editor, open: landing, step: step, page: shownPage, revisionBefore: before.revision)
                 switch step {
                 case .saveAndReopen:
                     // Carry on in the reopened copy, which must hold what was saved (the save places what's open), every
@@ -218,7 +232,7 @@ struct MonkeyEpisode {
                     try await checkPendingSave(force: false)
                     continue
                 case .saveInBackground:
-                    let snapshot = editor.saveSnapshot()
+                    let snapshot = editor.saveSnapshot(placingPending: false)
                     pendingSave = BackgroundSave(encoding: Task.detached { try snapshot.encodedProject() }, look: MonkeyRules.shownHash(editor.canvas.flattened()),
                                                  layers: MonkeyRules.layerStates(of: editor.canvas, floatingOn: editor.canvas.selection.floating?.layerID),
                                                  floatingOn: editor.canvas.selection.floating?.layerID, pages: editor.pages.pages.count, due: done + 3)
@@ -239,11 +253,16 @@ struct MonkeyEpisode {
                     try MonkeyRules.checkRedacted(editor, before: histories, redacted: redacted,
                                                   placing: leaving == nil ? shownPage.id : nil)
                 }
+                if case .autoRedact = step { MonkeyTests.autoRedacts.tried += 1; MonkeyTests.autoRedacts.found += redacted ? 1 : 0 }
+                if redacted {
+                    try MonkeyRules.checkCovered(editor, before: pixelsBefore)
+                }
                 if redacted, editor.canvas === canvas {
-                    // Placing a floating piece first changes its layer too, so which layers the redaction itself touched
-                    // can't be told then.
-                    let changed = leaving == nil ? [] : editor.canvas.layers.filter { layer in hashes[layer.id].map { $0 != layer.buffer.contentHash() } ?? false }
-                    try MonkeyRules.checkNothingLeft(editor, redacted: changed, words: words)
+                    // Every layer that had something under the area, whether or not it changed: a layer the redaction
+                    // missed mustn't be let off. Placing a floating piece or open object first changes what was there,
+                    // so it can't be told then.
+                    let under = editor.lastRedaction.filter { $0.page == shownPage.id }.flatMap { MonkeyRules.layersUnder($0.area, in: editor.canvas, before: pixelsBefore) }
+                    try MonkeyRules.checkNothingLeft(editor, redacted: under, words: words)
                 }
                 if editor.page !== shownPage {
                     // Another page is shown: the one left must be as it was when it's shown again, and this one as it was
@@ -261,7 +280,7 @@ struct MonkeyEpisode {
                     }
                     tracker.showPage(of: editor, leaving: shownPage, revisionBefore: before.revision)
                 } else {
-                    try tracker.note(step, before: before)
+                    try tracker.note(step, before: before, hadOpen: hadOpen)
                 }
                 for layer in editor.canvas.layers { if let text = layer.text { words[layer.id] = text.spec.text } }
                 try await checkPendingSave(force: false)
@@ -272,6 +291,12 @@ struct MonkeyEpisode {
         guard finishing else { return }
         do {
             try await checkPendingSave(force: true)
+            // What's still open is placed as a step of its own, which ends any redo the tracker still expects.
+            if editor.pendingShape != nil || editor.pendingText != nil {
+                let before = (revision: editor.history.revision, undoCount: editor.history.undoCount, selection: MonkeyRules.selectionState(of: editor.canvas))
+                editor.placePendingObjects()
+                try tracker.note(.deselect, before: before)
+            }
             try MonkeyRules.checkSaving(editor)
             try tracker.undoAndRedoEverything()
         } catch {
@@ -323,10 +348,25 @@ struct UndoTracker {
 
     /// After a step: undo and redo must give back exactly what was there, selection and floating piece included; a step
     /// that changed the layers must be in history; anything else starts a new line from here.
-    mutating func note(_ step: MonkeyStep, before: (revision: Int, undoCount: Int, selection: String)) throws(MonkeyFailure) {
+    mutating func note(_ step: MonkeyStep, before: (revision: Int, undoCount: Int, selection: String), hadOpen: Bool = false) throws(MonkeyFailure) {
         let history = editor.history, count = history.undoCount, now = Self.mark(editor)
         switch step {
         case .undo, .redo:
+            if hadOpen {
+                // Undo and Redo place an open text box first, so what happened isn't the step they name (Undo just
+                // discards an open shape, which changes nothing).
+                if case .undo = step, count == before.undoCount, history.revision - before.revision >= 2 {
+                    // Placed, then that undone: back where it was, with the placing to redo.
+                    line = Array(line.prefix(count + 1)) + [nil]
+                    knowsRedo = true
+                    return
+                }
+                if count > before.undoCount {
+                    line = Array(line.prefix(before.undoCount + 1)) + Array(repeating: nil, count: count - before.undoCount - 1) + [now]
+                    knowsRedo = false
+                    return
+                }
+            }
             guard count != before.undoCount else { break }
             guard line.indices.contains(count) else {
                 guard knowsRedo else {

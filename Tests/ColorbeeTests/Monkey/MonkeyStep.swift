@@ -10,8 +10,9 @@ enum MonkeyStep: CustomStringConvertible {
                 smoothing: Double, symmetry: SymmetryMode)
     case fill(at: Point2D, color: Pixel)
     case gradient(from: Point2D, to: Point2D, color: Pixel)
-    case shape(kind: ShapeKind, from: Point2D, to: Point2D, outline: PaintStyle?, fill: PaintStyle?, secondary: Bool, color: Pixel)
-    case text(String, at: Point2D, editable: Bool, color: Pixel)
+    /// `leavesOpen`: not placed, so the next step meets it (monkey gaps, C3).
+    case shape(kind: ShapeKind, from: Point2D, to: Point2D, outline: PaintStyle?, fill: PaintStyle?, secondary: Bool, color: Pixel, leavesOpen: Bool)
+    case text(String, at: Point2D, editable: Bool, color: Pixel, leavesOpen: Bool)
     case editText(layer: Int, String)
     /// `cancels`: answers Cancel if asked to delete History Snapshots, rather than Delete Snapshots and Redact.
     case redact(points: [Point2D], treatment: RedactionTreatment, cancels: Bool)
@@ -105,10 +106,10 @@ enum MonkeyStep: CustomStringConvertible {
             return words
         case let .fill(point, color): return "Fill at \(point.words) with \(color.words)"
         case let .gradient(from, to, color): return "Gradient from \(from.words) to \(to.words), \(color.words) to Color 2"
-        case let .shape(kind, from, to, outline, fill, secondary, color):
-            return "\(kind) from \(from.words) to \(to.words), outline \(outline.map { "\($0)" } ?? "none"), fill \(fill.map { "\($0)" } ?? "none"), Color 1 \(color.words)\(secondary ? ", right-drag" : ""), placed"
-        case let .text(words, point, editable, color):
-            return "Text \"\(words)\" at \(point.words) in \(color.words), Editable \(editable ? "on" : "off"), placed"
+        case let .shape(kind, from, to, outline, fill, secondary, color, leavesOpen):
+            return "\(kind) from \(from.words) to \(to.words), outline \(outline.map { "\($0)" } ?? "none"), fill \(fill.map { "\($0)" } ?? "none"), Color 1 \(color.words)\(secondary ? ", right-drag" : ""), \(leavesOpen ? "left open" : "placed")"
+        case let .text(words, point, editable, color, leavesOpen):
+            return "Text \"\(words)\" at \(point.words) in \(color.words), Editable \(editable ? "on" : "off"), \(leavesOpen ? "left open" : "placed")"
         case let .editText(layer, words): return "Double-click text layer \(layer + 1) and change it to \"\(words)\""
         case let .redact(points, treatment, cancels): return "Redact Brush (\(treatment)) through \(points.words)" + Self.answer(cancels)
         case let .select(from, to): return "Rectangle Select from \(from.words) to \(to.words)"
@@ -203,7 +204,7 @@ enum MonkeyStep: CustomStringConvertible {
             editor.beginGradient(at: from, secondary: false)
             editor.continueGradient(to: to)
             editor.endGradient()
-        case let .shape(kind, from, to, outline, fill, secondary, color):
+        case let .shape(kind, from, to, outline, fill, secondary, color, leavesOpen):
             editor.selectTool(.shape)
             editor.shapeKind = kind
             editor.shapeOutline = outline
@@ -212,14 +213,14 @@ enum MonkeyStep: CustomStringConvertible {
             editor.beginShapeDrag(at: from, viewPoint: editor.viewport.viewPoint(fromImage: from), secondary: secondary, clickCount: 1)
             editor.continueShapeDrag(to: to, shiftDown: false)
             editor.endShapeDrag()
-            editor.commitPendingShape()
-        case let .text(words, point, editable, color):
+            if !leavesOpen { editor.commitPendingShape() }
+        case let .text(words, point, editable, color, leavesOpen):
             editor.textIsEditable = editable
             editor.selectTool(.text)
             editor.color1 = color
             editor.beginText(at: point, wrapWidth: nil)
             editor.updatePendingText(words)
-            editor.commitPendingText()
+            if !leavesOpen { editor.commitPendingText() }
         case let .editText(index, words):
             let texts = editor.canvas.layers.indices.filter { editor.canvas.layers[$0].text != nil }
             guard !texts.isEmpty else { return }

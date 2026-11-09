@@ -13,7 +13,7 @@ _Last updated: 2026-11-09 · 860 core tests and 358 app tests passing (pixel com
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Pixel commands with new text still open](#test-pixel-commands-with-new-text-still-open)
+Nothing is waiting right now.
 
 ---
 
@@ -402,7 +402,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Pixel commands with new text still open
+### Test: Pixel commands with new text still open (passed 2026-11-09)
 
 Found by the monkey, 2026-11-09. A menu command that changes pixels checked for a text layer before an open box became
 one, so it went through and turned the new words into plain pixels. Use `TestImages/Help/Sample Screenshot.png`.

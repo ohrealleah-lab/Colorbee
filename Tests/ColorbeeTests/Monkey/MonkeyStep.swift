@@ -403,11 +403,16 @@ enum MonkeyStep: CustomStringConvertible {
                 editor.selectionDrag(from: Point2D(x: Double(select.minX) + 0.5, y: Double(select.minY) + 0.5),
                                      to: Point2D(x: Double(select.maxX) + 0.5, y: Double(select.maxY) + 0.5))
             }
-            Self.effectOpened = nil
-            editor.beginEffect(kind)
-            guard editor.activeEffect == kind else { return }
-            // Opening places a floating piece, and the selection drag above may have made one: Cancel goes back to here.
+            // Opening places what's open and what floats (the selection drag above may have made a floating piece), then
+            // Drop Shadow, Border and Straighten preview as a step at once: Cancel goes back to after the placing.
+            editor.finishInteractions()
+            editor.placeFloatingKeepingOutline()
             Self.effectOpened = MonkeyRules.layerStates(of: editor.canvas, floatingOn: nil)
+            editor.beginEffect(kind)
+            guard editor.activeEffect == kind else {
+                Self.effectOpened = nil
+                return
+            }
             if values.count == editor.effectValues.count { editor.effectValues = values }
             if kind == .crop {
                 let fitted = box.intersection(editor.canvas.bounds)

@@ -25,13 +25,9 @@ enum MonkeyGenerator {
         func color() -> Pixel {
             Pixel(r: UInt8(random.int(0...255)), g: UInt8(random.int(0...255)), b: UInt8(random.int(0...255)), a: random.chance(0.2) ? UInt8(random.int(40...255)) : 255)
         }
-        // Only what the slider allows: some run from 0, others from -100.
-        func sliderValue(_ slider: PhotoAdjustments.Slider) -> Double {
-            Double(random.int(Int(max(-60, slider.range.lowerBound))...Int(min(60, slider.range.upperBound))))
-        }
         func words() -> String { random.pick(["Hi", "Step 2", "Look here", "API key", "OK", "x", "a@b.io", "1.2.3.4"]) }
 
-        let roll = random.int(0..<120)
+        let roll = random.int(0..<124)
         switch roll {
         case 0..<16:
             return .stroke(tool: random.pick([.brush, .brush, .pencil, .eraser]), brush: random.pick(Brush.allCases), size: Double(random.int(1...20)),
@@ -107,12 +103,13 @@ enum MonkeyGenerator {
         case 113: return random.chance(0.3) ? .forgetHistory : .saveInBackground
         case 114..<118:
             return .retouch(random.pick(RetouchKind.allCases), points: path(), source: point())
-        case 109..<111:
-            let slider = random.pick(PhotoAdjustments.Slider.allCases)
-            return .photoLayer(slider, sliderValue(slider))
-        default:
-            let slider = random.pick(PhotoAdjustments.Slider.allCases)
-            return .photoSetting(slider, sliderValue(slider))
+        case 109..<111: return .photoLayer(MonkeyPhoto.edit(&random))
+        case 120..<123:
+            let (a, b) = (point(), point())
+            let corner = IntPoint(x: Int(min(a.x, b.x)), y: Int(min(a.y, b.y)))
+            let area = IntRect(x: corner.x, y: corner.y, width: max(1, Int(abs(a.x - b.x))), height: max(1, Int(abs(a.y - b.y))))
+            return .adjustPhoto(MonkeyPhoto.edit(&random), select: random.chance(0.6) ? area : nil, apply: random.chance(0.7))
+        default: return .photoSetting(MonkeyPhoto.edit(&random))
         }
     }
 }

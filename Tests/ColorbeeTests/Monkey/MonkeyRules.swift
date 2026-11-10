@@ -103,6 +103,54 @@ enum MonkeyRules {
         }
     }
 
+    /// Adjust Photo is drawn on screen by its own shader and in exports by the core: written apart, so agreeing is real
+    /// evidence the math is right. Checked on the photo-like picture `ScreenMatchesExportTests` uses. Steep settings
+    /// magnify the two sides' rounding, so the limits (from 300 random settings, 2026-11-10: at worst an average of 2,
+    /// 1% of values off by more than 12 and one by 62) are wider than that test's for single controls. A control that's
+    /// missing or wrong differs by about as much as it changes the picture, far past them.
+    static func checkShowsAsExported(_ edit: PhotoEdit) throws(MonkeyFailure) {
+        let editor = ScreenMatchesExportTests.picture()
+        let before = editor.canvas.flattened()
+        editor.addAdjustmentLayer(.photo(edit), named: "Adjust Photo")
+        // Controls that look at neighbors are blurred by Metal on screen and vImage in exports, which round apart; a
+        // filter may hold them too.
+        let neighbors = edit.filter != nil || [.texture, .sharpness, .definition, .noiseReduction].contains { edit.adjustments[$0] != 0 }
+        // A steep tone curve magnifies a level's difference before it many times over: one with regions squeezed close
+        // together, or a steep step in its table.
+        let steep = edit.toneCurve.map { curve in
+            let marks = [0] + curve.splits + [100], table = curve.table
+            return !curve.isNeutral && (zip(marks, marks.dropFirst()).contains { $1 - $0 < 10 }
+                || zip(table, table.dropFirst()).contains { abs(Int($1) - Int($0)) >= 3 })
+        } ?? false
+        try compare(screen: ScreenMatchesExportTests.screen(editor.canvas), export: editor.canvas.flattened(), before: before, neighbors: neighbors, steep: steep)
+    }
+
+    static func compare(screen: PixelBuffer, export: PixelBuffer, before: PixelBuffer, neighbors: Bool, steep: Bool = false) throws(MonkeyFailure) {
+        let mismatch = ScreenMatchesExportTests.difference(screen, export)
+        let change = ScreenMatchesExportTests.difference(before, export)
+        var farOff = 0
+        for y in 0..<export.height {
+            for x in 0..<export.width {
+                let p = screen[x, y], q = export[x, y]
+                for (u, v) in [(p.r, q.r), (p.g, q.g), (p.b, q.b), (p.a, q.a)] where abs(Int(u) - Int(v)) > 12 { farOff += 1 }
+            }
+        }
+        let average = max(neighbors ? 2.5 : 1.5, change.average / 5), largest = neighbors ? 96 : 48
+        let share = Double(farOff) / Double(max(mismatch.count, 1)), allowedShare = (neighbors ? 0.02 : 0.01) * (steep ? 3 : 1)
+        guard mismatch.average <= average, mismatch.largest <= largest, share <= allowedShare else {
+            throw MonkeyFailure(rule: "Adjust Photo looks different on screen than exported",
+                                detail: "Screen against export: \(mismatch), \(String(format: "%.1f", share * 100))% off by more than 12; "
+                                    + "allowed average \(String(format: "%.2f", average)), largest \(largest), \(Int(allowedShare * 100))%.")
+        }
+    }
+
+    /// Nothing the monkey applied became Leah's "last used" Adjust Photo settings.
+    static func checkLastPhoto(was: PhotoEdit?) throws(MonkeyFailure) {
+        guard PhotoSettingsStore.shared.last == was else {
+            throw MonkeyFailure(rule: "The monkey changed the last Adjust Photo settings", detail: "Same as Last would now use the monkey's.")
+        }
+    }
+
     /// Each pixel layer's pixels, to compare with after a redaction.
     static func pixels(of canvas: Canvas) -> [LayerID: [Pixel]] {
         Dictionary(uniqueKeysWithValues: canvas.layers.filter(\.isPixelLayer).map { ($0.id, $0.buffer.pixels(in: canvas.bounds)) })
@@ -276,7 +324,8 @@ enum MonkeyRules {
     /// A layer's pixels, mask and settings, as text, for comparing.
     static func state(of layer: Layer, pixels: Bool) -> String {
         var words = "\(layer.name)|\(layer.isVisible)|\(layer.opacity)|\(layer.blendMode.rawValue)|\(layer.isLocked)|\(layer.locksTransparency)"
-        words += "|\(layer.clipsToLayerBelow)|\(layer.passesThrough)|\(layer.groupID.map { "\($0.rawValue)" } ?? "-")|\(layer.adjustment.map { "\($0)" } ?? "-")"
+        // An adjustment by its hash: the dictionaries inside Adjust Photo's settings print in no fixed order.
+        words += "|\(layer.clipsToLayerBelow)|\(layer.passesThrough)|\(layer.groupID.map { "\($0.rawValue)" } ?? "-")|\(layer.adjustment.map { "\($0.hashValue)" } ?? "-")"
         // Whether a mask is on means nothing without one, and isn't saved then.
         words += "|\(layer.text.map { "\($0)" } ?? "-")|\(layer.mask == nil || layer.maskEnabled)"
         if pixels {

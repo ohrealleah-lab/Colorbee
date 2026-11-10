@@ -176,7 +176,7 @@ extension Editor {
         let settings = photoEdit.withoutViews
         cancelEffect()
         addAdjustmentLayer(.photo(settings), named: settings.filter?.name ?? "Adjust Photo")
-        PhotoSettingsStore.shared.last = settings
+        PhotoSettingsStore.shared.remember(settings)
     }
 
     // MARK: Using Adjust Photo settings again (FR-9.7 item 4)
@@ -265,7 +265,7 @@ extension Editor {
     func pastePhotoSettingsAsLayer() {
         guard let copied = PhotoSettingsStore.shared.copied else { return onRefused() }
         addAdjustmentLayer(.photo(copied), named: copied.filter?.name ?? "Adjust Photo")
-        PhotoSettingsStore.shared.last = copied
+        PhotoSettingsStore.shared.remember(copied)
     }
 
     /// Save as Filter…: the filter at its intensity, then the sliders a filter may hold, as one filter.
@@ -458,6 +458,6 @@ extension Editor {
             deleteSnapshotsAfterRedacting(page)
             noteRedaction()
         }
-        if committed, let appliedPhoto { PhotoSettingsStore.shared.last = appliedPhoto }
+        if committed, let appliedPhoto { PhotoSettingsStore.shared.remember(appliedPhoto) }
     }
 }

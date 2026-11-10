@@ -8,7 +8,7 @@ R1 (pixels now proven covered; the transparency lock isn't separately checked), 
 (the report now counts finds: about 3 Auto-Redacts in 110 find anything), R3 (marquee outlines aren't compared). C3 is
 closed for leaving objects open; handles and cancel by Escape aren't driven. Still open: C2, C4 to C11, C13, R4, R7 to
 R14. New since the review: pictures never passed one 256 px undo tile (fixed: one episode in sixteen does), and the
-monkey has no timeout, so a hang would use up the night. Next in line (Leah, 2026-11-10): Adjust Photo in depth (whole random settings with the mixer, grading, point colors, curve and a look; the dialog's Apply on selections through a test-only switch that keeps "last used"; screen against export for each), then known-good picture tests for Adjust Photo, then R4 (real exports) and C2 (effect dialogs).
+monkey has no timeout, so a hang would use up the night. Adjust Photo in depth: done 2026-11-10 (closes C8's photo part). Next in line (Leah, 2026-11-10): known-good picture tests for Adjust Photo, then R4 (real exports) and C2 (effect dialogs).
 
 **Priorities.** High: lost work, crashes, secrets left after a redaction, or exports that don't match the screen, and
 the monkey could reach it. Medium: a real bug class, but rarer or less harmful. Low: worth having, little risk.

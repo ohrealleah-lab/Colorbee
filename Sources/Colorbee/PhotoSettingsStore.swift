@@ -5,6 +5,11 @@ import Observation
 /// Adjust Photo settings to use again (FR-9.7 item 4): the last ones applied, kept across a relaunch, and the ones
 /// copied with Copy Photo Settings, kept until Colorbee quits. Neither touches the Mac's clipboard, so a copied image
 /// stays there.
+/// The monkey test applies Adjust Photo for real; inside `$frozenForTests.withValue(true)` nothing becomes "last used".
+enum LastPhotoSettings {
+    @TaskLocal static var frozenForTests = false
+}
+
 @MainActor
 @Observable
 final class PhotoSettingsStore {
@@ -15,6 +20,12 @@ final class PhotoSettingsStore {
         didSet { persist() }
     }
     var copied: PhotoEdit?
+
+    /// Keeps `edit` as the settings last applied.
+    func remember(_ edit: PhotoEdit) {
+        guard !LastPhotoSettings.frozenForTests else { return }
+        last = edit
+    }
 
     /// Nil while testing: the last settings then live only in memory.
     private let file = SettingsFolder.current?.appending(path: "Last Photo Settings.json")

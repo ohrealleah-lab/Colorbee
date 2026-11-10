@@ -131,7 +131,9 @@ struct MonkeyEpisode {
 
     private func withBudget(_ body: () async throws -> Void) async throws(MonkeyFailureAt) {
         do {
-            try await HistoryBudget.$forTests.withValue(tinyHistory ? 256 << 10 : nil) { try await body() }
+            try await LastPhotoSettings.$frozenForTests.withValue(true) {
+                try await HistoryBudget.$forTests.withValue(tinyHistory ? 256 << 10 : nil) { try await body() }
+            }
         } catch let failure as MonkeyFailureAt {
             throw failure
         } catch {
@@ -162,6 +164,7 @@ struct MonkeyEpisode {
         var words: [LayerID: String] = [:]
         var pendingSave: BackgroundSave?
         var largestStep = 0
+        let lastPhoto = PhotoSettingsStore.shared.last
 
         func checkPendingSave(force: Bool) async throws(MonkeyFailure) {
             guard let save = pendingSave, force || done >= save.due else { return }
@@ -247,6 +250,8 @@ struct MonkeyEpisode {
                 case .autoRedact:
                     // It changes every page.
                     leftPages = []
+                case let .photoLayer(edit), let .photoSetting(edit):
+                    try MonkeyRules.checkShowsAsExported(edit)
                 default:
                     break
                 }
@@ -292,6 +297,7 @@ struct MonkeyEpisode {
         }
         guard finishing else { return }
         do {
+            try MonkeyRules.checkLastPhoto(was: lastPhoto)
             try await checkPendingSave(force: true)
             // What's still open is placed as a step of its own, which ends any redo the tracker still expects.
             if editor.pendingShape != nil || editor.pendingText != nil {

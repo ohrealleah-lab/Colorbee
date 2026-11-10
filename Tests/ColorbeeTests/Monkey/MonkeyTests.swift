@@ -100,6 +100,41 @@ struct MonkeyTests {
         }
     }
 
+    /// The dialog's Apply makes a step without becoming "last used" while the monkey runs.
+    @Test func adjustPhotoAppliedByTheMonkeyIsNotLastUsed() {
+        let last = PhotoSettingsStore.shared.last
+        LastPhotoSettings.$frozenForTests.withValue(true) {
+            let editor = ScreenMatchesExportTests.picture()
+            editor.beginEffect(.adjustPhoto)
+            editor.photoEdit = PhotoEdit(adjustments: PhotoAdjustments([.exposure: 40]))
+            editor.applyEffect()
+            #expect(editor.history.undoCount == 1)
+        }
+        #expect(PhotoSettingsStore.shared.last == last)
+    }
+
+    /// Random whole settings use every part, and a sample of them shows on screen as it exports.
+    @Test func randomAdjustPhotoSettingsShowAsExported() throws {
+        var random = MonkeyRandom(seed: 7)
+        let edits = (0..<200).map { _ in MonkeyPhoto.edit(&random) }
+        #expect(edits.contains { $0.mixer != nil } && edits.contains { $0.grading != nil } && edits.contains { $0.pointColors != nil })
+        #expect(edits.contains { $0.toneCurve != nil } && edits.contains { $0.detail != nil } && edits.contains { $0.effects != nil })
+        #expect(edits.contains { $0.filter != nil } && edits.contains { $0.adjustments.values.count > 3 })
+        for edit in edits.prefix(25) { try MonkeyRules.checkShowsAsExported(edit) }
+    }
+
+    /// A control the screen draws wrong is caught: here one Point Color shows on screen that the export doesn't have.
+    @Test func aControlMissingFromTheExportIsCaught() {
+        let swatch = PointColors.Swatch(color: Pixel(r: 40, g: 80, b: 210), hue: 30, saturation: 40)
+        let shown = ScreenMatchesExportTests.picture(), exported = ScreenMatchesExportTests.picture()
+        let before = exported.canvas.flattened()
+        shown.addAdjustmentLayer(.photo(PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20]), pointColors: PointColors([swatch]))), named: "A")
+        exported.addAdjustmentLayer(.photo(PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20]))), named: "A")
+        #expect(throws: MonkeyFailure.self) {
+            try MonkeyRules.compare(screen: ScreenMatchesExportTests.screen(shown.canvas), export: exported.canvas.flattened(), before: before, neighbors: false)
+        }
+    }
+
     @Test func someEpisodesCrossAnUndoTile() {
         let episode = MonkeyEpisode.random(seed: 11)
         #expect(episode.large && episode.width > TileGrid.tileSize && episode.height > TileGrid.tileSize)

@@ -72,10 +72,13 @@ enum MonkeyStep: CustomStringConvertible {
     case autoRedact(cancels: Bool)
     /// Saves the project and carries on in the reopened copy (`MonkeyEpisode.drive` does it).
     case saveAndReopen
-    /// An Adjust Photo layer made directly, so nothing is saved as "last used".
-    case photoLayer(PhotoAdjustments.Slider, Double)
-    /// A new setting on the active Adjust Photo layer.
-    case photoSetting(PhotoAdjustments.Slider, Double)
+    /// An Adjust Photo layer made directly, with whole random settings (`MonkeyPhoto`).
+    case photoLayer(PhotoEdit)
+    /// New settings, all of them, on the active Adjust Photo layer.
+    case photoSetting(PhotoEdit)
+    /// Adjust Photo's dialog on the active layer, over a new rectangle selection or what's selected now, then Apply or
+    /// Cancel. Nothing applied becomes "last used" (`LastPhotoSettings.frozenForTests`).
+    case adjustPhoto(PhotoEdit, select: IntRect?, apply: Bool)
     /// Takes a save copy now and writes it in the background a few steps later, as autosave does (`MonkeyEpisode.drive`).
     case saveInBackground
     /// Edit > Forget History: nothing can bring an earlier picture back.
@@ -166,8 +169,11 @@ enum MonkeyStep: CustomStringConvertible {
             return "Batch Redact > \(blur ? "Blur" : "Pixelate")…, then \(apply ? "Apply" : "Cancel")" + (apply ? Self.answer(cancels) : "")
         case let .autoRedact(cancels): return "Auto-Redact, then Apply" + Self.answer(cancels)
         case .saveAndReopen: return "Save, close and reopen"
-        case let .photoLayer(slider, value): return "New Adjust Photo layer with \(slider.title) \(Int(value))"
-        case let .photoSetting(slider, value): return "Set the Adjust Photo layer's \(slider.title) to \(Int(value))"
+        case let .photoLayer(edit): return "New Adjust Photo layer with \(MonkeyPhoto.words(edit))"
+        case let .photoSetting(edit): return "Set the Adjust Photo layer to \(MonkeyPhoto.words(edit))"
+        case let .adjustPhoto(edit, select, apply):
+            let area = select.map { "select (\($0.minX), \($0.minY)) to (\($0.maxX), \($0.maxY)), then " } ?? ""
+            return "\(area)Adjustments > Adjust Photo… with \(MonkeyPhoto.words(edit)), then \(apply ? "Apply" : "Cancel")"
         case .saveInBackground: return "Autosave in the background while editing goes on"
         case .forgetHistory: return "Edit > Forget History"
         case let .retouch(kind, points, source):
@@ -367,12 +373,22 @@ enum MonkeyStep: CustomStringConvertible {
             for _ in 0..<400 where editor.fillProgress != nil || editor.fillingArea != nil || editor.isMatchingTone || editor.pendingTone != nil {
                 try? await Task.sleep(for: .milliseconds(25))
             }
-        case let .photoLayer(slider, value):
-            editor.addAdjustmentLayer(.photo(PhotoEdit(adjustments: PhotoAdjustments([slider: value]))), named: "Adjust Photo")
-        case let .photoSetting(slider, value):
-            guard case .photo(var edit) = editor.canvas.activeLayer.adjustment else { return }
-            edit.adjustments = PhotoAdjustments([slider: value])
+        case let .photoLayer(edit):
+            editor.addAdjustmentLayer(.photo(edit), named: "Adjust Photo")
+        case let .photoSetting(edit):
+            guard case .photo = editor.canvas.activeLayer.adjustment else { return }
             editor.setAdjustment(.photo(edit))
+        case let .adjustPhoto(edit, select, apply):
+            if let select {
+                editor.selectTool(.rectangleSelect)
+                editor.selectionDrag(from: Point2D(x: Double(select.minX) + 0.5, y: Double(select.minY) + 0.5),
+                                     to: Point2D(x: Double(select.maxX) + 0.5, y: Double(select.maxY) + 0.5))
+            }
+            editor.beginEffect(.adjustPhoto)
+            guard editor.activeEffect == .adjustPhoto else { return }
+            editor.photoEdit = edit
+            if apply { editor.applyEffect() }
+            if editor.activeEffect != nil { editor.cancelEffect() }
         }
     }
 }

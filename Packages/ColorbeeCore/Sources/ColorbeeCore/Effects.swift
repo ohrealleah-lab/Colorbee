@@ -238,7 +238,8 @@ public enum Effects {
     }
 
     /// Blurs `region` plus a margin. Unselected pixels are left out of the sampling, so the blur of
-    /// one region never picks up color from outside the selection.
+    /// one region never picks up color from outside the selection: they're filled from the selection's own edge
+    /// (`extendSelection`), as the image's edges are extended.
     static func blurred(_ buffer: PixelBuffer, region: IntRect, sigma: Double, selection: SelectionMask?) -> (PixelBuffer, IntPoint) {
         let boxWidth = boxWidth(sigma: sigma)
         let margin = blurReach(sigma: sigma)
@@ -247,43 +248,53 @@ public enum Effects {
         let scratch = PixelBuffer(width: work.width, height: work.height)
         ParallelRows.forEach(work.minY..<work.maxY) { rows in
             for y in rows {
-                let source = buffer.row(y)
-                let destination = scratch.row(y - work.minY)
-                guard selection != nil else {
-                    destination.update(from: source + work.minX, count: work.width)
-                    continue
+                scratch.row(y - work.minY).update(from: buffer.row(y) + work.minX, count: work.width)
+            }
+        }
+        if let selection { extendSelection(selection, into: scratch, at: IntPoint(x: work.minX, y: work.minY)) }
+        return (boxBlurred(scratch, boxWidth: boxWidth), IntPoint(x: work.minX, y: work.minY))
+    }
+
+    /// Gives each unselected pixel of `scratch` (whose top-left is `origin` on the canvas) the nearest selected pixel
+    /// in its row, or, in a row with none, the nearest such row's. Leaving them out as transparent and dividing by how
+    /// much was selected afterwards lost too much in 8 bits: a narrow selection over a flat color came out speckled by
+    /// up to 15 levels (monkey test, 2026-11-10).
+    private static func extendSelection(_ selection: SelectionMask, into scratch: PixelBuffer, at origin: IntPoint) {
+        let width = scratch.width, height = scratch.height
+        let selectedRows = (0..<height).filter { y in
+            (0..<width).contains { isSelected(selection, $0 + origin.x, y + origin.y) }
+        }
+        guard !selectedRows.isEmpty else { return }
+        ParallelRows.forEach(0..<height) { rows in
+            for y in rows {
+                let row = scratch.row(y)
+                var previous = [Int](repeating: -1, count: width), next = [Int](repeating: -1, count: width)
+                var last = -1
+                for x in 0..<width {
+                    if isSelected(selection, x + origin.x, y + origin.y) { last = x }
+                    previous[x] = last
                 }
-                for x in work.minX..<work.maxX where isSelected(selection, x, y) {
-                    destination[x - work.minX] = source[x]
+                guard last >= 0 else { continue }
+                last = -1
+                for x in (0..<width).reversed() {
+                    if isSelected(selection, x + origin.x, y + origin.y) { last = x }
+                    next[x] = last
+                }
+                for x in 0..<width where previous[x] != x {
+                    let before = previous[x], after = next[x]
+                    row[x] = row[after < 0 || (before >= 0 && x - before <= after - x) ? before : after]
                 }
             }
         }
-        let result = boxBlurred(scratch, boxWidth: boxWidth)
-        if let selection {
-            // Unselected pixels were left out as transparent; divide by how much of each pixel's
-            // neighborhood was selected so edge pixels keep their real opacity.
-            let coverage = PixelBuffer(width: work.width, height: work.height)
-            ParallelRows.forEach(work.minY..<work.maxY) { rows in
-                for y in rows {
-                    let row = coverage.row(y - work.minY)
-                    for x in work.minX..<work.maxX where isSelected(selection, x, y) {
-                        row[x - work.minX] = .white
-                    }
-                }
-            }
-            let blurredCoverage = boxBlurred(coverage, boxWidth: boxWidth)
-            ParallelRows.forEach(0..<work.height) { rows in
-                for y in rows {
-                    let pixels = result.row(y)
-                    let weights = blurredCoverage.row(y)
-                    for x in 0..<work.width where weights[x].a > 0 {
-                        let alpha = Double(pixels[x].a) * 255 / Double(weights[x].a)
-                        pixels[x].a = UInt8(min(255, alpha.rounded()))
-                    }
-                }
+        // Rows with nothing selected copy a finished row, so this waits for the pass above.
+        ParallelRows.forEach(0..<height) { rows in
+            for y in rows where selectedRows.last(where: { $0 <= y }) != y {
+                let above = selectedRows.last { $0 < y }, below = selectedRows.first { $0 > y }
+                let source: Int
+                if let above, let below { source = y - above <= below - y ? above : below } else { source = above ?? below! }
+                scratch.row(y).update(from: scratch.row(source), count: width)
             }
         }
-        return (result, IntPoint(x: work.minX, y: work.minY))
     }
 
     /// Unsharp mask: push each pixel away from a slightly blurred copy of itself.

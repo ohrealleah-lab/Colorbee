@@ -5,8 +5,14 @@ import Foundation
 /// The rules that must always hold (stage 32), in plain words for the report.
 @MainActor
 enum MonkeyRules {
-    /// After every step: the document is sound.
-    static func checkDocument(_ editor: Editor) throws(MonkeyFailure) {
+    /// What one step can hold in history at most: a crop or resize keeps every layer and mask twice.
+    static func stepBytes(_ canvas: Canvas) -> Int {
+        2 * (canvas.layers.count + canvas.layers.compactMap(\.mask).count) * canvas.size.width * canvas.size.height * 4
+    }
+
+    /// After every step: the document is sound. `slack` is the most one step could have held earlier in the episode,
+    /// since a step that shrank the picture still holds the bigger layers it replaced.
+    static func checkDocument(_ editor: Editor, slack: Int = 0) throws(MonkeyFailure) {
         let canvas = editor.canvas
         guard !canvas.layers.isEmpty, canvas.layers.indices.contains(canvas.activeLayerIndex) else {
             throw MonkeyFailure(rule: "The active layer went missing", detail: "Active layer \(canvas.activeLayerIndex) of \(canvas.layers.count).")
@@ -38,8 +44,7 @@ enum MonkeyRules {
         let history = editor.history
         // Pictures here are tiny, so one step (a crop holds every layer twice) is a few MB at most; the old 64 MB slack
         // let a history that never spilled pass (review AH, finding 3). The rare larger pictures need more.
-        let oneStep = 2 * (canvas.layers.count + canvas.layers.compactMap(\.mask).count) * canvas.size.width * canvas.size.height * 4
-        if history.byteCount > history.byteBudget + max(8 << 20, oneStep) {
+        if history.byteCount > history.byteBudget + max(8 << 20, stepBytes(canvas), slack) {
             throw MonkeyFailure(rule: "History went over its memory budget", detail: "\(history.byteCount >> 20) MB held, budget \(history.byteBudget >> 20) MB.")
         }
     }

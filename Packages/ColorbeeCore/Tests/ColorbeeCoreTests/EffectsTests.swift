@@ -26,6 +26,33 @@ struct EffectsTests {
         #expect(canvas.activeLayer.buffer[0, 0] == .white)
     }
 
+    /// A narrow selection over one color stays exactly that color (monkey test, 2026-11-10: it came out speckled by up
+    /// to 15 levels), and so does a strip in a hollow selection whose middle rows have nothing selected.
+    @Test(arguments: [2, 3, 20])
+    func blurLeavesAUniformSelectionUnchanged(width: Int) throws {
+        let (canvas, history) = makeCanvas()
+        let purple = Pixel(r: 102, g: 36, b: 206)
+        canvas.activeLayer.buffer.fill(purple, in: IntRect(x: 10, y: 10, width: width, height: 21))
+        let selection = try #require(SelectionMask.rectangle(IntRect(x: 10, y: 10, width: width, height: 21), clippedTo: canvas.bounds))
+        let edit = history.beginEdit("Blur", on: canvas)
+        Effects.apply(.gaussianBlur(radius: 8), to: canvas.activeLayer, selection: selection, edit: edit)
+        for y in 10..<31 {
+            for x in 10..<(10 + width) { #expect(canvas.activeLayer.buffer[x, y] == purple, "(\(x), \(y))") }
+        }
+        #expect(canvas.activeLayer.buffer[9, 20] == .white)
+    }
+
+    @Test func blurOfAHollowSelectionKeepsItsColor() throws {
+        let (canvas, history) = makeCanvas()
+        canvas.activeLayer.buffer.fill(red, in: IntRect(x: 0, y: 0, width: 60, height: 60))
+        let outer = try #require(SelectionMask.rectangle(IntRect(x: 10, y: 10, width: 30, height: 30), clippedTo: canvas.bounds))
+        let inner = try #require(SelectionMask.rectangle(IntRect(x: 0, y: 15, width: 60, height: 20), clippedTo: canvas.bounds))
+        let bands = try #require(SelectionMask.combine(outer, with: inner, mode: .subtract))
+        let edit = history.beginEdit("Blur", on: canvas)
+        Effects.apply(.gaussianBlur(radius: 8), to: canvas.activeLayer, selection: bands, edit: edit)
+        #expect(canvas.activeLayer.buffer[20, 12] == red && canvas.activeLayer.buffer[20, 37] == red)
+    }
+
     @Test func blurSmoothsStripesInsideTheSelectionOnly() {
         let (canvas, history) = makeCanvas()
         stripes(canvas)

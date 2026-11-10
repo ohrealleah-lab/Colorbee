@@ -161,6 +161,7 @@ struct MonkeyEpisode {
         // Each text layer's words, so a redaction can be checked for leaving them anywhere (monkey gaps, R1).
         var words: [LayerID: String] = [:]
         var pendingSave: BackgroundSave?
+        var largestStep = 0
 
         func checkPendingSave(force: Bool) async throws(MonkeyFailure) {
             guard let save = pendingSave, force || done >= save.due else { return }
@@ -189,6 +190,7 @@ struct MonkeyEpisode {
         }
 
         while let step = next(editor) {
+            largestStep = max(largestStep, MonkeyRules.stepBytes(editor.canvas))
             let before = (revision: editor.history.revision, undoCount: editor.history.undoCount,
                           selection: MonkeyRules.selectionState(of: editor.canvas))
             let canvas = editor.canvas, shownPage = editor.page
@@ -239,7 +241,7 @@ struct MonkeyEpisode {
                 case .forgetHistory:
                     try MonkeyRules.checkForgotten(editor, before: leaving)
                     tracker.restart(on: editor, pagesTouched: false)
-                    try MonkeyRules.checkDocument(editor)
+                    try MonkeyRules.checkDocument(editor, slack: largestStep)
                     try await checkPendingSave(force: false)
                     continue
                 case .autoRedact:
@@ -248,7 +250,7 @@ struct MonkeyEpisode {
                 default:
                     break
                 }
-                try MonkeyRules.checkDocument(editor)
+                try MonkeyRules.checkDocument(editor, slack: largestStep)
                 if step.redacts {
                     try MonkeyRules.checkRedacted(editor, before: histories, redacted: redacted,
                                                   placing: leaving == nil ? shownPage.id : nil)
@@ -298,7 +300,7 @@ struct MonkeyEpisode {
                 try tracker.note(.deselect, before: before)
             }
             try MonkeyRules.checkSaving(editor)
-            try tracker.undoAndRedoEverything()
+            try tracker.undoAndRedoEverything(slack: largestStep)
         } catch {
             throw MonkeyFailureAt(failure: error, steps: done, atEnd: true)
         }
@@ -457,7 +459,7 @@ struct UndoTracker {
 
     /// At the end: undo all the way back, checking each picture, then redo all the way, likewise. With pages, each
     /// page is checked like that in turn, then undo and redo are checked to work across pages.
-    mutating func undoAndRedoEverything() throws(MonkeyFailure) {
+    mutating func undoAndRedoEverything(slack: Int = 0) throws(MonkeyFailure) {
         guard pagesTouched else { return try walk(undo: { $0.undo() }, redo: { $0.redoAnsweringSnapshots() }) }
         let shown = editor.pages.currentIndex
         for index in editor.pages.pages.indices {
@@ -467,7 +469,7 @@ struct UndoTracker {
                      redo: { $0.stepShownPageAnsweringSnapshots(undoing: false) })
         }
         show(shown)
-        try undoAndRedoAcrossPages()
+        try undoAndRedoAcrossPages(slack: slack)
     }
 
     private mutating func show(_ index: Int) {
@@ -509,7 +511,7 @@ struct UndoTracker {
         }
     }
 
-    private func undoAndRedoAcrossPages() throws(MonkeyFailure) {
+    private func undoAndRedoAcrossPages(slack: Int) throws(MonkeyFailure) {
         for redoing in [false, true] {
             for _ in 0..<10_000 {
                 guard let name = redoing ? editor.redoActionName : editor.undoActionName else { break }
@@ -520,7 +522,7 @@ struct UndoTracker {
                         || (redoing ? editor.redoActionName : editor.undoActionName) != name else {
                     throw MonkeyFailure(rule: "\(redoing ? "Redo" : "Undo") stopped working", detail: "\(name) did nothing, across pages.")
                 }
-                try MonkeyRules.checkDocument(editor)
+                try MonkeyRules.checkDocument(editor, slack: slack)
             }
         }
     }

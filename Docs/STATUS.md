@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-10 · 863 core tests and 364 app tests passing (the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-10 · 864 core tests and 364 app tests passing (Straighten no longer crashes on a picture with a layer mask; the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing is waiting right now.
+- [Straighten a picture with a layer mask](#test-straighten-a-picture-with-a-layer-mask)
 
 ---
 
@@ -238,8 +238,8 @@ Nothing is waiting right now.
   a bar but Adjust Photo, the subject picker and the range selections) with random settings, Crop…'s box and Perspective
   Correction's corners, and closes it one of seven ways: Apply or Cancel after the preview, or at once, or Undo, another
   page or an autosave while the preview is still being worked out. Cancel must give back the picture as it was when the
-  bar opened. Its first 5 minutes found a real crash, not yet fixed: Straighten on a picture with a layer mask
-  (`StraightenPlan` turns `canvas.layers` but `replaceEveryLayer` asks for every layer and mask, `Warp.swift:211`).
+  bar opened. Its first 5 minutes found a real crash, fixed the same day: Straighten on a picture with a layer mask
+  (`StraightenPlan` turned `canvas.layers` but `replaceEveryLayer` asks for every layer and mask); it now plans `allLayers`.
 - Stages 29 and 30 (2026-10-31): text layers. `Layer.text` (`TextLayer`: a `TextSpec` laid out upright, plus quarter
   turns and a mirror from Rotate and Flip) holds the words; the layer's pixels are always that text drawn. Any pixel
   change (`Edit.willModify`) makes it plain pixels first and history puts the text back on undo (`HistoryEntry.texts`),
@@ -419,6 +419,23 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Straighten a picture with a layer mask
+
+Found by the monkey, 2026-11-10: Straighten crashed Colorbee on any picture with a layer mask, as soon as its preview
+appeared. It turned every layer but not the masks, then needed each mask's turned copy. Masks now turn with their layers.
+Use `TestImages/Stage 9 Practice Photo.png`.
+
+1. Open `Stage 9 Practice Photo.png`.
+2. Layer > Layer Mask > Add Mask.
+3. In the Layers panel, click the mask's thumbnail. Press D, then B, and paint a thick stroke across the photo.
+   Expected: the photo disappears where you paint.
+4. Image > Straighten…, and drag the angle to about 10°.
+   Expected: no crash. The photo and the painted-out stroke turn together.
+5. Click Apply.
+   Expected: the stroke still hides the same part of the photo.
+6. Edit > Undo.
+   Expected: the photo is level again, with the stroke where you painted it.
 
 ### Test: Look over the known-good Adjust Photo pictures (passed 2026-11-10)
 

@@ -30,6 +30,31 @@ struct StraightenTests {
         }
     }
 
+    /// A layer mask turns with its layer, both ways Straighten is done: at once, and from a plan worked out in the
+    /// background for the preview (it crashed on a mask; monkey test, 2026-11-10). Undo brings both back.
+    @Test(arguments: [false, true])
+    func aMaskTurnsWithItsLayer(fromPlan: Bool) throws {
+        let canvas = Canvas(size: IntSize(width: 100, height: 80), colorSpace: Canvas.defaultColorSpace, background: Pixel(r: 30, g: 90, b: 160))
+        let history = History(byteBudget: .max)
+        #expect(LayerActions.addMask(.hideAll, canvas: canvas, history: history, context: context))
+        let mask = try #require(canvas.activeLayer.mask)
+        mask.buffer.fill(.white, in: IntRect(x: 45, y: 35, width: 10, height: 10))
+        let before = (size: canvas.size, mask: mask.buffer.contentHash())
+        if fromPlan {
+            let plan = try #require(StraightenPlan(angle: 20, cropToFit: false, canvas: canvas, context: context))
+            #expect(ImageActions.straighten(plan, buffers: try #require(plan.render()), canvas: canvas, history: history, context: context))
+        } else {
+            #expect(ImageActions.straighten(angle: 20, cropToFit: false, canvas: canvas, history: history, context: context))
+        }
+        let turned = try #require(canvas.activeLayer.mask)
+        #expect(turned.buffer.size == canvas.size && canvas.size != before.size)
+        // The shown square stays in the middle; the mask still hides the rest.
+        #expect(turned.buffer[canvas.size.width / 2, canvas.size.height / 2] == .white)
+        #expect(turned.buffer[canvas.size.width / 2 - 20, canvas.size.height / 2] == .black)
+        history.undo(on: canvas)
+        #expect(canvas.size == before.size && canvas.activeLayer.mask?.buffer.contentHash() == before.mask)
+    }
+
     @Test func withoutCropTheCanvasGrowsAndTheCornersGetColor2() {
         let canvas = Canvas(size: IntSize(width: 100, height: 100), colorSpace: Canvas.defaultColorSpace, background: .black)
         let history = History(byteBudget: .max)

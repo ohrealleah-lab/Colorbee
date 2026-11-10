@@ -274,7 +274,9 @@ public struct StraightenPlan: @unchecked Sendable {
         self.angle = angle
         self.cropToFit = cropToFit
         self.size = size
-        layers = canvas.layers.map { layer in
+        // Masks too: the step gives every layer and mask a new buffer (a mask missing here crashed Straighten; monkey
+        // test, 2026-11-10).
+        layers = canvas.allLayers.map { layer in
             let fill = canvas.vacatedFill(for: layer, color2: context.color2)
             // An empty layer still needs drawing when its new corners get Color 2 (review A, finding 8).
             return (layer.id, layer.buffer, layer.buffer.generation, fill, !layer.holdsNoPixels || fill != .clear)
@@ -296,7 +298,8 @@ public struct StraightenPlan: @unchecked Sendable {
 
     /// Whether `canvas` still has exactly the layers, buffers and pixels this was made from.
     func matches(_ canvas: Canvas) -> Bool {
-        canvas.layers.count == layers.count && zip(canvas.layers, layers).allSatisfy { layer, planned in
+        let current = canvas.allLayers
+        return current.count == layers.count && zip(current, layers).allSatisfy { layer, planned in
             layer.id == planned.id && layer.buffer === planned.buffer && layer.buffer.generation == planned.generation
         }
     }

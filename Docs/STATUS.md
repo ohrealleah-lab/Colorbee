@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-10 · 863 core tests and 361 app tests passing (known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-10 · 863 core tests and 364 app tests passing (the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
@@ -232,6 +232,14 @@ Nothing is waiting right now.
   or tone settings magnified it into spots (up to 130 levels). Fixed the same day: `Renderer.blur` repeats the canvas
   edge (`edge_extend_fragment`) and runs three `MPSImageBox` passes of `Effects.boxWidth`; the coverage textures are
   gone. 300 random settings then differed at worst by an average of 0.56 (was 2), and the monkey's limits were halved.
+  Since 2026-11-10 (monkey gaps R4 and C2; Leah: PNG and PDF only, and race the dialogs): `.export` writes a PNG
+  (read back and compared with the picture exactly, profile included: `MonkeyRules.checkPNG`) or a PDF (every page, read
+  back in sRGB and compared with its page over white: `checkPDF`). `.effectDialog` opens one of 18 effects (every one with
+  a bar but Adjust Photo, the subject picker and the range selections) with random settings, Crop…'s box and Perspective
+  Correction's corners, and closes it one of seven ways: Apply or Cancel after the preview, or at once, or Undo, another
+  page or an autosave while the preview is still being worked out. Cancel must give back the picture as it was when the
+  bar opened. Its first 5 minutes found a real crash, not yet fixed: Straighten on a picture with a layer mask
+  (`StraightenPlan` turns `canvas.layers` but `replaceEveryLayer` asks for every layer and mask, `Warp.swift:211`).
 - Stages 29 and 30 (2026-10-31): text layers. `Layer.text` (`TextLayer`: a `TextSpec` laid out upright, plus quarter
   turns and a mirror from Rotate and Flip) holds the words; the layer's pixels are always that text drawn. Any pixel
   change (`Edit.willModify`) makes it plain pixels first and history puts the text back on undo (`HistoryEntry.texts`),

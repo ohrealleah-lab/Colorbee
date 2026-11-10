@@ -2,6 +2,13 @@ import ColorbeeCore
 import Foundation
 @testable import Colorbee
 
+/// How an effect's dialog is closed (monkey gaps, C2): after its preview is worked out, or racing it (Leah, 2026-11-10).
+enum EffectEnding: String, CaseIterable {
+    case apply, cancel
+    case applyAtOnce = "Apply at once", cancelAtOnce = "Cancel at once", undoAtOnce = "Undo at once"
+    case showPageAtOnce = "show another page at once", autosaveAtOnce = "an autosave at once, then Cancel"
+}
+
 /// One thing the monkey does (stage 32), kept as data so a failing run can be replayed and shrunk. Each is done the
 /// way `CanvasView` and the menus do it, so it's always legal; anything that would save a preference, use the clipboard
 /// or run in the background is left out. Layer numbers wrap around whatever layers there are when it's replayed.
@@ -79,6 +86,11 @@ enum MonkeyStep: CustomStringConvertible {
     /// Adjust Photo's dialog on the active layer, over a new rectangle selection or what's selected now, then Apply or
     /// Cancel. Nothing applied becomes "last used" (`LastPhotoSettings.frozenForTests`).
     case adjustPhoto(PhotoEdit, select: IntRect?, apply: Bool)
+    /// An effect's dialog (monkey gaps, C2) over a new rectangle selection or what's selected now, with its settings
+    /// (Crop…'s box and Perspective Correction's corners too), closed as `ending` says.
+    case effectDialog(EffectKind, values: [Double], select: IntRect?, box: IntRect, corners: [Point2D], ending: EffectEnding)
+    /// Export as PNG, or as PDF with every page, read back and checked against the picture (monkey gaps, R4).
+    case export(pdf: Bool)
     /// Takes a save copy now and writes it in the background a few steps later, as autosave does (`MonkeyEpisode.drive`).
     case saveInBackground
     /// Edit > Forget History: nothing can bring an earlier picture back.
@@ -171,6 +183,13 @@ enum MonkeyStep: CustomStringConvertible {
         case .saveAndReopen: return "Save, close and reopen"
         case let .photoLayer(edit): return "New Adjust Photo layer with \(MonkeyPhoto.words(edit))"
         case let .photoSetting(edit): return "Set the Adjust Photo layer to \(MonkeyPhoto.words(edit))"
+        case let .effectDialog(kind, values, select, box, corners, ending):
+            let area = select.map { "select (\($0.minX), \($0.minY)) to (\($0.maxX), \($0.maxY)), then " } ?? ""
+            var settings = values.map { String(format: "%g", $0) }.joined(separator: ", ")
+            if kind == .crop { settings = "box (\(box.minX), \(box.minY)) to (\(box.maxX), \(box.maxY))" }
+            if kind == .perspective { settings = "corners " + corners.map { "(\(Int($0.x)), \(Int($0.y)))" }.joined(separator: ", ") }
+            return "\(area)\(kind.title)… with \(settings.isEmpty ? "its settings" : settings), then \(ending.rawValue)"
+        case let .export(pdf): return pdf ? "File > Export as PDF…" : "File > Export… as PNG"
         case let .adjustPhoto(edit, select, apply):
             let area = select.map { "select (\($0.minX), \($0.minY)) to (\($0.maxX), \($0.maxY)), then " } ?? ""
             return "\(area)Adjustments > Adjust Photo… with \(MonkeyPhoto.words(edit)), then \(apply ? "Apply" : "Cancel")"
@@ -378,6 +397,39 @@ enum MonkeyStep: CustomStringConvertible {
         case let .photoSetting(edit):
             guard case .photo = editor.canvas.activeLayer.adjustment else { return }
             editor.setAdjustment(.photo(edit))
+        case let .effectDialog(kind, values, select, box, corners, ending):
+            if let select {
+                editor.selectTool(.rectangleSelect)
+                editor.selectionDrag(from: Point2D(x: Double(select.minX) + 0.5, y: Double(select.minY) + 0.5),
+                                     to: Point2D(x: Double(select.maxX) + 0.5, y: Double(select.maxY) + 0.5))
+            }
+            Self.effectOpened = nil
+            editor.beginEffect(kind)
+            guard editor.activeEffect == kind else { return }
+            // Opening places a floating piece, and the selection drag above may have made one: Cancel goes back to here.
+            Self.effectOpened = MonkeyRules.layerStates(of: editor.canvas, floatingOn: nil)
+            if values.count == editor.effectValues.count { editor.effectValues = values }
+            if kind == .crop {
+                let fitted = box.intersection(editor.canvas.bounds)
+                if !fitted.isEmpty { editor.cropRect = fitted }
+            }
+            if kind == .perspective, corners.count == 4 { editor.perspectiveCorners = corners }
+            editor.previewEffect()
+            switch ending {
+            case .apply, .cancel:
+                await Self.waitForPreview(editor)
+                if ending == .apply { editor.applyEffect() } else { editor.cancelEffect() }
+            case .applyAtOnce: editor.applyEffect()
+            case .cancelAtOnce: editor.cancelEffect()
+            case .undoAtOnce: editor.undo()
+            case .showPageAtOnce:
+                let count = editor.pages.pages.count
+                if count > 1 { editor.showPage(at: (editor.pages.currentIndex + 1) % count) }
+            case .autosaveAtOnce: return
+            }
+            // Apply can refuse (crossed corners), leaving the bar open; it's closed as Cancel would.
+            if editor.activeEffect != nil { editor.cancelEffect() }
+        case .export: break
         case let .adjustPhoto(edit, select, apply):
             if let select {
                 editor.selectTool(.rectangleSelect)
@@ -406,6 +458,17 @@ extension [Point2D] {
 }
 
 extension MonkeyStep {
+    /// The layers just after the newest effect's bar opened, for checking that Cancel goes back to them.
+    @MainActor static var effectOpened: [String]?
+
+    /// Waits, a few seconds at most, for an effect's preview to be worked out in the background.
+    @MainActor
+    static func waitForPreview(_ editor: Editor) async {
+        for _ in 0..<400 where editor.previewRunning || editor.previewWanted || editor.effectPreviewScheduled || editor.straightenRunning {
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+    }
+
     /// Answers the question asked before a redaction over History Snapshots, if one is up.
     @MainActor
     static func answerSnapshots(_ editor: Editor, cancels: Bool) {

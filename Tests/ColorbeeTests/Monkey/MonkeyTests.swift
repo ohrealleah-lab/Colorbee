@@ -134,6 +134,34 @@ struct MonkeyTests {
         }
     }
 
+    /// An export that doesn't hold the picture is caught: here the picture changes after the copy for exporting was taken.
+    @Test(arguments: [false, true])
+    func anExportThatDiffersIsCaught(pdf: Bool) {
+        let editor = ScreenMatchesExportTests.picture()
+        editor.newPage()
+        editor.showPage(at: 0)
+        let snapshot = editor.saveSnapshot()
+        #expect(throws: Never.self) { pdf ? try MonkeyRules.checkPDF(snapshot, editor) : try MonkeyRules.checkPNG(snapshot, editor.canvas) }
+        editor.canvas.layers[0].buffer.fill(Pixel(r: 255, g: 0, b: 0), in: IntRect(x: 0, y: 0, width: 40, height: 40))
+        #expect(throws: MonkeyFailure.self) { pdf ? try MonkeyRules.checkPDF(snapshot, editor) : try MonkeyRules.checkPNG(snapshot, editor.canvas) }
+    }
+
+    /// Every effect's dialog, closed each way in turn, breaks no rule.
+    @Test func everyEffectDialogMeetsTheRules() async throws {
+        let kinds: [EffectKind] = [.gaussianBlur, .pixelate, .sharpen, .hueSaturation, .levels, .curves, .sepia, .posterize, .addNoise,
+                                   .motionBlur, .emboss, .vignette, .dropShadow, .border, .spotlight, .straighten, .perspective, .crop]
+        let corners = [Point2D(x: 10, y: 8), Point2D(x: 90, y: 6), Point2D(x: 95, y: 70), Point2D(x: 6, y: 66)]
+        for (index, kind) in kinds.enumerated() {
+            let ending = EffectEnding.allCases[index % EffectEnding.allCases.count]
+            let values = kind.parameters.map { $0.options == nil ? ($0.range.lowerBound + $0.range.upperBound) / 2 : 0 }
+            var steps = [MonkeyStep.fill(at: Point2D(x: 20, y: 20), color: Pixel(r: 200, g: 60, b: 40)), .newPage, .showPage(0),
+                         .effectDialog(kind, values: values, select: kind == .spotlight ? IntRect(x: 10, y: 10, width: 30, height: 20) : nil,
+                                       box: IntRect(x: 5, y: 5, width: 50, height: 40), corners: corners, ending: ending),
+                         .undo, .redo].makeIterator()
+            try await MonkeyEpisode.drive(MonkeyEpisode.random(seed: 5).makeEditor(), finishing: true) { _ in steps.next() }
+        }
+    }
+
     @Test func someEpisodesCrossAnUndoTile() {
         let episode = MonkeyEpisode.random(seed: 11)
         #expect(episode.large && episode.width > TileGrid.tileSize && episode.height > TileGrid.tileSize)

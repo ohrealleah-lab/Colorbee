@@ -1,4 +1,5 @@
 import ColorbeeCore
+import CoreGraphics
 import Foundation
 @testable import Colorbee
 
@@ -136,6 +137,95 @@ enum MonkeyRules {
             throw MonkeyFailure(rule: "Adjust Photo looks different on screen than exported",
                                 detail: "Screen against export: \(mismatch), \(String(format: "%.1f", share * 100))% off by more than 12; "
                                     + "allowed average 1, \(Int(allowedShare * 100))%.")
+        }
+    }
+
+    /// A PNG export, read back, is the picture exactly, in the document's colors (monkey gaps, R4). A partly see-through
+    /// pixel may move by the rounding its opacity allows, since a PNG reader may premultiply.
+    static func checkPNG(_ snapshot: SaveSnapshot, _ canvas: Canvas) throws(MonkeyFailure) {
+        let decoded: DecodedImage
+        do {
+            decoded = try ImageCodec.decode(try snapshot.encoded(as: .png))
+        } catch {
+            throw MonkeyFailure(rule: "Exporting a PNG failed", detail: "\(error)")
+        }
+        guard decoded.colorSpace.name == canvas.colorSpace.name else {
+            throw MonkeyFailure(rule: "An exported PNG lost the picture's colors",
+                                detail: "It's in \(decoded.colorSpace.name.map { "\($0)" } ?? "an unnamed profile"), not \(canvas.colorSpace.name.map { "\($0)" } ?? "?").")
+        }
+        let picture = canvas.flattened(), exported = decoded.buffer
+        guard exported.width == picture.width, exported.height == picture.height else {
+            throw MonkeyFailure(rule: "An exported PNG is the wrong size", detail: "\(exported.width) × \(exported.height), not \(picture.width) × \(picture.height).")
+        }
+        var apart = 0, first: (Int, Int, Pixel, Pixel)?
+        for y in 0..<picture.height {
+            for x in 0..<picture.width {
+                let want = picture[x, y], got = exported[x, y]
+                guard want.a > 0 || got.a > 0 else { continue }
+                let slack = want.a == 255 ? 0 : max(1, 255 / max(Int(want.a), 1))
+                let off = max(abs(Int(want.r) - Int(got.r)), abs(Int(want.g) - Int(got.g)), abs(Int(want.b) - Int(got.b)))
+                if abs(Int(want.a) - Int(got.a)) > 0 || off > slack {
+                    apart += 1
+                    if first == nil { first = (x, y, want, got) }
+                }
+            }
+        }
+        if let (x, y, want, got) = first {
+            throw MonkeyFailure(rule: "An exported PNG doesn't match the picture", detail: "\(apart) pixels differ; at (\(x), \(y)) \(got), not \(want).")
+        }
+    }
+
+    /// A PDF export has every page, in order, each looking as its page does over white (monkey gaps, R4). A PDF reader
+    /// draws in sRGB, so each page is compared after the same conversion, a shade or two apart at most.
+    static func checkPDF(_ snapshot: SaveSnapshot, _ editor: Editor) throws(MonkeyFailure) {
+        let data: Data
+        do { data = try snapshot.encodedPDF() } catch { throw MonkeyFailure(rule: "Exporting a PDF failed", detail: "\(error)") }
+        let count = (try? PDFPages.pageCount(data)) ?? 0
+        guard count == editor.pages.pages.count else {
+            throw MonkeyFailure(rule: "An exported PDF has the wrong pages", detail: "\(count) pages, not \(editor.pages.pages.count).")
+        }
+        guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB) else { return }
+        for (index, page) in editor.pages.pages.enumerated() {
+            let picture = page === editor.page ? editor.canvas : (try? page.projectData()).flatMap { try? ProjectFile.decode($0) }
+            guard let picture else { continue }
+            let flat = picture.flattened()
+            let overWhite = PixelBuffer(width: flat.width, height: flat.height)
+            for y in 0..<flat.height {
+                let source = flat.row(y), target = overWhite.row(y)
+                for x in 0..<flat.width {
+                    let p = source[x], alpha = Int(p.a), white = 255 * (255 - alpha) + 127
+                    target[x] = Pixel(r: UInt8((Int(p.r) * alpha + white) / 255), g: UInt8((Int(p.g) * alpha + white) / 255),
+                                      b: UInt8((Int(p.b) * alpha + white) / 255))
+                }
+            }
+            let expected: PixelBuffer, drawn: PixelBuffer
+            do {
+                expected = try ImageCodec.converted(overWhite, from: picture.colorSpace, to: sRGB)
+                drawn = try PDFPages.render(data, page: index, resolution: page.resolution).canvas.flattened()
+            } catch {
+                throw MonkeyFailure(rule: "Reading an exported PDF failed", detail: "Page \(index + 1): \(error)")
+            }
+            guard abs(drawn.width - expected.width) <= 1, abs(drawn.height - expected.height) <= 1 else {
+                throw MonkeyFailure(rule: "An exported PDF page is the wrong size",
+                                    detail: "Page \(index + 1) is \(drawn.width) × \(drawn.height), not \(expected.width) × \(expected.height).")
+            }
+            var total = 0, farOff = 0, values = 0
+            for y in 0..<min(drawn.height, expected.height) {
+                for x in 0..<min(drawn.width, expected.width) {
+                    let p = drawn[x, y], q = expected[x, y]
+                    for (u, v) in [(p.r, q.r), (p.g, q.g), (p.b, q.b)] {
+                        let d = abs(Int(u) - Int(v))
+                        total += d
+                        values += 1
+                        if d > 12 { farOff += 1 }
+                    }
+                }
+            }
+            let average = Double(total) / Double(max(values, 1)), share = Double(farOff) / Double(max(values, 1))
+            guard average <= 2, share <= 0.01 else {
+                throw MonkeyFailure(rule: "An exported PDF page doesn't look like its page",
+                                    detail: "Page \(index + 1): average \(String(format: "%.2f", average)) apart, \(String(format: "%.1f", share * 100))% by more than 12.")
+            }
         }
     }
 

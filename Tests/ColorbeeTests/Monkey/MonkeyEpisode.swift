@@ -252,8 +252,27 @@ struct MonkeyEpisode {
                     leftPages = []
                 case let .photoLayer(edit), let .photoSetting(edit):
                     try MonkeyRules.checkShowsAsExported(edit)
+                case let .export(pdf):
+                    // As Export does: what's still open is placed first.
+                    let snapshot = editor.saveSnapshot()
+                    if pdf { try MonkeyRules.checkPDF(snapshot, editor) } else { try MonkeyRules.checkPNG(snapshot, editor.canvas) }
+                case .effectDialog(_, _, _, _, _, .autosaveAtOnce) where editor.activeEffect != nil:
+                    // An autosave while the bar's preview shows must save the picture without it; then Cancel.
+                    let snapshot = editor.saveSnapshot(placingPending: false)
+                    editor.cancelEffect()
+                    let floatingOn = editor.canvas.selection.floating?.layerID
+                    pendingSave = BackgroundSave(encoding: Task.detached { try snapshot.encodedProject() }, look: MonkeyRules.shownHash(editor.canvas.flattened()),
+                                                 layers: MonkeyRules.layerStates(of: editor.canvas, floatingOn: floatingOn),
+                                                 floatingOn: floatingOn, pages: editor.pages.pages.count, due: done + 3)
                 default:
                     break
+                }
+                if case let .effectDialog(_, _, _, _, _, ending) = step, [.cancel, .cancelAtOnce, .autosaveAtOnce].contains(ending),
+                   let opened = MonkeyStep.effectOpened, editor.page === shownPage {
+                    let now = MonkeyRules.layerStates(of: editor.canvas, floatingOn: nil)
+                    guard now == opened else {
+                        throw MonkeyFailure(rule: "Cancel didn't put the picture back", detail: UndoTracker.difference(opened, now))
+                    }
                 }
                 try MonkeyRules.checkDocument(editor, slack: largestStep)
                 if step.redacts {
@@ -419,7 +438,8 @@ struct UndoTracker {
         if count > before.undoCount, line.indices.contains(before.undoCount) {
             line[before.undoCount]?.before = before.selection
         }
-        knowsRedo = true
+        // A step that ended in an undo (Undo while an effect's bar was open) leaves redo steps this line never saw.
+        knowsRedo = count >= before.undoCount
         if case .undoOnActiveLayer = step {
             // It took one older step out of history, leaving its change in the steps before: none of them can be checked.
             line = Array(repeating: nil, count: count) + [now]

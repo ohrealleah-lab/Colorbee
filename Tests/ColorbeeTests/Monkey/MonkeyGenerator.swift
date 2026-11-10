@@ -27,7 +27,11 @@ enum MonkeyGenerator {
         }
         func words() -> String { random.pick(["Hi", "Step 2", "Look here", "API key", "OK", "x", "a@b.io", "1.2.3.4"]) }
 
-        let roll = random.int(0..<124)
+        func box() -> IntRect {
+            let (a, b) = (point(), point())
+            return IntRect(x: Int(min(a.x, b.x)), y: Int(min(a.y, b.y)), width: max(1, Int(abs(a.x - b.x))), height: max(1, Int(abs(a.y - b.y))))
+        }
+        let roll = random.int(0..<132)
         switch roll {
         case 0..<16:
             return .stroke(tool: random.pick([.brush, .brush, .pencil, .eraser]), brush: random.pick(Brush.allCases), size: Double(random.int(1...20)),
@@ -104,11 +108,23 @@ enum MonkeyGenerator {
         case 114..<118:
             return .retouch(random.pick(RetouchKind.allCases), points: path(), source: point())
         case 109..<111: return .photoLayer(MonkeyPhoto.edit(&random))
-        case 120..<123:
-            let (a, b) = (point(), point())
-            let corner = IntPoint(x: Int(min(a.x, b.x)), y: Int(min(a.y, b.y)))
-            let area = IntRect(x: corner.x, y: corner.y, width: max(1, Int(abs(a.x - b.x))), height: max(1, Int(abs(a.y - b.y))))
-            return .adjustPhoto(MonkeyPhoto.edit(&random), select: random.chance(0.6) ? area : nil, apply: random.chance(0.7))
+        case 120..<123: return .adjustPhoto(MonkeyPhoto.edit(&random), select: random.chance(0.6) ? box() : nil, apply: random.chance(0.7))
+        case 124..<126: return .export(pdf: random.chance(0.4))
+        case 126..<131:
+            let kind = random.pick([EffectKind.gaussianBlur, .pixelate, .sharpen, .hueSaturation, .levels, .curves, .sepia, .posterize, .addNoise,
+                                    .motionBlur, .emboss, .vignette, .dropShadow, .border, .spotlight, .straighten, .perspective, .crop])
+            let values = kind.parameters.map { parameter -> Double in
+                if let options = parameter.options { return Double(random.int(0..<max(1, options.count))) }
+                let steps = Int(((parameter.range.upperBound - parameter.range.lowerBound) / parameter.step).rounded(.down))
+                return parameter.range.lowerBound + Double(random.int(0...max(0, steps))) * parameter.step
+            }
+            // Perspective's corners: top left, top right, bottom right, bottom left, each moved about a bit.
+            let (w, h) = (Double(size.width), Double(size.height))
+            let corners = [(0.1, 0.1), (0.9, 0.1), (0.9, 0.9), (0.1, 0.9)].map { x, y in
+                Point2D(x: w * x + Double(random.int(-15...15)), y: h * y + Double(random.int(-15...15)))
+            }
+            return .effectDialog(kind, values: values, select: random.chance(0.4) ? box() : nil, box: box(), corners: corners,
+                                 ending: random.pick(EffectEnding.allCases))
         default: return .photoSetting(MonkeyPhoto.edit(&random))
         }
     }

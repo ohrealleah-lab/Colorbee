@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-10 · 862 core tests and 361 app tests passing (the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-10 · 863 core tests and 361 app tests passing (known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
@@ -15,6 +15,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 - [Blur in a narrow selection](#test-blur-in-a-narrow-selection)
 - [Strong Adjust Photo settings look the same exported](#test-strong-adjust-photo-settings-look-the-same-exported)
+- [Look over the known-good Adjust Photo pictures](#test-look-over-the-known-good-adjust-photo-pictures)
 
 ---
 
@@ -412,6 +413,21 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Look over the known-good Adjust Photo pictures
+
+Leah, 2026-11-10. `PhotoKnownGoodTests` exports 40 Adjust Photo cases (each slider, the Color Mixer, Black & White,
+Color Grading, Point Color, the Tone Curve, detail and effects settings, a look, three built-in filters, Auto on three
+photos, and everything at once) on small copies of the `TestImages/Photo Editing` practice photos, and compares each with
+its picture in `TestImages/Known Good`. Any later change to what a control does fails `make test` until the pictures are
+made again on purpose with `make known-good`. They were made from today's code, so they're only as right as it is.
+
+1. In Terminal, in the Colorbee folder, run: `open "build/Known Good Review/index.html"`
+   (if it's not there, run `make known-good` first).
+2. Go down the page. Each row is the photo before, then after.
+   Expected: each after looks like what its control is meant to do (Exposure 50 brighter, Warmth -60 cooler, Black and
+   White gray, and so on), with nothing broken: no stray colors, stripes or blotches.
+3. Tell Claude the name of any that looks wrong.
 
 ### Test: Strong Adjust Photo settings look the same exported
 

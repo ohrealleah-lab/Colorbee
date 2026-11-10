@@ -8,7 +8,7 @@ BENCH   := $(DERIVED)/Build/Products/Release/Colorbee.app/Contents/MacOS/Colorbe
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 FORGET_DEBUG := status=$$?; $(LSREGISTER) -u "$(CURDIR)/$(APP)" 2>/dev/null; exit $$status
 
-.PHONY: monkey gen build test core app-test coverage perf run bench beta help help-index help-shots open clean
+.PHONY: known-good monkey gen build test core app-test coverage perf run bench beta help help-index help-shots open clean
 
 gen:
 	xcodegen generate --quiet
@@ -63,6 +63,12 @@ coverage: gen
 	@xcrun xccov view --report --files-for-target Colorbee.app $(COVERAGE) | grep -E 'Editor(\+[A-Za-z]+)?\.swift'
 
 # Release-only time limits and the 8000x8000 soak test (AC-27, NFR-7). Takes a few minutes.
+# Adjust Photo's known-good pictures (TestImages/Known Good), made again after changing what a control does on purpose,
+# with a page to look them over: build/Known Good Review/index.html.
+known-good:
+	cd Packages/ColorbeeCore && COLORBEE_WRITE_KNOWN_GOOD=1 swift test --filter PhotoKnownGoodTests
+	python3 -I Scripts/known-good-review.py
+
 perf:
 	cd Packages/ColorbeeCore && swift test -c release --no-parallel --filter "SoakTests|PerformanceTests"
 

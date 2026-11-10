@@ -13,8 +13,7 @@ _Last updated: 2026-11-10 · 863 core tests and 361 app tests passing (known-goo
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Blur in a narrow selection](#test-blur-in-a-narrow-selection)
-- [Strong Adjust Photo settings look the same exported](#test-strong-adjust-photo-settings-look-the-same-exported)
+Nothing is waiting right now.
 
 ---
 
@@ -428,7 +427,7 @@ made again on purpose with `make known-good`. They were made from today's code, 
    White gray, and so on), with nothing broken: no stray colors, stripes or blotches.
 3. Tell Claude the name of any that looks wrong.
 
-### Test: Strong Adjust Photo settings look the same exported
+### Test: Strong Adjust Photo settings look the same exported (passed 2026-11-10)
 
 Found by the monkey, 2026-11-10. The screen blurred for Texture, Sharpness, Definition, Noise Reduction and the Blur
 adjustment layer with a true Gaussian, the export with three box blurs, and faded the blur out at the picture's edge
@@ -448,7 +447,7 @@ check the window by eye. Use `TestImages/Stage 9 Practice Photo.png`.
 8. In the photo's window, press ⌘- twice, then ⌘= four times.
    Expected: at every zoom the photo's edges look like the rest of it, with no dark or light rim.
 
-### Test: Blur in a narrow selection
+### Test: Blur in a narrow selection (passed 2026-11-10)
 
 Found by the overnight monkey, 2026-11-10. A blur inside a selection treated the unselected pixels as see-through and
 lost precision in 8 bits, so a narrow selection over one color came out speckled (up to 15 levels at 2 pixels wide).

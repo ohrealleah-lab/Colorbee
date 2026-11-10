@@ -13,7 +13,7 @@ _Last updated: 2026-11-10 · 864 core tests and 364 app tests passing (Straighte
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-- [Straighten a picture with a layer mask](#test-straighten-a-picture-with-a-layer-mask)
+Nothing is waiting right now.
 
 ---
 
@@ -420,7 +420,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Straighten a picture with a layer mask
+### Test: Straighten a picture with a layer mask (passed 2026-11-10)
 
 Found by the monkey, 2026-11-10: Straighten crashed Colorbee on any picture with a layer mask, as soon as its preview
 appeared. It turned every layer but not the masks, then needed each mask's turned copy. Masks now turn with their layers.

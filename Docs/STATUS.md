@@ -7,13 +7,14 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-10 · 862 core tests and 361 app tests passing (the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-10 · 862 core tests and 361 app tests passing (the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
 - [Blur in a narrow selection](#test-blur-in-a-narrow-selection)
+- [Strong Adjust Photo settings look the same exported](#test-strong-adjust-photo-settings-look-the-same-exported)
 
 ---
 
@@ -227,9 +228,11 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
   and a filter or look), the dialog's Apply and Cancel run on random selections (nothing becomes "last used":
   `LastPhotoSettings.frozenForTests`, checked at the end), and each new setting is drawn through the real renderer and
   compared with the export on `ScreenMatchesExportTests`' photo-like picture (`MonkeyRules.checkShowsAsExported`; limits
-  measured on 300 random settings). Its first 5 minutes found one real mismatch, not yet looked into: with heavy color
-  noise reduction and a strong Point Color, a few pixels at the picture's edge come out very differently on screen
-  (seed 1794325025).
+  measured on 300 random settings). Its first 5 minutes found a real mismatch: the screen blurred differently from the
+  export (a Gaussian, faded at the canvas edge, against three box blurs with the edge repeated), and strong Point Color
+  or tone settings magnified it into spots (up to 130 levels). Fixed the same day: `Renderer.blur` repeats the canvas
+  edge (`edge_extend_fragment`) and runs three `MPSImageBox` passes of `Effects.boxWidth`; the coverage textures are
+  gone. 300 random settings then differed at worst by an average of 0.56 (was 2), and the monkey's limits were halved.
 - Stages 29 and 30 (2026-10-31): text layers. `Layer.text` (`TextLayer`: a `TextSpec` laid out upright, plus quarter
   turns and a mirror from Rotate and Flip) holds the words; the layer's pixels are always that text drawn. Any pixel
   change (`Edit.willModify`) makes it plain pixels first and history puts the text back on undo (`HistoryEntry.texts`),
@@ -409,6 +412,26 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Strong Adjust Photo settings look the same exported
+
+Found by the monkey, 2026-11-10. The screen blurred for Texture, Sharpness, Definition, Noise Reduction and the Blur
+adjustment layer with a true Gaussian, the export with three box blurs, and faded the blur out at the picture's edge
+where the export repeats the edge pixels. Strong Point Color or tone settings magnified the difference into spots that
+showed on screen but not in the export. The screen now blurs exactly as the export does. Checked off screen; please
+check the window by eye. Use `TestImages/Stage 9 Practice Photo.png`.
+
+1. Open `Stage 9 Practice Photo.png`.
+2. Layer > New Adjustment Layer > Adjust Photo.
+3. In the Adjustments panel, set Contrast to 80, and under Detail set Definition to 100 and Texture to 60.
+4. Under Point Color, click the eyedropper, then a strongly colored spot in the photo. Set its Saturation to -70 and its
+   Luminance to 80.
+5. View > Actual Size.
+6. File > Export…, PNG, and save it to the Desktop.
+7. Open the exported PNG in Colorbee, and put the two windows side by side, both at Actual Size.
+   Expected: they look the same, with no spots or patches that differ.
+8. In the photo's window, press ⌘- twice, then ⌘= four times.
+   Expected: at every zoom the photo's edges look like the rest of it, with no dark or light rim.
 
 ### Test: Blur in a narrow selection
 

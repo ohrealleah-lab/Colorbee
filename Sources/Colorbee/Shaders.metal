@@ -500,28 +500,28 @@ static float grain_offset(int2 pixel, float3 grain) {
     return (even * (1 - k) + rough * k) * clamp(grain.x, 0.0, 100.0) / 100 * 0.2;
 }
 
-// A blurred pixel with the canvas edge's darkening taken back out: divided by how much of its blur fell on the canvas.
-static float4 uncovered(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel) {
-    float4 soft = blurred.read(pixel);
-    float weight = coverage.read(pixel).r;
-    return weight > 0.001 ? soft / weight : soft;
+// The composite with the canvas's edge pixels repeated outward (adjustParams holds the canvas rect in drawable pixels),
+// so a blur near the edge leans on the picture's own pixels, as the export's edge extension does, not on what's around
+// the canvas.
+fragment float4 edge_extend_fragment(QuadOut in [[stage_in]], constant QuadUniforms &u [[buffer(0)]],
+                                     texture2d<float> source [[texture(0)]]) {
+    float4 canvas = u.adjustParams;
+    float2 low = canvas.xy + 0.5, high = max(low, canvas.xy + canvas.zw - 0.5);
+    float2 limit = float2(source.get_width() - 1, source.get_height() - 1);
+    return source.read(uint2(clamp(clamp(in.position.xy, low, high), float2(0), limit)));
 }
 
-static float3 unblurred(texture2d<float> blurred, texture2d<float> coverage, uint2 pixel, float3 fallback) {
-    float4 soft = uncovered(blurred, coverage, pixel);
+static float3 unblurred(texture2d<float> blurred, uint2 pixel, float3 fallback) {
+    float4 soft = blurred.read(pixel);
     return soft.a > 0 ? clamp(soft.rgb / soft.a, 0.0, 1.0) : fallback;
 }
 
 fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
                                       texture3d<float> lookup [[texture(0)]],
                                       texture2d<float> fine [[texture(1)]],
-                                      texture2d<float> fineCoverage [[texture(2)]],
                                       texture2d<float> wide [[texture(3)]],
-                                      texture2d<float> wideCoverage [[texture(4)]],
                                       texture2d<float> medium [[texture(5)]],
-                                      texture2d<float> mediumCoverage [[texture(6)]],
                                       texture2d<float> sharp [[texture(7)]],
-                                      texture2d<float> sharpCoverage [[texture(8)]],
                                       constant QuadUniforms &u [[buffer(0)]],
                                       constant float4 *effects [[buffer(1)]],
                                       texture2d<float> layerMask [[texture(10)]],
@@ -537,11 +537,11 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
     if (sharpness > 0 || definition > 0 || noiseReduction > 0 || textureAmount != 0 || colorNoise > 0 || showsMask) {
         uint2 pixel = uint2(in.position.xy);
         float3 original = c;
-        float3 soft = noiseReduction > 0 ? unblurred(fine, fineCoverage, pixel, original) : original;
-        float3 sharpBlur = sharpness > 0 ? unblurred(sharp, sharpCoverage, pixel, original) : original;
-        float3 wider = definition > 0 ? unblurred(wide, wideCoverage, pixel, original) : original;
+        float3 soft = noiseReduction > 0 ? unblurred(fine, pixel, original) : original;
+        float3 sharpBlur = sharpness > 0 ? unblurred(sharp, pixel, original) : original;
+        float3 wider = definition > 0 ? unblurred(wide, pixel, original) : original;
         bool needsMedium = textureAmount != 0 || colorNoise > 0 || maskThreshold > 0;
-        float3 middle = needsMedium ? unblurred(medium, mediumCoverage, pixel, original) : original;
+        float3 middle = needsMedium ? unblurred(medium, pixel, original) : original;
         float3 fromMiddle = abs(original - middle);
         float mask = maskThreshold > 0 ? smoothstep(maskThreshold * 0.5, maskThreshold * 1.5, max(fromMiddle.r, max(fromMiddle.g, fromMiddle.b))) : 1;
         if (showsMask) return fadeIn(backdrop, float3(mask), backdrop.a, u, reveal);
@@ -590,17 +590,16 @@ fragment float4 adjust_photo_fragment(QuadOut in [[stage_in]],
     return fadeIn(backdrop, c, backdrop.a, u, reveal);
 }
 
-// Blur and Sharpen read a blurred copy of the layers beneath, made on the GPU. Dividing by the blurred
-// canvas coverage keeps the image's edges from fading into the transparent area around it.
+// Blur and Sharpen read a blurred copy of the layers beneath, made on the GPU from the composite with the canvas's
+// edge repeated outward, so the image's edges don't fade into the transparent area around it.
 fragment float4 adjust_blur_fragment(QuadOut in [[stage_in]],
                                      texture2d<float> blurred [[texture(0)]],
-                                     texture2d<float> coverage [[texture(1)]],
                                      constant QuadUniforms &u [[buffer(0)]],
                                      texture2d<float> mask [[texture(10)]],
                                      float4 backdrop [[color(0)]]) {
     float reveal = mask_reveal(mask, in.uv, u);
     uint2 pixel = uint2(in.position.xy);
-    float4 soft = uncovered(blurred, coverage, pixel);
+    float4 soft = blurred.read(pixel);
     if (int(u.adjustKind + 0.5) == kAdjustBlur) {
         if (soft.a <= 0) return backdrop + (float4(0) - backdrop) * u.opacity * reveal;
         return fadeIn(backdrop, clamp(soft.rgb / soft.a, 0.0, 1.0), min(soft.a, 1.0), u, reveal);

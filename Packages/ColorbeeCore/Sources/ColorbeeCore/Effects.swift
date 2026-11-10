@@ -227,8 +227,9 @@ public enum Effects {
         return region
     }
 
-    /// Three box blurs approximate a Gaussian of `sigma`; each box is this wide (odd, about 2σ). Feather uses it too.
-    static func boxWidth(sigma: Double) -> Int {
+    /// Three box blurs approximate a Gaussian of `sigma`; each box is this wide (odd, about 2σ). Feather and the screen's
+    /// blurs use it too, so the screen matches the export.
+    public static func boxWidth(sigma: Double) -> Int {
         max(1, Int((12 * sigma * sigma / 3 + 1).squareRoot().rounded()) | 1)
     }
 

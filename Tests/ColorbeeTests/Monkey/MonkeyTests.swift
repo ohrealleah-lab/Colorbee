@@ -127,11 +127,10 @@ struct MonkeyTests {
     @Test func aControlMissingFromTheExportIsCaught() {
         let swatch = PointColors.Swatch(color: Pixel(r: 40, g: 80, b: 210), hue: 30, saturation: 40)
         let shown = ScreenMatchesExportTests.picture(), exported = ScreenMatchesExportTests.picture()
-        let before = exported.canvas.flattened()
         shown.addAdjustmentLayer(.photo(PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20]), pointColors: PointColors([swatch]))), named: "A")
         exported.addAdjustmentLayer(.photo(PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20]))), named: "A")
         #expect(throws: MonkeyFailure.self) {
-            try MonkeyRules.compare(screen: ScreenMatchesExportTests.screen(shown.canvas), export: exported.canvas.flattened(), before: before, neighbors: false)
+            try MonkeyRules.compare(screen: ScreenMatchesExportTests.screen(shown.canvas), export: exported.canvas.flattened())
         }
     }
 

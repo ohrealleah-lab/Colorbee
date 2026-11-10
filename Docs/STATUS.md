@@ -15,7 +15,6 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 
 - [Blur in a narrow selection](#test-blur-in-a-narrow-selection)
 - [Strong Adjust Photo settings look the same exported](#test-strong-adjust-photo-settings-look-the-same-exported)
-- [Look over the known-good Adjust Photo pictures](#test-look-over-the-known-good-adjust-photo-pictures)
 
 ---
 
@@ -414,7 +413,7 @@ Logs in `build/soak-results*.txt` (not committed).
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
 
-### Test: Look over the known-good Adjust Photo pictures
+### Test: Look over the known-good Adjust Photo pictures (passed 2026-11-10)
 
 Leah, 2026-11-10. `PhotoKnownGoodTests` exports 40 Adjust Photo cases (each slider, the Color Mixer, Black & White,
 Color Grading, Point Color, the Tone Curve, detail and effects settings, a look, three built-in filters, Auto on three

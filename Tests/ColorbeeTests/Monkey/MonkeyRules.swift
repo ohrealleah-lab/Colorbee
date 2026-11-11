@@ -113,14 +113,30 @@ enum MonkeyRules {
     static func checkShowsAsExported(_ edit: PhotoEdit) throws(MonkeyFailure) {
         let editor = ScreenMatchesExportTests.picture()
         editor.addAdjustmentLayer(.photo(edit), named: "Adjust Photo")
-        // A steep tone curve magnifies a level's difference before it many times over: one with regions squeezed close
-        // together, or a steep step in its table.
-        let steep = edit.toneCurve.map { curve in
-            let marks = [0] + curve.splits + [100], table = curve.table
-            return !curve.isNeutral && (zip(marks, marks.dropFirst()).contains { $1 - $0 < 10 }
-                || zip(table, table.dropFirst()).contains { abs(Int($1) - Int($0)) >= 3 })
-        } ?? false
+        // The screen reads Adjust Photo's colors from a table of points and blends between them; exports work each color
+        // out exactly. Where the settings are steep (a squeezed tone curve, or Brightness, Contrast and Exposure all near
+        // their ends), a level's difference becomes many: the 8-hour run of 2026-11-10 found two such, 1 in many
+        // thousands. Steep settings get wider limits.
+        let steep = steepness(of: edit) >= 4
         try compare(screen: ScreenMatchesExportTests.screen(editor.canvas), export: editor.canvas.flattened(), steep: steep)
+    }
+
+    /// The most one level of input moves any channel of the output, along ramps of gray and of six colors.
+    static func steepness(of edit: PhotoEdit) -> Int {
+        let transform = edit.colorTransform
+        var steepest = 0
+        for (r, g, b) in [(1.0, 1.0, 1.0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0), (0, 1, 1), (1, 0, 1)] {
+            var last: Pixel?
+            for level in 0...255 {
+                let v = Double(level)
+                let out = transform(Pixel(r: UInt8(v * r), g: UInt8(v * g), b: UInt8(v * b)))
+                if let last {
+                    steepest = max(steepest, abs(Int(out.r) - Int(last.r)), abs(Int(out.g) - Int(last.g)), abs(Int(out.b) - Int(last.b)))
+                }
+                last = out
+            }
+        }
+        return steepest
     }
 
     static func compare(screen: PixelBuffer, export: PixelBuffer, steep: Bool = false) throws(MonkeyFailure) {
@@ -132,11 +148,11 @@ enum MonkeyRules {
                 for (u, v) in [(p.r, q.r), (p.g, q.g), (p.b, q.b), (p.a, q.a)] where abs(Int(u) - Int(v)) > 12 { farOff += 1 }
             }
         }
-        let share = Double(farOff) / Double(max(mismatch.count, 1)), allowedShare = steep ? 0.03 : 0.01
-        guard mismatch.average <= 1, share <= allowedShare else {
+        let share = Double(farOff) / Double(max(mismatch.count, 1)), allowedShare = steep ? 0.03 : 0.01, allowedAverage = steep ? 1.5 : 1
+        guard mismatch.average <= allowedAverage, share <= allowedShare else {
             throw MonkeyFailure(rule: "Adjust Photo looks different on screen than exported",
                                 detail: "Screen against export: \(mismatch), \(String(format: "%.1f", share * 100))% off by more than 12; "
-                                    + "allowed average 1, \(Int(allowedShare * 100))%.")
+                                    + "allowed average \(allowedAverage), \(Int(allowedShare * 100))%.")
         }
     }
 

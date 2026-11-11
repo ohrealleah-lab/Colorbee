@@ -240,6 +240,10 @@ Nothing is waiting right now.
   page or an autosave while the preview is still being worked out. Cancel must give back the picture as it was when the
   bar opened. Its first 5 minutes found a real crash, fixed the same day: Straighten on a picture with a layer mask
   (`StraightenPlan` turned `canvas.layers` but `replaceEveryLayer` asks for every layer and mask); it now plans `allLayers`.
+  Leah's run that afternoon (1 h 36 min, 172,213 steps) stopped at 20 findings, all the monkey's own: thumbnails leave
+  out color noise reduction by design, which needs no slider moved (18 of them); a page left by an effect's bar was
+  remembered before the bar placed a floating piece; and an Undo inside a step left redo the tracker didn't know. Fixed,
+  and failures at the end are now grouped by rule alone, so one cause can't fill the 20 places.
 - Stages 29 and 30 (2026-10-31): text layers. `Layer.text` (`TextLayer`: a `TextSpec` laid out upright, plus quarter
   turns and a mirror from Rotate and Flip) holds the words; the layer's pixels are always that text drawn. Any pixel
   change (`Edit.willModify`) makes it plain pixels first and history puts the text back on undo (`HistoryEntry.texts`),

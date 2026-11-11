@@ -293,9 +293,11 @@ struct MonkeyEpisode {
                 if editor.page !== shownPage {
                     // Another page is shown: the one left must be as it was when it's shown again, and this one as it was
                     // left.
-                    if let leaving {
+                    // An effect's bar placed what was open or floating before the page changed: the page was left as then.
+                    let left: [String]? = if case .effectDialog = step { MonkeyStep.effectOpened } else { leaving }
+                    if let left {
                         leftPages.removeAll { $0.page === shownPage }
-                        leftPages.append((shownPage, leaving))
+                        leftPages.append((shownPage, left))
                     }
                     if let index = leftPages.firstIndex(where: { $0.page === editor.page }) {
                         let left = leftPages.remove(at: index)
@@ -438,8 +440,8 @@ struct UndoTracker {
         if count > before.undoCount, line.indices.contains(before.undoCount) {
             line[before.undoCount]?.before = before.selection
         }
-        // A step that ended in an undo (Undo while an effect's bar was open) leaves redo steps this line never saw.
-        knowsRedo = count >= before.undoCount
+        // A step that ended in an undo (Undo while an effect's bar was open) can leave redo steps this line never saw.
+        knowsRedo = history.redoActionName == nil
         if case .undoOnActiveLayer = step {
             // It took one older step out of history, leaving its change in the steps before: none of them can be checked.
             line = Array(repeating: nil, count: count) + [now]

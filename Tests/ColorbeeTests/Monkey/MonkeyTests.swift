@@ -187,7 +187,8 @@ struct MonkeyTests {
             do {
                 try await episode.explore(count: Self.stepsPerEpisode)
             } catch {
-                let key = error.failure.rule + " · " + (episode.steps.prefix(error.steps).last?.kind ?? "")
+                // At the end, the last step says little about the cause: one cause there is one finding.
+                let key = error.failure.rule + " · " + (error.atEnd ? "at the end" : episode.steps.prefix(error.steps).last?.kind ?? "")
                 if let index = found.firstIndex(where: { $0.key == key }) {
                     found[index].count += 1
                 } else {

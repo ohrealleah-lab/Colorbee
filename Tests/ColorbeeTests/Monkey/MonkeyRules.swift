@@ -448,9 +448,11 @@ enum MonkeyRules {
         let sketched = canvas.shownLayers.contains { layer in
             guard let adjustment = layer.adjustment else { return false }
             if case .posterize = adjustment { return true }
-            // Adjust Photo's detail and vignette are left out of thumbnails by design (stage 15).
+            // Adjust Photo's detail and vignette are left out of thumbnails by design (stage 15), color noise reduction
+            // too, which works with no slider moved.
             if case .photo(let edit) = adjustment,
-               [.sharpness, .definition, .texture, .noiseReduction, .vignette, .grain].contains(where: { edit.adjustments[$0] != 0 }) { return true }
+               [.sharpness, .definition, .texture, .noiseReduction, .vignette, .grain].contains(where: { edit.adjustments[$0] != 0 })
+                || (edit.detail?.color ?? 0) > 0 { return true }
             return adjustment.colorTransform == nil
         }
         if !sketched {

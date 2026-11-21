@@ -119,6 +119,14 @@ struct DocumentView: View {
         }
         // While the Auto-Redact review is open, it asks from there instead.
         .snapshotQuestion(editor, shown: editor.autoRedact == nil)
+        // Esc in Adjust Photo with changes made (Leah, 2026-11-20). Keep Editing is the safe default for Return and Esc.
+        .alert("Discard your Adjust Photo changes?", isPresented: $editor.asksToDiscardPhoto) {
+            Button("Discard", role: .destructive) { editor.cancelEffect() }
+            Button("Keep Editing", role: .cancel) {}
+                .keyboardShortcut(.defaultAction)
+        } message: {
+            Text("The picture goes back to how it was before Adjust Photo opened.")
+        }
     }
 }
 
@@ -495,7 +503,10 @@ private struct EffectBar: View {
                     .foregroundStyle(.secondary)
                     .fixedSize()
             }
-            Button("Cancel", role: .cancel) { editor.cancelEffect() }
+            // Esc arrives here as a key press, and Adjust Photo asks before it discards changes; a click just cancels.
+            Button("Cancel", role: .cancel) {
+                if NSApp.currentEvent?.type == .keyDown { editor.escapeEffect() } else { editor.cancelEffect() }
+            }
                 .keyboardShortcut(.cancelAction)
             Button("Apply") { editor.applyEffect() }
                 .keyboardShortcut(.defaultAction)

@@ -115,11 +115,15 @@ extension Editor {
         }
     }
 
-    /// An Adjust Photo layer's drag is one step; in the panel, Apply makes the step.
+    /// An Adjust Photo layer's drag is one step; in the panel, it's one of the panel's own steps and Apply makes the
+    /// document's step.
     func endPictureDrag() {
         guard let drag = pictureDrag else { return }
         pictureDrag = nil
-        if case .layer = drag.target { finishLayerSettings() }
+        switch drag.target {
+        case .layer: finishLayerSettings()
+        case .panel: settlePhotoStep()
+        }
     }
 
     private func currentPhotoEdit(for target: PicturePick.Target) -> PhotoEdit? {
@@ -164,6 +168,7 @@ extension Editor {
         case .panel:
             setPhotoEdit(changed)
             if purpose == .whiteBalance { photoAutoMoved.subtract([.warmth, .tint]) }
+            settlePhotoStep(named: purpose == .whiteBalance ? "White Balance" : "Point Color")
         case .layer:
             setAdjustment(.photo(changed))
         }
@@ -259,6 +264,58 @@ extension Editor {
         guard activeEffect == .adjustPhoto else { return }
         photoAutoMoved = []
         setPhotoEdit(copied)
+        settlePhotoStep(named: "Paste Settings")
+    }
+
+    // MARK: The Adjust Photo panel's own undo, and Esc (§23, 2026-11-20)
+
+    var photoPanelState: PhotoPanelSteps.State { PhotoPanelSteps.State(edit: photoEdit, autoMoved: photoAutoMoved) }
+
+    /// A change in the panel is finished (a slider let go, Auto, a filter, a click on the picture): it becomes a step.
+    func settlePhotoStep(named name: String? = nil) {
+        guard activeEffect == .adjustPhoto else { return }
+        photoSteps.settle(photoPanelState, named: name)
+    }
+
+    /// What ⌘Z would take back in the panel, for Edit ▸ Undo; nil with nothing to undo.
+    var photoUndoName: String? {
+        guard activeEffect == .adjustPhoto else { return nil }
+        let current = photoPanelState
+        return current != photoSteps.settled ? PhotoPanelSteps.name(from: photoSteps.settled.edit, to: current.edit) : photoSteps.undoName
+    }
+
+    var photoRedoName: String? {
+        guard activeEffect == .adjustPhoto, photoPanelState == photoSteps.settled else { return nil }
+        return photoSteps.redoName
+    }
+
+    func undoPhotoStep() {
+        guard activeEffect == .adjustPhoto, let state = photoSteps.undo(from: photoPanelState) else { return onRefused() }
+        showPhotoState(state)
+    }
+
+    func redoPhotoStep() {
+        guard activeEffect == .adjustPhoto, photoPanelState == photoSteps.settled, let state = photoSteps.redo() else { return onRefused() }
+        showPhotoState(state)
+    }
+
+    private func showPhotoState(_ state: PhotoPanelSteps.State) {
+        photoEdit = state.edit
+        photoAutoMoved = state.autoMoved
+        previewEffect()
+    }
+
+    /// The panel's settings differ from where it opened (no changes).
+    var photoPanelHasChanges: Bool { activeEffect == .adjustPhoto && photoEdit.withoutViews != PhotoEdit() }
+
+    /// Esc in an effect's bar: Adjust Photo with changes asks first, since Esc is easy to press by accident; everything
+    /// else cancels at once (Leah, 2026-11-20). The Cancel button never asks.
+    func escapeEffect() {
+        if photoPanelHasChanges {
+            asksToDiscardPhoto = true
+        } else {
+            cancelEffect()
+        }
     }
 
     /// Paste Photo Settings as Adjustment Layer: a new Adjust Photo layer above the active one.

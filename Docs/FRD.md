@@ -475,6 +475,12 @@ Minor photo editing: quick fixes, not a replacement for a full photo editor. Lik
 - **The hand** (FR-9.7 item 6): a hand button on the Tone Curve's graph and beside the Color Mixer's tabs. While it's on, dragging up on the picture raises (and down lowers) the Tone Curve region, or the Color Mixer tab's setting for the color, under the pointer, read from the picture as it was before Adjust Photo so the target doesn't move. Space-drag pans; Esc or the button turns it off. In the panel, Apply is the step; on an Adjust Photo layer, each drag is one step.
 - **Effects** section (FR-9.7 item 5): **Vignette** (moved here from Detail) and **Grain** (0–100). Arrows beside them hold the vignette's Midpoint (0–100, 50), Roundness (−100 to 100, 0: the picture's shape) and Feather (0–100, 50), which start at the vignette Colorbee always had, and the grain's Size (0–100, 25) and Roughness (0–100, 50). Grain is fixed to the image's pixels, so the preview matches the export. Filters keep both; a filter's Intensity scales only the vignette's and grain's amounts. Effects ▸ Vignette… stays as it is.
 - Applies to the selection if there is one, otherwise the active layer. Live preview. One undo step.
+- **Undo inside the panel** (stage 34a; Leah, 2026-11-20): while it's open, ⌘Z and ⇧⌘Z step back and forward through
+  its own changes, one per finished change (a slider let go, Auto, a filter, Paste Settings, Reset, an eyedropper
+  click, a hand drag); Edit ▸ Undo names it ("Undo Exposure"). Apply is still one step in the document, and the
+  panel's steps go when it closes.
+- **Esc asks** "Discard your Adjust Photo changes?" once anything has changed (Keep Editing is the default); with
+  nothing changed it closes at once. The Cancel button never asks.
 - Also available as an adjustment layer, with every slider still editable.
 - **Auto:** analyzes the photo and sets Exposure, Brilliance, Highlights, Shadows, Contrast, White Balance (Warmth and Tint) and Vibrance, and Whites (FR-9.7). The panel marks the sliders Auto moved, and any of them can be adjusted afterwards. One undo step together with the rest of the panel.
 

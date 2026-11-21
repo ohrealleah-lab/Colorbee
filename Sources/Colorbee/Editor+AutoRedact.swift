@@ -118,6 +118,8 @@ extension Editor {
     /// Drops the background preview state; a render still running finds a newer generation and is ignored.
     func endEffectSession() {
         picturePick = nil
+        photoSteps = PhotoPanelSteps()
+        asksToDiscardPhoto = false
         endRange()
         effectCoversAllLayers = false
         effectLayers = []

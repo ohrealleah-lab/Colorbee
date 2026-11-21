@@ -8,8 +8,11 @@ struct AdjustPhotoPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            PhotoControls(edit: editor.photoEdit, autoMoved: editor.photoAutoMoved, editor: editor) { editor.setPhotoEdit($0) } onAuto: {
+            // Each finished change is one of the panel's own undo steps (§23, 2026-11-20).
+            PhotoControls(edit: editor.photoEdit, autoMoved: editor.photoAutoMoved, editor: editor,
+                          onChange: { editor.setPhotoEdit($0) }, onFinish: { editor.settlePhotoStep() }) {
                 editor.autoPhoto()
+                editor.settlePhotoStep(named: "Auto")
             }
             HStack {
                 Button("As Adjustment Layer") { editor.photoAsAdjustmentLayer() }

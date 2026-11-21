@@ -314,6 +314,10 @@ final class Editor {
     /// The Adjust Photo panel's settings while it's open, and which sliders Auto last set.
     var photoEdit = PhotoEdit()
     var photoAutoMoved: Set<PhotoAdjustments.Slider> = []
+    /// The open Adjust Photo panel's own undo and redo (§23, 2026-11-20).
+    var photoSteps = PhotoPanelSteps()
+    /// Esc was pressed in Adjust Photo with changes made: "Discard your Adjust Photo changes?" is showing.
+    var asksToDiscardPhoto = false
     /// An eyedropper waiting for a click on the picture (FR-9.7). See `picturePickPurpose`.
     var picturePick: PicturePick?
     /// What Levels shows behind its sliders: the pixels it applies to, before any change.

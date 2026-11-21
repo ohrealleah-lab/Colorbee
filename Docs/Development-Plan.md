@@ -1153,6 +1153,106 @@ X, Y and Z cover stages 25 to 32 and the fixes from hand tests; session AA reads
 Each is a separate local session that only reads code and writes a findings file; Leah answers the findings together,
 then they're fixed, tested and recorded in `Review/RESULTS.md`.
 
+### Stage 34. Usability review fixes (Leah, 2026-11-20)
+
+From the usability and workflow review of 2026-11-20. Leah's answers and Claude's choices are in FRD §23 (2026-11-20,
+two entries). Built as three parts in a row, then hand tested together. Each part updates its FRD sections and help
+pages in the same commit.
+
+#### 34a. Adjust Photo: Esc asks, ⌘Z inside the panel
+
+1. **What gets built**
+   - **Esc asks** "Discard your Adjust Photo changes?" (Discard / Keep Editing) when the panel's settings differ from
+     where they started; with nothing changed it closes at once. The Cancel button never asks. Other effect bars keep
+     Esc as Cancel.
+   - **⌘Z and ⇧⌘Z inside the panel** step back and forward through its own changes: one step per slider drag, Auto,
+     filter choice, Intensity drag, Paste Settings, Reset (all or one slider), eyedropper pick and hand drag. Edit ▸
+     Undo shows "Undo Exposure" and so on. The steps go when the panel closes; Apply stays one step in the document.
+2. **Touches:** `Editor+AdjustPhoto.swift` (a small stack of `PhotoEdit` and the Auto marks), `AdjustPhotoPanel.swift`
+   and `PhotoControls` (where each drag finishes), `DocumentView.swift` (Esc and the question),
+   `DocumentWindow.swift` (Undo and Redo allowed while Adjust Photo is open).
+3. **Risks:** a slider drag must be one step, not one per frame; Auto's "set by Auto" marks and the clipping-warning
+   and Masking views must come back with the step (views are never steps); typing in a value field keeps its own ⌘Z.
+4. **Size:** M. **Opus, high.**
+
+#### 34b. Selections and layers
+
+1. **What gets built**
+   - **Esc on floating pixels** (a paste, a drop, a Clipboard History click, or pixels lifted by a drag, Option-drag,
+     smear, nudge or handle) undoes everything since they were lifted or pasted, so a paste disappears and moved
+     pixels go back. It can't be redone, as for a shape. Return and clicking outside still place them; Esc on a
+     plain marquee still deselects.
+   - **Placing Editable text** keeps the layer you were on active; the text layer goes just above it.
+   - **A hidden active layer** (its eye off, or inside a hidden group) refuses pixel edits like a locked one: the "not
+     allowed" pointer, "This layer is hidden. Show it to change it.", and pixel commands greyed out. Whole-image
+     commands (crop, resize, rotate) and redactions work as before.
+   - **Batch Redact ▸ Blur… and Pixelate…** are greyed out with nothing selected, like Solid Fill.
+   - **Edit ▸ Graduated Selection…** gets its ellipsis.
+2. **Touches:** the core's `SelectionActions` (a cancel-floating action, with exact-pixel and undo tests) and
+   `LayerActions.addText`; `Editor+Selection.swift`, `Editor+Layers.swift` (`refusedBecauseLocked`,
+   `activeLayerTakesEdits`), `CanvasView.swift` (Esc, pointer), `DocumentWindow.swift`, `MainMenu.swift`.
+3. **Risks**
+   - **Undo depth:** Esc must stop exactly at the step that lifted or pasted the pixels, even after a resize or a
+     smear; the undo property test covers it.
+   - **The monkey test** does random legal edits: painting on a hidden layer and Esc on a paste change meaning, so its
+     rules are updated in the same commit, and a short run (5 minutes) checks them.
+   - Re-editing a text layer (double-click) still makes it the active layer, so its box can be changed.
+4. **Size:** M. **Opus, high.**
+
+#### 34c. Files and windows
+
+1. **What gets built**
+   - **Back to its file:** a picture opened from a file that becomes a project (a layer, page, mask, text or
+     adjustment layer added) goes back to saving into that file once it's one plain layer again, through Undo,
+     Flatten, Merge or Delete. Copies (PDFs, RAW photos, animated GIFs, multi-page TIFFs) never go back. A project
+     already saved somewhere stays that project.
+   - **Tool settings carry over:** a new window, and a window brought back on relaunch, starts with the last-used
+     window's tool settings: Color 1 and 2 with their alpha, every tool's size, brush, pressure, shape kind, line
+     width, outline and fill, text style, gradient mode, tolerances, wand mode and Contiguous, Sample All Layers
+     switches, retouch kind, strength, hardness and range, Clone Stamp options, redact treatment, eyedropper sample
+     size, transparent selection and resize smoothing. Not carried: the tool (Rectangle Select to start), Symmetry,
+     and anything about the picture (badge numbers, selection, measurement). Kept between launches.
+2. **Touches:** `ImageDocument.swift` (remember the original file and type; put them back when `isLayered` turns
+   false); a new `ToolSettings.swift` (a value type with every carried setting, saved in the settings file),
+   `Editor.swift` (start from it; save it as settings change, throttled).
+3. **Risks**
+   - **The original file changed or went away** meanwhile: macOS's usual "changed by another app" question, or it
+     stays a project and ⌘S asks where.
+   - **Mask colors:** while a mask is chosen the colors are grays; the real colors are what's carried.
+   - **Tests never save preferences** (CLAUDE.md): `make test` keeps tool settings in memory, as it does for filters.
+4. **Size:** M. **Opus, medium.**
+
+#### Stage 34 hand test
+
+**34a** (`TestImages/Stage 9 Practice Photo.png`)
+1. Adjustments ▸ Adjust Photo…
+2. Press Esc. Expected: it closes, no question.
+3. Adjustments ▸ Adjust Photo…, drag Exposure, then Contrast.
+4. Press ⌘Z. Expected: Contrast goes back; Exposure stays.
+5. Press ⌘Z again, then ⇧⌘Z. Expected: Exposure goes back, then returns.
+6. Press Esc. Expected: "Discard your Adjust Photo changes?"
+7. Click Keep Editing, then Apply. Expected: one "Adjust Photo" step in History.
+
+**34b** (`TestImages/Auto-Redact Practice.png`)
+1. Copy the picture (⌘A, ⌘C), then Paste (⌘V).
+2. Drag the pasted piece, then press Esc. Expected: the paste is gone and Redo has nothing.
+3. Rectangle-select an area, drag it, nudge it with an arrow, then press Esc. Expected: back where it was.
+4. Press T, turn Editable on, click, type "hi", press Esc, then press B and paint. Expected: the stroke goes on the
+   picture, under the text.
+5. Hide the picture's layer (its eye) and paint. Expected: "not allowed" pointer and "This layer is hidden…".
+6. Deselect (⌘D) and open the Redact menu. Expected: Blur…, Pixelate… and Solid Fill are all greyed out.
+
+**34c** (`TestImages/Trim Practice.png`)
+1. Open it, then Layer ▸ New Layer, then ⌘Z, then ⌘S. Expected: no Save panel; the PNG is saved.
+2. Pick red for Color 1, a 20 px brush and a text size of 36.
+3. File ▸ New (⌘N). Expected: red, 20 px and 36 are already set; the tool is Rectangle Select.
+4. Quit and reopen Colorbee, then ⌘N. Expected: still red, 20 px and 36.
+
+**Done when:** `make test` is green, a 5-minute monkey run breaks no rule, the FRD sections (FR-3.3, FR-6.3,
+FR-8.2, FR-9.4, FR-9.5, FR-12, §14.5 and a new FR-15.4 for carried settings) and the help pages (`fix-up-a-photo`,
+`tools`, `work-with-layers`, `annotate-an-image`, `redact-a-screenshot`, `save-export-and-share`; `make help` for
+the renamed menu item) are updated, and Leah's hand test passes.
+
 ---
 
 ## 7. What can be built together, and what must not
@@ -1224,6 +1324,9 @@ build time.
 | 31 | Stroke smoothing | §23 smoothing | M | High | — |
 | 32 | Overnight monkey test | Leah, 2026-10-29 | M | High | all |
 | 33 | Code reviews | Leah, 2026-10-31 | — | High | 32 |
+| 34a | Adjust Photo: Esc asks, ⌘Z inside | Usability review 2026-11-20 | M | High | — |
+| 34b | Selections and layers | Usability review 2026-11-20 | M | High | — |
+| 34c | Files and windows | Usability review 2026-11-20 | M | Medium | — |
 
 All Opus. FR-8.6 is already built, so it has no stage.
 

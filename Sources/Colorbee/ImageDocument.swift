@@ -9,7 +9,7 @@ extension UTType {
 }
 
 final class ImageDocument: NSDocument {
-    private var editor: Editor?
+    private(set) var editor: Editor?
 
     /// Quitting places an open text box, shape or step badge first, so the autosave keeps it (review AA, finding 3).
     func placePendingObjects() {
@@ -28,6 +28,10 @@ final class ImageDocument: NSDocument {
     private var opensAsCopy = false
     /// The folder of the picture this untitled document came from, where Save and Export start (Leah, 2026-10-27).
     private var sourceFolder: URL?
+    /// The file this project was opened from, before a layer, page, mask, text or adjustment layer made it one. Once
+    /// it's one plain layer again it saves into that file (stage 34c). Never set for a copy (a PDF, RAW photo,
+    /// animated GIF or multi-page TIFF), which had no file to go back to.
+    private(set) var originalFile: OriginalFile?
 
     /// Where Save and Export panels start: the file's own folder, or the folder of the picture it came from. Nil
     /// leaves the Mac's usual last-used folder.
@@ -95,8 +99,10 @@ final class ImageDocument: NSDocument {
             case .undone: self?.updateChangeCount(.changeUndone)
             case .redone: self?.updateChangeCount(.changeRedone)
             }
-            self?.becomeProjectIfLayered()
+            self?.followLayers()
         }
+        // New and restored windows start with the tool settings last used (stage 34c); the benchmark keeps its own.
+        if !Benchmark.isEnabled { ToolSettingsStore.shared.start(editor) }
         if editor.canvas.layers.count > 1 { editor.isSidebarOpen = true }
         addWindowController(DocumentWindowController(editor: editor))
         noteFileSoon()
@@ -283,15 +289,31 @@ final class ImageDocument: NSDocument {
 
     /// Once an image has layers (or an adjustment layer), saving keeps it as a .colorproj: an image file
     /// would flatten the layers. A file that was opened is left untouched; the next save asks where to put
-    /// the project (decided by Leah, FRD §23).
-    private func becomeProjectIfLayered() {
-        guard let editor, editor.isLayered, let fileType, UTType(fileType)?.conforms(to: .colorbeeProject) != true else { return }
-        if let fileURL {
-            projectName = fileURL.deletingPathExtension().lastPathComponent
-            sourceFolder = fileURL.deletingLastPathComponent()
-            self.fileURL = nil
+    /// the project (decided by Leah, FRD §23). Back to one plain layer, through Undo, Flatten, Merge or Delete, a
+    /// project not yet saved anywhere goes back to its file, if it still exists (Leah, 2026-11-20; stage 34c).
+    func followLayers() {
+        guard let editor, let fileType else { return }
+        let isProject = UTType(fileType)?.conforms(to: .colorbeeProject) == true
+        if editor.isLayered, !isProject {
+            if let fileURL {
+                originalFile = OriginalFile(url: fileURL, type: fileType, modified: fileModificationDate)
+                projectName = fileURL.deletingPathExtension().lastPathComponent
+                sourceFolder = fileURL.deletingLastPathComponent()
+                self.fileURL = nil
+            }
+            self.fileType = UTType.colorbeeProject.identifier
+        } else if isProject, let original = originalFile,
+                  original.canReturn(isLayered: editor.isLayered, savedAsProject: fileURL != nil,
+                                     exists: FileManager.default.fileExists(atPath: original.url.path)) {
+            projectName = nil
+            sourceFolder = nil
+            self.fileURL = original.url
+            self.fileType = original.type
+            // macOS then asks as usual if another app changed the file meanwhile.
+            fileModificationDate = original.modified
+        } else {
+            return
         }
-        self.fileType = UTType.colorbeeProject.identifier
         windowControllers.forEach { $0.synchronizeWindowTitleWithDocumentName() }
     }
 
@@ -300,11 +322,18 @@ final class ImageDocument: NSDocument {
         super.encodeRestorableState(with: coder)
         coder.encode(projectName, forKey: "ColorbeeProjectName")
         coder.encode(sourceFolder, forKey: "ColorbeeSourceFolder")
+        coder.encode(originalFile?.url, forKey: "ColorbeeOriginalFile")
+        coder.encode(originalFile?.type, forKey: "ColorbeeOriginalType")
+        coder.encode(originalFile?.modified, forKey: "ColorbeeOriginalModified")
     }
 
     override func restoreState(with coder: NSCoder) {
         super.restoreState(with: coder)
         sourceFolder = coder.decodeObject(of: NSURL.self, forKey: "ColorbeeSourceFolder") as URL?
+        if let url = coder.decodeObject(of: NSURL.self, forKey: "ColorbeeOriginalFile") as URL?,
+           let type = coder.decodeObject(of: NSString.self, forKey: "ColorbeeOriginalType") as String? {
+            originalFile = OriginalFile(url: url, type: type, modified: coder.decodeObject(of: NSDate.self, forKey: "ColorbeeOriginalModified") as Date?)
+        }
         if let name = coder.decodeObject(of: NSString.self, forKey: "ColorbeeProjectName") as String? {
             projectName = name
             windowControllers.forEach { $0.synchronizeWindowTitleWithDocumentName() }

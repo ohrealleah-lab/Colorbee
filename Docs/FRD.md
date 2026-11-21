@@ -732,6 +732,11 @@ Open camera RAW files, develop them, then edit and export like any image.
   so `Pictures/photo.jpg` offers `Pictures/photo.colorproj`. Images that never came from a file start in the last
   folder used, as usual on a Mac.
 - If nothing needs restoring, launch opens a blank white 1920×1080 canvas.
+- **Back to its file** (stage 34c): a picture opened from a file becomes an unsaved project when it gains a layer,
+  page, mask, text layer or adjustment layer (the file is never flattened). Once it's one plain layer again, through
+  Undo, Flatten, Merge or Delete, it saves into that file again with ⌘S, no Save panel. If another app changed the file
+  meanwhile, macOS asks as usual; if the file is gone, it stays a project and ⌘S asks where. Copies (PDFs, RAW photos,
+  animated GIFs, multi-page TIFFs) never go back, and neither does a project already saved somewhere.
 
 ---
 
@@ -775,13 +780,13 @@ Open camera RAW files, develop them, then edit and export like any image.
 
 | Menu | Items |
 |---|---|
-| **File** | New (Cmd+N), Paste into New Image (Cmd+Shift+V), Open (Cmd+O), Open Recent · Close (Cmd+W), Save (Cmd+S), Save As (Cmd+Shift+S), Duplicate, Revert To · Export… (Cmd+Opt+S), Export as PDF…, Export As ▸ presets · Share, Set as Desktop Picture · Page Setup, Print (Cmd+P) |
-| **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z) · Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Copy Text (Cmd+Opt+C), Paste (Cmd+V), Paste in Place (Cmd+Opt+Shift+V), Delete · New Snapshot… · Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I), Feather…, Modify Selection ▸ Expand…, Contract…, Smooth…, Select Subject, Color Range…, Luminance Range…, Graduated Selection |
+| **File** | New (Cmd+N), Paste into New Image (Cmd+Shift+V), Open… (Cmd+O), Open Recent · Close (Cmd+W), Save (Cmd+S), Save As… (Cmd+Shift+S), Duplicate, Revert To Saved · Export… (Cmd+Opt+S), Export as PDF…, Export As ▸ presets · Share…, Set as Desktop Picture · Page Setup… (Cmd+Shift+P), Print… (Cmd+P) |
+| **Edit** | Undo (Cmd+Z), Redo (Cmd+Shift+Z), Undo on Active Layer (Cmd+Opt+Z) · Cut (Cmd+X), Copy (Cmd+C), Copy Merged (Cmd+Shift+C), Copy Text (Cmd+Opt+C), Copy Color as Hex (Ctrl+Cmd+C), Paste (Cmd+V), Paste in Place (Cmd+Opt+Shift+V), Delete · New Snapshot… · Select All (Cmd+A), Deselect (Cmd+D), Invert Selection (Cmd+Shift+I), Feather…, Modify Selection ▸ Expand…, Contract…, Smooth…, Select Subject, Color Range…, Luminance Range…, Graduated Selection… |
 | **View** | Zoom In (Cmd+=), Zoom Out (Cmd+-), Actual Size (Cmd+0), Zoom to Fit (Cmd+9) · Pixel Grid (Cmd+'), Rulers (Cmd+R), Before/After (Cmd+Opt+B) · Sidebar (Ctrl+Cmd+S), Layers (Cmd+L), Adjustments, History (Cmd+Y), Clipboard History (Cmd+Opt+V), Info (Cmd+Opt+I), Page Sidebar (Cmd+Opt+2), Status Bar · Enter Full Screen. Panels and display aids show a checkmark when on. |
-| **Image** | Crop to Selection (Cmd+Shift+X), Crop…, Resize and Skew (Cmd+E), Canvas Properties (Cmd+Opt+E) · Rotate ▸, Flip ▸, Straighten…, Perspective Correction… · Remove Background · Symmetry ▸ |
-| **Layer** | New (Cmd+Shift+N), Duplicate (Cmd+J), Delete (Cmd+Delete), Lift Subject to New Layer · Merge Down (Cmd+Shift+E), Merge Visible (Cmd+Opt+Shift+E), Flatten · New Adjustment Layer ▸ (Adjust Photo · Levels, Curves, Hue/Saturation, Auto Contrast, Desaturate · Gaussian Blur, Sharpen · Sepia, Posterize, Invert), Merge Adjustment, Revert Layer · Hide/Show Layer (no default shortcut), Lock/Unlock Layer, Layer Properties |
+| **Image** | Crop to Selection (Cmd+Shift+X), Crop…, Trim, Resize and Skew… (Cmd+E), Canvas Properties… (Cmd+Opt+E) · Rotate ▸, Flip ▸, Straighten…, Perspective Correction… · Remove Background · Symmetry ▸ |
+| **Layer** | New Layer (Cmd+Shift+N), Duplicate Layer (Cmd+J), Delete Layer (Cmd+Delete), Lift Subject to New Layer, Select All Layers (Cmd+Opt+A) · Group Layers (Cmd+G), Ungroup (Cmd+Shift+G) · Merge Down (Cmd+Shift+E; Merge Layers with several chosen), Merge Visible (Cmd+Opt+Shift+E), Stamp Visible, Flatten · Align ▸ (Left, Centers, Right · Top, Middle, Bottom · Distribute Horizontally, Distribute Vertically), Layer Mask ▸ (Add Mask, Add Mask Hiding All · Turn Off Mask, Invert Mask · Apply Mask, Delete Mask) · New Adjustment Layer ▸ (Adjust Photo · Levels, Curves, Hue/Saturation, Auto Contrast, Desaturate · Gaussian Blur, Sharpen · Sepia, Posterize, Invert), Merge Adjustment, Rasterize Text, Revert Layer · Hide/Show Layer (no default shortcut), Lock/Unlock Layer, Lock Transparent Pixels, Layer Properties… |
 | **Page** | New Page, Duplicate Page, Delete Page · Move Page Up, Move Page Down · Previous Page (Cmd+Opt+Up), Next Page (Cmd+Opt+Down) |
-| **Adjustments** | Adjust Photo…, Auto Contrast · Levels…, Curves… · Hue/Saturation…, Desaturate (Cmd+Shift+U), Sepia… · Invert Colors (Cmd+I), Posterize… · Remove Red-Eye · New Adjustment Layer ▸ |
+| **Adjustments** | Adjust Photo…, Adjust Photo: Same as Last, Copy Photo Settings, Paste Photo Settings, Paste Photo Settings as Adjustment Layer, Auto Contrast · Levels…, Curves… · Hue/Saturation…, Desaturate (Cmd+Shift+U), Sepia… · Invert Colors (Cmd+I), Posterize… · Remove Red-Eye · New Adjustment Layer ▸ |
 | **Effects** | Gaussian Blur…, Motion Blur…, Sharpen… · Pixelate…, Add Noise…, Emboss… · Vignette…, Spotlight… · Drop Shadow…, Border… |
 | **Redact** | Auto-Redact… · Batch Redact: Blur…, Pixelate…, Solid Fill with Color 1 |
 | **Window** | Standard |
@@ -843,6 +848,17 @@ Every shortcut above is a default. All of them can be changed in the shortcut ed
 - Reset one shortcut, or **Reset All** to the defaults.
 - Export and import the whole set as a file (`.colorbeekeys`).
 - Custom shortcuts are kept between launches.
+
+### FR-15.4 Tool settings carry over (stage 34c)
+- A new window, an opened file and a window brought back on relaunch start with the tool settings last changed in any
+  window: Color 1 and Color 2 with their alpha, every tool's size, the brush and pressure, the shape kind, line width,
+  outline and fill, the text style, the step badge style, the gradient mode, tolerances, the wand's mode and
+  Contiguous, the Sample All Layers switches, the retouch tool, Strength, Hardness and Range, the Clone Stamp's
+  options, the Redact Brush's treatment, the Eyedropper's Sample Size, Transparent Selection and resize smoothing.
+- Not carried: the tool (a new window starts on Rectangle Select), Symmetry, and anything about the picture (badge
+  numbers, the selection, a measurement, the Clone Stamp's source).
+- While a mask is chosen the colors are grays; the real colors are what's carried.
+- Kept between launches. Smoothing and Editable text were already remembered on their own.
 
 ---
 
@@ -960,6 +976,10 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-11-20 | **Stage 34c built** (files and windows). Claude's choices (veto any): (1) "Last used" means the tool settings last changed in any window; just switching windows doesn't count. (2) A file you open gets them too, not only new and restored windows. (3) The step badge style and size carry over; the badge numbers don't. (4) Pixel Grid isn't carried: it's a view setting, not a tool's. (5) The original file is remembered across a relaunch, so a restored project can still go back to it. (6) `make bench` windows keep the defaults. (7) FR-14.5's menu table was brought up to date with the menus as built. |
+| 2026-11-20 | **Stage 34b built** (selections and layers). Claude's choices (veto any): (1) The Redact Brush and Editable text don't show the "not allowed" pointer on a hidden layer, since they still work there. (2) A hidden layer says why in words instead of beeping; one that's both hidden and locked beeps, as a locked one does. (3) Esc on floating pixels takes back every step since the lift or paste, even one that didn't touch them (a layer's opacity changed while they floated, say). (4) Esc in the middle of a drag, or on pixels no step put there, places them as before. (5) Esc counts as that many undos, so a picture that's back to how it was saved isn't marked as changed. |
+| 2026-11-20 | **Stage 34 details** (Leah, all recommended; `Docs/Development-Plan.md`, stage 34). Esc on floating pixels goes all the way back to before they were lifted or pasted (every drag, nudge, resize and smear trail), and can't be redone. A new window takes every tool setting from the last-used window except Symmetry (and the tool, which stays Rectangle Select), and they're kept between launches. Only Esc asks before discarding Adjust Photo changes; the Cancel button just cancels. Claude's choices (veto any): (1) ⌘Z inside the panel is for Adjust Photo only, not the smaller effect bars. (2) A dropped image and a Clipboard History click count as a paste for Esc. (3) "Hidden" means the layer's eye is off or it's inside a hidden group. (4) Placing text keeps the active layer even when it's a locked or adjustment layer. (5) While a mask is chosen, the real colors are what's carried, not the mask grays. (6) Undo steps inside Adjust Photo go when the panel closes. |
+| 2026-11-20 | **Usability review answers** (Leah, all recommended; not built yet). (1) **Esc in Adjust Photo** asks "Discard your Adjust Photo changes?" once anything has changed; with nothing changed it just closes. (2) **⌘Z and ⇧⌘Z inside Adjust Photo** step back and forward through the panel's changes (each slider drag, Auto, filter, paste or Reset); Apply is still one step in the document's history. (3) **Placing Editable text** keeps the layer you were on active, so the next stroke, shape or paste goes on the picture; the text layer sits just above it. (4) **Back to one plain layer** (one page, no mask, text or adjustment layer), a picture that was opened from a file saves into that file again, after Undo or Flatten too. (5) **New windows** start with the last-used window's colors, sizes, brush, shape style, text font and size and redact treatment; the starting tool stays Rectangle Select (2026-10-04). (6) **A hidden active layer** refuses pixel edits as a locked one does: the "not allowed" pointer and "This layer is hidden. Show it to change it." Whole-image commands still work. (7) **Esc on a paste not yet placed** removes it, and a moved selection goes back where it was, as Esc throws away a shape; text keeps Esc to finish typing. (8) **Batch Redact ▸ Blur… and Pixelate…** need a selection, like Solid Fill. |
 | 2026-11-10 | **The screen blurs as the export does** (Claude, veto any; from the monkey test): for Adjust Photo's Texture, Sharpness, Definition and Noise Reduction and for the Blur and Sharpen adjustment layers, the screen repeats the picture's edge pixels outward and blurs with three box blurs, as exports do, instead of a true Gaussian faded at the edge. The look on screen changes very slightly; what's exported doesn't change at all. |
 | 2026-11-10 | **The monkey and Adjust Photo** (Leah): Adjust Photo is tested in depth first, before the other monkey gaps. The monkey builds whole random settings, presses Apply in the Adjust Photo dialog on random selections behind a test-only switch so nothing becomes "last used", and compares screen with export for each. Known-good picture tests for Adjust Photo follow. |
 | 2026-11-10 | **Blur inside a selection** (Claude, veto any; from the monkey test): before blurring, each unselected pixel takes the color of the nearest selected one (along its row, else the nearest row), as the picture's own edges are extended, instead of being left out and divided away afterwards. A flat color stays exactly flat; near a selection's edge the blur now leans a little more on the edge's own colors. Applies to Gaussian Blur, Blur redaction, Sharpen and Adjust Photo's detail on a selection. |

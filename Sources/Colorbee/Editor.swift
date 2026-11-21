@@ -208,7 +208,7 @@ final class Editor {
         didSet { renderSoon() }
     }
     /// Each retouching tool keeps its own size.
-    private var retouchSizes: [RetouchKind: Double] = [:] {
+    var retouchSizes: [RetouchKind: Double] = [:] {
         didSet { renderSoon() }
     }
     var retouchSize: Double {

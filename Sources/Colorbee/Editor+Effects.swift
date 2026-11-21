@@ -30,7 +30,9 @@ extension Editor {
 
     /// Opens an effect's dialog and shows its preview. It applies to the selection, or the whole layer.
     /// Batch Redact ▸ Blur… and Pixelate…: chosen with the bar like the effects, applied to every layer.
+    /// They need a selection, like Solid Fill (stage 34b).
     func beginBatchRedact(_ kind: EffectKind) {
+        guard hasSelection else { return onRefused() }
         beginEffect(kind, coveringAllLayers: true)
     }
 
@@ -47,6 +49,7 @@ extension Editor {
         effectCurves = .identity
         photoEdit = PhotoEdit()
         photoAutoMoved = []
+        photoSteps = PhotoPanelSteps()
         if kind == .adjustPhoto { isSidebarOpen = true }
         effectHistogram = kind == .levels ? Histogram(canvas.paintLayer.buffer, selection: canvas.selection.marquee) : nil
         decorationPreviewed = false

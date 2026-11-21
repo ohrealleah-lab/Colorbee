@@ -31,8 +31,10 @@ struct TextLayerAppTests {
 
     @Test func withEditableOnTextIsALayerAndMakesAProject() {
         let editor = editable()
-        #expect(editor.canvas.layers.count == 2 && editor.canvas.activeLayer.text?.spec.text == "Hello")
-        #expect(editor.canvas.activeLayer.name == "Hello" && editor.isLayered)
+        #expect(editor.canvas.layers.count == 2 && editor.canvas.layers[1].text?.spec.text == "Hello")
+        #expect(editor.canvas.layers[1].name == "Hello" && editor.isLayered)
+        // The paper stays the active layer, so painting next goes on it (stage 34b).
+        #expect(editor.activeLayerIndex == 0)
         // The next text goes on a layer of its own, not into this one.
         type("Second", in: editor)
         #expect(editor.canvas.layers.count == 3)
@@ -69,8 +71,19 @@ struct TextLayerAppTests {
         #expect(editor.stepNames == steps)
     }
 
+    @Test func paintingAfterPlacingTextGoesOnTheLayerBelow() {
+        let editor = editable()
+        let words = editor.canvas.layers[1].buffer.contentHash()
+        let paper = editor.canvas.layers[0].buffer.contentHash()
+        editor.selectTool(.brush)
+        editor.stroke([pt(2.5, 10.5), pt(60.5, 10.5)])
+        #expect(editor.canvas.layers[0].buffer.contentHash() != paper && editor.canvas.layers[1].buffer.contentHash() == words)
+        #expect(editor.notice == nil)
+    }
+
     @Test func paintingOnATextLayerAsksToRasterizeFirst() {
         let editor = editable()
+        editor.selectLayer(at: 1)
         let pixels = editor.canvas.activeLayer.buffer.contentHash()
         editor.selectTool(.brush)
         editor.stroke([pt(2.5, 10.5), pt(60.5, 10.5)])

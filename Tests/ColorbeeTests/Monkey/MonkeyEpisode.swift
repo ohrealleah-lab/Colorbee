@@ -417,6 +417,23 @@ struct UndoTracker {
                 }
             }
             return
+        case .escape where count < before.undoCount:
+            // Esc on floating pixels (stage 34b): back exactly to before they were lifted or pasted, with nothing to redo.
+            if line.indices.contains(count), let want = line[count] {
+                if want.layers != now.layers {
+                    throw MonkeyFailure(rule: "Esc on floating pixels didn't give back the picture from before they floated",
+                                        detail: Self.difference(want.layers, now.layers))
+                }
+                if want.before.hasPrefix("a floating") || now.after.hasPrefix("a floating"), want.before != now.after {
+                    throw MonkeyFailure(rule: "Esc on floating pixels didn't give back the selection", detail: "It should be \(want.before), but it's \(now.after).")
+                }
+            }
+            if let redo = history.redoActionName {
+                throw MonkeyFailure(rule: "Esc on floating pixels left something to redo", detail: "Redo \(redo) is still there.")
+            }
+            line = line.indices.contains(count) ? Array(line.prefix(count + 1)) : line + Array(repeating: nil, count: count - line.count) + [now]
+            knowsRedo = true
+            return
         default:
             break
         }

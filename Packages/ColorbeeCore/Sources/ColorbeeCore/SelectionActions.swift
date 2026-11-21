@@ -97,6 +97,19 @@ public enum SelectionActions {
         return true
     }
 
+    /// Esc on floating pixels (stage 34b): takes back every step since they were lifted or pasted, so a paste goes and
+    /// moved pixels return to where they were. Those steps can't be redone, as for a shape. False when nothing floats or
+    /// no step put it there; then it's placed as before.
+    @discardableResult
+    public static func cancelFloating(canvas: Canvas, history: History) -> Bool {
+        guard let id = canvas.selection.floating?.id, history.undoStepLeaves(floating: id) else { return false }
+        while canvas.selection.floating?.id == id, history.undoStepLeaves(floating: id) {
+            guard history.undo(on: canvas) != nil else { break }
+        }
+        history.forgetRedo()
+        return true
+    }
+
     /// Starts moving the selection. A marquee's pixels are lifted off the active layer, leaving the vacated
     /// fill behind unless `duplicate` is set. A duplicate of a floating selection leaves a copy where it was.
     /// Finish with `history.commit(_:)`.

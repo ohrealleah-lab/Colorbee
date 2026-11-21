@@ -15,6 +15,8 @@ struct TextLayerTests {
         let canvas = Canvas(size: IntSize(width: 80, height: 40), colorSpace: Canvas.defaultColorSpace, background: .white)
         let history = History(byteBudget: .max)
         LayerActions.addText(text ?? spec(), canvas: canvas, history: history, context: context)
+        // Placing text keeps the paper active (stage 34b); these tests work on the text layer.
+        canvas.activeLayerIndex = 1
         return (canvas, history)
     }
 

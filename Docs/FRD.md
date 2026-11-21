@@ -181,6 +181,10 @@ These let you build several separate regions for batch redaction (FR-9.4).
 - **Nudge:** arrow keys move a floating selection by 1px, Shift+arrow by 10px.
 - **Resize the selection's bounds:** Cmd+arrow grows or shrinks the marquee by 1px, Cmd+Shift+arrow by 10px. The pixels inside are not changed.
 - **Commit:** clicking outside the selection, pressing Return or switching tools places the floating pixels. Clicking without dragging never moves any pixels.
+- **Esc on floating pixels** (stage 34b) takes back everything since they were lifted or pasted: a paste (⌘V, a
+  dropped image or a Clipboard History click) disappears, and lifted pixels go back where they were, with the
+  marquee they came from, after any drags, nudges, handle resizes, rotations and smear trails. It can't be redone, as
+  for a shape. Esc on a plain marquee deselects.
 - **Crop to Selection:** Cmd+Shift+X.
 - **Delete:** Delete/Backspace fills the selection with Color 2, or makes it transparent.
 
@@ -320,7 +324,8 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - **Editable off** (the default): the text turns into pixels on the active layer and can't be edited again (true to
   classic Paint).
 - **Editable on** (a switch in the Text options, remembered): the text becomes a **text layer** of its own, just above
-  the active layer. Double-click it with the Text tool, or double-click its thumbnail, to change the words, font,
+  the active layer. The layer you were on stays active, so the next stroke, shape or paste goes on it, under the words
+  (stage 34b); double-clicking the text to change it makes its layer active. Double-click it with the Text tool, or double-click its thumbnail, to change the words, font,
   size, colors or box. A text layer makes the picture a project (.colorproj); exporting draws it into the image.
 - Painting and effects on a text layer are refused with "Rasterize Text first" (Layer ▸ Rasterize Text). Redaction
   turns it into pixels on its own, so the words never survive under a redaction. Merge and Flatten turn it into
@@ -364,6 +369,11 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - Drag to reorder. Double-click to rename.
 - Eye icon to show or hide each layer. **Hide/Show Layer** is also a menu command for the active layer.
 - **Lock:** a padlock on each layer. A locked layer can't be painted, erased, filled, moved, filtered, merged into or deleted. It can still be hidden, shown or reordered. Tools show a "not allowed" pointer over a locked layer.
+- **Hidden** (stage 34b): a layer whose eye is off, or that's inside a hidden group, refuses pixel changes as a locked
+  one does, since they couldn't be seen: the "not allowed" pointer, "This layer is hidden. Show it to change it.", and
+  pixel commands greyed out. Whole-image commands (crop, resize, rotate, flip) and redaction (the Redact Brush, Batch
+  Redact, Auto-Redact) still work on it, and Editable text still goes on a layer of its own. A layer faded to 0% isn't
+  hidden.
 - **Lock Transparent Pixels** (stage 23): the padlock is a small menu, Lock All and Lock Transparent Pixels (also in the Layer menu), and the row shows which is on. With transparent pixels locked, every tool, effect and adjustment can recolor the layer's pixels, but its clear area stays exactly as it was and every pixel keeps its opacity, so a cutout or shape keeps its outline; this holds while a stroke is drawn, not only when it ends. The Eraser, Cut and Delete paint Color 2 inside the shape rather than make holes. Flip, Rotate, Crop, Resize and Straighten work as usual, moving the outline with the picture. It's saved in projects (older versions open the layer unlocked); a one-layer PNG doesn't keep it. Not for adjustment layers.
 - Opacity slider from 0 to 100%.
 - **Blend modes (17),** grouped in the menu like this:
@@ -449,6 +459,7 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 
 ### FR-9.4 Batch redaction
 - Build a selection from several separate regions (FR-3.2), then apply Blur, Pixelate or Solid Fill to all of them in one go.
+- All three need a selection; with nothing selected they're greyed out (stage 34b).
 - Each region is redacted on its own. Blur doesn't bleed between regions.
 - One undo step.
 

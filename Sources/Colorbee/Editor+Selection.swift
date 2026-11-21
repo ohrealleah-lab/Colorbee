@@ -232,6 +232,39 @@ extension Editor {
         performSelectionCommand { SelectionActions.deselect(canvas: canvas, history: history, context: selectionContext) }
     }
 
+    /// Esc on the canvas with no effect's bar open: stops a search or fill, discards an open shape or badge, takes
+    /// floating pixels back, or deselects.
+    func pressEscape() {
+        if isFindingObject {
+            cancelObjectSearch()
+        } else if fillProgress != nil {
+            cancelFill()
+        } else if pendingShape != nil {
+            cancelPendingShape()
+        } else if pendingBadge != nil {
+            cancelPendingBadge()
+        } else if !cancelFloating() {
+            deselect()
+        }
+    }
+
+    /// Esc on floating pixels (stage 34b): every step since they were lifted or pasted is taken back, with nothing to
+    /// redo. False when nothing floats, a drag is under way, or no step put the pixels there; Esc then deselects.
+    @discardableResult
+    func cancelFloating() -> Bool {
+        guard selectionDrag == nil, canvas.selection.floating != nil else { return false }
+        let steps = history.undoCount
+        guard SelectionActions.cancelFloating(canvas: canvas, history: history) else { return false }
+        // Counted as undos, so a saved picture that's back to how it was saved isn't marked as changed.
+        stopFillForChange()
+        undone = []
+        for _ in history.undoCount..<steps { onDocumentChange(.undone) }
+        layersRevision += 1
+        selectionDidChange()
+        onRender()
+        return true
+    }
+
     // MARK: Edit ▸ Feather… and Modify Selection (FR-3.4, FR-9.7 item 3)
 
     /// A Match Tone being worked out: `plan` is set before `done` is signalled.

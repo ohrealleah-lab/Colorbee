@@ -33,6 +33,11 @@ extension Canvas {
         layer.isVisible && layer.opacity > 0 && ancestors(of: layer).allSatisfy { $0.isVisible && $0.opacity > 0 }
     }
 
+    /// Whether `layer` has its eye off, or is in a group that does (stage 34b). A layer faded to 0% isn't hidden.
+    public func isHidden(_ layer: Layer) -> Bool {
+        !layer.isVisible || ancestors(of: layer).contains { !$0.isVisible }
+    }
+
     /// The layers that show, bottom to top, group rows included.
     public var shownLayers: [Layer] {
         layers.filter(isShown)

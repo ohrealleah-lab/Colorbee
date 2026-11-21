@@ -26,6 +26,8 @@ enum MonkeyStep: CustomStringConvertible {
     case select(from: Point2D, to: Point2D)
     case selectAll
     case deselect
+    /// Esc on the canvas: floating pixels go back to before they were lifted or pasted (stage 34b).
+    case escape
     case invertSelection
     case moveSelection(dx: Int, dy: Int)
     case nudge(dx: Int, dy: Int)
@@ -130,6 +132,7 @@ enum MonkeyStep: CustomStringConvertible {
         case let .select(from, to): return "Rectangle Select from \(from.words) to \(to.words)"
         case .selectAll: return "Select All"
         case .deselect: return "Deselect"
+        case .escape: return "Press Esc"
         case .invertSelection: return "Invert Selection"
         case let .moveSelection(dx, dy): return "Drag the selection by (\(dx), \(dy))"
         case let .nudge(dx, dy): return "Nudge the selection by (\(dx), \(dy)) with the arrow keys"
@@ -265,6 +268,7 @@ enum MonkeyStep: CustomStringConvertible {
             editor.selectionDrag(from: from, to: to)
         case .selectAll: editor.selectAll()
         case .deselect: editor.deselect()
+        case .escape: editor.pressEscape()
         case .invertSelection: editor.invertSelection()
         case let .moveSelection(dx, dy):
             guard let bounds = editor.canvas.selection.bounds else { return }

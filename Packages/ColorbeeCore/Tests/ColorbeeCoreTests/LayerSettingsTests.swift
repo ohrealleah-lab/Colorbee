@@ -43,6 +43,7 @@ struct LayerSettingsTests {
         let history = History(byteBudget: .max)
         LayerActions.addText(TextSpec(text: "Words", origin: Point2D(x: 4, y: 4), fontFamily: "Helvetica Neue", fontSize: 16, color: .black),
                              canvas: canvas, history: history, context: context)
+        canvas.activeLayerIndex = 1
         let text = canvas.activeLayer
         LayerActions.addAdjustment(.photo(PhotoEdit(adjustments: PhotoAdjustments([.exposure: 20]))), named: "Brighter",
                                    canvas: canvas, history: history, context: context)

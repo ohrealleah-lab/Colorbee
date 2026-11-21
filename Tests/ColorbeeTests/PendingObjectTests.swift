@@ -34,9 +34,10 @@ struct PendingObjectTests {
         return editor
     }
 
-    /// The open box becomes a text layer, so the command is refused as it would be on one, and the words stay words.
+    /// The open box becomes a text layer above, and the command goes on the layer you were on (stage 34b); the words
+    /// stay words.
     @Test(arguments: [false, true])
-    func aPixelCommandWithNewTextOpenIsRefusedOnceItsPlaced(pastes: Bool) {
+    func aPixelCommandWithNewTextOpenPlacesItThenGoesOnTheLayerBelow(pastes: Bool) {
         let editor = makeEditor()
         editor.textIsEditable = true
         editor.selectTool(.text)
@@ -50,9 +51,9 @@ struct PendingObjectTests {
         }
 
         #expect(editor.pendingText == nil)
-        #expect(editor.canvas.activeLayer.text?.spec.text == "Hi")
-        #expect(editor.canvas.selection.floating == nil)
-        #expect(editor.history.undoCount == 1)
+        #expect(editor.canvas.layers[1].text?.spec.text == "Hi" && editor.activeLayerIndex == 0)
+        #expect((editor.canvas.selection.floating != nil) == pastes)
+        #expect(editor.history.undoCount == 2)
     }
 
     @Test func aShapeIsNotAStepUntilPlaced() {

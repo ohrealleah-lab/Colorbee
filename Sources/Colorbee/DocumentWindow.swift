@@ -133,8 +133,8 @@ final class DocumentWindow: NSWindow {
 
     @objc func cut(_ sender: Any?) {
         guard let editor, editor.hasSelection else { return }
-        // A locked layer refuses the cut before anything is copied, so the clipboard isn't changed either.
-        guard editor.activeLayerTakesEdits else { return editor.onRefused() }
+        // A locked or hidden layer refuses the cut before anything is copied, so the clipboard isn't changed either.
+        guard !editor.refusedBecauseLocked() else { return }
         copy(sender)
         editor.deleteSelection(named: "Cut")
     }
@@ -439,8 +439,8 @@ final class DocumentWindow: NSWindow {
         if firstResponder is CanvasTextView {
             return Self.viewingCommands.contains(menuItem.action)
         }
-        // Commands that change the active layer's pixels are greyed out on a locked or adjustment layer, rather
-        // than beeping when chosen (Leah, §23). Whole-image commands work on every layer, so they stay.
+        // Commands that change the active layer's pixels are greyed out on a locked, hidden or adjustment layer,
+        // rather than beeping when chosen (Leah, §23; stage 34b). Whole-image commands work on every layer, so they stay.
         if !editor.activeLayerTakesEdits, let action = menuItem.action {
             if Self.pixelCommands.contains(action) { return false }
             if editor.hasSelection, [#selector(applyOrientation(_:)), #selector(showResizeSkew(_:))].contains(action) { return false }
@@ -489,7 +489,7 @@ final class DocumentWindow: NSWindow {
         case #selector(paste(_:)), #selector(pasteInPlace(_:)):
             return PasteboardImages.hasImage()
         case #selector(cut(_:)), #selector(delete(_:)), #selector(deselect(_:)), #selector(cropToSelection(_:)),
-             #selector(applySolidFill(_:)):
+             #selector(applySolidFill(_:)), #selector(batchRedactBlur(_:)), #selector(batchRedactPixelate(_:)):
             return editor.hasSelection
         case #selector(selectAll(_:)), #selector(invertSelection(_:)),
              #selector(showGaussianBlur(_:)), #selector(showPixelate(_:)), #selector(showAutoRedact(_:)),

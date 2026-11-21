@@ -595,18 +595,30 @@ extension Editor {
     }
 
     /// Whether pixel-changing commands work on the active layer (see `refusedBecauseLocked`).
-    /// Its pixels can change: it isn't locked, and it has pixels, or its mask is chosen (stage 27).
+    /// Its pixels can change: it isn't locked or hidden, and it has pixels, or its mask is chosen (stage 27).
     /// A text layer takes none until it's rasterized (Q29.2).
     var activeLayerTakesEdits: Bool {
-        !canvas.isLocked(canvas.activeLayer) && canvas.paintLayer.isPixelLayer && canvas.paintLayer.text == nil
+        !canvas.isLocked(canvas.activeLayer) && !canvas.isHidden(canvas.activeLayer) && canvas.paintLayer.isPixelLayer
+            && canvas.paintLayer.text == nil
+    }
+
+    /// Whether the active layer, or a group it's in, has its eye off, so it takes no pixel changes (stage 34b).
+    var activeLayerIsHidden: Bool {
+        _ = layersRevision
+        return canvas.isHidden(canvas.activeLayer)
     }
 
     /// Pixel-changing commands call this first. A locked layer refuses them (FR-8.2), and so does an
-    /// adjustment layer, which has no pixels to change, and a text layer, which says how to paint on it (Q29.2).
+    /// adjustment layer, which has no pixels to change, a text layer, which says how to paint on it (Q29.2), and a
+    /// hidden layer, which says to show it, since a change there couldn't be seen (stage 34b).
     /// Redaction never asks: it turns a text layer into pixels itself (`Edit.willModify`).
     func refusedBecauseLocked() -> Bool {
-        // New editable text becomes the active layer when it's placed, so that's the layer to ask about.
+        // New editable text is placed first, so what's asked about is the layer as it'll be.
         if textIsEditable, let text = pendingText, text.layerID == nil { commitPendingText() }
+        if canvas.isHidden(canvas.activeLayer), !canvas.isLocked(canvas.activeLayer) {
+            showNotice("This layer is hidden. Show it to change it.")
+            return true
+        }
         if canvas.paintLayer.text != nil, !canvas.isLocked(canvas.activeLayer) {
             showNotice("This is a text layer. To paint on it, choose Layer ▸ Rasterize Text first.")
             return true

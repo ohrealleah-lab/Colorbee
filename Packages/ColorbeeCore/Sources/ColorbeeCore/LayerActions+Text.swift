@@ -9,7 +9,10 @@ extension LayerActions {
             let layer = Layer(name: text.name, buffer: text.drawn(size: canvas.size, colorSpace: canvas.colorSpace))
             layer.text = text
             layer.nameFromWords = true
+            // The layer you were on stays active, so painting next goes on it, not the words (stage 34b).
+            let active = canvas.activeLayer
             canvas.insertLayerAboveActive(layer)
+            canvas.activeLayerIndex = canvas.layers.firstIndex { $0 === active } ?? canvas.activeLayerIndex
             return true
         }
     }

@@ -280,7 +280,7 @@ enum MainMenu {
         menu.addItem(item("Select Subject", "selectSubject:"))
         menu.addItem(item("Color Range…", "showColorRange:"))
         menu.addItem(item("Luminance Range…", "showLuminanceRange:"))
-        menu.addItem(item("Graduated Selection", "showGraduatedSelection:"))
+        menu.addItem(item("Graduated Selection…", "showGraduatedSelection:"))
         return menu
     }
 

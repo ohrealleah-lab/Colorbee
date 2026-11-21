@@ -548,8 +548,13 @@ final class CanvasView: NSView {
             }
         }
         if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
-        // Over a locked layer, tools that would change it show they can't (FR-8.2).
+        // Over a locked layer, tools that would change it show they can't (FR-8.2). A hidden one too, except the Redact
+        // brush and Editable text, which still work there (stage 34b).
         if editor.activeLayerIsLocked, editor.tool.changesPixels || (editor.tool.isSelectionTool && point.map(editor.selectionContains) == true) {
+            return .operationNotAllowed
+        }
+        if editor.activeLayerIsHidden, editor.tool.changesPixels && editor.tool != .redactBrush && !(editor.tool == .text && editor.textIsEditable)
+            || (editor.tool.isSelectionTool && point.map(editor.selectionContains) == true) {
             return .operationNotAllowed
         }
         if editor.tool == .text {
@@ -938,7 +943,7 @@ final class CanvasView: NSView {
         if editor.activeEffect != nil {
             switch (event.specialKey, event.charactersIgnoringModifiers) {
             case (.carriageReturn?, _), (.enter?, _): editor.applyEffect()
-            case (_, "\u{1b}"?): editor.cancelEffect()
+            case (_, "\u{1b}"?): editor.escapeEffect()
             case (_, " "?): spaceHeld = true
             case (_, "o"?) where plain && editor.activeEffect == .crop: editor.nextCropOverlay()
             default: super.keyDown(with: event)
@@ -988,17 +993,7 @@ final class CanvasView: NSView {
         default:
             switch (event.charactersIgnoringModifiers, plain) {
             case ("\u{1b}", true):
-                if editor.isFindingObject {
-                    editor.cancelObjectSearch()
-                } else if editor.fillProgress != nil {
-                    editor.cancelFill()
-                } else if editor.pendingShape != nil {
-                    editor.cancelPendingShape()
-                } else if editor.pendingBadge != nil {
-                    editor.cancelPendingBadge()
-                } else {
-                    editor.deselect()
-                }
+                editor.pressEscape()
             case (" ", true):
                 spaceHeld = true
                 if drag == nil { NSCursor.openHand.set() }

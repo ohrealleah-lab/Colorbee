@@ -103,6 +103,7 @@ enum MonkeyGenerator {
         case 106: return .batchRedact(blur: random.chance(0.5), apply: random.chance(0.6), cancels: random.chance(0.3))
         case 107: return .autoRedact(cancels: random.chance(0.3))
         case 108: return .saveAndReopen
+        case 111: return .escape
         case 112: return .saveInBackground
         case 113: return random.chance(0.3) ? .forgetHistory : .saveInBackground
         case 114..<118:

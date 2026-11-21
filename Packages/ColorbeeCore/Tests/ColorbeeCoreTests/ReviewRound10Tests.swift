@@ -101,7 +101,7 @@ struct ReviewRound10Tests {
         var spec = TextSpec(text: "Hi", origin: Point2D(x: 1, y: 1), fontFamily: "Helvetica Neue", fontSize: 10, color: blue)
         spec.bold = true
         LayerActions.addText(spec, canvas: canvas, history: history, context: context)
-        let text = canvas.activeLayer
+        let text = canvas.layers[canvas.activeLayerIndex + 1]
         LayerAlign.move([text.id: IntPoint(x: 6, y: 2)], named: "Align", canvas: canvas, history: history, context: context)
         let moved = try #require(text.text)
         #expect(moved.spec.origin == Point2D(x: 7, y: 3))
@@ -136,6 +136,7 @@ struct ReviewRound10Tests {
         let history = History(byteBudget: .max)
         LayerActions.addText(TextSpec(text: words, origin: Point2D(x: 4, y: 4), fontFamily: "Helvetica Neue", fontSize: 14, color: .black),
                              canvas: canvas, history: history, context: context)
+        canvas.activeLayerIndex = 1
         return (canvas, history)
     }
 

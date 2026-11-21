@@ -384,7 +384,12 @@ public final class History {
 
     /// Whether the most recent step left this floating selection on the canvas.
     public func lastStepLeftFloating(_ id: UUID) -> Bool {
-        redoStack.isEmpty && undoStack.last?.selectionAfter.floating?.id == id
+        redoStack.isEmpty && undoStepLeaves(floating: id)
+    }
+
+    /// Whether the step Undo would take back left this floating selection on the canvas, with or without steps to redo.
+    public func undoStepLeaves(floating id: UUID) -> Bool {
+        undoStack.last?.selectionAfter.floating?.id == id
     }
 
     /// Records `edit` if it changed pixels (or, when it asks to, the selection).

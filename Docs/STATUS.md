@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-10 · 864 core tests and 364 app tests passing (Straighten no longer crashes on a picture with a layer mask; the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-21 · 878 core tests and 383 app tests passing (stage 34 passed Leah's hand test 2026-11-21, code review round 13 planned ([Review/PLAN-14.md](Review/PLAN-14.md)); stage 34c: a picture goes back to its file once it's one plain layer again, and new windows start with the tool settings last used; stage 34b: Esc on floating pixels goes back to before the lift or paste, placed text keeps your layer active, hidden layers refuse pixel changes, Batch Redact needs a selection, a 5-minute monkey run with Esc broke no rule; stage 34a: Adjust Photo's own undo, and Esc asks before discarding; usability review planned as stage 34; Straighten no longer crashes on a picture with a layer mask; the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing is waiting right now.
+Nothing waiting right now.
 
 ---
 
@@ -94,6 +94,7 @@ Nothing is waiting right now.
 | 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done, fixed, and passed Leah's test 2026-10-31 ([Review/RESULTS.md](Review/RESULTS.md)); the stricter monkey's new reports are being sorted | High |
 | 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tiers 1, 2 and 4 done 2026-11-01 (the rest of tier 4 left as not worth the churn; R5, AB 5 and AD 8 with Leah / tier 3). The monkey after tier 1 found 5 older bugs, fixed; 5 minutes after tier 2 found none ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
 | 14 · 33c. Review round 12: refactors checked, subjects, redaction safety (Leah, 2026-11-02) | Sessions AF, AG, AH done ([Review/PLAN-13.md](Review/PLAN-13.md)). Fixed and passed Leah's tests 2026-11-02: AF's three, and tier 1 (AH 1, AG 1, AG 2), plus AH 3 and AH 8. AH 2 fixed 2026-11-07: the monkey keeps an undo line per page, so episodes with pages check undo and redo exactly again (a self-test proves it catches a wrong picture after another page was shown). AH 4, 5 and 7 fixed 2026-11-08: background saves now encode while the next steps edit; after a redaction every page it changed is checked for snapshots, Cancel is answered sometimes and must change nothing, and the monkey's words include an email and an IP address so Auto-Redact finds something; Forget History also checks page undo and Before/After's As Opened. A 5-minute monkey (615 pictures) broke no rule. The rest (AG 3 to 7, AH 6) set aside by Leah 2026-11-08 as not worth doing; seven `ImageDocument.swift` Release warnings left on purpose | High |
+| 14 · 34. Usability review fixes (Leah, 2026-11-20) | 34a built 2026-11-20 (Adjust Photo: ⌘Z and ⇧⌘Z inside the panel, `PhotoPanelSteps`; Esc asks before discarding). 34b built 2026-11-20 (`SelectionActions.cancelFloating`, `Canvas.isHidden`, `Editor.pressEscape`; the monkey presses Esc). 34c built 2026-11-20 (`OriginalFile`, `ImageDocument.followLayers`, `ToolSettings` and `ToolSettingsStore`). All three passed Leah's hand test together on 2026-11-21; code review round 13 next ([Review/PLAN-14.md](Review/PLAN-14.md)) ([Development-Plan.md](Development-Plan.md), stage 34) | High (34c medium) |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -427,6 +428,57 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 34: Usability review fixes
+
+_2026-11-20: passed Leah's hand test on 2026-11-21._
+
+**34a. Adjust Photo** (`TestImages/Stage 9 Practice Photo.png`)
+1. Open `Stage 9 Practice Photo.png`.
+2. Adjustments ▸ Adjust Photo…
+3. Press Esc. Expected: the panel closes with no question.
+4. Adjustments ▸ Adjust Photo…
+5. Drag Exposure right and let go.
+6. Drag Contrast right and let go.
+7. Open the Edit menu. Expected: "Undo Contrast".
+8. Press ⌘Z. Expected: Contrast goes back to 0; Exposure stays.
+9. Press ⌘Z. Expected: Exposure goes back to 0.
+10. Press ⇧⌘Z. Expected: Exposure comes back.
+11. Press Esc. Expected: "Discard your Adjust Photo changes?"
+12. Click Keep Editing. Expected: Exposure is still there.
+13. Click Apply. Expected: one "Adjust Photo" step in History.
+14. Adjustments ▸ Adjust Photo…, click Auto, then click Cancel. Expected: it closes with no question.
+
+**34b. Selections and layers** (`TestImages/Auto-Redact Practice.png`)
+1. Open `Auto-Redact Practice.png`.
+2. Press ⌘A, ⌘C, then ⌘V. Expected: a pasted copy with handles.
+3. Drag the pasted copy a little, then press Esc. Expected: the paste is gone; Edit ▸ Redo is greyed out.
+4. Press M and drag a box around one line of text.
+5. Drag inside the box to move the text, then press → once.
+6. Press Esc. Expected: the text is back where it was, still outlined.
+7. Press ⌘D.
+8. Press T, turn on Editable in the palette bar, click the picture, type "hi", press Esc. Expected: a "hi" layer above
+   the picture; the picture's layer stays highlighted.
+9. Press B and paint across "hi". Expected: the stroke goes under the words, on the picture.
+10. Click the picture layer's eye to hide it, then paint. Expected: "not allowed" pointer, "This layer is hidden.
+    Show it to change it.", nothing painted.
+11. Open the Effects menu. Expected: Gaussian Blur… is greyed out.
+12. Click the eye again to show the layer.
+13. Open the Redact menu with nothing selected. Expected: Blur…, Pixelate… and Solid Fill with Color 1 are greyed out.
+14. Open the Edit menu. Expected: "Graduated Selection…" ends in "…".
+
+**34c. Files and windows** (a copy of `TestImages/Trim Practice.png`, so the test picture isn't changed)
+1. In Finder, select `Trim Practice.png`, choose File ▸ Duplicate, and open the copy in Colorbee.
+2. Layer ▸ New Layer, then press ⌘Z.
+3. Press B and paint a short line.
+4. Press ⌘S. Expected: no Save panel; the copy's date in Finder changes.
+5. Click the red swatch for Color 1.
+6. Press E and choose 20 in Size.
+7. Press T and type 36 in the text size box.
+8. File ▸ New. Expected: Color 1 is red, the tool is Rectangle Select.
+9. Press E. Expected: Size 20.
+10. Press T. Expected: text size 36.
+11. Quit Colorbee (⌘Q), open it again, then File ▸ New. Expected: still red, 20 and 36.
 
 ### Test: Straighten a picture with a layer mask (passed 2026-11-10)
 

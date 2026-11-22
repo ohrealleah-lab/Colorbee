@@ -447,7 +447,7 @@ _2026-11-21: nine old Swift warnings in `ImageDocument.swift` (since 2026-10-04 
 4. File ▸ Open `TestImages/Animated Three Colors.gif`.
    Expected: three pages (red, green, blue), as an untitled copy.
 5. In the PNG's window, File ▸ Save As…, save to the Desktop as "Warning Test".
-   Expected: the title changes to "Warning Test", and Window ▸ Info shows the new name.
+   Expected: the title changes to "Warning Test", and View ▸ Info (⌥⌘I) shows the new name.
 
 ### Test: Stage 36: Make Colorbee the default for
 

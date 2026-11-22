@@ -61,8 +61,11 @@ extension Editor {
 
     /// More than one layer, an adjustment layer, or more than one page: something only a project file can keep.
     var isLayered: Bool {
-        // A mask too: a picture saved as a PNG would lose it (stage 27).
-        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains { !$0.isPixelLayer || $0.mask != nil || $0.text != nil }
+        // A mask too: a picture saved as a PNG would lose it (stage 27). And a faded, hidden or blended layer: an image
+        // file would bake that in for good, or be left blank (review AI, finding 2; Leah, 2026-11-21).
+        pages.pages.count > 1 || canvas.layers.count > 1 || canvas.layers.contains {
+            !$0.isPixelLayer || $0.mask != nil || $0.text != nil || $0.opacity < 1 || !$0.isVisible || $0.blendMode != .normal
+        }
     }
 
     /// An effect's live preview is drawn into the layer before it's applied; an autosave in the

@@ -43,7 +43,8 @@ struct ToolSettings: Equatable {
 }
 
 // Kept as JSON by name, so a setting added later, or a case renamed, falls back to its default rather than losing the
-// rest.
+// rest. Every number is kept within what its control allows, so a damaged or hand-edited file can't start a window
+// with a size that crashes or freezes it (review AI, finding 6).
 extension ToolSettings: Codable {
     private enum Key: String, CodingKey {
         case color1, color2, brush, usesPressure, brushDiameter, eraserSize, colorEraserTolerance, colorEraserMode
@@ -54,11 +55,18 @@ extension ToolSettings: Codable {
         case eyedropperSampleSize
     }
 
+    private enum TextKey: String, CodingKey {
+        case fontFamily, fontSize, bold, italic, underline, strikethrough, alignment, opaqueBackground
+    }
+
     init(from decoder: any Decoder) throws {
         self.init()
         let container = try decoder.container(keyedBy: Key.self)
         func value<T: Decodable>(_ key: Key, _ fallback: T) -> T {
             (try? container.decodeIfPresent(T.self, forKey: key)) ?? fallback
+        }
+        func number(_ key: Key, _ fallback: Double, in range: ClosedRange<Double>) -> Double {
+            Self.kept(value(key, fallback), in: range, or: fallback)
         }
         func named<T: CaseIterable>(_ key: Key, _ fallback: T) -> T {
             let name = value(key, "")
@@ -76,38 +84,74 @@ extension ToolSettings: Codable {
         color2 = color(.color2, color2)
         brush = named(.brush, brush)
         usesPressure = value(.usesPressure, usesPressure)
-        brushDiameter = value(.brushDiameter, brushDiameter)
-        eraserSize = value(.eraserSize, eraserSize)
-        colorEraserTolerance = value(.colorEraserTolerance, colorEraserTolerance)
+        brushDiameter = number(.brushDiameter, brushDiameter, in: Self.range(for: .brush))
+        let eraser = value(.eraserSize, eraserSize)
+        eraserSize = Editor.sizeRange(for: .eraser).contains(eraser) ? eraser : eraserSize
+        colorEraserTolerance = number(.colorEraserTolerance, colorEraserTolerance, in: 0...1)
         colorEraserMode = value(.colorEraserMode, colorEraserMode)
-        fillTolerance = value(.fillTolerance, fillTolerance)
+        fillTolerance = number(.fillTolerance, fillTolerance, in: 0...1)
         fillSamplesAllLayers = value(.fillSamplesAllLayers, fillSamplesAllLayers)
-        wandTolerance = value(.wandTolerance, wandTolerance)
+        wandTolerance = number(.wandTolerance, wandTolerance, in: 0...1)
         wandContiguous = value(.wandContiguous, wandContiguous)
         wandMode = named(.wandMode, wandMode)
         wandSamplesAllLayers = value(.wandSamplesAllLayers, wandSamplesAllLayers)
         transparentSelection = value(.transparentSelection, transparentSelection)
         smoothResize = value(.smoothResize, smoothResize)
         shapeKind = named(.shapeKind, shapeKind)
-        shapeLineWidth = value(.shapeLineWidth, shapeLineWidth)
+        shapeLineWidth = number(.shapeLineWidth, shapeLineWidth, in: Self.range(for: .shape))
         shapeOutline = style(.shapeOutline, shapeOutline)
         shapeFill = style(.shapeFill, shapeFill)
-        textStyle = value(.textStyle, textStyle)
+        if let text = try? container.nestedContainer(keyedBy: TextKey.self, forKey: .textStyle) {
+            textStyle = Self.textStyle(from: text, fallback: textStyle)
+        }
         badgeStyle = value(.badgeStyle, badgeStyle)
-        badgeDiameter = value(.badgeDiameter, badgeDiameter)
+        badgeDiameter = number(.badgeDiameter, badgeDiameter, in: Self.range(for: .stepBadge))
         gradientMode = named(.gradientMode, gradientMode)
         redactTreatment = named(.redactTreatment, redactTreatment)
-        redactBrushSize = value(.redactBrushSize, redactBrushSize)
+        redactBrushSize = number(.redactBrushSize, redactBrushSize, in: Self.range(for: .redactBrush))
         retouchKind = named(.retouchKind, retouchKind)
         let sizes = value(.retouchSizes, [String: Double]())
-        retouchSizes = Dictionary(uniqueKeysWithValues: RetouchKind.allCases.compactMap { kind in sizes["\(kind)"].map { (kind, $0) } })
+        let retouchRange = Self.range(for: .retouch)
+        retouchSizes = Dictionary(uniqueKeysWithValues: RetouchKind.allCases.compactMap { kind in
+            sizes["\(kind)"].flatMap { retouchRange.contains($0) ? (kind, $0) : nil }
+        })
         retouchSamplesAllLayers = value(.retouchSamplesAllLayers, retouchSamplesAllLayers)
-        retouchStrength = value(.retouchStrength, retouchStrength)
-        retouchHardness = value(.retouchHardness, retouchHardness)
+        retouchStrength = number(.retouchStrength, retouchStrength, in: 0.01...1)
+        retouchHardness = number(.retouchHardness, retouchHardness, in: 0...1)
         toneRange = named(.toneRange, toneRange)
         cloneAligned = value(.cloneAligned, cloneAligned)
         cloneMatchesTone = value(.cloneMatchesTone, cloneMatchesTone)
-        eyedropperSampleSize = value(.eyedropperSampleSize, eyedropperSampleSize)
+        let sample = value(.eyedropperSampleSize, eyedropperSampleSize)
+        eyedropperSampleSize = [1, 3, 5].contains(sample) ? sample : eyedropperSampleSize
+    }
+
+    /// A tool's size range from the Size control, as a Double.
+    private static func range(for tool: Tool) -> ClosedRange<Double> {
+        let range = Editor.sizeRange(for: tool)
+        return Double(range.lowerBound)...Double(range.upperBound)
+    }
+
+    /// A number outside what its control allows is clamped to it; one that isn't a number keeps the default.
+    private static func kept(_ number: Double, in range: ClosedRange<Double>, or fallback: Double) -> Double {
+        number.isFinite ? min(max(number, range.lowerBound), range.upperBound) : fallback
+    }
+
+    /// Field by field, so a text option added later keeps the rest of the style (review AI, finding 10).
+    private static func textStyle(from text: KeyedDecodingContainer<TextKey>, fallback: TextStyle) -> TextStyle {
+        func value<T: Decodable>(_ key: TextKey, _ fallback: T) -> T {
+            (try? text.decodeIfPresent(T.self, forKey: key)) ?? fallback
+        }
+        var style = fallback
+        let family = value(.fontFamily, fallback.fontFamily)
+        style.fontFamily = family.trimmingCharacters(in: .whitespaces).isEmpty ? fallback.fontFamily : family
+        style.fontSize = kept(value(.fontSize, fallback.fontSize), in: 6...500, or: fallback.fontSize)
+        style.bold = value(.bold, fallback.bold)
+        style.italic = value(.italic, fallback.italic)
+        style.underline = value(.underline, fallback.underline)
+        style.strikethrough = value(.strikethrough, fallback.strikethrough)
+        style.alignment = value(.alignment, fallback.alignment)
+        style.opaqueBackground = value(.opaqueBackground, fallback.opaqueBackground)
+        return style
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -156,6 +200,10 @@ extension ToolSettings: Codable {
 final class ToolSettingsStore {
     static let shared = ToolSettingsStore(file: SettingsFolder.current?.appending(path: "Tool Settings.json"))
 
+    /// `make bench`, help screenshots and the menu dump keep the default settings, so their windows are the same on
+    /// every run (§23 stage 34c, choice 6; review AI, finding 9).
+    static var isEnabled: Bool { !Benchmark.isEnabled && HelpShots.scene == 0 && HelpDump.path == nil }
+
     /// Nil until a window changes a setting (and no file was kept), so new windows start from the defaults.
     private(set) var last: ToolSettings?
     private let file: URL?
@@ -189,8 +237,12 @@ final class ToolSettingsStore {
 
     func note(_ editor: Editor) {
         var settings = editor.toolSettings
-        // While a mask is chosen the colors are grays; the real colors are the ones carried (§23, stage 34 details).
-        if editor.canvas.editsMask {
+        // While a mask is chosen, and after it until a real color is picked, the colors are grays; the real colors are
+        // the ones carried (§23, stage 34 details; Leah, 2026-11-21).
+        if let real = editor.colorsBeforeMask {
+            settings.color1 = real.color1
+            settings.color2 = real.color2
+        } else if editor.editsMask {
             settings.color1 = last?.color1 ?? ToolSettings().color1
             settings.color2 = last?.color2 ?? ToolSettings().color2
         }

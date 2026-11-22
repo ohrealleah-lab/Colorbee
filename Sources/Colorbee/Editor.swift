@@ -94,18 +94,23 @@ final class Editor {
     var usesPressure = true
     // Colors show live in pending shapes and transparent selections.
     /// While a mask is chosen, colors are grays (Q28.3): a mask holds how much shows, not a color.
+    /// `editsMask`, not `canvas.editsMask`: Undo of Add Mask leaves the canvas's flag set with no mask, and colors
+    /// picked then mustn't turn gray (review AI, finding 7). A color picked off the mask is a real one again.
     var color1: Pixel = .black {
         didSet {
-            if canvas.editsMask, color1 != color1.maskGray { color1 = color1.maskGray }
+            if editsMask { if color1 != color1.maskGray { color1 = color1.maskGray } } else { colorsBeforeMask = nil }
             renderSoon()
         }
     }
     var color2: Pixel = .white {
         didSet {
-            if canvas.editsMask, color2 != color2.maskGray { color2 = color2.maskGray }
+            if editsMask { if color2 != color2.maskGray { color2 = color2.maskGray } } else { colorsBeforeMask = nil }
             renderSoon()
         }
     }
+    /// The colors from before a mask turned them gray, until a real color is picked again: what new windows get
+    /// (Leah, 2026-11-21; review AI, finding 7).
+    @ObservationIgnored var colorsBeforeMask: (color1: Pixel, color2: Pixel)?
     var brushDiameter: Double = 5
     /// The eraser's square outline follows the pointer, so it redraws when the size changes.
     var eraserSize = 8 {

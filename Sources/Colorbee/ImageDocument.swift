@@ -100,9 +100,11 @@ final class ImageDocument: NSDocument {
             case .redone: self?.updateChangeCount(.changeRedone)
             }
             self?.followLayers()
+            // Keeps whether there's an unsaved redaction current for a relaunch.
+            self?.invalidateRestorableState()
         }
-        // New and restored windows start with the tool settings last used (stage 34c); the benchmark keeps its own.
-        if !Benchmark.isEnabled { ToolSettingsStore.shared.start(editor) }
+        // New and restored windows start with the tool settings last used (stage 34c).
+        if ToolSettingsStore.isEnabled { ToolSettingsStore.shared.start(editor) }
         if editor.canvas.layers.count > 1 { editor.isSidebarOpen = true }
         addWindowController(DocumentWindowController(editor: editor))
         noteFileSoon()
@@ -114,6 +116,8 @@ final class ImageDocument: NSDocument {
             fileType = editor.isLayered ? UTType.colorbeeProject.identifier : UTType.png.identifier
             updateChangeCount(.changeDone)
         }
+        // A window macOS brings back from an older autosave can be layered while pointing at an image file.
+        followLayers()
     }
 
     /// Puts a new window in place of the old ones (same frame and tab), for a new editor.
@@ -217,6 +221,9 @@ final class ImageDocument: NSDocument {
                 return self?.encodedSnapshot ?? snapshot
             } ?? nil
             self?.noteFileSoon()
+            // A save that finishes after the picture gained a layer has just pointed the document back at the image
+            // file; this makes it a project again before anything else is saved there (review AI, finding 4).
+            Task { @MainActor in self?.followLayers() }
             if error == nil, explicit, let written {
                 Task { @MainActor in
                     self?.editor?.markSaved(written)
@@ -294,9 +301,13 @@ final class ImageDocument: NSDocument {
     func followLayers() {
         guard let editor, let fileType else { return }
         let isProject = UTType(fileType)?.conforms(to: .colorbeeProject) == true
-        if editor.isLayered, !isProject {
+        // A layered picture pointing at an image file, whatever its type says (a window macOS brought back with an
+        // older autosave, say), must never be written into that file (review AI, finding 1).
+        let fileIsImage = fileURL.map { UTType(filenameExtension: $0.pathExtension)?.conforms(to: .colorbeeProject) != true } ?? false
+        if editor.isLayered, !isProject || fileIsImage {
             if let fileURL {
-                originalFile = OriginalFile(url: fileURL, type: fileType, modified: fileModificationDate)
+                let type = isProject ? UTType(filenameExtension: fileURL.pathExtension)?.identifier ?? fileType : fileType
+                originalFile = OriginalFile(url: fileURL, type: type, modified: fileModificationDate)
                 projectName = fileURL.deletingPathExtension().lastPathComponent
                 sourceFolder = fileURL.deletingLastPathComponent()
                 self.fileURL = nil
@@ -304,9 +315,16 @@ final class ImageDocument: NSDocument {
             self.fileType = UTType.colorbeeProject.identifier
         } else if isProject, let original = originalFile,
                   original.canReturn(isLayered: editor.isLayered, savedAsProject: fileURL != nil,
-                                     exists: FileManager.default.fileExists(atPath: original.url.path)) {
+                                     exists: FileManager.default.fileExists(atPath: original.url.path),
+                                     openElsewhere: NSDocumentController.shared.document(for: original.url) != nil) {
             projectName = nil
             sourceFolder = nil
+            // The project's own autosave must go too, or a relaunch could bring it back under the file's name and the
+            // next autosave would write a project into the picture (review AI, finding 1).
+            if let autosaved = autosavedContentsFileURL {
+                try? FileManager.default.removeItem(at: autosaved)
+                autosavedContentsFileURL = nil
+            }
             self.fileURL = original.url
             self.fileType = original.type
             // macOS then asks as usual if another app changed the file meanwhile.
@@ -325,6 +343,9 @@ final class ImageDocument: NSDocument {
         coder.encode(originalFile?.url, forKey: "ColorbeeOriginalFile")
         coder.encode(originalFile?.type, forKey: "ColorbeeOriginalType")
         coder.encode(originalFile?.modified, forKey: "ColorbeeOriginalModified")
+        // A redaction not yet saved still warns about the file's earlier versions after a relaunch, once the project
+        // goes back to its file (review AI, finding 3).
+        coder.encode(editor?.redactedSinceSave == true, forKey: "ColorbeeRedactedSinceSave")
     }
 
     override func restoreState(with coder: NSCoder) {
@@ -334,6 +355,7 @@ final class ImageDocument: NSDocument {
            let type = coder.decodeObject(of: NSString.self, forKey: "ColorbeeOriginalType") as String? {
             originalFile = OriginalFile(url: url, type: type, modified: coder.decodeObject(of: NSDate.self, forKey: "ColorbeeOriginalModified") as Date?)
         }
+        if coder.decodeBool(forKey: "ColorbeeRedactedSinceSave") { editor?.redactedSinceSave = true }
         if let name = coder.decodeObject(of: NSString.self, forKey: "ColorbeeProjectName") as String? {
             projectName = name
             windowControllers.forEach { $0.synchronizeWindowTitleWithDocumentName() }

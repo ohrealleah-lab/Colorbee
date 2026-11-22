@@ -239,10 +239,10 @@ extension Editor {
         guard editsMask != canvas.editsMask else { return }
         finishInteractions()
         placeFloatingKeepingOutline()
+        let colors = (color1, color2)
         canvas.editsMask = editsMask
         if editsMask {
-            color1 = color1.maskGray
-            color2 = color2.maskGray
+            grayColorsForMask(from: colors)
         } else {
             showsMaskAlone = false
         }
@@ -253,9 +253,17 @@ extension Editor {
     /// Layer ▸ Layer Mask ▸ Add Mask: from the selection if there is one (Q28.6), otherwise showing everything.
     func addMask(hidingAll: Bool = false) {
         let start: MaskStart = hidingAll ? .hideAll : canvas.selection.marquee != nil ? .selection : .revealAll
+        let colors = (color1, color2)
         layerCommand(keepingChoice: true) { LayerActions.addMask(start, canvas: canvas, history: history, context: selectionContext) }
+        grayColorsForMask(from: colors)
+    }
+
+    /// While a mask is chosen, colors are grays (Q28.3); the real ones are remembered for new windows.
+    private func grayColorsForMask(from colors: (Pixel, Pixel)) {
+        let real = colorsBeforeMask ?? colors
         color1 = color1.maskGray
         color2 = color2.maskGray
+        colorsBeforeMask = real
     }
 
     func deleteMask() {

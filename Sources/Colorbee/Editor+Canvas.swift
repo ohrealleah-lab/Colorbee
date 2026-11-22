@@ -137,7 +137,7 @@ extension Editor {
     var toolSizeRange: ClosedRange<Int> { Self.sizeRange(for: tool) }
 
     /// The sizes `tool` allows; the Size control and the `[` and `]` keys both keep to them.
-    static func sizeRange(for tool: Tool) -> ClosedRange<Int> {
+    nonisolated static func sizeRange(for tool: Tool) -> ClosedRange<Int> {
         switch tool {
         case .eraser: 1...100
         case .stepBadge: 16...128

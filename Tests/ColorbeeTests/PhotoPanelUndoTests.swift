@@ -117,4 +117,35 @@ struct PhotoPanelUndoTests {
         editor.beginEffect(.adjustPhoto)
         #expect(editor.photoUndoName == nil && editor.photoRedoName == nil)
     }
+
+    // MARK: Review round 13 (AK)
+
+    /// Esc while still dragging with the hand keeps the drag as its own step (review AK, finding 1).
+    @Test func escDuringAHandDragKeepsItAsItsOwnStep() {
+        let editor = picture()
+        editor.beginEffect(.adjustPhoto)
+        editor.togglePicturePick(.toneCurve)
+        #expect(editor.beginPictureDrag(at: pt(4, 4), viewY: 300))
+        editor.continuePictureDrag(viewY: 260)
+        editor.cancelPicturePick()
+        editor.endPictureDrag()
+        #expect(editor.photoUndoName == "Tone Curve" && editor.photoSteps.settled == editor.photoPanelState)
+        drag(editor, .exposure, to: 20)
+        #expect(editor.photoUndoName == "Exposure")
+        editor.cancelEffect()
+    }
+
+    /// ⌘Z in the middle of a hand drag ends it, so what it takes back stays taken back (review AK, finding 3).
+    @Test func undoInTheMiddleOfAHandDragStaysUndone() {
+        let editor = picture()
+        editor.beginEffect(.adjustPhoto)
+        editor.togglePicturePick(.toneCurve)
+        #expect(editor.beginPictureDrag(at: pt(4, 4), viewY: 300))
+        editor.continuePictureDrag(viewY: 260)
+        editor.undoPhotoStep()
+        editor.continuePictureDrag(viewY: 200)
+        editor.endPictureDrag()
+        #expect(editor.photoEdit.withoutViews == PhotoEdit() && editor.photoRedoName == "Tone Curve")
+        editor.cancelEffect()
+    }
 }

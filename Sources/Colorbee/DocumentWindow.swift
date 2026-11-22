@@ -419,13 +419,16 @@ final class DocumentWindow: NSWindow {
         if let isOn = Self.isOn(menuItem, in: editor) { menuItem.state = isOn ? .on : .off }
         // Adjust Photo's sliders are in the sidebar, as for the toolbar's Sidebar button (review D, finding 5).
         if menuItem.action == #selector(toggleSidebar(_:)) { return editor.canToggleSidebar }
-        // While Adjust Photo is open, Undo and Redo step through its own changes (§23, 2026-11-20).
-        if editor.activeEffect == .adjustPhoto, menuItem.action == #selector(undo(_:)) || menuItem.action == #selector(redo(_:)) {
-            let undoing = menuItem.action == #selector(undo(_:))
+        // While Adjust Photo is open, Undo and Redo step through its own changes (§23, 2026-11-20). A focused text field
+        // comes first, as in `undo(_:)` (review AK, finding 6).
+        let undoing = menuItem.action == #selector(undo(_:)), redoing = menuItem.action == #selector(redo(_:))
+        if editor.activeEffect == .adjustPhoto, textUndoManager == nil, undoing || redoing {
             let name = undoing ? editor.photoUndoName : editor.photoRedoName
             menuItem.title = (undoing ? "Undo" : "Redo") + (name.map { " \($0)" } ?? "")
             return name != nil
         }
+        // Plain until set below, so a greyed item never keeps the name of a step that's gone (review AK, finding 4).
+        if undoing { menuItem.title = "Undo" } else if redoing { menuItem.title = "Redo" }
         // While an effect's bar, Auto-Redact, Resize and Skew, Canvas Properties or Feather is open, only viewing and window
         // commands work; Apply or Cancel comes first. Sheets don't stop menu commands reaching the window (review E,
         // finding 2; review J, findings 7 and 18).

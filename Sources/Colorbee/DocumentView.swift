@@ -400,6 +400,11 @@ private struct EffectBar: View {
     let kind: EffectKind
     @State private var curvesChannel = Curves.Channel.rgb
 
+    /// Esc, or ⌘., the Mac's other Cancel key.
+    private static func isEscape(_ event: NSEvent) -> Bool {
+        event.type == .keyDown && (event.keyCode == 53 || (event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "."))
+    }
+
     var body: some View {
         HStack(alignment: kind == .curves ? .top : .center, spacing: 14) {
             Text(kind.title).font(.headline).fixedSize()
@@ -503,9 +508,10 @@ private struct EffectBar: View {
                     .foregroundStyle(.secondary)
                     .fixedSize()
             }
-            // Esc arrives here as a key press, and Adjust Photo asks before it discards changes; a click just cancels.
+            // Esc (or ⌘.) arrives here as a key press, and Adjust Photo asks before it discards changes. A click, or Space
+            // on the focused button, just cancels (review AK, finding 5).
             Button("Cancel", role: .cancel) {
-                if NSApp.currentEvent?.type == .keyDown { editor.escapeEffect() } else { editor.cancelEffect() }
+                if NSApp.currentEvent.map(Self.isEscape) == true { editor.escapeEffect() } else { editor.cancelEffect() }
             }
                 .keyboardShortcut(.cancelAction)
             Button("Apply") { editor.applyEffect() }

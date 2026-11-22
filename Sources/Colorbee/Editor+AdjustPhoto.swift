@@ -34,9 +34,9 @@ extension Editor {
 
     func cancelPicturePick() {
         picturePick = nil
-        // A drag on an Adjust Photo layer has already changed it: Esc keeps that as its step (review V, finding 6).
-        if case .layer = pictureDrag?.target { finishLayerSettings() }
-        pictureDrag = nil
+        // A drag has already changed the Adjust Photo layer or panel: Esc keeps that as its step (review V, finding 6;
+        // review AK, finding 1).
+        endPictureDrag()
     }
 
     /// The Color Mixer's hand follows its tab: switching to Saturation, say, makes drags change saturation.
@@ -290,11 +290,15 @@ extension Editor {
     }
 
     func undoPhotoStep() {
+        // ⌘Z in the middle of a hand drag ends the drag, so the change it takes back stays taken back (review AK,
+        // finding 3).
+        endPictureDrag()
         guard activeEffect == .adjustPhoto, let state = photoSteps.undo(from: photoPanelState) else { return onRefused() }
         showPhotoState(state)
     }
 
     func redoPhotoStep() {
+        endPictureDrag()
         guard activeEffect == .adjustPhoto, photoPanelState == photoSteps.settled, let state = photoSteps.redo() else { return onRefused() }
         showPhotoState(state)
     }

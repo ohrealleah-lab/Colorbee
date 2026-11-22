@@ -40,12 +40,13 @@ extension Editor {
         onRender()
     }
 
-    /// The open text box's frame in image coordinates, for drawing its border.
+    /// The open text box's frame in image coordinates, for drawing its border. Curved text is typed straight in this
+    /// box and drawn bent from it (FR-6.4).
     var pendingTextFrame: IntRect? {
         guard let text = pendingText else { return nil }
         var spec = textSpec(for: text)
         if spec.text.isEmpty { spec.text = " " }
-        return TextRenderer.box(for: spec)
+        return TextRenderer.layoutBox(for: spec)
     }
 
     /// The text box's border, drawn a little outside the text so it doesn't touch the glyphs.

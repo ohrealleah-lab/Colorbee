@@ -62,7 +62,9 @@ final class CanvasTextView: NSTextView {
         }
         var attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.clear,
+            // The renderer draws the text; the view shows only the caret and selection. Curved text is drawn bent, so
+            // a faint straight copy shows where the caret is (stage 35).
+            .foregroundColor: spec.curve == 0 ? NSColor.clear : spec.color.nsColor(in: colorSpace).withAlphaComponent(0.3),
             .paragraphStyle: paragraph,
         ]
         if spec.underline { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }

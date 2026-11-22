@@ -75,6 +75,7 @@ struct FilesAndWindowsTests {
         settings.shapeFill = .solid
         settings.textStyle.fontSize = 36
         settings.textStyle.bold = true
+        settings.textStyle.curve = -40
         settings.redactTreatment = .pixelate
         settings.retouchKind = .cloneStamp
         settings.retouchSizes = [.cloneStamp: 70, .blur: 12]

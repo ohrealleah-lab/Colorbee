@@ -7,7 +7,7 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-21 · 878 core tests and 396 app tests passing (review round 13 fixed and passed Leah's hand test 2026-11-21: the original file is never written with a project, a faded or blank picture, Batch Redact refuses a piece off the picture, the tool settings file can't crash Colorbee, Esc mid hand drag is its own step ([Review/RESULTS.md](Review/RESULTS.md)); stage 34 passed Leah's hand test 2026-11-21; stage 34c: a picture goes back to its file once it's one plain layer again, and new windows start with the tool settings last used; stage 34b: Esc on floating pixels goes back to before the lift or paste, placed text keeps your layer active, hidden layers refuse pixel changes, Batch Redact needs a selection, a 5-minute monkey run with Esc broke no rule; stage 34a: Adjust Photo's own undo, and Esc asks before discarding; usability review planned as stage 34; Straighten no longer crashes on a picture with a layer mask; the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-21 · 887 core tests and 399 app tests passing (stage 35 passed Leah's hand test 2026-11-21: curved text, a Curve slider for one smooth arc; review round 13 fixed and passed Leah's hand test 2026-11-21: the original file is never written with a project, a faded or blank picture, Batch Redact refuses a piece off the picture, the tool settings file can't crash Colorbee, Esc mid hand drag is its own step ([Review/RESULTS.md](Review/RESULTS.md)); stage 34 passed Leah's hand test 2026-11-21; stage 34c: a picture goes back to its file once it's one plain layer again, and new windows start with the tool settings last used; stage 34b: Esc on floating pixels goes back to before the lift or paste, placed text keeps your layer active, hidden layers refuse pixel changes, Batch Redact needs a selection, a 5-minute monkey run with Esc broke no rule; stage 34a: Adjust Photo's own undo, and Esc asks before discarding; usability review planned as stage 34; Straighten no longer crashes on a picture with a layer mask; the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
@@ -96,7 +96,7 @@ Nothing waiting right now.
 | 14 · 33c. Review round 12: refactors checked, subjects, redaction safety (Leah, 2026-11-02) | Sessions AF, AG, AH done ([Review/PLAN-13.md](Review/PLAN-13.md)). Fixed and passed Leah's tests 2026-11-02: AF's three, and tier 1 (AH 1, AG 1, AG 2), plus AH 3 and AH 8. AH 2 fixed 2026-11-07: the monkey keeps an undo line per page, so episodes with pages check undo and redo exactly again (a self-test proves it catches a wrong picture after another page was shown). AH 4, 5 and 7 fixed 2026-11-08: background saves now encode while the next steps edit; after a redaction every page it changed is checked for snapshots, Cancel is answered sometimes and must change nothing, and the monkey's words include an email and an IP address so Auto-Redact finds something; Forget History also checks page undo and Before/After's As Opened. A 5-minute monkey (615 pictures) broke no rule. The rest (AG 3 to 7, AH 6) set aside by Leah 2026-11-08 as not worth doing; seven `ImageDocument.swift` Release warnings left on purpose | High |
 | 14 · 34. Usability review fixes (Leah, 2026-11-20) | 34a built 2026-11-20 (Adjust Photo: ⌘Z and ⇧⌘Z inside the panel, `PhotoPanelSteps`; Esc asks before discarding). 34b built 2026-11-20 (`SelectionActions.cancelFloating`, `Canvas.isHidden`, `Editor.pressEscape`; the monkey presses Esc). 34c built 2026-11-20 (`OriginalFile`, `ImageDocument.followLayers`, `ToolSettings` and `ToolSettingsStore`). All three passed Leah's hand test together on 2026-11-21; code review round 13 next ([Review/PLAN-14.md](Review/PLAN-14.md)) ([Development-Plan.md](Development-Plan.md), stage 34) | High (34c medium) |
 | 14 · 33d. Review round 13: stage 34 (Leah, 2026-11-21) | Sessions AI, AJ, AK done ([Review/PLAN-14.md](Review/PLAN-14.md)). 19 fixed, 2 left, 1 hand check ([Review/RESULTS.md](Review/RESULTS.md)); passed Leah's hand test 2026-11-21 | High |
-| 15 · 35. Curved text (Leah, 2026-11-21) | Not started. Curve slider in the Text options bar, one smooth arc, lines nested like rainbow bands, locked once placed (FRD FR-6.4) | High |
+| 15 · 35. Curved text (Leah, 2026-11-21) | ✅ Done; passed Leah's hand test 2026-11-21. Curve slider in the Text options bar (−100 to 100, ±100 a half circle), one smooth arc, lines nested like rainbow bands; underline, strikethrough and Opaque follow the curve; an Editable text layer keeps its curve and reopens with it (`TextArc`, `TextRenderer+Curve.swift`, FRD FR-6.4) | High |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -431,6 +431,66 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 35: Curved text
+
+_2026-11-21: passed Leah's hand test on 2026-11-21._
+
+Use a new picture (File ▸ New, OK). Nothing needs saving except in D.
+
+**A. The Curve slider**
+1. Press T.
+   Expected: a Curve slider at 0, after Background, in the Text options.
+2. Click in the middle of the picture and type "Hello rainbow friends".
+3. Drag the Curve slider all the way right.
+   Expected: the words bend up at both ends like a smile; the number reads 100; a faint straight copy shows where you type.
+4. Drag it to −50.
+   Expected: a gentler frown, ends down.
+5. Drag it to the middle (0).
+   Expected: straight words, no faint copy.
+6. Set it to −50 again, then click outside the text.
+   Expected: the curved words are placed.
+7. Press ⌘Z.
+   Expected: the words go.
+
+**B. Several lines, lines and a band**
+1. Right-click a yellow swatch in the palette (Color 2 is yellow).
+2. Press T, click, type "Line one", press Return, type "Line two".
+3. Drag Curve all the way left (−100).
+   Expected: both lines bend around the same centre, like rainbow bands.
+4. Click Underline, then Strikethrough.
+   Expected: both lines follow the curve.
+5. Set Background to Opaque.
+   Expected: a curved yellow band behind the words, not a rectangle.
+6. Click outside the text.
+   Expected: placed as shown.
+
+**C. A text layer keeps its curve**
+1. View ▸ Sidebar.
+2. Press T and tick Editable.
+3. Set Background to Transparent and Curve to 80.
+4. Click, type "Smile", then click outside it.
+   Expected: a new text layer named "Smile" in the Layers panel.
+5. Double-click the curved word.
+   Expected: the box opens and Curve reads 80.
+6. Drag Curve to −80, then click outside.
+   Expected: now a frown.
+7. Press ⌘Z.
+   Expected: the smile comes back.
+
+**D. It survives saving**
+1. Press ⌘S and save as a Colorbee project on the Desktop, named "Curve Test".
+2. Close the window, then File ▸ Open Recent ▸ Curve Test.colorproj.
+   Expected: the smile looks the same.
+3. Press T and double-click the word.
+   Expected: Curve reads 80.
+
+**E. New windows remember it**
+1. With the Text tool and Curve at 80, choose File ▸ New, OK.
+2. Press T.
+   Expected: Curve reads 80.
+
+Afterwards, drag Curve Test.colorproj to the Trash.
 
 ### Test: Review round 13: stage 34 fixes
 

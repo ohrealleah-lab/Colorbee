@@ -47,6 +47,30 @@ struct TextStyle: Equatable, Codable {
     var alignment: TextAlignment = .left
     /// Opaque draws a Color 2 rectangle behind the text.
     var opaqueBackground = false
+    /// −100 (a frown) to 100 (a smile); 0 is straight (FR-6.4).
+    var curve = 0.0
+}
+
+// Saved text styles and the carried settings were written before some options existed: a missing one keeps its
+// default rather than losing the style (stage 35).
+extension TextStyle {
+    init(from decoder: any Decoder) throws {
+        self.init()
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        func value<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T {
+            (try? container.decodeIfPresent(T.self, forKey: key)) ?? fallback
+        }
+        fontFamily = value(.fontFamily, fontFamily)
+        fontSize = value(.fontSize, fontSize)
+        bold = value(.bold, bold)
+        italic = value(.italic, italic)
+        underline = value(.underline, underline)
+        strikethrough = value(.strikethrough, strikethrough)
+        alignment = value(.alignment, alignment)
+        opaqueBackground = value(.opaqueBackground, opaqueBackground)
+        let bend = value(.curve, curve)
+        curve = bend.isFinite ? min(max(bend, -100), 100) : 0
+    }
 }
 
 // Each text setting crosses between the Text tool's settings and a text here, both ways, so a new one is added to
@@ -62,6 +86,7 @@ extension TextStyle {
         strikethrough = spec.strikethrough
         alignment = spec.alignment
         opaqueBackground = spec.background != nil
+        curve = spec.curve
     }
 
     /// `text` set in this style, in `color`, on `background` when the style's background is opaque.
@@ -73,6 +98,7 @@ extension TextStyle {
         spec.underline = underline
         spec.strikethrough = strikethrough
         spec.alignment = alignment
+        spec.curve = curve
         spec.minimumHeight = minimumHeight
         return spec
     }

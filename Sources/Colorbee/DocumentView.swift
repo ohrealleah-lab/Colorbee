@@ -588,7 +588,17 @@ private struct TextOptions: View {
             Text("Opaque").tag(true)
         }
         .fixedSize()
-        .help("Opaque puts a Color 2 rectangle behind the text")
+        .help("Opaque puts Color 2 behind the text")
+        // FR-6.4: left bends the lines down like a frown, right up like a smile.
+        HStack(spacing: 4) {
+            Text("Curve")
+            Slider(value: $style.curve, in: -100...100, step: 1)
+                .frame(width: 100)
+            Text("\(Int(style.curve.rounded()))")
+                .monospacedDigit()
+                .frame(width: 32, alignment: .trailing)
+        }
+        .help("Bend the text into an arc: left for a frown, right for a smile, the middle for straight")
     }
 }
 

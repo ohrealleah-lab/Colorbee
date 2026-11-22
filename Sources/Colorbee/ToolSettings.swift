@@ -56,7 +56,7 @@ extension ToolSettings: Codable {
     }
 
     private enum TextKey: String, CodingKey {
-        case fontFamily, fontSize, bold, italic, underline, strikethrough, alignment, opaqueBackground
+        case fontFamily, fontSize, bold, italic, underline, strikethrough, alignment, opaqueBackground, curve
     }
 
     init(from decoder: any Decoder) throws {
@@ -151,6 +151,7 @@ extension ToolSettings: Codable {
         style.strikethrough = value(.strikethrough, fallback.strikethrough)
         style.alignment = value(.alignment, fallback.alignment)
         style.opaqueBackground = value(.opaqueBackground, fallback.opaqueBackground)
+        style.curve = kept(value(.curve, fallback.curve), in: -100...100, or: fallback.curve)
         return style
     }
 

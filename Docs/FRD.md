@@ -332,12 +332,20 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
   pixels. Resizing, rotating, flipping and cropping the image draw it again so it stays crisp; skew turns it into
   pixels. If its font is missing, it keeps its drawn look and says "Font missing" when you edit it.
 
-### FR-6.4 Curved text (Leah, 2026-11-21; stage 35, not built yet)
+### FR-6.4 Curved text (Leah, 2026-11-21; stage 35)
 - A **Curve** slider in the Text options bar, beside font and size, from −100 (arcs downward, like a frown) through 0
   (straight, the default) to +100 (arcs upward, like a smile). Made for labels.
 - Each letter sits on one smooth arc and turns to follow it. No waves or free paths.
 - Multi-line text: every line curves, nested like rainbow bands around the same centre.
-- It can be changed only while the text is still being edited. Once placed, the curve is locked into the pixels.
+- At +100 or −100 the middle line bends into half a circle, a rainbow shape; the arc's length is the text box's width,
+  so the words keep their spacing.
+- With Editable off, the curve can be changed only while the text is still being typed; once placed, it's locked into
+  the pixels. With Editable on, a text layer keeps its curve like its font and size, and reopening it lets you change it.
+- A dragged-out box wraps its lines first, then curves them. Left, Center and Right work along the arc; Center keeps
+  the words balanced around the middle of the curve.
+- Underline and strikethrough follow the curve, and Opaque puts a curved band of Color 2 behind the words instead of a
+  rectangle.
+- The Curve setting carries to new windows with the rest of the text style (FR-15.4), and saved text styles keep it.
 
 ---
 
@@ -992,6 +1000,8 @@ None right now.
 | Date | Decision |
 |---|---|
 | 2026-11-21 | **Curved text** (Leah; FR-6.4, stage 35). A Curve slider in the Text options bar makes one smooth arc, for labels. Every line of multi-line text curves, nested like rainbow bands. The curve is locked once the text is placed. Comes after stage 34. |
+| 2026-11-21 | **Stage 35 details** (Leah, all recommended; FR-6.4). A curved text layer keeps its curve and can be reopened to change it, like its font; "locked once placed" is for text placed with Editable off. ±100 is half a circle. A dragged-out box wraps, then curves. Alignment works along the arc, Center balanced around its middle. Underline and strikethrough follow the curve; Opaque is a curved band. Curve carries to new windows and is kept in saved text styles. |
+| 2026-11-21 | **Stage 35, Claude's choices** (veto any; FR-6.4). While curved text is typed, a faint straight copy of the words (30% of the text color) shows where the caret is, since typing stays in the straight box. A short word can't bend as tightly as a long line: the circle is never smaller than the text's height plus its size, so "Smile" at 100 is a gentler arc than a sentence. The box's border and handles stay on the straight box being typed in, not on the curved words; a smile's ends may rise above that box. |
 | 2026-11-21 | **Code review round 13 answers** (Leah, all recommended; `Docs/Review/PLAN-14.md`, sessions AI, AJ, AK). A picture whose one layer is faded, hidden or has a blend mode stays a project (or becomes one), so the original file is never written faded or blank (AI 2). Editable text that would land in a hidden group is refused with "This layer is hidden. Show it to change it." (AJ 2). After leaving a mask, the real colors, not the grays, are carried to new windows until a real color is picked (AI 7). Left as they are: sliders moved with the keyboard or VoiceOver aren't their own panel step (AK 2), and a placing merged into an undone step can leave "Edited" showing (AJ 5). Claude's choices (veto any): (1) Editing a hidden text layer is refused with the same message. (2) Help screenshots and `make help`'s menu dump keep the default tool settings, like `make bench`. (3) A size, tolerance or text size out of range in the settings file is clamped to its control's range; an eraser size or Sample Size not offered keeps its default. (4) ⌘. asks like Esc in Adjust Photo; Space on a focused Cancel button doesn't. (5) ⌘Z in the middle of a hand drag ends the drag. (6) The original file open in another window keeps the project a project. |
 | 2026-11-20 | **Stage 34c built** (files and windows). Claude's choices (veto any): (1) "Last used" means the tool settings last changed in any window; just switching windows doesn't count. (2) A file you open gets them too, not only new and restored windows. (3) The step badge style and size carry over; the badge numbers don't. (4) Pixel Grid isn't carried: it's a view setting, not a tool's. (5) The original file is remembered across a relaunch, so a restored project can still go back to it. (6) `make bench` windows keep the defaults. (7) FR-14.5's menu table was brought up to date with the menus as built. |
 | 2026-11-20 | **Stage 34b built** (selections and layers). Claude's choices (veto any): (1) The Redact Brush and Editable text don't show the "not allowed" pointer on a hidden layer, since they still work there. (2) A hidden layer says why in words instead of beeping; one that's both hidden and locked beeps, as a locked one does. (3) Esc on floating pixels takes back every step since the lift or paste, even one that didn't touch them (a layer's opacity changed while they floated, say). (4) Esc in the middle of a drag, or on pixels no step put there, places them as before. (5) Esc counts as that many undos, so a picture that's back to how it was saved isn't marked as changed. |

@@ -28,6 +28,10 @@ public struct TextSpec: Equatable, Sendable {
     public var color: Pixel
     /// Opaque background mode fills the box with this color; nil is transparent (FR-6.1).
     public var background: Pixel?
+    /// How far the lines bend into an arc (FR-6.4): −100 (a frown) through 0 (straight) to 100 (a smile).
+    public var curve = 0.0 {
+        didSet { curve = curve.isFinite ? min(max(curve, -100), 100) : 0 }
+    }
 
     public init(text: String, origin: Point2D, wrapWidth: Double? = nil, fontFamily: String, fontSize: Double, color: Pixel, background: Pixel? = nil) {
         self.text = text
@@ -41,9 +45,15 @@ public struct TextSpec: Equatable, Sendable {
 }
 
 public enum TextRenderer {
-    /// The box the text occupies, in image coordinates.
-    /// It reaches past the text's layout width where glyphs lean out, as italics do, so nothing is clipped.
+    /// The pixels the text covers, in image coordinates: its box, or for curved text the bent band and its letters.
     public static func box(for spec: TextSpec) -> IntRect {
+        if let arc = TextArc(spec), !spec.text.isEmpty { return curvedBounds(of: spec, arc: arc) }
+        return layoutBox(for: spec)
+    }
+
+    /// The box the text is laid out and typed in, straight, in image coordinates. It reaches past the text's layout
+    /// width where glyphs lean out, as italics do, so nothing is clipped. Curved text is bent from this box.
+    public static func layoutBox(for spec: TextSpec) -> IntRect {
         let size = layoutSize(of: spec, colorSpace: nil)
         let width = max(size.width, inkWidth(of: spec, layoutSize: size, colorSpace: nil))
         return IntRect(enclosingMinX: spec.origin.x, minY: spec.origin.y, maxX: spec.origin.x + width, maxY: spec.origin.y + size.height)
@@ -52,6 +62,7 @@ public enum TextRenderer {
     /// Draws the text (and background, if any) into a straight-alpha buffer. Nil when there's nothing to draw.
     public static func render(_ spec: TextSpec, colorSpace: CGColorSpace, clippedTo canvasBounds: IntRect) -> (pixels: PixelBuffer, origin: IntPoint)? {
         guard !spec.text.isEmpty else { return nil }
+        if let arc = TextArc(spec) { return renderCurved(spec, arc: arc, colorSpace: colorSpace, clippedTo: canvasBounds) }
         let size = layoutSize(of: spec, colorSpace: colorSpace)
         // `box` is where the text is laid out and wraps; the pixels drawn also cover any ink leaning past it.
         let box = CGRect(x: spec.origin.x, y: spec.origin.y, width: size.width, height: size.height)
@@ -108,7 +119,7 @@ public enum TextRenderer {
         (CTFontCopyFamilyName(font(for: spec)) as String) == spec.fontFamily
     }
 
-    private static func layoutSize(of spec: TextSpec, colorSpace: CGColorSpace?) -> Size2D {
+    static func layoutSize(of spec: TextSpec, colorSpace: CGColorSpace?) -> Size2D {
         let space = colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
         let text = spec.text.isEmpty ? " " : spec.text
         var measured = spec
@@ -137,7 +148,7 @@ public enum TextRenderer {
         return (right + 1).rounded(.up)
     }
 
-    private static func attributedString(for spec: TextSpec, colorSpace: CGColorSpace) -> CFAttributedString {
+    static func attributedString(for spec: TextSpec, colorSpace: CGColorSpace) -> CFAttributedString {
         var alignment: CTTextAlignment = switch spec.alignment {
         case .left: .left
         case .center: .center
@@ -179,7 +190,7 @@ public enum TextRenderer {
         }
     }
 
-    private static func cgColor(_ pixel: Pixel, _ colorSpace: CGColorSpace) -> CGColor {
+    static func cgColor(_ pixel: Pixel, _ colorSpace: CGColorSpace) -> CGColor {
         CGColor(colorSpace: colorSpace, components: [pixel.r, pixel.g, pixel.b, pixel.a].map { CGFloat($0) / 255 })!
     }
 }

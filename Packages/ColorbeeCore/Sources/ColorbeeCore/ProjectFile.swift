@@ -109,6 +109,8 @@ public enum ProjectFile {
         var background: [UInt8]?
         var quarterTurns: Int?
         var mirrored: Bool?
+        /// FR-6.4; missing means straight. Older versions draw it straight when edited, and show the saved pixels.
+        var curve: Double?
 
         init(_ layer: TextLayer) {
             let spec = layer.spec
@@ -128,6 +130,7 @@ public enum ProjectFile {
             background = spec.background.map { [$0.r, $0.g, $0.b, $0.a] }
             quarterTurns = layer.quarterTurns == 0 ? nil : layer.quarterTurns
             mirrored = layer.mirrored ? true : nil
+            curve = spec.curve == 0 ? nil : spec.curve
         }
 
         /// Nil if it doesn't make sense (a damaged file): the layer is then plain pixels.
@@ -144,6 +147,8 @@ public enum ProjectFile {
             spec.underline = underline
             spec.strikethrough = strikethrough
             spec.alignment = TextAlignment(rawValue: alignment) ?? .left
+            // Kept within ±100, and straight if it isn't a number (`TextSpec.curve`).
+            spec.curve = curve ?? 0
             return TextLayer(spec: spec, quarterTurns: quarterTurns ?? 0, mirrored: mirrored ?? false)
         }
     }

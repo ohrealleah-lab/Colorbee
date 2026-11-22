@@ -549,11 +549,12 @@ final class CanvasView: NSView {
         }
         if editor.tool.isSelectionTool, let point, editor.selectionContains(point) { return .openHand }
         // Over a locked layer, tools that would change it show they can't (FR-8.2). A hidden one too, except the Redact
-        // brush and Editable text, which still work there (stage 34b).
+        // brush and Editable text, which still work there (stage 34b), unless the text would land in a hidden group.
         if editor.activeLayerIsLocked, editor.tool.changesPixels || (editor.tool.isSelectionTool && point.map(editor.selectionContains) == true) {
             return .operationNotAllowed
         }
-        if editor.activeLayerIsHidden, editor.tool.changesPixels && editor.tool != .redactBrush && !(editor.tool == .text && editor.textIsEditable)
+        if editor.activeLayerIsHidden, editor.tool.changesPixels && editor.tool != .redactBrush
+            && !(editor.tool == .text && editor.textIsEditable && !editor.newTextWouldBeHidden)
             || (editor.tool.isSelectionTool && point.map(editor.selectionContains) == true) {
             return .operationNotAllowed
         }

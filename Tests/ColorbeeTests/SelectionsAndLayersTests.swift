@@ -104,4 +104,64 @@ struct SelectionsAndLayersTests {
         #expect(editor.activeEffect == .pixelate)
         editor.cancelEffect()
     }
+
+    // MARK: Review round 13 (AJ)
+
+    /// A pasted piece put down wholly off the picture leaves no selection, so Batch Redact refuses rather than
+    /// redacting every layer whole (review AJ, finding 1).
+    @Test func batchRedactRefusesAPieceDraggedOffThePicture() {
+        let editor = picture()
+        let before = editor.imageHash
+        editor.paste(PixelBuffer(width: 5, height: 5, fill: .black), at: IntPoint(x: 2, y: 2))
+        editor.selectionDrag(from: pt(4, 4), to: pt(-30, -30))
+        #expect(editor.hasSelection)
+        editor.beginBatchRedact(.gaussianBlur)
+        #expect(editor.activeEffect == nil && editor.imageHash == before)
+    }
+
+    /// New editable text would join a hidden group and vanish once placed, so it's refused, saying why (review AJ,
+    /// finding 2; Leah, 2026-11-21).
+    @Test func editableTextInAHiddenGroupIsRefused() throws {
+        let editor = picture()
+        editor.addLayer()
+        editor.groupLayers()
+        let group = try #require(editor.canvas.layers.firstIndex { $0.isGroup })
+        let inside = try #require(editor.canvas.layers.firstIndex { !$0.isGroup && $0.groupID != nil })
+        editor.setLayerVisible(false, at: group)
+        editor.selectLayer(at: inside)
+        editor.selectTool(.text)
+        editor.textIsEditable = true
+        #expect(editor.newTextWouldBeHidden)
+        editor.beginText(at: pt(4, 4), wrapWidth: nil)
+        #expect(editor.pendingText == nil && editor.notice?.text == "This layer is hidden. Show it to change it.")
+
+        editor.setLayerVisible(true, at: group)
+        editor.beginText(at: pt(4, 4), wrapWidth: nil)
+        #expect(editor.pendingText != nil)
+        editor.pendingText = nil
+    }
+
+    /// Revert Layer refuses a hidden layer, as a locked one (review AJ, finding 4).
+    @Test func revertLayerRefusesAHiddenLayer() {
+        let editor = picture()
+        editor.selectTool(.pencil)
+        editor.stroke([pt(2.5, 25.5), pt(30.5, 25.5)])
+        #expect(editor.canRevertLayer)
+        editor.setLayerVisible(false, at: 0)
+        #expect(!editor.canRevertLayer)
+    }
+
+    /// A hidden group has no pixels to paint even once shown, so it doesn't say "Show it to change it" (review AJ,
+    /// finding 6).
+    @Test func aHiddenGroupDoesNotSayShowIt() throws {
+        let editor = picture()
+        editor.addLayer()
+        editor.groupLayers()
+        let group = try #require(editor.canvas.layers.firstIndex { $0.isGroup })
+        editor.setLayerVisible(false, at: group)
+        editor.selectLayer(at: group)
+        editor.selectTool(.brush)
+        editor.stroke([pt(2.5, 4.5), pt(30.5, 4.5)])
+        #expect(editor.notice?.text != "This layer is hidden. Show it to change it.")
+    }
 }

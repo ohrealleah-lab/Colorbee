@@ -40,8 +40,9 @@ extension Editor {
 
     var canRevertLayer: Bool {
         let layer = canvas.activeLayer
-        // After a flip or rotation since the save, the saved pixels would come back unturned (review G, finding 4).
-        return layer.isPixelLayer && !canvas.isLocked(layer) && canvas.size == saved.size && history.geometrySteps == savedGeometrySteps
+        // After a flip or rotation since the save, the saved pixels would come back unturned (review G, finding 4). A
+        // hidden layer refuses, as a locked one does (review AJ, finding 4).
+        return layer.isPixelLayer && !canvas.isLocked(layer) && !canvas.isHidden(layer) && canvas.size == saved.size && history.geometrySteps == savedGeometrySteps
             && saved.layerIDs.contains(layer.id)
     }
 

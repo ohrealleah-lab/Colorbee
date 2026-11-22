@@ -43,8 +43,9 @@ extension Editor {
         effectCoversAllLayers = coveringAllLayers
         finishInteractions()
         placeFloatingKeepingOutline()
-        // Spotlight changes what's around the selection, so it needs one.
-        if kind == .spotlight, canvas.selection.marquee == nil { return onRefused() }
+        // Spotlight changes what's around the selection, so it needs one. So does Batch Redact, and a piece put down
+        // wholly off the picture leaves none (review AJ, finding 1).
+        if kind == .spotlight || coveringAllLayers, canvas.selection.marquee == nil { return onRefused() }
         effectValues = kind.parameters.map(\.defaultValue)
         effectCurves = .identity
         photoEdit = PhotoEdit()

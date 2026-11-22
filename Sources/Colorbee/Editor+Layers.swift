@@ -623,7 +623,8 @@ extension Editor {
     func refusedBecauseLocked() -> Bool {
         // New editable text is placed first, so what's asked about is the layer as it'll be.
         if textIsEditable, let text = pendingText, text.layerID == nil { commitPendingText() }
-        if canvas.isHidden(canvas.activeLayer), !canvas.isLocked(canvas.activeLayer) {
+        // Only a layer with pixels: showing a group or adjustment layer wouldn't let it be painted (review AJ, finding 6).
+        if canvas.isHidden(canvas.activeLayer), !canvas.isLocked(canvas.activeLayer), canvas.paintLayer.isPixelLayer {
             showNotice("This layer is hidden. Show it to change it.")
             return true
         }

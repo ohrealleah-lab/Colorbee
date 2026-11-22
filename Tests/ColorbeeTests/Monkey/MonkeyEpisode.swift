@@ -364,10 +364,29 @@ struct UndoTracker {
     /// its own history, so a page that's shown again carries on with its line, unless it changed meanwhile (an
     /// Auto-Redact on every page, a step placed on the way out); then it starts a new one (review AH, finding 2).
     private var leftLines: [UUID: (line: [Mark?], knowsRedo: Bool, revision: Int)] = [:]
+    /// Where each floating piece began: the undo count and picture just before the step that lifted or pasted it, kept
+    /// apart from the line (a later placing can blank the line there), so Esc can be checked to stop exactly there
+    /// (review AJ, finding 3). The picture is nil when several steps came at once.
+    private var floatStarts: [UUID: (count: Int, layers: [String]?)] = [:]
+    /// The piece floating, and the layers, after the last step.
+    private var floatingID: UUID?
+    private var lastLayers: [String]
 
     init(editor: Editor) {
         self.editor = editor
-        line = [Self.mark(editor)]
+        let mark = Self.mark(editor)
+        line = [mark]
+        lastLayers = mark.layers
+        floatingID = editor.canvas.selection.floating?.id
+    }
+
+    /// Notes a piece that began floating with this step. One seen first after an undo or redo began somewhere unknown.
+    private mutating func noteFloating(count: Int, before: Int, layersBefore: [String]) {
+        let id = editor.canvas.selection.floating?.id
+        if let id, floatStarts[id] == nil, count > before {
+            floatStarts[id] = count == before + 1 ? (before, layersBefore) : (count - 1, nil)
+        }
+        floatingID = id
     }
 
     private static func mark(_ editor: Editor) -> Mark {
@@ -379,6 +398,11 @@ struct UndoTracker {
     /// that changed the layers must be in history; anything else starts a new line from here.
     mutating func note(_ step: MonkeyStep, before: (revision: Int, undoCount: Int, selection: String), hadOpen: Bool = false) throws(MonkeyFailure) {
         let history = editor.history, count = history.undoCount, now = Self.mark(editor)
+        let layersBefore = lastLayers, floatedBefore = floatingID
+        defer {
+            lastLayers = now.layers
+            noteFloating(count: count, before: before.undoCount, layersBefore: layersBefore)
+        }
         switch step {
         case .undo, .redo:
             if hadOpen {
@@ -419,6 +443,16 @@ struct UndoTracker {
             return
         case .escape where count < before.undoCount:
             // Esc on floating pixels (stage 34b): back exactly to before they were lifted or pasted, with nothing to redo.
+            if let id = floatedBefore, let start = floatStarts.removeValue(forKey: id), start.count >= 0 {
+                if count != start.count {
+                    throw MonkeyFailure(rule: "Esc on floating pixels didn't stop where they began floating",
+                                        detail: "It stopped at undo count \(count), but they began floating after \(start.count).")
+                }
+                if let layers = start.layers, layers != now.layers {
+                    throw MonkeyFailure(rule: "Esc on floating pixels didn't give back the picture from before they floated",
+                                        detail: Self.difference(layers, now.layers))
+                }
+            }
             if line.indices.contains(count), let want = line[count] {
                 if want.layers != now.layers {
                     throw MonkeyFailure(rule: "Esc on floating pixels didn't give back the picture from before they floated",
@@ -477,11 +511,17 @@ struct UndoTracker {
         self.pagesTouched = self.pagesTouched || pagesTouched
         leftLines = [:]
         startLine()
+        lastLayers = editor.documentState
+        floatingID = editor.canvas.selection.floating?.id
+        // A piece already floating began somewhere this line can't see.
+        if let floatingID { floatStarts[floatingID] = (-1, nil) }
     }
 
     private mutating func startLine() {
         line = Array(repeating: nil, count: editor.history.undoCount) + [Self.mark(editor)]
         knowsRedo = false
+        // Pieces floating before can't be followed into another page's or a reopened history.
+        floatStarts = [:]
     }
 
     /// Another page is shown. The page left keeps its line if nothing was recorded on it on the way out
@@ -491,6 +531,10 @@ struct UndoTracker {
         self.editor = editor
         pagesTouched = true
         takeLine()
+        lastLayers = editor.documentState
+        floatingID = editor.canvas.selection.floating?.id
+        // A piece already floating began somewhere this line can't see.
+        if let floatingID { floatStarts[floatingID] = (-1, nil) }
     }
 
     private mutating func takeLine() {

@@ -8,13 +8,31 @@ extension Editor {
 
     /// Opens a text box with its top-left at `origin`. Any open box is placed first.
     func beginText(at origin: Point2D, wrapWidth: Double?, minimumHeight: Double = 0) {
-        // Editable text goes on a new layer of its own, so the active layer's lock or kind doesn't matter.
-        guard textIsEditable || !refusedBecauseLocked() else { return }
+        // Editable text goes on a new layer of its own, so the active layer's lock or kind doesn't matter. But it joins the
+        // active layer's group, so in a hidden group it would vanish once placed (review AJ, finding 2; Leah, 2026-11-21).
+        if textIsEditable {
+            guard !refusedBecauseNewTextIsHidden() else { return }
+        } else {
+            guard !refusedBecauseLocked() else { return }
+        }
         finishInteractions()
         placeFloatingSelection()
         textDragFrame = nil
         pendingText = PendingText(origin: origin, wrapWidth: wrapWidth, minimumHeight: minimumHeight)
         onRender()
+    }
+
+    /// New editable text goes in the active layer's group, so it would be hidden when a group around it is.
+    var newTextWouldBeHidden: Bool {
+        _ = layersRevision
+        return canvas.ancestors(of: canvas.activeLayer).contains { !$0.isVisible }
+    }
+
+    /// Refused, saying why, when new editable text would be hidden.
+    private func refusedBecauseNewTextIsHidden() -> Bool {
+        guard newTextWouldBeHidden else { return false }
+        showNotice("This layer is hidden. Show it to change it.")
+        return true
     }
 
     func updateTextDragFrame(from start: Point2D, to end: Point2D) {
@@ -175,6 +193,11 @@ extension Editor {
         }
         guard !canvas.isLocked(layer) else {
             onRefused()
+            return true
+        }
+        // Its words would show while typing, then vanish when placed (review AJ, finding 2).
+        guard !canvas.isHidden(layer) else {
+            showNotice("This layer is hidden. Show it to change it.")
             return true
         }
         finishInteractions()

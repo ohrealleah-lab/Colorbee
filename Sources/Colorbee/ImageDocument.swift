@@ -68,7 +68,7 @@ final class ImageDocument: NSDocument {
     }
 
     /// AppKit may set the file or type off the main thread while saving.
-    private func noteFileSoon() {
+    nonisolated private func noteFileSoon() {
         Task { @MainActor [weak self] in self?.noteFile() }
     }
 
@@ -137,6 +137,11 @@ final class ImageDocument: NSDocument {
     }
 
     override func read(from data: Data, ofType typeName: String) throws {
+        // AppKit reads on the main thread unless canConcurrentlyReadDocuments is overridden.
+        try MainActor.assumeIsolated { try readOnMain(data, ofType: typeName) }
+    }
+
+    private func readOnMain(_ data: Data, ofType typeName: String) throws {
         let type = UTType(typeName)
         if type?.conforms(to: .colorbeeProject) == true {
             // Every page but the shown one stays parked: its pixels are decoded when it's shown (FR-11.6).
@@ -168,13 +173,10 @@ final class ImageDocument: NSDocument {
             try open(stored, showing: 0)
             return
         }
-        // AppKit reads on the main thread unless canConcurrentlyReadDocuments is overridden.
-        MainActor.assumeIsolated {
-            let canvas = Canvas(picture: decoded.buffer, colorSpace: decoded.colorSpace)
-            canvas.cameraDetails = decoded.cameraDetails
-            canvas.locationRemoved = decoded.locationRemoved
-            editor = Editor(canvas: canvas)
-        }
+        let canvas = Canvas(picture: decoded.buffer, colorSpace: decoded.colorSpace)
+        canvas.cameraDetails = decoded.cameraDetails
+        canvas.locationRemoved = decoded.locationRemoved
+        editor = Editor(canvas: canvas)
     }
 
     /// The PDF resolution set in Settings, in pixels per inch: one of `pdfResolutions`, 200 until one is chosen.
@@ -190,7 +192,7 @@ final class ImageDocument: NSDocument {
     private func open(_ stored: [ProjectFile.StoredPage], showing current: Int) throws {
         let pages = try stored.map { try Page(stored: $0, history: Editor.makeHistory()) }
         try pages[current].unpark()
-        MainActor.assumeIsolated { editor = Editor(pages: PageStack(pages: pages, currentIndex: current)) }
+        editor = Editor(pages: PageStack(pages: pages, currentIndex: current))
     }
 
     override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,

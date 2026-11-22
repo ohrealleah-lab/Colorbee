@@ -7,13 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-21 · 887 core tests and 399 app tests passing (stage 35 passed Leah's hand test 2026-11-21: curved text, a Curve slider for one smooth arc; review round 13 fixed and passed Leah's hand test 2026-11-21: the original file is never written with a project, a faded or blank picture, Batch Redact refuses a piece off the picture, the tool settings file can't crash Colorbee, Esc mid hand drag is its own step ([Review/RESULTS.md](Review/RESULTS.md)); stage 34 passed Leah's hand test 2026-11-21; stage 34c: a picture goes back to its file once it's one plain layer again, and new windows start with the tool settings last used; stage 34b: Esc on floating pixels goes back to before the lift or paste, placed text keeps your layer active, hidden layers refuse pixel changes, Batch Redact needs a selection, a 5-minute monkey run with Esc broke no rule; stage 34a: Adjust Photo's own undo, and Esc asks before discarding; usability review planned as stage 34; Straighten no longer crashes on a picture with a layer mask; the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-21 · 887 core tests and 409 app tests passing (stage 36 built 2026-11-21: Settings ▸ General ▸ Make Colorbee the default for, eight checkboxes from JPEG to PDF, macOS asks before each change and Keep is no error; the Mac App Store planned as stage 37; stage 35 passed Leah's hand test 2026-11-21: curved text, a Curve slider for one smooth arc; review round 13 fixed and passed Leah's hand test 2026-11-21: the original file is never written with a project, a faded or blank picture, Batch Redact refuses a piece off the picture, the tool settings file can't crash Colorbee, Esc mid hand drag is its own step ([Review/RESULTS.md](Review/RESULTS.md)); stage 34 passed Leah's hand test 2026-11-21; stage 34c: a picture goes back to its file once it's one plain layer again, and new windows start with the tool settings last used; stage 34b: Esc on floating pixels goes back to before the lift or paste, placed text keeps your layer active, hidden layers refuse pixel changes, Batch Redact needs a selection, a 5-minute monkey run with Esc broke no rule; stage 34a: Adjust Photo's own undo, and Esc asks before discarding; usability review planned as stage 34; Straighten no longer crashes on a picture with a layer mask; the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
-Nothing waiting right now.
+- [Stage 36: Make Colorbee the default for](#test-stage-36-make-colorbee-the-default-for)
 
 ---
 
@@ -97,6 +97,7 @@ Nothing waiting right now.
 | 14 · 34. Usability review fixes (Leah, 2026-11-20) | 34a built 2026-11-20 (Adjust Photo: ⌘Z and ⇧⌘Z inside the panel, `PhotoPanelSteps`; Esc asks before discarding). 34b built 2026-11-20 (`SelectionActions.cancelFloating`, `Canvas.isHidden`, `Editor.pressEscape`; the monkey presses Esc). 34c built 2026-11-20 (`OriginalFile`, `ImageDocument.followLayers`, `ToolSettings` and `ToolSettingsStore`). All three passed Leah's hand test together on 2026-11-21; code review round 13 next ([Review/PLAN-14.md](Review/PLAN-14.md)) ([Development-Plan.md](Development-Plan.md), stage 34) | High (34c medium) |
 | 14 · 33d. Review round 13: stage 34 (Leah, 2026-11-21) | Sessions AI, AJ, AK done ([Review/PLAN-14.md](Review/PLAN-14.md)). 19 fixed, 2 left, 1 hand check ([Review/RESULTS.md](Review/RESULTS.md)); passed Leah's hand test 2026-11-21 | High |
 | 15 · 35. Curved text (Leah, 2026-11-21) | ✅ Done; passed Leah's hand test 2026-11-21. Curve slider in the Text options bar (−100 to 100, ±100 a half circle), one smooth arc, lines nested like rainbow bands; underline, strikethrough and Opaque follow the curve; an Editable text layer keeps its curve and reopens with it (`TextArc`, `TextRenderer+Curve.swift`, FRD FR-6.4) | High |
+| 16 · 36. Make Colorbee the default for (Leah, 2026-11-21) | 🧪 Built; waiting for Leah's hand test. Settings ▸ General: checkboxes for JPEG, PNG, HEIC and HEIF, TIFF, GIF, BMP, WebP and PDF, and Check All; unchecking goes back to the app used before, or Preview; macOS asks before each change and Keep is quietly left as it was (`DefaultApps.swift`, FRD FR-14.3) | Medium |
 | Help (FR-14.6) | ✅ Done; Leah read the whole book 2026-10-19. Phases 1–3 passed (all eight task guides; Leah, 2026-10-11). Phase 4 passed (the reference; Leah, 2026-10-11). Phase 5 passed (the ? buttons; Leah, 2026-10-17). Window, toolbar, palette bar and shortcuts pictures retaken 2026-10-16 to 10-17. Phase 6 passed (accuracy review M and Q, all fixed; Leah, 2026-10-19) | Medium (phase 6 high; review plan: `Docs/Review/PLAN-6.md`, sessions M and Q) |
 
 ## What's built
@@ -355,6 +356,7 @@ Nothing waiting right now.
 **Next up (Leah, 2026-10-11)**
 - Lightroom-style photo editing (FR-9.7, planned 2026-10-27; an exception to feature-complete): ten items, built in parts, with new controls inside Adjust Photo so saved filters include them. Details to settle with Leah when each part starts. Background: `Docs/Feature-Gap-Analysis.md`. After it: the approved layer follow-ups (see FRD §23, 2026-10-27).
 - Curved text (FR-6.4, stage 35; Leah, 2026-11-21; another exception to feature-complete): after stage 34 and review round 13.
+- Make Colorbee the default for (FR-14.3, stage 36; Leah, 2026-11-21). Then the Mac App Store, stage 37, last of all (`Docs/Development-Plan.md`).
 - Help: done 2026-10-19 (phases 1–6). Keep it current: see "Keeping it current" in `Docs/HELP-PLAN.md`.
 
 **8 Hardening**
@@ -431,6 +433,27 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Stage 36: Make Colorbee the default for
+
+Use `Downloads/Quarantine Test/5 No flag (control).jpeg` and any PDF.
+
+1. Colorbee ▸ Settings… (⌘,), then General.
+   Expected: "Make Colorbee the default for" with eight checkboxes in two columns: JPEG, PNG, HEIC and HEIF, TIFF, GIF, BMP, WebP, PDF. All but PDF are checked.
+2. Uncheck JPEG, then choose to keep Colorbee in macOS's question.
+   Expected: no error; JPEG stays checked.
+3. Uncheck JPEG again, and this time choose Preview.
+   Expected: JPEG is unchecked.
+4. In Finder, double-click `5 No flag (control).jpeg`.
+   Expected: it opens in Preview.
+5. Back in Settings, check JPEG and choose Colorbee.
+   Expected: JPEG is checked.
+6. Double-click the picture again.
+   Expected: it opens in Colorbee. (If macOS says "Not Opened", that's Preview's flag from step 4, not this feature; tell me, it's useful.)
+7. Click Check All and choose Colorbee.
+   Expected: PDF is checked and Check All greys out.
+8. Double-click a PDF in Finder.
+   Expected: it opens in Colorbee.
 
 ### Test: Stage 35: Curved text
 

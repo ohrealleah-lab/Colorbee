@@ -123,11 +123,12 @@ private struct SettingsView: View {
     }
 }
 
-/// Appearance, and the resolution PDFs open at (FR-11.6).
+/// Appearance, the resolution PDFs open at (FR-11.6), and the file types Colorbee opens from Finder (FR-14.3).
 private struct GeneralSettings: View {
     @AppStorage(AppearanceSetting.key) private var appearance = AppearanceSetting.system
     /// Read when a PDF opens, so it changes the next one.
     @AppStorage(ImageDocument.pdfResolutionKey) private var resolution = 200.0
+    @Bindable private var defaultApps = DefaultApps.shared
 
     var body: some View {
         Form {
@@ -155,9 +156,44 @@ private struct GeneralSettings: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            Section("Make Colorbee the default for") {
+                LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], alignment: .leading) {
+                    ForEach(DefaultAppKind.allCases) { kind in
+                        Toggle(kind.title, isOn: Binding(
+                            get: { defaultApps.checked.contains(kind) },
+                            set: { on in change { try await defaultApps.set(kind, on: on) } }
+                        ))
+                        .toggleStyle(.checkbox)
+                    }
+                }
+                .disabled(defaultApps.isChanging)
+                HStack {
+                    Text("Double-clicking these in Finder opens them in Colorbee. Unchecking one gives it back to the app "
+                         + "it used before, or to Preview.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Check All") { change { try await defaultApps.checkAll() } }
+                        .disabled(defaultApps.isChanging || defaultApps.checked.count == DefaultAppKind.allCases.count)
+                }
+            }
         }
         .formStyle(.grouped)
         .onChange(of: appearance) { AppearanceSetting.apply() }
+        .onAppear { defaultApps.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in defaultApps.refresh() }
+    }
+
+    private func change(_ work: @escaping @MainActor () async throws -> Void) {
+        Task {
+            do {
+                try await work()
+            } catch {
+                NSApp.presentError(error)
+                defaultApps.refresh()
+            }
+        }
     }
 }
 

@@ -791,6 +791,13 @@ Open camera RAW files, develop them, then edit and export like any image.
 ### FR-14.3 Finder
 - Colorbee is registered for every format in FR-11.1, so it appears in **Open With**.
 - An **Open in Colorbee** item in the Finder right-click menu (Services / Quick Actions).
+- **Settings ▸ General ▸ Make Colorbee the default for** (stage 36): a checkbox for each kind of picture: JPEG, PNG,
+  HEIC and HEIF, TIFF, GIF, BMP, WebP and PDF. Checked means double-clicking that kind of file in Finder opens it in
+  Colorbee. Unchecking gives it back to the app it opened with before Colorbee took it, or to Preview if that app is
+  gone or was never known. **Check All** checks every row. macOS asks before each type changes; answering Keep leaves
+  that type as it was, with no message, and Check All stops there. Camera RAW and Colorbee projects aren't listed. A
+  row is checked only when every type in it opens in Colorbee, and the checkboxes show changes made in Finder's Get
+  Info when Settings opens or Colorbee comes back to the front.
 
 ### FR-14.4 Screenshots
 - Colorbee doesn't watch any folder for screenshots. The quick route is the clipboard: **Cmd+Ctrl+Shift+4** (or 3), then **Paste into New Image (Cmd+Shift+V)** for a new document, or **Cmd+V** into an open one. Either way the screenshot also appears in Clipboard History.
@@ -922,6 +929,8 @@ Everything ships. This is only the order work happens in, and each stage builds 
     - **13d Soft selections** (FR-3.4). This touches every command that uses a selection, so it comes last.
 14. **Lightroom-style photo editing (Leah, 2026-10-27):** FR-9.7, built in parts that Leah and Claude settle together. After it come the layer follow-ups and the other approved ideas.
 15. **Curved text (Leah, 2026-11-21):** FR-6.4, as stage 35, after stage 34's work and review.
+16. **Default apps in Settings (Leah, 2026-11-21):** FR-14.3, as stage 36. Then the Mac App Store, as stage 37
+    (`Docs/Development-Plan.md`), once everything else is done.
 
 ---
 
@@ -999,6 +1008,8 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-11-21 | **Make Colorbee the default for** (Leah; FR-14.3, stage 36). A new section in Settings ▸ General with a checkbox for each kind of picture Colorbee opens: JPEG, PNG, HEIC and HEIF, TIFF, GIF, BMP, WebP and PDF. Checkboxes, not buttons; unchecking gives the type back to the app it used before. Built next, before the App Store work (now stage 37). After her first try: macOS's own "Change the default?" question stays (the older call that changes defaults without asking isn't used), answering Keep is no error, and Camera RAW is left out ("we're not good enough for that") with PDF in its place. |
+| 2026-11-21 | **Stage 36, Claude's choices** (veto any; FR-14.3). (1) HEIC and HEIF are one row; a row is checked only when both open in Colorbee. Answering Keep for HEIC doesn't go on to ask about HEIF, and Check All stops at the first Keep. If macOS reports a failure and the type still opens in the same app, that's taken as a Keep and nothing is shown. (2) Unchecking goes back to the app remembered when Colorbee took the type; if that app is gone, or Colorbee never knew one, it goes to Preview. (3) Two columns of checkboxes and a Check All button, with no Uncheck All. (4) The checkboxes are read again when Settings opens and when Colorbee comes back to the front, so changes made in Finder show. (5) Colorbee projects aren't listed: Colorbee always opens them. (6) Checking a box makes the running copy of Colorbee the default. |
 | 2026-11-21 | **Curved text** (Leah; FR-6.4, stage 35). A Curve slider in the Text options bar makes one smooth arc, for labels. Every line of multi-line text curves, nested like rainbow bands. The curve is locked once the text is placed. Comes after stage 34. |
 | 2026-11-21 | **Stage 35 details** (Leah, all recommended; FR-6.4). A curved text layer keeps its curve and can be reopened to change it, like its font; "locked once placed" is for text placed with Editable off. ±100 is half a circle. A dragged-out box wraps, then curves. Alignment works along the arc, Center balanced around its middle. Underline and strikethrough follow the curve; Opaque is a curved band. Curve carries to new windows and is kept in saved text styles. |
 | 2026-11-21 | **Stage 35, Claude's choices** (veto any; FR-6.4). While curved text is typed, a faint straight copy of the words (30% of the text color) shows where the caret is, since typing stays in the straight box. A short word can't bend as tightly as a long line: the circle is never smaller than the text's height plus its size, so "Smile" at 100 is a gentler arc than a sentence. The box's border and handles stay on the straight box being typed in, not on the curved words; a smile's ends may rise above that box. |

@@ -5,7 +5,8 @@ _Updated 2026-10-27 after an independent review checked the plan against the cod
 parts each, filters gain a way to hold more than colors, and test builds get their own settings folder. Then
 updated again with Leah's answers on snapshots (a cap) and the color readout (status bar only), thumbnails in the
 layer stages, and a stage 12 hand-test fix._
-_Updated 2026-11-21: stage 35 added, putting Colorbee on the Mac App Store once everything else is done._
+_Updated 2026-11-21: the Mac App Store added as stage 37, once everything else is done (curved text took 35); then
+stage 36, the default-app checkboxes in Settings._
 
 **Scope:** FR-9.7 (all ten items), multi-select layers (FR-8.6), the approved layer follow-ups, layer masks,
 re-editable text, stroke smoothing, Paste in Place and Trim.
@@ -1254,10 +1255,24 @@ FR-8.2, FR-9.4, FR-9.5, FR-12, §14.5 and a new FR-15.4 for carried settings) an
 `tools`, `work-with-layers`, `annotate-an-image`, `redact-a-screenshot`, `save-export-and-share`; `make help` for
 the renamed menu item) are updated, and Leah's hand test passes.
 
-### Stage 35. Mac App Store (Leah, 2026-11-21)
+### Stage 36. Make Colorbee the default for (Leah, 2026-11-21)
+
+Built 2026-11-21, before the App Store work. FR-14.3 and FRD §23 (2026-11-21, two entries).
+
+1. **What gets built:** a "Make Colorbee the default for" section in Settings ▸ General: a checkbox for each kind of
+   file (JPEG, PNG, HEIC and HEIF, TIFF, GIF, BMP, WebP, PDF) and Check All. Unchecking gives a type back to the app
+   it used before, or to Preview. macOS asks before each change; Keep is quietly left as it was.
+2. **Touches:** a new `DefaultApps.swift` (the rows, the Mac's defaults behind a stand-in for tests, and the
+   remembered apps), `Settings.swift`, the `settings` help page.
+3. **Risks:** Launch Services can take a moment to report a change, so the checkbox trusts the change it just made;
+   tests use a stand-in so they never change Leah's defaults; sandboxed (stage 37), the same macOS call should still
+   work, and 37a checks it.
+4. **Size:** S. **Opus, medium.**
+
+### Stage 37. Mac App Store (Leah, 2026-11-21)
 
 Last of all, once every other stage is built and Leah has tested it all: Colorbee on the Mac App Store. Two parts in
-a row. 35a makes a sandboxed build Leah uses every day for a while; 35b sends it to Apple.
+a row. 37a makes a sandboxed build Leah uses every day for a while; 37b sends it to Apple.
 
 **Why it's possible:** a read of the code on 2026-11-21 found nothing the App Store sandbox forbids: no networking, no
 scripting other apps, no screen reading, no paths into the home folder. Opening, saving, autosave and Versions go
@@ -1268,7 +1283,7 @@ a sandboxed app (such as Preview) put on the file, and an Open With redirect to 
 feature (FB19468486), and every app gets it, Photoshop and Pages included. It doesn't block the App Store. Once
 Colorbee is sandboxed, macOS flags the files Colorbee saves too, the same as Preview's.
 
-#### 35a. Sandboxed build
+#### 37a. Sandboxed build
 
 1. **What gets built**
    - **The App Sandbox is on,** plus the hardened runtime, with only what Colorbee needs: files the user picks
@@ -1286,19 +1301,19 @@ Colorbee is sandboxed, macOS flags the files Colorbee saves too, the same as Pre
 3. **Risks**
    - **Every feature gets checked sandboxed:** open, save, Save As, export, Share, print, drag in and out, Open With,
      the Services item, Help, autosave and Versions, window restoration, PDFs, RAW photos, Auto-Redact, Clipboard
-     History, history spilling to disk and `.cube` looks.
+     History, history spilling to disk, `.cube` looks and Settings' default-app checkboxes (stage 36).
    - **"Back to its file" (34c)** writes to the original file later. That's fine while the window is open, but after
-     a relaunch it may need a bookmark. 35a checks it.
+     a relaunch it may need a bookmark. 37a checks it.
    - **Tests and the monkey test** start Colorbee hidden; they must work with the sandbox on, or keep their own
      unsandboxed test build.
    - **Copies:** the App Store copy and a Developer ID copy share the bundle ID, so only one stays on the Mac (see
      the extra-copies note in memory).
-   - Questions: Q35.1 to Q35.3.
+   - Questions: Q37.1 to Q37.3.
 4. **Size:** M–L. **Opus, high.**
 5. **Done when:** `make test` is green with the sandbox on, Leah has used the sandboxed build every day for at least a
    week with nothing lost, and the full checklist above passes her hand test.
 
-#### 35b. Store listing and submission
+#### 37b. Store listing and submission
 
 1. **What gets built**
    - **The App Store Connect record:** name, bundle ID, category (Graphics & Design), age rating, price, and "Data Not
@@ -1311,7 +1326,7 @@ Colorbee is sandboxed, macOS flags the files Colorbee saves too, the same as Pre
 3. **Risks**
    - **The name** "Colorbee" may be taken on the store; a second-choice name is ready.
    - **Review** may come back with questions; Claude helps answer and fix.
-   - Questions: Q35.4 to Q35.8.
+   - Questions: Q37.4 to Q37.8.
 4. **Size:** S–M for Claude, plus Leah's time in App Store Connect. **Opus, medium.**
 5. **Done when:** Apple approves the build and Leah releases it.
 
@@ -1389,8 +1404,9 @@ build time.
 | 34a | Adjust Photo: Esc asks, ⌘Z inside | Usability review 2026-11-20 | M | High | — |
 | 34b | Selections and layers | Usability review 2026-11-20 | M | High | — |
 | 34c | Files and windows | Usability review 2026-11-20 | M | Medium | — |
-| 35a | Sandboxed build | Leah, 2026-11-21 | M–L | High | all |
-| 35b | Store listing and submission | Leah, 2026-11-21 | S–M | Medium | 35a |
+| 36 | Make Colorbee the default for | Leah, 2026-11-21 | S | Medium | — |
+| 37a | Sandboxed build | Leah, 2026-11-21 | M–L | High | all |
+| 37b | Store listing and submission | Leah, 2026-11-21 | S–M | Medium | 37a |
 
 All Opus. FR-8.6 is already built, so it has no stage.
 
@@ -1763,22 +1779,22 @@ Answered (Leah, 2026-10-29): all as recommended. Recorded in FRD §23.
 - **Q32.3** Also run it with Release speed checks, so it notices when something gets slow? *Recommend no at first:
   timing on a sleeping, busy Mac gives false alarms. Speed stays with `make perf`.*
 
-### Before stage 35
+### Before stage 37
 
-- **Q35.1** Sandbox every build, including your everyday copy, or only the App Store one? *Recommend every build, so
+- **Q37.1** Sandbox every build, including your everyday copy, or only the App Store one? *Recommend every build, so
   what you use every day is exactly what ships, and anything the sandbox breaks shows up in your normal use first.*
-- **Q35.2** Keep making Developer ID betas once Colorbee is on the store? *Recommend stopping once it's released, so
+- **Q37.2** Keep making Developer ID betas once Colorbee is on the store? *Recommend stopping once it's released, so
   there's one version to support, but keep `make beta` working in case it's needed.*
-- **Q35.3** Is a week of everyday use on the sandboxed build enough before 35b? *Recommend yes, a week, plus the
+- **Q37.3** Is a week of everyday use on the sandboxed build enough before 37b? *Recommend yes, a week, plus the
   full hand-test checklist.*
-- **Q35.4** Price: free, a one-time price, or a subscription? *Recommend a one-time price with no in-app purchases or
+- **Q37.4** Price: free, a one-time price, or a subscription? *Recommend a one-time price with no in-app purchases or
   subscription: Colorbee has no servers to pay for, and it keeps review and support simple. The amount is yours to
   pick.*
-- **Q35.5** A second-choice name in case "Colorbee" is taken on the store? *Recommend picking one now, so a taken
+- **Q37.5** A second-choice name in case "Colorbee" is taken on the store? *Recommend picking one now, so a taken
   name doesn't stall the record. The app can still say Colorbee under its icon either way.*
-- **Q35.6** Where should the support page and privacy policy live? *Recommend one simple free web page (for example
+- **Q37.6** Where should the support page and privacy policy live? *Recommend one simple free web page (for example
   GitHub Pages) saying Colorbee collects nothing, plus a support email address.*
-- **Q35.7** Countries and languages: English only, sold in every country? *Recommend yes; other languages can come
+- **Q37.7** Countries and languages: English only, sold in every country? *Recommend yes; other languages can come
   later.*
-- **Q35.8** TestFlight before review? *Recommend yes: it's the exact build Apple reviews, installed the way buyers
+- **Q37.8** TestFlight before review? *Recommend yes: it's the exact build Apple reviews, installed the way buyers
   get it.*

@@ -382,6 +382,8 @@ extension Editor {
     func toggleComparison() {
         if comparison == nil {
             finishInteractions()
+            // A canvas-edge drag under way is dropped; its outline goes now, not at the next mouse move.
+            canvasResizePreview = nil
             comparison = Comparison()
         } else {
             comparison = nil

@@ -678,7 +678,28 @@ final class CanvasView: NSView {
         updatePointer(event)
     }
 
+    /// Before/After came on mid-drag (§23, 2026-11-22): turning it on finished what the drag had drawn so far, and the
+    /// rest of the drag does nothing. Panning and the divider are only looking, so they carry on.
+    private func dropDragForComparison() -> Bool {
+        guard editor.comparison != nil else { return false }
+        switch drag {
+        case .divider, .pan, nil:
+            return false
+        case .pictureAdjust:
+            editor.endPictureDrag()
+        case .canvasTool:
+            editor.endCanvasToolDrag()
+        default:
+            break
+        }
+        stopSpraying()
+        editor.canvasResizePreview = nil
+        drag = nil
+        return true
+    }
+
     private func continueDrag(_ event: NSEvent) {
+        if dropDragForComparison() { return }
         switch drag {
         case .pan(let last):
             let point = convert(event.locationInWindow, from: nil)
@@ -735,6 +756,10 @@ final class CanvasView: NSView {
     }
 
     private func endDrag(_ event: NSEvent) {
+        if dropDragForComparison() {
+            currentCursor(at: imagePoint(event)).set()
+            return
+        }
         switch drag {
         case .pan:
             break

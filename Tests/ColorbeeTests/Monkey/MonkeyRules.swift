@@ -97,8 +97,8 @@ enum MonkeyRules {
     /// Each locked layer's pixels and mask, and which of its pixels are clear if its transparent pixels are locked.
     static func lockedLayers(of canvas: Canvas) -> [LayerID: (pixels: Int, mask: Int, clear: [Bool]?)] {
         var locked: [LayerID: (pixels: Int, mask: Int, clear: [Bool]?)] = [:]
-        // A floating piece belongs to the layer it was lifted from, so placing it there isn't a change to a layer locked
-        // meanwhile; a text layer's words change its outline. Both are Leah's to decide (2026-11-21); left out until then.
+        // Allowed (§23, 2026-11-22): a floating piece belongs to the layer it was lifted from, so placing it there isn't a
+        // change to a layer locked meanwhile; a text layer's new words need a new outline.
         let floatingOn = canvas.selection.floating?.layerID
         for layer in canvas.layers where layer.isPixelLayer && (floatingOn == nil || layer.id != floatingOn && layer.mask?.id != floatingOn) {
             let fully = canvas.isLocked(layer), clear = canvas.locksTransparency(layer) && layer.text == nil
@@ -115,7 +115,7 @@ enum MonkeyRules {
         for layer in canvas.layers {
             guard let was = before[layer.id] else { continue }
             if let clear = was.clear {
-                // Merging onto such a layer is Leah's to decide too (2026-11-21).
+                // Merging onto such a layer makes a new combined picture, so it may paint there (§23, 2026-11-22).
                 guard canvas.locksTransparency(layer), !canvas.isLocked(layer), layer.text == nil,
                       !step.merges else { continue }
                 let pixels = layer.buffer.pixels(in: canvas.bounds)

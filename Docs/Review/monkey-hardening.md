@@ -89,18 +89,14 @@ no window (fixed: the monkey's canvas now has a hidden window, as a real one doe
 suspended work. A canvas in a real window frees its editor when closed, and a 2-minute Release run left none held in
 423 pictures. So the rule fails only when most episodes leave one, and the report gives the count each night.
 
-### For Leah to decide
+### Leah's answers (2026-11-22)
 
-1. **A drag under way when Before/After comes on** still finishes: a canvas-edge drag resizes the picture while Before/After
-   shows (seed 6031). The canvas only checks for Before/After when a drag starts, so other drags likely carry on too. Recommended: Before/After ends any drag first.
-2. **Keys and menu commands while Before/After shows**: Delete, the arrow keys and Edit menu commands still change the
-   picture then. FR-11.3 says Before/After is "for viewing only". Recommended: allowed, as now (only the canvas is
-   view-only), since the Before/After bar stays on screen and ⌘Z takes it back.
-3. **A floating piece placed on a layer locked while it floated** (Resize and Skew on a selection, then Lock, then any
-   command). Recommended: allowed, as now: the pixels came from that layer and were already moving.
-4. **Merge Down onto a layer whose transparent pixels are locked**: the merged paint lands in its clear area.
-   Recommended: allowed, as now: merging makes a new combined picture, as in Photoshop.
-5. **Editing the words of a text layer whose transparent pixels are locked**: the new words draw where it was clear.
-   Recommended: allowed, as now: words can't keep an outline.
+All five as recommended, recorded in [FRD §23](../FRD.md#23-decision-log):
 
-Until then the monkey leaves 3 to 5 out and checks 2 only for mouse events; 1 stays a rule, so it shows in reports.
+1. **Before/After ends a drag under way.** Fixed in `CanvasView` (`dropDragForComparison`): what was drawn before stays, the
+   rest of the drag does nothing; panning and the divider carry on. `beforeAfterEndsADragUnderWay` proves it, and fails
+   without the fix. The monkey's Before/After rule stays.
+2. **Keys and menu commands may still edit while Before/After shows.** The monkey keeps checking only mouse events.
+3. **A floating piece may be placed on a layer locked while it floated**, (4) **Merge Down may paint into locked clear
+   pixels**, and (5) **a text layer's words may change with transparent pixels locked**. The monkey's lock rule leaves
+   these out for good.

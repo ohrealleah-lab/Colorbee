@@ -139,8 +139,8 @@ final class MonkeyCanvas {
         var failure: MonkeyFailure?
         for event in events {
             send(event)
-            // While Before/After shows, the canvas only moves its divider. Whether keys and menu commands may still edit
-            // then is Leah's to decide (2026-11-21), so the picture after one is the new starting point.
+            // While Before/After shows, the canvas only moves its divider; keys and menu commands may still edit (§23,
+            // 2026-11-22), so the picture after one is the new starting point.
             switch event {
             case .key, .menu: if editor.comparison != nil { comparedFrom = editor.documentState }
             default: if failure == nil { failure = checkComparison(ending: false) }

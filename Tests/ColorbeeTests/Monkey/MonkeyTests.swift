@@ -149,6 +149,32 @@ struct MonkeyTests {
     }
 
     /// A pen's event carries its pressure to the canvas, and odd orders of events break no rule.
+    /// Before/After coming on mid-drag ends the drag (§23, 2026-11-22; found by the monkey, seed 6031): the canvas edge
+    /// doesn't resize, and a stroke keeps only what was drawn before.
+    @Test func beforeAfterEndsADragUnderWay() async throws {
+        let point = { (x: Double, y: Double) in Point2D(x: x, y: y) }
+        let editor = MonkeyEpisode.random(seed: 1).makeEditor()
+        let size = editor.canvasSize
+        let corner = point(Double(size.width), Double(size.height))
+        #expect(MonkeyCanvas.view(for: editor).play([.key(.canvas("canvas.pencil"), shift: false, command: false), .down(corner, right: false, shift: false, option: false, clicks: 1, pressure: nil),
+                                                     .drag(point(corner.x + 6, corner.y + 6), right: false, shift: false, pressure: nil),
+                                                     .menu(.beforeAfter),
+                                                     .drag(point(corner.x + 12, corner.y + 12), right: false, shift: false, pressure: nil),
+                                                     .up(point(corner.x + 12, corner.y + 12), right: false)]) == nil)
+        // `play` turns Before/After off again at the end, and fails if the picture changed while it showed.
+        #expect(editor.canvasSize == size && editor.canvasResizePreview == nil && editor.history.undoCount == 0)
+        MonkeyCanvas.reset()
+
+        let painted = MonkeyEpisode.random(seed: 1).makeEditor()
+        #expect(MonkeyCanvas.view(for: painted).play([.key(.canvas("canvas.pencil"), shift: false, command: false),
+                                                      .down(point(2.5, 3.5), right: false, shift: false, option: false, clicks: 1, pressure: nil),
+                                                      .drag(point(6.5, 3.5), right: false, shift: false, pressure: nil), .menu(.beforeAfter),
+                                                      .drag(point(14.5, 3.5), right: false, shift: false, pressure: nil), .up(point(14.5, 3.5), right: false)]) == nil)
+        let layer = painted.canvas.layers[0].buffer
+        #expect(painted.history.undoCount == 1 && layer[4, 3] == painted.color1 && layer[12, 3] != painted.color1)
+        MonkeyCanvas.reset()
+    }
+
     @Test func rawInputReachesTheCanvas() async throws {
         let event = try #require(MonkeyCanvas.penEvent(.leftMouseDown, at: NSPoint(x: 30, y: 40), flags: [], clicks: 1, pressure: 0.25))
         #expect(event.subtype == .tabletPoint && abs(event.pressure - 0.25) < 0.01)

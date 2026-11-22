@@ -332,6 +332,13 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
   pixels. Resizing, rotating, flipping and cropping the image draw it again so it stays crisp; skew turns it into
   pixels. If its font is missing, it keeps its drawn look and says "Font missing" when you edit it.
 
+### FR-6.4 Curved text (Leah, 2026-11-21; stage 35, not built yet)
+- A **Curve** slider in the Text options bar, beside font and size, from −100 (arcs downward, like a frown) through 0
+  (straight, the default) to +100 (arcs upward, like a smile). Made for labels.
+- Each letter sits on one smooth arc and turns to follow it. No waves or free paths.
+- Multi-line text: every line curves, nested like rainbow bands around the same centre.
+- It can be changed only while the text is still being edited. Once placed, the curve is locked into the pixels.
+
 ---
 
 ## 10. FR-7 — Measure, zoom, geometry and symmetry
@@ -372,8 +379,10 @@ Line, Curve (3-point), Rectangle, Rounded Rectangle, Ellipse, Triangle, Right Tr
 - **Hidden** (stage 34b): a layer whose eye is off, or that's inside a hidden group, refuses pixel changes as a locked
   one does, since they couldn't be seen: the "not allowed" pointer, "This layer is hidden. Show it to change it.", and
   pixel commands greyed out. Whole-image commands (crop, resize, rotate, flip) and redaction (the Redact Brush, Batch
-  Redact, Auto-Redact) still work on it, and Editable text still goes on a layer of its own. A layer faded to 0% isn't
-  hidden.
+  Redact, Auto-Redact) still work on it, and Editable text still goes on a layer of its own, except inside a hidden
+  group, where the new text layer would be hidden too: it's refused with the same message, and so is editing a hidden
+  text layer (review round 13). A hidden group or adjustment layer, which has no pixels, beeps as before. Revert Layer
+  is greyed out on a hidden layer. A layer faded to 0% isn't hidden.
 - **Lock Transparent Pixels** (stage 23): the padlock is a small menu, Lock All and Lock Transparent Pixels (also in the Layer menu), and the row shows which is on. With transparent pixels locked, every tool, effect and adjustment can recolor the layer's pixels, but its clear area stays exactly as it was and every pixel keeps its opacity, so a cutout or shape keeps its outline; this holds while a stroke is drawn, not only when it ends. The Eraser, Cut and Delete paint Color 2 inside the shape rather than make holes. Flip, Rotate, Crop, Resize and Straighten work as usual, moving the outline with the picture. It's saved in projects (older versions open the layer unlocked); a one-layer PNG doesn't keep it. Not for adjustment layers.
 - Opacity slider from 0 to 100%.
 - **Blend modes (17),** grouped in the menu like this:
@@ -733,10 +742,13 @@ Open camera RAW files, develop them, then edit and export like any image.
   folder used, as usual on a Mac.
 - If nothing needs restoring, launch opens a blank white 1920×1080 canvas.
 - **Back to its file** (stage 34c): a picture opened from a file becomes an unsaved project when it gains a layer,
-  page, mask, text layer or adjustment layer (the file is never flattened). Once it's one plain layer again, through
-  Undo, Flatten, Merge or Delete, it saves into that file again with ⌘S, no Save panel. If another app changed the file
-  meanwhile, macOS asks as usual; if the file is gone, it stays a project and ⌘S asks where. Copies (PDFs, RAW photos,
-  animated GIFs, multi-page TIFFs) never go back, and neither does a project already saved somewhere.
+  page, mask, text layer or adjustment layer, or when its layer is faded, hidden or given a blend mode (the file is never
+  flattened, and those settings would be baked in or leave it blank; Leah, 2026-11-21). Once it's one plain layer again,
+  through Undo, Flatten, Merge or Delete, it saves into that file again with ⌘S, no Save panel. If another app changed
+  the file meanwhile, macOS asks as usual; if the file is gone, or another window has it open, it stays a project and
+  ⌘S asks where. Copies (PDFs, RAW photos, animated GIFs, multi-page TIFFs) never go back, and neither does a project
+  already saved somewhere. The project's own autosave is removed as it goes back, and an unsaved redaction still warns
+  about the file's earlier versions on the next save, even after a relaunch (review round 13).
 
 ---
 
@@ -857,7 +869,9 @@ Every shortcut above is a default. All of them can be changed in the shortcut ed
   options, the Redact Brush's treatment, the Eyedropper's Sample Size, Transparent Selection and resize smoothing.
 - Not carried: the tool (a new window starts on Rectangle Select), Symmetry, and anything about the picture (badge
   numbers, the selection, a measurement, the Clone Stamp's source).
-- While a mask is chosen the colors are grays; the real colors are what's carried.
+- While a mask is chosen the colors are grays; the real colors are what's carried, and still are after leaving the mask
+  until a real color is picked (Leah, 2026-11-21).
+- Values from a damaged or hand-edited settings file are kept within what each control allows.
 - Kept between launches. Smoothing and Editable text were already remembered on their own.
 
 ---
@@ -899,6 +913,7 @@ Everything ships. This is only the order work happens in, and each stage builds 
     - **13c** Clone Stamp, the local brushes, Remove Red-Eye.
     - **13d Soft selections** (FR-3.4). This touches every command that uses a selection, so it comes last.
 14. **Lightroom-style photo editing (Leah, 2026-10-27):** FR-9.7, built in parts that Leah and Claude settle together. After it come the layer follow-ups and the other approved ideas.
+15. **Curved text (Leah, 2026-11-21):** FR-6.4, as stage 35, after stage 34's work and review.
 
 ---
 
@@ -976,6 +991,8 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-11-21 | **Curved text** (Leah; FR-6.4, stage 35). A Curve slider in the Text options bar makes one smooth arc, for labels. Every line of multi-line text curves, nested like rainbow bands. The curve is locked once the text is placed. Comes after stage 34. |
+| 2026-11-21 | **Code review round 13 answers** (Leah, all recommended; `Docs/Review/PLAN-14.md`, sessions AI, AJ, AK). A picture whose one layer is faded, hidden or has a blend mode stays a project (or becomes one), so the original file is never written faded or blank (AI 2). Editable text that would land in a hidden group is refused with "This layer is hidden. Show it to change it." (AJ 2). After leaving a mask, the real colors, not the grays, are carried to new windows until a real color is picked (AI 7). Left as they are: sliders moved with the keyboard or VoiceOver aren't their own panel step (AK 2), and a placing merged into an undone step can leave "Edited" showing (AJ 5). Claude's choices (veto any): (1) Editing a hidden text layer is refused with the same message. (2) Help screenshots and `make help`'s menu dump keep the default tool settings, like `make bench`. (3) A size, tolerance or text size out of range in the settings file is clamped to its control's range; an eraser size or Sample Size not offered keeps its default. (4) ⌘. asks like Esc in Adjust Photo; Space on a focused Cancel button doesn't. (5) ⌘Z in the middle of a hand drag ends the drag. (6) The original file open in another window keeps the project a project. |
 | 2026-11-20 | **Stage 34c built** (files and windows). Claude's choices (veto any): (1) "Last used" means the tool settings last changed in any window; just switching windows doesn't count. (2) A file you open gets them too, not only new and restored windows. (3) The step badge style and size carry over; the badge numbers don't. (4) Pixel Grid isn't carried: it's a view setting, not a tool's. (5) The original file is remembered across a relaunch, so a restored project can still go back to it. (6) `make bench` windows keep the defaults. (7) FR-14.5's menu table was brought up to date with the menus as built. |
 | 2026-11-20 | **Stage 34b built** (selections and layers). Claude's choices (veto any): (1) The Redact Brush and Editable text don't show the "not allowed" pointer on a hidden layer, since they still work there. (2) A hidden layer says why in words instead of beeping; one that's both hidden and locked beeps, as a locked one does. (3) Esc on floating pixels takes back every step since the lift or paste, even one that didn't touch them (a layer's opacity changed while they floated, say). (4) Esc in the middle of a drag, or on pixels no step put there, places them as before. (5) Esc counts as that many undos, so a picture that's back to how it was saved isn't marked as changed. |
 | 2026-11-20 | **Stage 34 details** (Leah, all recommended; `Docs/Development-Plan.md`, stage 34). Esc on floating pixels goes all the way back to before they were lifted or pasted (every drag, nudge, resize and smear trail), and can't be redone. A new window takes every tool setting from the last-used window except Symmetry (and the tool, which stays Rectangle Select), and they're kept between launches. Only Esc asks before discarding Adjust Photo changes; the Cancel button just cancels. Claude's choices (veto any): (1) ⌘Z inside the panel is for Adjust Photo only, not the smaller effect bars. (2) A dropped image and a Clipboard History click count as a paste for Esc. (3) "Hidden" means the layer's eye is off or it's inside a hidden group. (4) Placing text keeps the active layer even when it's a locked or adjustment layer. (5) While a mask is chosen, the real colors are what's carried, not the mask grays. (6) Undo steps inside Adjust Photo go when the panel closes. |

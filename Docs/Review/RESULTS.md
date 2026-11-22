@@ -528,3 +528,48 @@ The stricter monkey's other reports were its own mistakes, now fixed: after Undo
 | 2 | High | Lock Transparent Pixels kept redacted text readable | **Fixed.** Redaction ignores that lock (Leah). Core test. |
 | 3 | Medium | Closing or quitting threw away an open text box or shape | **Fixed.** It's placed first. By hand. |
 | 4 | Medium | After a relaunch, redacting didn't offer to clear the Clipboard History original | **Fixed.** The picture keeps where it was pasted from (Leah). By hand. |
+
+# Code review round 13 ([PLAN-14.md](PLAN-14.md)), stage 34, 2026-11-21 (passed Leah's test 2026-11-21)
+
+Reviewed at `f3f5623`. All recommendations taken (Leah). Tests in `FilesAndWindowsTests`, `SelectionsAndLayersTests` and
+`PhotoPanelUndoTests` unless it says otherwise.
+
+## Session AI: files and windows ([findings](findings-AI.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Critical | Going back to the file left the project's autosave attached; a relaunch could write a project into the PNG | **Fixed.** The autosave is removed as it goes back, and a layered picture pointing at an image file becomes a project again, whatever its type says. |
+| 2 | High | A faded or hidden last layer was "plain", so the file was written faded or blank | **Fixed.** A faded, hidden or blended layer keeps it a project (Leah). |
+| 3 | High | A redaction made before a relaunch never warned about the file's earlier versions | **Fixed.** An unsaved redaction is kept with the window's restored state. |
+| 4 | High | A save finishing after a layer was added pointed the document back at the image file | **Fixed.** Every save's end checks the layers again. |
+| 5 | Medium | Every edit asked the disk whether the original existed | **Fixed.** Only when it could go back. |
+| 6 | Medium | A damaged `Tool Settings.json` could crash Colorbee | **Fixed.** Every value is kept in its control's range. |
+| 7 | Low | Mask grays reached new windows, and Undo of Add Mask left colors turning gray | **Fixed.** The real colors are carried after leaving a mask (Leah); colors only turn gray while a mask is really chosen. |
+| 8 | Low | Going back could leave two windows on one file | **Fixed.** A file open in another window keeps it a project. |
+| 9 | Low | Help screenshots picked up Leah's tool settings | **Fixed.** They, and the menu dump, keep the defaults. |
+| 10 | Low | One new text option would reset the whole carried text style | **Fixed.** The text style is read field by field. |
+
+## Session AJ: selections and layers ([findings](findings-AJ.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | High | Batch Redact on a piece dragged off the picture redacted every layer whole | **Fixed.** It refuses once the piece is down and nothing's selected. |
+| 2 | Medium | Editable text in a hidden group vanished when placed | **Fixed.** Refused with the hidden message (Leah); editing a hidden text layer too. |
+| 3 | Medium | The monkey's Esc check couldn't tell where Esc stopped | **Fixed.** It remembers where each piece began floating, apart from the line. |
+| 4 | Low | Revert Layer worked on a hidden layer | **Fixed.** Greyed out. |
+| 5 | Low | "Edited" could stay after Esc when a placing was merged | **Left** (Leah): it never shows too little, and ⌘Z has always done it. |
+| 6 | Low | A hidden group said "Show it to change it" | **Fixed.** Only a layer with pixels says it. |
+
+## Session AK: Adjust Photo's own undo ([findings](findings-AK.md))
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| 1 | Medium | Esc during a hand drag left it out of the steps | **Fixed.** It's settled as its own step. |
+| 2 | Medium | Keyboard and VoiceOver slider changes aren't their own step | **Left** (Leah). |
+| 3 | Low | ⌘Z in the middle of a hand drag flickered and dropped Redo | **Fixed.** ⌘Z ends the drag. |
+| 4 | Low | The Edit menu could keep a closed panel's step name | **Fixed.** Undo and Redo start plain. By hand. |
+| 5 | Low | Space on a focused Cancel button asked | **Fixed.** Only Esc and ⌘. ask. By hand. |
+| 6 | Low | Undo's menu check and Undo disagreed about a text field | **Fixed.** Same order. |
+| 7 | Low | Esc on the "Discard?" question | **Checked by hand:** Esc and Return both keep editing. |
+
+After these, a 5-minute monkey run (62 pictures, 3,720 steps) broke no rule.

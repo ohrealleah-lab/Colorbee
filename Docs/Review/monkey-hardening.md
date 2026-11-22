@@ -82,6 +82,21 @@ ImageIO reads back unnamed (known now by the name inside it); a preview step che
 no key code (the canvas reads keys through the layout, so none landed); an open step badge not counted as placed first;
 Auto-Redact starved of words it can find; a merge exemption matched by name.
 
+### Second round, 2026-11-22
+
+Leah asked for the smaller gaps too. The monkey now also drives Image ▸ Trim, Layer ▸ Revert Layer, a picture dropped
+onto the canvas (an sRGB PNG converted and pasted floating), clicks in the History panel (`jump(toStep:)`, which the
+undo checker follows like several undos or redos), the Magic Wand (Color and Object modes, Shift and Option), Free-Form
+Select, step badges (clicked, dragged into arrows, left open), Measure and the Eyedropper (which must change nothing),
+handles on open shapes and text boxes (C3), Copy Text (given a clipboard count no real clipboard has, so a later
+redaction never clears Leah's clipboard), and Shift-clicking several subjects before Return. Refine Edge and untangling
+run inside the subject steps. `everySecondRoundStepMeetsTheRules` checks each step lands, not just that it breaks no rule.
+A 5-minute run (135 pictures, 8,100 steps) broke no rule.
+
+Still open: R8 (Merge Down and Flatten keep the look) needs Leah to say how close is close enough, since some blend modes
+inside groups can't merge exactly; R11 (text after crops and turns) and R14 (thumbnails beyond the end check) are low.
+Auto-Redact finds words to cover about once in a hundred tries, as it has since 2026-11-09: a few hundred times a night.
+
 ### Leaks
 
 In Debug, about one episode in ten leaves its editor held after it ends. `leaks --trace` led first to a canvas view with

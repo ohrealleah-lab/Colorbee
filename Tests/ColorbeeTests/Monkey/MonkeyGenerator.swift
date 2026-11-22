@@ -43,7 +43,7 @@ enum MonkeyGenerator {
             let (a, b) = (point(), point())
             return IntRect(x: Int(min(a.x, b.x)), y: Int(min(a.y, b.y)), width: max(1, Int(abs(a.x - b.x))), height: max(1, Int(abs(a.y - b.y))))
         }
-        let roll = random.int(0..<162)
+        let roll = random.int(0..<176)
         switch roll {
         case 0..<16:
             return .stroke(tool: random.pick([.brush, .brush, .pencil, .eraser]), brush: random.pick(Brush.allCases), size: Double(random.int(1...20)),
@@ -171,6 +171,18 @@ enum MonkeyGenerator {
             return .canvasProperties(width: random.int(1...(large ? 460 : 150)), height: random.int(1...(large ? 380 : 120)),
                                      anchor: random.pick(CanvasAnchor.allCases))
         case 159..<162: return .fill(at: point(), color: color())
+        // Second hardening round (2026-11-22).
+        case 162: return .trim
+        case 163: return .revertLayer
+        case 164: return .drop(width: random.int(1...(large ? 200 : 30)), height: random.int(1...(large ? 200 : 30)), color: color(), at: point())
+        case 165: return .historyJump(random.int(0...30))
+        case 166..<168: return .wand(at: point(), object: random.chance(0.2), shift: random.chance(0.3), option: random.chance(0.2))
+        case 168: return .lasso(points: path(), shift: random.chance(0.3), option: random.chance(0.2))
+        case 169..<171: return .badge(at: point(), to: random.chance(0.4) ? point() : nil, secondary: random.chance(0.2), leavesOpen: random.chance(0.35))
+        case 171: return random.chance(0.5) ? .measure(from: point(), to: point()) : .eyedropper(at: point(), secondary: random.chance(0.3), allLayers: random.chance(0.4))
+        case 172..<174: return .dragOpen(which: random.int(0..<12), by: Point2D(x: Double(random.int(-reach...reach)), y: Double(random.int(-reach...reach))))
+        case 174: return random.chance(0.3) ? .copyText : .lasso(points: path(), shift: false, option: false)
+        case 175: return .markSubjects(random.pick([.select, .removeBackground, .liftToNewLayer]), clicks: (0..<random.int(1...3)).map { _ in point() })
         default: return .photoSetting(MonkeyPhoto.edit(&random))
         }
     }

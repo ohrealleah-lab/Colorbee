@@ -443,7 +443,20 @@ struct UndoTracker {
             noteFloating(count: count, before: before.undoCount, layersBefore: layersBefore)
         }
         switch step {
-        case .undo, .redo:
+        case .undo, .redo, .historyJump:
+            // A History panel click is several undos or redos at once (second hardening round, 2026-11-22).
+            var undoing = false
+            switch step {
+            case .undo: undoing = true
+            case .historyJump: undoing = count < before.undoCount
+            default: break
+            }
+            if case .historyJump = step, hadOpen {
+                // The open object was placed first, as a step of its own, so the steps the click went past weren't seen.
+                line = Array(repeating: nil, count: count) + [now]
+                knowsRedo = false
+                return
+            }
             if hadOpen {
                 // Undo and Redo place an open text box first, so what happened isn't the step they name (Undo just
                 // discards an open shape, which changes nothing).
@@ -473,7 +486,7 @@ struct UndoTracker {
                 }
                 // A floating piece's pixels live only in the selection, so it must come back exactly. A marquee outline
                 // kept after placing isn't recorded (drawing one isn't a step), so outlines aren't compared.
-                let selection = { if case .undo = step { want.before } else { want.after } }()
+                let selection = undoing ? want.before : want.after
                 let floats = selection.hasPrefix("a floating") || now.after.hasPrefix("a floating")
                 if floats, selection != now.after {
                     throw MonkeyFailure(rule: "\(step) didn't give back the selection", detail: "It should be \(selection), but it's \(now.after).")

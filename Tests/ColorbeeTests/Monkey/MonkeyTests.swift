@@ -234,6 +234,48 @@ struct MonkeyTests {
         try await MonkeyEpisode.drive(MonkeyEpisode.random(seed: 1).makeEditor(), finishing: true) { _ in steps.next() }
     }
 
+    /// The second hardening round's steps (Leah, 2026-11-22), each through every rule.
+    @Test func everySecondRoundStepMeetsTheRules() async throws {
+        let p = { (x: Double, y: Double) in Point2D(x: x, y: y) }
+        let red = Pixel(r: 220, g: 30, b: 30)
+        let script: [MonkeyStep] = [
+            .fill(at: p(3, 3), color: red), .stroke(tool: .brush, brush: .round, size: 6, color: .white, points: [p(2, 2), p(30, 20)], secondary: false, shift: false, smoothing: 0, symmetry: .off),
+            .wand(at: p(5, 5), object: false, shift: false, option: false), .wand(at: p(20, 15), object: false, shift: true, option: false),
+            .wand(at: p(10, 10), object: true, shift: false, option: false), .deselect, .lasso(points: [p(2, 2), p(25, 4), p(20, 20), p(3, 18)], shift: false, option: false),
+            .lasso(points: [p(6, 6), p(12, 6), p(9, 12)], shift: false, option: true), .deselect,
+            .shape(kind: .rectangle, from: p(4, 4), to: p(20, 16), outline: .solid, fill: nil, secondary: false, color: red, leavesOpen: true),
+            .dragOpen(which: 0, by: p(5, -3)), .dragOpen(which: 3, by: p(4, 4)), .dragOpen(which: 11, by: p(-2, 3)),
+            .shape(kind: .arrow, from: p(2, 20), to: p(30, 4), outline: .solid, fill: nil, secondary: false, color: red, leavesOpen: true),
+            .dragOpen(which: 1, by: p(3, 3)), .dragOpen(which: 2, by: p(-4, 0)),
+            .text("API key", at: p(4, 4), editable: true, color: red, leavesOpen: true), .dragOpen(which: 2, by: p(10, 0)), .dragOpen(which: 8, by: p(3, 5)),
+            .badge(at: p(8, 8), to: nil, secondary: false, leavesOpen: false), .badge(at: p(15, 10), to: p(25, 18), secondary: true, leavesOpen: true),
+            .measure(from: p(0, 0), to: p(20, 20)), .eyedropper(at: p(3, 3), secondary: false, allLayers: true), .eyedropper(at: p(30, 3), secondary: true, allLayers: false),
+            .drop(width: 12, height: 9, color: red, at: p(10, 10)), .deselect, .historyJump(2), .historyJump(30), .historyJump(5),
+            .addLayer, .stroke(tool: .pencil, brush: .round, size: 2, color: red, points: [p(1, 1), p(9, 9)], secondary: false, shift: false, smoothing: 0, symmetry: .off),
+            .chooseLayer(0), .revertLayer, .copyText, .resizeCanvas(width: 60, height: 50), .trim,
+            .markSubjects(.select, clicks: [p(10, 10), p(30, 20)]), .markSubjects(.liftToNewLayer, clicks: [p(5, 5)]),
+        ]
+        // What each step left, so the steps are seen to land, not just break no rule.
+        var after: [String] = []
+        var steps = script.makeIterator()
+        try await MonkeyEpisode.drive(MonkeyEpisode.random(seed: 1).makeEditor(), finishing: true) { editor in
+            let shape = editor.pendingShapeSpec.map { "shape \($0.start) \($0.end) \($0.rotation)" } ?? ""
+            let text = editor.pendingText.map { "text \($0.origin) \($0.wrapWidth ?? 0)" } ?? ""
+            after.append("\(editor.history.undoCount) \(editor.undoActionName ?? "-") \(editor.canvas.size.width)x\(editor.canvas.size.height) "
+                         + "\(MonkeyRules.selectionState(of: editor.canvas)) \(shape) \(text) \(editor.pendingBadge != nil ? "badge" : "")")
+            return steps.next()
+        }
+        func left(_ index: Int) -> String { after[index + 1] }
+        #expect(left(2).contains("a marquee"))
+        #expect(left(6).contains("a marquee") && left(6) != left(4))
+        #expect(left(10) != left(9) && left(11) != left(10) && left(12) != left(11))
+        #expect(left(17) != left(16) && left(18) != left(17))
+        #expect(left(20).hasSuffix("badge"))
+        #expect(left(24).contains("Paste") && left(24).contains("a floating piece"))
+        #expect(left(26).hasPrefix("2 ") && left(27).hasPrefix("0 ") && left(28).hasPrefix("5 "))
+        #expect(left(32).contains("Revert Layer") && left(35).contains("Trim"))
+    }
+
     /// The end still compares exact pictures after another page was shown (review AH, finding 2). Here a change History
     /// never recorded, on the first page's background, stands in for an undo that gives back the wrong picture.
     @Test func aWrongPictureIsCaughtAfterShowingAnotherPage() async {

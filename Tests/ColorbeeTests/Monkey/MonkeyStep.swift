@@ -1,4 +1,5 @@
 import ColorbeeCore
+import CoreGraphics
 import Foundation
 @testable import Colorbee
 
@@ -137,6 +138,32 @@ enum MonkeyStep: CustomStringConvertible {
     case zoom(Double)
     /// Image ▸ Canvas Properties: a new size, kept to one side or corner (C13).
     case canvasProperties(width: Int, height: Int, anchor: CanvasAnchor)
+    // Second hardening round (Leah, 2026-11-22): the smaller commands and tools.
+    /// Image ▸ Trim: every layer cropped to what shows.
+    case trim
+    /// Layer ▸ Revert Layer: back to the last save.
+    case revertLayer
+    /// A picture dropped onto the canvas (as `CanvasView.performDragOperation`): decoded from a PNG in another color
+    /// space, converted, and pasted floating, centered where it lands.
+    case drop(width: Int, height: Int, color: Pixel, at: Point2D)
+    /// A click in the History panel: undone or redone straight to that many steps.
+    case historyJump(Int)
+    /// A Magic Wand click, Color or Object mode, adding with Shift or taking away with Option.
+    case wand(at: Point2D, object: Bool, shift: Bool, option: Bool)
+    /// A Free-Form (lasso) Select drag.
+    case lasso(points: [Point2D], shift: Bool, option: Bool)
+    /// A step badge clicked, or dragged out into an arrow; placed, or left open for the next step.
+    case badge(at: Point2D, to: Point2D?, secondary: Bool, leavesOpen: Bool)
+    /// The Measure tool: changes nothing.
+    case measure(from: Point2D, to: Point2D)
+    /// The Eyedropper: changes a color, never the picture.
+    case eyedropper(at: Point2D, secondary: Bool, allLayers: Bool)
+    /// A handle of the open shape or text box dragged (`which` picks one; past the last, the middle, which moves it).
+    case dragOpen(which: Int, by: Point2D)
+    /// Copy Text: Vision reads the picture, which must not change, and the Mac's clipboard is never touched.
+    case copyText
+    /// Select Subject and friends, with Shift-clicks marking several subjects before Return (FR-9.5).
+    case markSubjects(Editor.SubjectAction, clicks: [Point2D])
 
     /// Redacts, so it must leave no History Snapshots on the pages it changed (Leah, 2026-11-01). Asked first, the
     /// monkey answers Delete Snapshots and Redact, or sometimes Cancel, which must change nothing.
@@ -152,7 +179,7 @@ enum MonkeyStep: CustomStringConvertible {
     var mayChangeLockedLayers: Bool {
         switch self {
         case .undo, .redo, .undoOnActiveLayer, .goToSnapshot, .escape, .input, .forgetHistory, .saveAndReopen, .orientation, .resize,
-             .resizeCanvas, .cropToSelection, .canvasProperties, .showPage, .newPage, .duplicatePage, .deletePage, .movePage:
+             .resizeCanvas, .cropToSelection, .canvasProperties, .trim, .historyJump, .showPage, .newPage, .duplicatePage, .deletePage, .movePage:
             true
         case let .effectDialog(kind, _, _, _, _, ending): [.crop, .perspective, .straighten].contains(kind) || ending == .undoAtOnce
         default: redacts
@@ -284,6 +311,22 @@ enum MonkeyStep: CustomStringConvertible {
         case let .toolOptions(options): return "Tool options: \(options)"
         case let .zoom(scale): return "Zoom to \(Int(scale * 100))%"
         case let .canvasProperties(width, height, anchor): return "Canvas Properties: \(width) × \(height), anchored \(anchor)"
+        case .trim: return "Image > Trim"
+        case .revertLayer: return "Layer > Revert Layer"
+        case let .drop(width, height, color, at): return "Drop a \(width) × \(height) \(color.words) PNG (sRGB) onto the canvas at \(at.words)"
+        case let .historyJump(count): return "Click step \(count) in the History panel"
+        case let .wand(at, object, shift, option):
+            return "\(shift ? "Shift-" : option ? "Option-" : "")Magic Wand (\(object ? "Object" : "Color")) click at \(at.words)"
+        case let .lasso(points, shift, option): return "\(shift ? "Shift-" : option ? "Option-" : "")Free-Form Select through \(points.words)"
+        case let .badge(at, to, secondary, leavesOpen):
+            return "Step badge at \(at.words)\(to.map { ", dragged to \($0.words)" } ?? "")\(secondary ? " (right button)" : ""), \(leavesOpen ? "left open" : "placed")"
+        case let .measure(from, to): return "Measure from \(from.words) to \(to.words)"
+        case let .eyedropper(at, secondary, allLayers): return "\(allLayers ? "Option-" : "")\(secondary ? "right-" : "")click the Eyedropper at \(at.words)"
+        case let .dragOpen(which, by): return "Drag handle \(which + 1) of the open shape or text box by \(by.words)"
+        case .copyText: return "Edit > Copy Text"
+        case let .markSubjects(action, clicks):
+            let name = switch action { case .select: "Select Subject"; case .removeBackground: "Remove Background"; case .liftToNewLayer: "Lift Subject" }
+            return "\(name), click \(clicks.first?.words ?? "nowhere")\(clicks.dropFirst().map { ", Shift-click \($0.words)" }.joined()), then Return"
         }
     }
 
@@ -641,6 +684,76 @@ enum MonkeyStep: CustomStringConvertible {
         case let .canvasProperties(width, height, anchor):
             editor.applyCanvasProperties(size: IntSize(width: width, height: height), anchor: anchor,
                                          transparentBackground: editor.canvas.hasTransparentBackground)
+        case .trim: editor.trim()
+        case .revertLayer: editor.revertLayer()
+        case let .drop(width, height, color, at):
+            let picture = PixelBuffer(width: width, height: height, fill: color)
+            guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB), let data = try? ImageCodec.encodePNG(picture, colorSpace: sRGB),
+                  let decoded = try? ImageCodec.decode(data, convertingTo: editor.canvas.colorSpace) else { return }
+            editor.paste(decoded.buffer, at: IntPoint(x: Int(at.x) - width / 2, y: Int(at.y) - height / 2))
+        case let .historyJump(count):
+            let steps = editor.history.undoCount + editor.history.redoCount
+            editor.jump(toStep: count % (steps + 1))
+            if editor.snapshotQuestion != nil { editor.deleteSnapshotsAndRedact() }
+        case let .wand(at, object, shift, option):
+            editor.selectTool(.magicWand)
+            editor.wandMode = object ? .object : .color
+            editor.beginSelectionDrag(at: at, modifiers: DragModifiers(shift: shift, option: option))
+            editor.endSelectionDrag(at: at)
+            await Self.settle(editor)
+            editor.wandMode = .color
+        case let .lasso(points, shift, option):
+            editor.selectTool(.lassoSelect)
+            editor.beginSelectionDrag(at: points[0], modifiers: DragModifiers(shift: shift, option: option))
+            for point in points.dropFirst() { editor.continueSelectionDrag(to: point, shiftDown: shift) }
+            editor.endSelectionDrag(at: points[points.count - 1])
+        case let .badge(at, to, secondary, leavesOpen):
+            editor.selectTool(.stepBadge)
+            editor.beginBadge(at: at, secondary: secondary)
+            if let to { editor.continueBadge(to: to) }
+            editor.endBadge()
+            if !leavesOpen { editor.commitPendingBadge() }
+        case let .measure(from, to):
+            editor.selectTool(.measure)
+            editor.measure(from: from, to: to)
+        case let .eyedropper(at, secondary, allLayers):
+            editor.selectTool(.eyedropper)
+            editor.pickColor(at: at, secondary: secondary, allLayers: allLayers)
+        case let .dragOpen(which, by):
+            if let spec = editor.pendingShapeSpec, editor.pendingShape?.isBuilding == false {
+                // Each handle `shapeHandle(atView:)` finds, then a point on the shape, which moves it.
+                var grabs: [Point2D] = if spec.kind.isLinear { [spec.end, spec.start] }
+                    else if spec.kind.isPointBased { spec.points }
+                    else { [editor.pendingShapeRotateHandle].compactMap { $0 } + SelectionHandle.allCases.map { spec.rotated($0.point(on: spec.box)) } }
+                grabs.append(spec.kind.isLinear ? Point2D(x: (spec.start.x + spec.end.x) / 2, y: (spec.start.y + spec.end.y) / 2)
+                                                : spec.boxCenter)
+                let start = grabs[which % grabs.count], end = Point2D(x: start.x + by.x, y: start.y + by.y)
+                editor.beginShapeDrag(at: start, viewPoint: editor.viewport.viewPoint(fromImage: start), secondary: false, clickCount: 1)
+                editor.continueShapeDrag(to: end, shiftDown: false)
+                editor.endShapeDrag()
+            } else if editor.pendingText != nil {
+                let handles = editor.pendingTextHandles
+                let grab: TextBoxGrab = which % (handles.count + 1) < handles.count ? .handle(handles[which % (handles.count + 1)].handle) : .border
+                let start = handles.first { TextBoxGrab.handle($0.handle) == grab }?.point ?? handles.first?.point ?? Point2D(x: 0, y: 0)
+                editor.beginTextBoxDrag(grab, at: start)
+                editor.continueTextBoxDrag(to: Point2D(x: start.x + by.x, y: start.y + by.y))
+                editor.endTextBoxDrag()
+            }
+        case .copyText:
+            // A clipboard count no real one has, so a later redaction never offers to clear the Mac's clipboard.
+            editor.copyText { _ in Int.min }
+            for _ in 0..<400 where editor.isReadingText { try? await Task.sleep(for: .milliseconds(25)) }
+        case let .markSubjects(action, clicks):
+            editor.findSubject(action)
+            await Self.settle(editor)
+            for (index, click) in clicks.enumerated() where editor.activeEffect == .pickSubject {
+                editor.beginCanvasToolDrag(at: click, viewPoint: editor.viewport.viewPoint(fromImage: click), adding: index > 0)
+                editor.endCanvasToolDrag()
+                await Self.settle(editor)
+            }
+            if editor.activeEffect == .pickSubject { editor.applyEffect() }
+            await Self.settle(editor)
+            if editor.activeEffect != nil { editor.cancelEffect() }
         }
     }
 }

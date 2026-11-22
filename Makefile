@@ -8,7 +8,7 @@ BENCH   := $(DERIVED)/Build/Products/Release/Colorbee.app/Contents/MacOS/Colorbe
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 FORGET_DEBUG := status=$$?; $(LSREGISTER) -u "$(CURDIR)/$(APP)" 2>/dev/null; exit $$status
 
-.PHONY: known-good monkey gen build test core app-test coverage perf run bench beta help help-index help-shots open clean
+.PHONY: known-good monkey monkey-release gen build test core app-test coverage perf run bench beta help help-index help-shots open clean
 
 gen:
 	xcodegen generate --quiet
@@ -42,6 +42,21 @@ monkey: gen
 		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED) -parallel-testing-enabled NO -quiet test \
 		'-only-testing:ColorbeeTests/MonkeyTests/overnight()'; \
 	status=$$?; $(LSREGISTER) -u "$(CURDIR)/$(APP)" 2>/dev/null; \
+	echo "Report: $$(ls -t $(DERIVED)/Monkey/Monkey\ Report*.md 2>/dev/null | head -1)"; \
+	if [ -f "$(DERIVED)/Monkey/Monkey In Progress.txt" ]; then echo "It stopped early:"; cat "$(DERIVED)/Monkey/Monkey In Progress.txt"; fi; \
+	exit $$status
+
+# The monkey on a Release build, as the App Store copy is built (monkey hardening). Swift's own safety checks are off, so it
+# catches what only the optimizer brings out; Debug stays the nightly run. Its own build folder, so the everyday Release
+# build isn't touched. The limits check uses an 8000 x 8000 picture here (about 1 GB); MINUTES as for make monkey.
+monkey-release: gen
+	@mkdir -p $(DERIVED)/Monkey
+	TEST_RUNNER_COLORBEE_MONKEY_MINUTES=$(MINUTES) TEST_RUNNER_COLORBEE_MONKEY_REPORT="$(CURDIR)/$(DERIVED)/Monkey" TEST_RUNNER_COLORBEE_MONKEY_BIG=8000 \
+	$(if $(SEED),TEST_RUNNER_COLORBEE_MONKEY_SEED=$(SEED)) $(if $(EPISODES),TEST_RUNNER_COLORBEE_MONKEY_EPISODES=$(EPISODES)) \
+	caffeinate -i xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release ENABLE_TESTABILITY=YES \
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath $(DERIVED)/MonkeyRelease -parallel-testing-enabled NO -quiet test \
+		'-only-testing:ColorbeeTests/MonkeyTests/overnight()'; \
+	status=$$?; $(LSREGISTER) -u "$(CURDIR)/$(DERIVED)/MonkeyRelease/Build/Products/Release/Colorbee.app" 2>/dev/null; \
 	echo "Report: $$(ls -t $(DERIVED)/Monkey/Monkey\ Report*.md 2>/dev/null | head -1)"; \
 	if [ -f "$(DERIVED)/Monkey/Monkey In Progress.txt" ]; then echo "It stopped early:"; cat "$(DERIVED)/Monkey/Monkey In Progress.txt"; fi; \
 	exit $$status

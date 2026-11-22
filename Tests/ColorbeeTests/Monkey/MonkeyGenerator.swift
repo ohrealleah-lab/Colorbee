@@ -12,7 +12,12 @@ enum MonkeyGenerator {
         // Large pictures reach past one 256-pixel undo tile, so strokes, pastes and resizes have to as well.
         let reach = large ? 90 : 20, maxSide = large ? 480 : 160
         func point() -> Point2D {
-            Point2D(x: Double(random.int(-4...(size.width + 4))) + 0.5, y: Double(random.int(-4...(size.height + 4))) + 0.5)
+            // Now and then exactly on an edge or a pixel's corner, where off-by-one mistakes live.
+            if random.chance(0.1) {
+                return Point2D(x: random.pick([0, 1, Double(size.width - 1), Double(size.width), -1]),
+                               y: random.pick([0, 1, Double(size.height - 1), Double(size.height), -1]))
+            }
+            return Point2D(x: Double(random.int(-4...(size.width + 4))) + 0.5, y: Double(random.int(-4...(size.height + 4))) + 0.5)
         }
         func path() -> [Point2D] {
             var points = [point()]
@@ -25,13 +30,20 @@ enum MonkeyGenerator {
         func color() -> Pixel {
             Pixel(r: UInt8(random.int(0...255)), g: UInt8(random.int(0...255)), b: UInt8(random.int(0...255)), a: random.chance(0.2) ? UInt8(random.int(40...255)) : 255)
         }
-        func words() -> String { random.pick(["Hi", "Step 2", "Look here", "API key", "OK", "x", "a@b.io", "1.2.3.4"]) }
+        // Empty words delete a text layer (C9); emoji, accents made of two characters, right-to-left words and line
+        // breaks must redact and save like any other.
+        func words() -> String {
+            // An email or IP address a quarter of the time, as before the new words, so Auto-Redact finds something.
+            if random.chance(0.25) { return random.pick(["a@b.io", "1.2.3.4"]) }
+            return random.pick(["Hi", "Step 2", "Look here", "API key", "OK", "x", "a@b.io", "1.2.3.4", "", " ", "🐝 secret", "café", "e\u{301}clair",
+                         "שלום עולם", "line one\nline two", String(repeating: "long words ", count: 12)])
+        }
 
         func box() -> IntRect {
             let (a, b) = (point(), point())
             return IntRect(x: Int(min(a.x, b.x)), y: Int(min(a.y, b.y)), width: max(1, Int(abs(a.x - b.x))), height: max(1, Int(abs(a.y - b.y))))
         }
-        let roll = random.int(0..<132)
+        let roll = random.int(0..<162)
         switch roll {
         case 0..<16:
             return .stroke(tool: random.pick([.brush, .brush, .pencil, .eraser]), brush: random.pick(Brush.allCases), size: Double(random.int(1...20)),
@@ -41,9 +53,11 @@ enum MonkeyGenerator {
         case 16..<20: return .fill(at: point(), color: color())
         case 20..<22: return .gradient(from: point(), to: point(), color: color())
         case 22..<27:
-            return .shape(kind: random.pick([.line, .arrow, .rectangle, .ellipse, .star5, .heart, .roundedRectangleCallout]), from: point(), to: point(),
-                          outline: random.chance(0.8) ? random.pick([.solid, .solid, .marker]) : nil,
-                          fill: random.chance(0.5) ? .solid : nil, secondary: random.chance(0.3), color: color(), leavesOpen: random.chance(0.35))
+            // Every shape and paint style (C6), the everyday ones most.
+            let kind = random.chance(0.5) ? random.pick([.line, .arrow, .rectangle, .ellipse, .star5, .heart, .roundedRectangleCallout]) : random.pick(ShapeKind.allCases)
+            return .shape(kind: kind, from: point(), to: point(),
+                          outline: random.chance(0.8) ? random.pick([.solid, .solid] + PaintStyle.allCases) : nil,
+                          fill: random.chance(0.5) ? random.pick([.solid] + PaintStyle.allCases) : nil, secondary: random.chance(0.3), color: color(), leavesOpen: random.chance(0.35))
         case 27..<31: return .text(words(), at: point(), editable: random.chance(0.7), color: color(), leavesOpen: random.chance(0.35))
         case 31..<33: return .editText(layer: random.int(0..<8), words())
         case 33..<35: return .redact(points: path(), treatment: random.pick([.solidFill, .blur, .pixelate]), cancels: random.chance(0.3))
@@ -126,6 +140,37 @@ enum MonkeyGenerator {
             }
             return .effectDialog(kind, values: values, select: random.chance(0.4) ? box() : nil, box: box(), corners: corners,
                                  ending: random.pick(EffectEnding.allCases))
+        // Monkey hardening (2026-11-21): raw input, and what monkey-hardening.md found still open.
+        case 132..<139: return .input(MonkeyInputScripts.script(&random, size: size))
+        case 139: return .solidFill(color: color(), cancels: random.chance(0.3))
+        case 140: return .autoContrast(asLayer: random.chance(0.4))
+        case 141: return .removeRedEye
+        case 142: return .subject(random.pick([.select, .removeBackground, .liftToNewLayer]), click: random.chance(0.5) ? point() : nil, take: random.chance(0.7))
+        case 143: return .modifySelection(random.pick(SelectionModification.allCases), radius: random.pick([1, 2, 5, 20, 100]), ending: random.pick(SelectionEnding.allCases))
+        case 144:
+            let kind = random.pick([EffectKind.colorRange, .luminanceRange, .graduatedSelection])
+            let values = kind.parameters.map { parameter -> Double in
+                if let options = parameter.options { return Double(random.int(0..<max(1, options.count))) }
+                return random.pick([parameter.range.lowerBound, parameter.range.upperBound, (parameter.range.lowerBound + parameter.range.upperBound) / 2])
+            }
+            return .rangeSelect(kind, values: values, points: (0..<random.int(1...3)).map { _ in point() }, apply: random.chance(0.7))
+        case 145..<147: return .selectWith(ellipse: random.chance(0.5), from: point(), to: point(), shift: random.chance(0.4), option: random.chance(0.3))
+        case 147: return .dragHandle(random.pick(SelectionHandle.allCases), by: Point2D(x: Double(random.int(-30...30)), y: Double(random.int(-30...30))))
+        case 148: return .copy(merged: random.chance(0.4), cut: random.chance(0.3))
+        case 149: return .pasteInPlace
+        case 150:
+            let chosen = random.chance(0.2) ? [] : (0..<random.int(2...4)).map { _ in random.int(0..<max(1, layers)) }
+            return .several(chosen, command: SeveralCommand.random(&random))
+        case 151: return .renameLayer(random.chance(0.5) ? words() : "Layer \(random.int(1...9))")
+        case 152: return .passThrough
+        case 153: return .isolate(random.int(0..<max(1, layers)))
+        case 154: return .renameSnapshot(random.int(0..<10), random.pick(["Before", "API key", "", "🐝"]))
+        case 155..<157: return .toolOptions(MonkeyOptions.random(&random))
+        case 157: return .zoom(random.pick([0.1, 0.5, 1, 2, 8, 32]))
+        case 158:
+            return .canvasProperties(width: random.int(1...(large ? 460 : 150)), height: random.int(1...(large ? 380 : 120)),
+                                     anchor: random.pick(CanvasAnchor.allCases))
+        case 159..<162: return .fill(at: point(), color: color())
         default: return .photoSetting(MonkeyPhoto.edit(&random))
         }
     }

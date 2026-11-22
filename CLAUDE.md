@@ -21,6 +21,7 @@ make run      # Release build, then launch (Debug pixel loops are ~50x slower; u
 make known-good # Remake Adjust Photo's known-good pictures (TestImages/Known Good) after changing a control on purpose; review page in build/Known Good Review. Leah looks them over.
 make perf      # Release-only time limits + 8000x8000 soak test (AC-27). A few minutes; no windows.
 make monkey    # Overnight monkey test (stage 32): 8 h of random edits, report in build/Monkey. MINUTES=30 for less; SEED=n EPISODES=1 replays one.
+make monkey-release # The monkey on a Release build, as the App Store copy is built; its limits check uses an 8000x8000 picture (~1 GB). Ask Leah first.
 make beta      # Signed + notarized beta zip in build/Beta (Scripts/make-beta.sh). Uses Leah's keychain; ask her first.
 make bench     # Release build + scripted perf run (launch, stroke latency, undo, memory). Brings a window to the front; ask Leah first.
 make clean

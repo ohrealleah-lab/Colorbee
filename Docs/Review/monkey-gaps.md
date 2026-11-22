@@ -1,5 +1,8 @@
 # Monkey test gaps (review, 2026-11-01)
 
+> **Superseded 2026-11-21** by [monkey-hardening.md](monkey-hardening.md), which re-audits this list against the code
+> and records what the App Store hardening closed. Kept for its reasoning and the details of each gap.
+
 Where the overnight monkey (`Tests/ColorbeeTests/Monkey`) could catch bugs but doesn't look yet. Review only: no code
 was changed and nothing was run.
 

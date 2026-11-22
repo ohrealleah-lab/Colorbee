@@ -165,6 +165,16 @@ struct MonkeyEpisode {
         var pendingSave: BackgroundSave?
         var largestStep = 0
         let lastPhoto = PhotoSettingsStore.shared.last
+        // How each History Snapshot looked when taken, to check going to it gives that back (monkey gaps, R7).
+        var snapshotLooks: [UUID: [String]] = [:]
+        // Each time the document says it was edited (monkey gaps, R9): what autosave and closing go by.
+        let marks = MarkCounter()
+        marks.watch(editor)
+        MonkeyStep.copied = nil
+        MonkeyStep.inputFailure = nil
+        MonkeyLeaks.note(editor)
+        // The canvas view raw input goes to holds its editor; it goes with the episode.
+        defer { MonkeyCanvas.reset() }
 
         func checkPendingSave(force: Bool) async throws(MonkeyFailure) {
             guard let save = pendingSave, force || done >= save.due else { return }
@@ -198,7 +208,7 @@ struct MonkeyEpisode {
                           selection: MonkeyRules.selectionState(of: editor.canvas))
             let canvas = editor.canvas, shownPage = editor.page
             // Whatever is still open gets placed by most steps, so what's there now isn't what those steps leave behind.
-            let hadOpen = editor.pendingShape != nil || editor.pendingText != nil
+            let hadOpen = editor.pendingShape != nil || editor.pendingText != nil || editor.pendingBadge != nil
             let landing = MonkeyRules.certainToLand(editor)
             let leaving = canvas.selection.floating == nil && !hadOpen ? MonkeyRules.layerStates(of: canvas, floatingOn: nil) : nil
             let pixelsBefore = step.redacts && leaving != nil ? MonkeyRules.pixels(of: canvas) : [:]
@@ -210,12 +220,37 @@ struct MonkeyEpisode {
                 editor.redactedSinceSave = false
                 editor.lastRedaction = []
             }
+            let pagesBefore = MonkeyRules.pageHistories(of: editor), marksBefore = marks.count
+            let locksBefore = step.mayChangeLockedLayers ? [:] : MonkeyRules.lockedLayers(of: canvas)
+            let snapshotGoneTo: UUID? = if case let .goToSnapshot(index) = step, !editor.history.snapshots.isEmpty {
+                editor.history.snapshots[index % editor.history.snapshots.count].id
+            } else { nil }
             await step.perform(on: editor)
             let redacted = step.redacts && editor.redactedSinceSave
             if step.redacts { editor.redactedSinceSave = editor.redactedSinceSave || redactedBefore }
             done += 1
             do {
-                try MonkeyRules.checkLanded(editor, open: landing, step: step, page: shownPage, revisionBefore: before.revision)
+                if let failure = MonkeyStep.inputFailure {
+                    MonkeyStep.inputFailure = nil
+                    throw failure
+                }
+                if case .input = step {} else {
+                    try MonkeyRules.checkLanded(editor, open: landing, step: step, page: shownPage, revisionBefore: before.revision)
+                }
+                switch step {
+                // A preview step is marked only at Apply; an autosave while the bar is open is checked below, then Cancel.
+                case .saveAndReopen, .forgetHistory, .effectDialog(_, _, _, _, _, .autosaveAtOnce): break
+                default: try MonkeyRules.checkMarked(editor, before: pagesBefore, marked: marks.count > marksBefore)
+                }
+                if editor.page === shownPage, editor.canvas.size == canvas.size {
+                    try MonkeyRules.checkLocks(before: locksBefore, canvas: editor.canvas, step: step)
+                }
+                if case .takeSnapshot = step, let newest = editor.history.snapshots.last, snapshotLooks[newest.id] == nil {
+                    snapshotLooks[newest.id] = editor.documentState
+                }
+                if let id = snapshotGoneTo, let want = snapshotLooks[id], editor.page === shownPage, want != editor.documentState {
+                    throw MonkeyFailure(rule: "Going to a History Snapshot didn't give back its picture", detail: UndoTracker.difference(want, editor.documentState))
+                }
                 switch step {
                 case .saveAndReopen:
                     // Carry on in the reopened copy, which must hold what was saved (the save places what's open), every
@@ -233,6 +268,8 @@ struct MonkeyEpisode {
                     }
                     leftPages = []
                     editor = copy
+                    marks.watch(editor)
+                    MonkeyLeaks.note(editor)
                     tracker.restart(on: editor, pagesTouched: true)
                     try await checkPendingSave(force: false)
                     continue
@@ -317,7 +354,7 @@ struct MonkeyEpisode {
             }
         }
         guard finishing else { return }
-        do {
+        do throws(MonkeyFailure) {
             try MonkeyRules.checkLastPhoto(was: lastPhoto)
             try await checkPendingSave(force: true)
             // What's still open is placed as a step of its own, which ends any redo the tracker still expects.
@@ -327,6 +364,8 @@ struct MonkeyEpisode {
                 try tracker.note(.deselect, before: before)
             }
             try MonkeyRules.checkSaving(editor)
+            // Saved the way a window saves, over an older file, and opened the way a window opens (monkey hardening, S5).
+            if let failure = MonkeyFiles.checkDocumentSave(editor, seed: UInt64(done)) { throw failure }
             try tracker.undoAndRedoEverything(slack: largestStep)
         } catch {
             throw MonkeyFailureAt(failure: error, steps: done, atEnd: true)

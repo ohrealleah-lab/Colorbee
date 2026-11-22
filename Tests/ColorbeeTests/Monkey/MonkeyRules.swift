@@ -42,11 +42,95 @@ enum MonkeyRules {
                 throw MonkeyFailure(rule: "A text layer's pixels don't match its words", detail: "\"\(layer.name)\" shows something other than its text.")
             }
         }
+        try checkReferences(editor)
         let history = editor.history
         // Pictures here are tiny, so one step (a crop holds every layer twice) is a few MB at most; the old 64 MB slack
         // let a history that never spilled pass (review AH, finding 3). The rare larger pictures need more.
         if history.byteCount > history.byteBudget + max(8 << 20, stepBytes(canvas), slack) {
             throw MonkeyFailure(rule: "History went over its memory budget", detail: "\(history.byteCount >> 20) MB held, budget \(history.byteBudget >> 20) MB.")
+        }
+    }
+
+    /// What points at a layer or the picture still finds it (monkey gaps, R12): a stale one crashes much later than the
+    /// step that left it, which makes it hard to find by hand.
+    static func checkReferences(_ editor: Editor) throws(MonkeyFailure) {
+        let canvas = editor.canvas
+        let ids = Set(canvas.layers.map(\.id) + canvas.layers.compactMap(\.mask?.id))
+        if let mask = canvas.selection.marquee, mask.bounds.intersection(canvas.bounds) != mask.bounds {
+            throw MonkeyFailure(rule: "The selection reaches past the picture", detail: "It covers \(mask.bounds); the picture is \(canvas.size.width) × \(canvas.size.height).")
+        }
+        if let floating = canvas.selection.floating, !ids.contains(floating.layerID) {
+            throw MonkeyFailure(rule: "A floating piece belongs to a layer that's gone", detail: "Layer \(floating.layerID.rawValue) isn't in the list.")
+        }
+        if let missing = editor.otherChosenLayerIDs.first(where: { !ids.contains($0) }) {
+            throw MonkeyFailure(rule: "A chosen layer is gone", detail: "Layer \(missing.rawValue) is still chosen but isn't in the list.")
+        }
+        if let text = editor.pendingText, let id = text.layerID, !ids.contains(id) {
+            throw MonkeyFailure(rule: "An open text box edits a layer that's gone", detail: "Layer \(id.rawValue) isn't in the list.")
+        }
+    }
+
+    /// Each page, in order, with its History's revision and undo count, to tell what a step recorded.
+    static func pageHistories(of editor: Editor) -> [(page: ObjectIdentifier, revision: Int, undoCount: Int)] {
+        editor.pages.pages.map { (ObjectIdentifier($0), $0.history.revision, $0.history.undoCount) }
+    }
+
+    /// The document is marked edited exactly when its history changes (CLAUDE.md; monkey gaps, R9): a change that isn't
+    /// marked isn't autosaved, and closing doesn't ask. A step added or undone, or pages added, removed or moved, must
+    /// mark it; nothing recorded must not. (A preview step taken back by Cancel, or older steps written to disk, change
+    /// the history without changing the picture, so either is fine then.)
+    static func checkMarked(_ editor: Editor, before: [(page: ObjectIdentifier, revision: Int, undoCount: Int)], marked: Bool) throws(MonkeyFailure) {
+        let now = pageHistories(of: editor)
+        let samePages = now.map(\.page) == before.map(\.page)
+        let stepped = !samePages || zip(now, before).contains { $0.revision != $1.revision && $0.undoCount != $1.undoCount }
+        let recorded = !samePages || zip(now, before).contains { $0.revision != $1.revision }
+        if stepped, !marked {
+            throw MonkeyFailure(rule: "A change wasn't marked as edited",
+                                detail: samePages ? "History changed, but the document wasn't told, so autosave wouldn't save it and closing wouldn't ask."
+                                    : "The pages changed, but the document wasn't told, so autosave wouldn't save it and closing wouldn't ask.")
+        }
+        if !recorded, marked {
+            throw MonkeyFailure(rule: "The document was marked edited with nothing changed", detail: "History recorded nothing, but closing would now ask to save.")
+        }
+    }
+
+    /// Each locked layer's pixels and mask, and which of its pixels are clear if its transparent pixels are locked.
+    static func lockedLayers(of canvas: Canvas) -> [LayerID: (pixels: Int, mask: Int, clear: [Bool]?)] {
+        var locked: [LayerID: (pixels: Int, mask: Int, clear: [Bool]?)] = [:]
+        // A floating piece belongs to the layer it was lifted from, so placing it there isn't a change to a layer locked
+        // meanwhile; a text layer's words change its outline. Both are Leah's to decide (2026-11-21); left out until then.
+        let floatingOn = canvas.selection.floating?.layerID
+        for layer in canvas.layers where layer.isPixelLayer && (floatingOn == nil || layer.id != floatingOn && layer.mask?.id != floatingOn) {
+            let fully = canvas.isLocked(layer), clear = canvas.locksTransparency(layer) && layer.text == nil
+            guard fully || clear else { continue }
+            locked[layer.id] = (fully ? layer.buffer.contentHash() : 0, fully ? layer.mask?.buffer.contentHash() ?? 0 : 0,
+                                clear && !fully ? layer.buffer.pixels(in: canvas.bounds).map { $0.a == 0 } : nil)
+        }
+        return locked
+    }
+
+    /// A locked layer is as it was, mask too; on a layer whose transparent pixels are locked, they're still clear
+    /// (monkey gaps, R10). The lock is how Leah protects a layer.
+    static func checkLocks(before: [LayerID: (pixels: Int, mask: Int, clear: [Bool]?)], canvas: Canvas, step: MonkeyStep) throws(MonkeyFailure) {
+        for layer in canvas.layers {
+            guard let was = before[layer.id] else { continue }
+            if let clear = was.clear {
+                // Merging onto such a layer is Leah's to decide too (2026-11-21).
+                guard canvas.locksTransparency(layer), !canvas.isLocked(layer), layer.text == nil,
+                      !step.merges else { continue }
+                let pixels = layer.buffer.pixels(in: canvas.bounds)
+                if let index = clear.indices.first(where: { clear[$0] && pixels[$0].a != 0 }) {
+                    throw MonkeyFailure(rule: "Paint landed on a layer's locked transparent pixels",
+                                        detail: "\(step) put paint on \"\(layer.name)\" at (\(index % canvas.size.width), \(index / canvas.size.width)), which was clear.")
+                }
+            } else if canvas.isLocked(layer) {
+                if layer.buffer.contentHash() != was.pixels {
+                    throw MonkeyFailure(rule: "A locked layer changed", detail: "\(step) changed \"\(layer.name)\"'s pixels.")
+                }
+                if (layer.mask?.buffer.contentHash() ?? 0) != was.mask {
+                    throw MonkeyFailure(rule: "A locked layer's mask changed", detail: "\(step) changed \"\(layer.name)\"'s mask.")
+                }
+            }
         }
     }
 

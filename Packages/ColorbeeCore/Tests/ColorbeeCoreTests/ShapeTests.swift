@@ -100,6 +100,13 @@ struct ShapeGalleryTests {
         #expect(buffer[5, 5] == .white)
     }
 
+    /// A thick outline on a small box squashes the inside flat; the shape must still draw.
+    @Test(arguments: ShapeKind.allCases.filter(\.isBoxShape))
+    func thickOutlineOnASmallBoxStillDraws(kind: ShapeKind) {
+        let shape = ShapeSpec(kind: kind, start: Point2D(x: 14, y: 66), end: Point2D(x: 47, y: 93), lineWidth: 27, outline: .black, fill: nil)
+        #expect(render(shape).contentHash() != render(ShapeSpec(kind: kind, start: .zero, end: .zero, lineWidth: 1, outline: nil, fill: nil)).contentHash(), "\(kind.name)")
+    }
+
     @Test(arguments: [ShapeKind.triangle, .diamond, .ellipse, .star5, .heart])
     func shapesWithEmptyCornersLeaveThem(kind: ShapeKind) {
         let shape = ShapeSpec(kind: kind, start: Point2D(x: 40, y: 40), end: Point2D(x: 160, y: 160), lineWidth: 2, outline: .black, fill: blue)

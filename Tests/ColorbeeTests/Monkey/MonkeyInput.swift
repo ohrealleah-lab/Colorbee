@@ -96,6 +96,8 @@ final class MonkeyCanvas {
     private var eventNumber = 0
     /// What the picture was when Before/After came on, which must hold until it goes off (monkey gaps, C13).
     private(set) var comparedFrom: [String]?
+    /// The pages shown by keys or menu commands in the last `play` (`MonkeyStep.inputPageChanges`).
+    private(set) var pageChanges: [(left: Page, leftLayers: [String]?, shown: Page, shownLayers: [String])] = []
 
     private init(editor: Editor) {
         self.editor = editor
@@ -137,8 +139,15 @@ final class MonkeyCanvas {
 
     private func playing(_ events: [InputEvent]) -> MonkeyFailure? {
         var failure: MonkeyFailure?
+        pageChanges = []
         for event in events {
+            let page = editor.page
+            var leftLayers: [String]?
+            if case .menu = event, editor.canvas.selection.floating == nil, editor.pendingShape == nil, editor.pendingText == nil, editor.pendingBadge == nil {
+                leftLayers = editor.documentState
+            }
             send(event)
+            if editor.page !== page { pageChanges.append((page, leftLayers, editor.page, editor.documentState)) }
             // While Before/After shows, the canvas only moves its divider; keys and menu commands may still edit (§23,
             // 2026-11-22), so the picture after one is the new starting point.
             switch event {

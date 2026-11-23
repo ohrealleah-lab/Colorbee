@@ -186,10 +186,19 @@ enum MonkeyStep: CustomStringConvertible {
         }
     }
 
-    /// Merge Down or Merge Visible.
+    /// Align or Distribute: moves whole layers, outline and all, like Flip, so a layer with its transparent pixels locked
+    /// may have paint where it was clear (§23, 2026-11-23).
+    var movesLayers: Bool {
+        switch self {
+        case .several(_, command: .align), .several(_, command: .distribute): true
+        default: false
+        }
+    }
+
+    /// Merge Down, Merge Visible or Flatten: a new combined picture, which may paint over locked clear pixels (§23, 2026-11-22).
     var merges: Bool {
         switch self {
-        case .mergeDown, .mergeVisible: true
+        case .mergeDown, .mergeVisible, .flatten: true
         default: false
         }
     }
@@ -577,7 +586,9 @@ enum MonkeyStep: CustomStringConvertible {
             if apply { editor.applyEffect() }
             if editor.activeEffect != nil { editor.cancelEffect() }
         case let .input(events):
-            Self.inputFailure = MonkeyCanvas.view(for: editor).play(events)
+            let canvas = MonkeyCanvas.view(for: editor)
+            Self.inputFailure = canvas.play(events)
+            Self.inputPageChanges = canvas.pageChanges
             await Self.settle(editor)
         case let .solidFill(color, cancels):
             editor.color1 = color
@@ -776,6 +787,10 @@ extension MonkeyStep {
 
     /// A rule a raw input script broke while it played, for `MonkeyEpisode.drive` to report.
     @MainActor static var inputFailure: MonkeyFailure?
+    /// The pages a raw input script's keys or menu commands showed, in order: the page left, its layers just before (nil
+    /// when something open or floating would be placed on the way out), and the page shown with its layers as it came
+    /// into view. What followed may edit the new page, so it's checked as it arrived (monkey, seed 1795400231).
+    @MainActor static var inputPageChanges: [(left: Page, leftLayers: [String]?, shown: Page, shownLayers: [String])] = []
     /// What Copy, Copy Merged or Cut took, and where from, for Paste in Place. Cleared at the start of each episode.
     @MainActor static var copied: (pixels: PixelBuffer, place: IntPoint)?
 

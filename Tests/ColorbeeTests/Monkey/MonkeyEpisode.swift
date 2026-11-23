@@ -207,6 +207,9 @@ struct MonkeyEpisode {
             let before = (revision: editor.history.revision, undoCount: editor.history.undoCount,
                           selection: MonkeyRules.selectionState(of: editor.canvas))
             let canvas = editor.canvas, shownPage = editor.page
+            // The canvas object itself grows in place (Border, Drop Shadow), so its size is kept apart (monkey, 2026-11-22
+            // findings 4, 13, 19).
+            let sizeBefore = canvas.size
             // Whatever is still open gets placed by most steps, so what's there now isn't what those steps leave behind.
             let hadOpen = editor.pendingShape != nil || editor.pendingText != nil || editor.pendingBadge != nil
             let landing = MonkeyRules.certainToLand(editor)
@@ -242,7 +245,8 @@ struct MonkeyEpisode {
                 case .saveAndReopen, .forgetHistory, .effectDialog(_, _, _, _, _, .autosaveAtOnce): break
                 default: try MonkeyRules.checkMarked(editor, before: pagesBefore, marked: marks.count > marksBefore)
                 }
-                if editor.page === shownPage, editor.canvas.size == canvas.size {
+                // A step that resizes the canvas resizes every layer, locked ones too, as Canvas Size does.
+                if editor.page === shownPage, editor.canvas.size == sizeBefore {
                     try MonkeyRules.checkLocks(before: locksBefore, canvas: editor.canvas, step: step)
                 }
                 if case .takeSnapshot = step, let newest = editor.history.snapshots.last, snapshotLooks[newest.id] == nil {
@@ -258,7 +262,7 @@ struct MonkeyEpisode {
                     editor.placePendingObjects()
                     let data = try project(editor)
                     let copy = try reopened(data)
-                    try MonkeyRules.checkSame(editor.canvas, copy.canvas, pages: (editor.pages.pages.count, copy.pages.pages.count))
+                    try MonkeyRules.checkSame(editor, copy.canvas, pages: (editor.pages.pages.count, copy.pages.pages.count))
                     for (index, page) in editor.pages.pages.enumerated() where page !== editor.page {
                         guard let left = leftPages.first(where: { $0.page === page }) else { continue }
                         let saved = try Self.page(index, of: data)
@@ -275,7 +279,7 @@ struct MonkeyEpisode {
                     continue
                 case .saveInBackground:
                     let snapshot = editor.saveSnapshot(placingPending: false)
-                    pendingSave = BackgroundSave(encoding: Task.detached { try snapshot.encodedProject() }, look: MonkeyRules.shownHash(editor.canvas.flattened()),
+                    pendingSave = BackgroundSave(encoding: Task.detached { try snapshot.encodedProject() }, look: MonkeyRules.shownHash(editor.shownPicture),
                                                  layers: MonkeyRules.layerStates(of: editor.canvas, floatingOn: editor.canvas.selection.floating?.layerID),
                                                  floatingOn: editor.canvas.selection.floating?.layerID, pages: editor.pages.pages.count, due: done + 3)
                 case .forgetHistory:
@@ -292,13 +296,13 @@ struct MonkeyEpisode {
                 case let .export(pdf):
                     // As Export does: what's still open is placed first.
                     let snapshot = editor.saveSnapshot()
-                    if pdf { try MonkeyRules.checkPDF(snapshot, editor) } else { try MonkeyRules.checkPNG(snapshot, editor.canvas) }
+                    if pdf { try MonkeyRules.checkPDF(snapshot, editor) } else { try MonkeyRules.checkPNG(snapshot, editor) }
                 case .effectDialog(_, _, _, _, _, .autosaveAtOnce) where editor.activeEffect != nil:
                     // An autosave while the bar's preview shows must save the picture without it; then Cancel.
                     let snapshot = editor.saveSnapshot(placingPending: false)
                     editor.cancelEffect()
                     let floatingOn = editor.canvas.selection.floating?.layerID
-                    pendingSave = BackgroundSave(encoding: Task.detached { try snapshot.encodedProject() }, look: MonkeyRules.shownHash(editor.canvas.flattened()),
+                    pendingSave = BackgroundSave(encoding: Task.detached { try snapshot.encodedProject() }, look: MonkeyRules.shownHash(editor.shownPicture),
                                                  layers: MonkeyRules.layerStates(of: editor.canvas, floatingOn: floatingOn),
                                                  floatingOn: floatingOn, pages: editor.pages.pages.count, due: done + 3)
                 default:
@@ -327,20 +331,22 @@ struct MonkeyEpisode {
                     let under = editor.lastRedaction.filter { $0.page == shownPage.id }.flatMap { MonkeyRules.layersUnder($0.area, in: editor.canvas, before: pixelsBefore) }
                     try MonkeyRules.checkNothingLeft(editor, redacted: under, words: words)
                 }
-                if editor.page !== shownPage {
-                    // Another page is shown: the one left must be as it was when it's shown again, and this one as it was
-                    // left.
-                    // An effect's bar placed what was open or floating before the page changed: the page was left as then.
-                    let left: [String]? = if case .effectDialog = step { MonkeyStep.effectOpened } else { leaving }
-                    if let left {
-                        leftPages.removeAll { $0.page === shownPage }
-                        leftPages.append((shownPage, left))
-                    }
-                    if let index = leftPages.firstIndex(where: { $0.page === editor.page }) {
-                        let left = leftPages.remove(at: index)
-                        let now = MonkeyRules.layerStates(of: editor.canvas, floatingOn: nil)
-                        guard left.layers == now else {
-                            throw MonkeyFailure(rule: "A page changed while it wasn't shown", detail: UndoTracker.difference(left.layers, now))
+                // Another page is shown: the one left must be as it was when it's shown again, and this one as it was left.
+                // An effect's bar placed what was open or floating before the page changed: the page was left as then.
+                // Raw input may change pages mid-drag and edit on; each page is checked as it came into view.
+                let inputChanges: [(left: Page, leftLayers: [String]?, shown: Page, shownLayers: [String])]? = if case .input = step { MonkeyStep.inputPageChanges } else { nil }
+                let pageChanges = inputChanges ?? (editor.page === shownPage ? [] : [
+                    (shownPage, { if case .effectDialog = step { MonkeyStep.effectOpened } else { leaving } }(), editor.page, editor.documentState)
+                ])
+                if !pageChanges.isEmpty {
+                    for change in pageChanges {
+                        leftPages.removeAll { $0.page === change.left }
+                        if let left = change.leftLayers { leftPages.append((change.left, left)) }
+                        if let index = leftPages.firstIndex(where: { $0.page === change.shown }) {
+                            let left = leftPages.remove(at: index)
+                            guard left.layers == change.shownLayers else {
+                                throw MonkeyFailure(rule: "A page changed while it wasn't shown", detail: UndoTracker.difference(left.layers, change.shownLayers))
+                            }
                         }
                     }
                     tracker.showPage(of: editor, leaving: shownPage, revisionBefore: before.revision)
@@ -358,7 +364,7 @@ struct MonkeyEpisode {
             try MonkeyRules.checkLastPhoto(was: lastPhoto)
             try await checkPendingSave(force: true)
             // What's still open is placed as a step of its own, which ends any redo the tracker still expects.
-            if editor.pendingShape != nil || editor.pendingText != nil {
+            if editor.pendingShape != nil || editor.pendingText != nil || editor.pendingBadge != nil {
                 let before = (revision: editor.history.revision, undoCount: editor.history.undoCount, selection: MonkeyRules.selectionState(of: editor.canvas))
                 editor.placePendingObjects()
                 try tracker.note(.deselect, before: before)
@@ -420,10 +426,12 @@ struct UndoTracker {
     }
 
     /// Notes a piece that began floating with this step. One seen first after an undo or redo began somewhere unknown.
-    private mutating func noteFloating(count: Int, before: Int, layersBefore: [String]) {
+    /// A piece already floating before was placed by this step, folded into the step that lifted it, so going back to
+    /// `before` gives that placed picture, not the one seen (monkey, 2026-11-22 finding 17).
+    private mutating func noteFloating(count: Int, before: Int, layersBefore: [String], floatedBefore: UUID?) {
         let id = editor.canvas.selection.floating?.id
         if let id, floatStarts[id] == nil, count > before {
-            floatStarts[id] = count == before + 1 ? (before, layersBefore) : (count - 1, nil)
+            floatStarts[id] = count == before + 1 ? (before, floatedBefore == nil ? layersBefore : nil) : (count - 1, nil)
         }
         floatingID = id
     }
@@ -440,7 +448,7 @@ struct UndoTracker {
         let layersBefore = lastLayers, floatedBefore = floatingID
         defer {
             lastLayers = now.layers
-            noteFloating(count: count, before: before.undoCount, layersBefore: layersBefore)
+            noteFloating(count: count, before: before.undoCount, layersBefore: layersBefore, floatedBefore: floatedBefore)
         }
         switch step {
         case .undo, .redo, .historyJump:
@@ -685,6 +693,14 @@ extension Editor {
     /// Everything undo and saving must keep, hidden or not (review Z, finding 2): the picture's size, then each layer's
     /// settings, pixels and mask.
     var documentState: [String] { MonkeyRules.layerStates(of: canvas, floatingOn: nil) }
+}
+
+extension Editor {
+    /// The picture as the screen shows it and saving and exporting stamp it: a stretched floating piece resampled and
+    /// keyed with the editor's settings, not `flattened()`'s defaults (monkey, 2026-11-22 findings 1-3, 5, 8, 15, 16, 20).
+    var shownPicture: PixelBuffer {
+        canvas.flattened(transparentKey: selectionContext.transparentKey, resampling: selectionContext.resampling)
+    }
 }
 
 extension Editor {

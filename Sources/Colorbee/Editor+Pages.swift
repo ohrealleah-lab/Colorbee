@@ -87,6 +87,8 @@ extension Editor {
             pageMemory[page.id] = PageMemory(viewport: viewport, opened: opened, saved: saved, savedGeometrySteps: savedGeometrySteps)
             page = pages.current
             canvasSize = canvas.size
+            // A canvas-edge drag on the old page is dropped (§23, 2026-11-23); its outline goes now.
+            canvasResizePreview = nil
             if let memory = pageMemory.removeValue(forKey: page.id) {
                 opened = memory.opened
                 saved = memory.saved

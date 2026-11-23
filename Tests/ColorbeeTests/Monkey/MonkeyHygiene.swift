@@ -69,7 +69,7 @@ struct MonkeyHygiene {
     private let defaults: [String: String]
     private let folders: [String: [String]]
     private let sockets: Int
-    /// Open files once the system's own (fonts, image readers, Vision) are open: the most seen in the first episodes.
+    /// Colorbee's own open files once the first episodes have run: the most seen in them.
     private var files: Int
     private var episodes = 0
 
@@ -97,7 +97,9 @@ struct MonkeyHygiene {
         return lines.sorted()
     }
 
-    /// This process's open internet sockets, and its open files (history's scratch files among them).
+    /// This process's open internet sockets, and its open files (history's scratch files among them). Files of the
+    /// system's own (fonts, Vision's models, dictionaries), opened once on first use and kept, aren't counted
+    /// (monkey, 2026-11-22 finding 7).
     static func openDescriptors() -> (sockets: Int, files: Int) {
         let pid = getpid()
         let size = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
@@ -110,7 +112,10 @@ struct MonkeyHygiene {
         for descriptor in descriptors.prefix(Int(used) / MemoryLayout<proc_fdinfo>.stride) {
             switch Int32(descriptor.proc_fdtype) {
             case PROX_FDTYPE_VNODE:
-                files += 1
+                var info = vnode_fdinfowithpath()
+                let read = proc_pidfdinfo(pid, descriptor.proc_fd, PROC_PIDFDVNODEPATHINFO, &info, Int32(MemoryLayout<vnode_fdinfowithpath>.size))
+                let path = read > 0 ? withUnsafeBytes(of: info.pvip.vip_path) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) } : ""
+                if !["/System/", "/Library/", "/usr/", "/Applications/"].contains(where: path.hasPrefix) { files += 1 }
             case PROX_FDTYPE_SOCKET:
                 var info = socket_fdinfo()
                 let read = proc_pidfdinfo(pid, descriptor.proc_fd, PROC_PIDFDSOCKETINFO, &info, Int32(MemoryLayout<socket_fdinfo>.size))
@@ -150,8 +155,9 @@ struct MonkeyHygiene {
             files = max(files, open.files)
             return nil
         }
-        // Slack for the system opening more of its own; history scratch files left open by every episode soon pass it.
-        if open.files > files + 40 {
+        // About one picture in ten is held a while by the test run itself (MonkeyLeaks), its history's scratch file open
+        // with it: a few an hour. Scratch files left open by every episode would pass this within a hundred or so.
+        if open.files > files + 40 + episodes / 20 {
             return MonkeyFailure(rule: "Files stayed open after an episode", detail: "\(open.files) files open, \(files) at the start.")
         }
         return nil

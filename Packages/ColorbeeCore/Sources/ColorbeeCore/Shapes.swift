@@ -241,10 +241,19 @@ enum ShapePaths {
             })
         }
         let rightArrow: [(CGFloat, CGFloat)] = [(0, 0.25), (0.6, 0.25), (0.6, 0), (1, 0.5), (0.6, 1), (0.6, 0.75), (0, 0.75)]
+        /// Merges two outlines. A thick outline can squash the box flat, and CGPath.union then returns nothing,
+        /// so keep both pieces as they are rather than lose the shape.
+        func merged(_ first: CGPath, _ second: CGPath) -> CGPath {
+            let union = first.union(second)
+            guard union.isEmpty else { return union }
+            let both = CGMutablePath()
+            both.addPath(first)
+            both.addPath(second)
+            return both
+        }
         /// A speech bubble: the body in the top 80% with a tail pointing down-left.
         func callout(body: CGPath) -> CGPath {
-            let tail = polygon([(0.2, 0.7), (0.4, 0.75), (0.12, 1)])
-            return body.union(tail)
+            merged(body, polygon([(0.2, 0.7), (0.4, 0.75), (0.12, 1)]))
         }
 
         switch kind {
@@ -291,7 +300,7 @@ enum ShapePaths {
                 let angle = CGFloat(index) * 2 * .pi / 9
                 let center = point(0.5 + 0.38 * cos(angle), 0.37 + 0.27 * sin(angle))
                 let puff = CGRect(x: center.x - rect.width * 0.14, y: center.y - rect.height * 0.12, width: rect.width * 0.28, height: rect.height * 0.24)
-                cloud = cloud.union(CGPath(ellipseIn: puff, transform: nil))
+                cloud = merged(cloud, CGPath(ellipseIn: puff, transform: nil))
             }
             let bubbles = CGMutablePath()
             bubbles.addPath(cloud)

@@ -148,7 +148,6 @@ struct MonkeyTests {
         #expect(MonkeyHygiene.openDescriptors().sockets == before)
     }
 
-    /// A pen's event carries its pressure to the canvas, and odd orders of events break no rule.
     /// Before/After coming on mid-drag ends the drag (§23, 2026-11-22; found by the monkey, seed 6031): the canvas edge
     /// doesn't resize, and a stroke keeps only what was drawn before.
     @Test func beforeAfterEndsADragUnderWay() async throws {
@@ -175,6 +174,55 @@ struct MonkeyTests {
         MonkeyCanvas.reset()
     }
 
+    /// A press while a drag is under way (its mouse-up lost) ends that drag first, so moving a selection is still a step
+    /// Undo takes back (found by the monkey, seed 1795399445).
+    @Test func aSecondPressEndsTheDragUnderWay() async throws {
+        let point = { (x: Double, y: Double) in Point2D(x: x, y: y) }
+        let editor = MonkeyEpisode.random(seed: 1795399445).makeEditor()
+        let original = editor.canvas.flattened().contentHash()
+        await MonkeyStep.select(from: point(-3, -1), to: point(58, 35)).perform(on: editor)
+        // The monkey's own events: a pen moves the selection, then a second press, with no mouse-up before it, grabs the
+        // canvas corner.
+        let drag = { (x: Double, y: Double, shift: Bool, pressure: Double?) in InputEvent.drag(point(x, y), right: false, shift: shift, pressure: pressure) }
+        let revision = editor.history.revision
+        #expect(MonkeyCanvas.view(for: editor).play([.key(.canvas("canvas.rectangleSelect"), shift: false, command: false),
+                                                     .down(point(3, 29), right: false, shift: false, option: false, clicks: 1, pressure: nil),
+                                                     drag(0, 1, false, nil), drag(-5, 6, false, nil), drag(47, -5, true, nil),
+                                                     drag(6, 28, false, 0.001), drag(29, 5, false, 0.001), drag(15, 1, false, 1),
+                                                     .down(point(63, 40), right: false, shift: false, option: false, clicks: 1, pressure: nil),
+                                                     .up(point(62, -1), right: false), .move(point(26, 36))]) == nil)
+        #expect(editor.history.revision != revision)
+        editor.finishInteractions()
+        editor.placeFloatingSelection()
+        #expect(editor.canvas.flattened().contentHash() != original)
+        while editor.history.undoCount > 0 { editor.undo() }
+        #expect(editor.canvas.flattened().contentHash() == original)
+        MonkeyCanvas.reset()
+    }
+
+    /// Showing another page mid-drag ends the drag (§23, 2026-11-23; found by the monkey, seed 1795400231): a canvas-edge
+    /// drag begun on one page resizes neither.
+    @Test func aPageChangeEndsADragUnderWay() async throws {
+        let point = { (x: Double, y: Double) in Point2D(x: x, y: y) }
+        let editor = MonkeyEpisode.random(seed: 1).makeEditor()
+        let size = editor.canvasSize
+        editor.newPage()
+        editor.undo()
+        #expect(editor.currentPageIndex == 0 && editor.pageCount == 1)
+        let corner = point(Double(size.width), Double(size.height))
+        #expect(MonkeyCanvas.view(for: editor).play([.key(.canvas("canvas.pencil"), shift: false, command: false),
+                                                     .down(corner, right: false, shift: false, option: false, clicks: 1, pressure: nil),
+                                                     .drag(point(corner.x + 6, corner.y + 6), right: false, shift: false, pressure: nil),
+                                                     .menu(.redo),
+                                                     .drag(point(corner.x + 12, corner.y + 12), right: false, shift: false, pressure: nil),
+                                                     .up(point(corner.x + 12, corner.y + 12), right: false)]) == nil)
+        #expect(editor.currentPageIndex == 1 && editor.canvasSize == size && editor.canvasResizePreview == nil)
+        editor.showPage(at: 0)
+        #expect(editor.canvasSize == size)
+        MonkeyCanvas.reset()
+    }
+
+    /// A pen's event carries its pressure to the canvas, and odd orders of events break no rule.
     @Test func rawInputReachesTheCanvas() async throws {
         let event = try #require(MonkeyCanvas.penEvent(.leftMouseDown, at: NSPoint(x: 30, y: 40), flags: [], clicks: 1, pressure: 0.25))
         #expect(event.subtype == .tabletPoint && abs(event.pressure - 0.25) < 0.01)
@@ -387,9 +435,9 @@ struct MonkeyTests {
         editor.newPage()
         editor.showPage(at: 0)
         let snapshot = editor.saveSnapshot()
-        #expect(throws: Never.self) { pdf ? try MonkeyRules.checkPDF(snapshot, editor) : try MonkeyRules.checkPNG(snapshot, editor.canvas) }
+        #expect(throws: Never.self) { pdf ? try MonkeyRules.checkPDF(snapshot, editor) : try MonkeyRules.checkPNG(snapshot, editor) }
         editor.canvas.layers[0].buffer.fill(Pixel(r: 255, g: 0, b: 0), in: IntRect(x: 0, y: 0, width: 40, height: 40))
-        #expect(throws: MonkeyFailure.self) { pdf ? try MonkeyRules.checkPDF(snapshot, editor) : try MonkeyRules.checkPNG(snapshot, editor.canvas) }
+        #expect(throws: MonkeyFailure.self) { pdf ? try MonkeyRules.checkPDF(snapshot, editor) : try MonkeyRules.checkPNG(snapshot, editor) }
     }
 
     /// Every effect's dialog, closed each way in turn, breaks no rule.

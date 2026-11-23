@@ -115,9 +115,10 @@ enum MonkeyRules {
         for layer in canvas.layers {
             guard let was = before[layer.id] else { continue }
             if let clear = was.clear {
-                // Merging onto such a layer makes a new combined picture, so it may paint there (§23, 2026-11-22).
+                // Merging onto such a layer makes a new combined picture, so it may paint there (§23, 2026-11-22); Align and
+                // Distribute move its outline with it (§23, 2026-11-23).
                 guard canvas.locksTransparency(layer), !canvas.isLocked(layer), layer.text == nil,
-                      !step.merges else { continue }
+                      !step.merges, !step.movesLayers else { continue }
                 let pixels = layer.buffer.pixels(in: canvas.bounds)
                 if let index = clear.indices.first(where: { clear[$0] && pixels[$0].a != 0 }) {
                     throw MonkeyFailure(rule: "Paint landed on a layer's locked transparent pixels",
@@ -242,7 +243,8 @@ enum MonkeyRules {
 
     /// A PNG export, read back, is the picture exactly, in the document's colors (monkey gaps, R4). A partly see-through
     /// pixel may move by the rounding its opacity allows, since a PNG reader may premultiply.
-    static func checkPNG(_ snapshot: SaveSnapshot, _ canvas: Canvas) throws(MonkeyFailure) {
+    static func checkPNG(_ snapshot: SaveSnapshot, _ editor: Editor) throws(MonkeyFailure) {
+        let canvas = editor.canvas
         let decoded: DecodedImage
         do {
             decoded = try ImageCodec.decode(try snapshot.encoded(as: .png))
@@ -253,7 +255,7 @@ enum MonkeyRules {
             throw MonkeyFailure(rule: "An exported PNG lost the picture's colors",
                                 detail: "It's in \(decoded.colorSpace.name.map { "\($0)" } ?? "an unnamed profile"), not \(canvas.colorSpace.name.map { "\($0)" } ?? "?").")
         }
-        let picture = canvas.flattened(), exported = decoded.buffer
+        let picture = editor.shownPicture, exported = decoded.buffer
         guard exported.width == picture.width, exported.height == picture.height else {
             throw MonkeyFailure(rule: "An exported PNG is the wrong size", detail: "\(exported.width) × \(exported.height), not \(picture.width) × \(picture.height).")
         }
@@ -288,7 +290,7 @@ enum MonkeyRules {
         for (index, page) in editor.pages.pages.enumerated() {
             let picture = page === editor.page ? editor.canvas : (try? page.projectData()).flatMap { try? ProjectFile.decode($0) }
             guard let picture else { continue }
-            let flat = picture.flattened()
+            let flat = page === editor.page ? editor.shownPicture : picture.flattened()
             let overWhite = PixelBuffer(width: flat.width, height: flat.height)
             for y in 0..<flat.height {
                 let source = flat.row(y), target = overWhite.row(y)
@@ -523,14 +525,15 @@ enum MonkeyRules {
     }
 
     /// A project reopened mid-way holds what was saved: as many pages, and the shown one with the same layers.
-    static func checkSame(_ saved: Canvas, _ reopened: Canvas, pages: (Int, Int)) throws(MonkeyFailure) {
+    static func checkSame(_ editor: Editor, _ reopened: Canvas, pages: (Int, Int)) throws(MonkeyFailure) {
+        let saved = editor.canvas
         guard pages.0 == pages.1 else {
             throw MonkeyFailure(rule: "A saved project reopens with different pages", detail: "\(pages.1) pages came back, not \(pages.0).")
         }
         let floatingOn = saved.selection.floating?.layerID
         let before = saved.layers.map { state(of: $0, pixels: $0.id != floatingOn && $0.mask?.id != floatingOn) }
         let after = reopened.layers.map { state(of: $0, pixels: $0.id != floatingOn && $0.mask?.id != floatingOn) }
-        guard shownHash(reopened.flattened()) == shownHash(saved.flattened()) else {
+        guard shownHash(reopened.flattened()) == shownHash(editor.shownPicture) else {
             throw MonkeyFailure(rule: "A saved project reopens looking different", detail: "The page shown came back looking different.")
         }
         guard before == after else {

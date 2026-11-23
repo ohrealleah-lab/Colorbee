@@ -97,7 +97,7 @@ enum MonkeyFiles {
                 return MonkeyFailure(rule: "An opened file lost its colors when saved",
                                      detail: "\(what) is in \(editor.canvas.colorSpace.name.map { "\($0)" } ?? "an unnamed profile"); saved, it came back in \(page.canvas.colorSpace.name.map { "\($0)" } ?? "an unnamed profile").")
             }
-            if MonkeyRules.shownHash(page.canvas.flattened()) != MonkeyRules.shownHash(editor.canvas.flattened()) {
+            if MonkeyRules.shownHash(page.canvas.flattened()) != MonkeyRules.shownHash(editor.shownPicture) {
                 return MonkeyFailure(rule: "An opened file looks different once saved", detail: "\(what), saved as a project and opened again, looks different.")
             }
         } catch {
@@ -306,7 +306,7 @@ enum MonkeyFiles {
             let reopened = ImageDocument()
             try reopened.read(from: saved, ofType: type.identifier)
             guard let back = reopened.editor else { return MonkeyFailure(rule: "A saved picture opened as nothing", detail: "Saved through the document, it opened with no picture.") }
-            if MonkeyRules.shownHash(back.canvas.flattened()) != MonkeyRules.shownHash(editor.canvas.flattened()) || back.pages.pages.count != editor.pages.pages.count {
+            if MonkeyRules.shownHash(back.canvas.flattened()) != MonkeyRules.shownHash(editor.shownPicture) || back.pages.pages.count != editor.pages.pages.count {
                 return MonkeyFailure(rule: "A picture saved through the document opens different",
                                      detail: "Saved as \(flat ? "PNG" : "a project") over an older file and opened again, it isn't the picture.")
             }

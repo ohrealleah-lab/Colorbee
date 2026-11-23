@@ -45,8 +45,15 @@ final class CanvasView: NSView {
     private var hasFitted = false
     private var hasPresented = false
     private var drag: Drag? {
-        didSet { if (drag != nil) != editor.isPointerDragging { editor.isPointerDragging = drag != nil } }
+        didSet {
+            if (drag != nil) != editor.isPointerDragging { editor.isPointerDragging = drag != nil }
+            if oldValue == nil, drag != nil { dragPage = ObjectIdentifier(editor.page) }
+        }
     }
+    /// The page shown when the drag began; a drag never carries over to another page (§23, 2026-11-23).
+    private var dragPage: ObjectIdentifier?
+    /// Where the drag last reached, so a drag whose mouse-up never came can end there.
+    private var lastDragPoint = Point2D.zero
     private var spaceHeld = false
     /// Where the pointer is over the view, in image coordinates, for the eraser's outline.
     private var hoverPoint: Point2D?
@@ -575,6 +582,10 @@ final class CanvasView: NSView {
     }
 
     private func beginDrag(_ event: NSEvent, secondary: Bool) {
+        // A press while a drag is still under way means its mouse-up was lost (a tablet can drop one): end it where it
+        // last was first, so its step is recorded (monkey, seed 1795399445).
+        if drag != nil { endDrag(event, at: lastDragPoint) }
+        lastDragPoint = imagePoint(event)
         window?.makeFirstResponder(self)
         // Before/After is view-only: a drag moves the split's divider.
         if editor.comparison != nil {
@@ -678,10 +689,11 @@ final class CanvasView: NSView {
         updatePointer(event)
     }
 
-    /// Before/After came on mid-drag (§23, 2026-11-22): turning it on finished what the drag had drawn so far, and the
-    /// rest of the drag does nothing. Panning and the divider are only looking, so they carry on.
-    private func dropDragForComparison() -> Bool {
-        guard editor.comparison != nil else { return false }
+    /// Before/After came on mid-drag (§23, 2026-11-22), or another page is shown (§23, 2026-11-23): either one finished
+    /// what the drag had drawn so far, and the rest of the drag does nothing. Panning and the divider are only looking,
+    /// so they carry on.
+    private func dropInterruptedDrag() -> Bool {
+        guard editor.comparison != nil || dragPage != ObjectIdentifier(editor.page) else { return false }
         switch drag {
         case .divider, .pan, nil:
             return false
@@ -699,7 +711,8 @@ final class CanvasView: NSView {
     }
 
     private func continueDrag(_ event: NSEvent) {
-        if dropDragForComparison() { return }
+        if dropInterruptedDrag() { return }
+        lastDragPoint = imagePoint(event)
         switch drag {
         case .pan(let last):
             let point = convert(event.locationInWindow, from: nil)
@@ -755,11 +768,13 @@ final class CanvasView: NSView {
         }
     }
 
-    private func endDrag(_ event: NSEvent) {
-        if dropDragForComparison() {
+    /// Ends the drag at the event's point, or at `point` when the drag ends without its own mouse-up.
+    private func endDrag(_ event: NSEvent, at point: Point2D? = nil) {
+        if dropInterruptedDrag() {
             currentCursor(at: imagePoint(event)).set()
             return
         }
+        let end = point ?? imagePoint(event)
         switch drag {
         case .pan:
             break
@@ -796,7 +811,6 @@ final class CanvasView: NSView {
             currentCursor(at: imagePoint(event)).set()
             return
         case .text(let start):
-            let end = imagePoint(event)
             // Dragging out a box sets its width (lines wrap) and height; a plain click lets the text run on.
             let width = abs(end.x - start.x)
             let dragged = width * editor.viewport.zoom > 8
@@ -808,7 +822,7 @@ final class CanvasView: NSView {
             )
             return
         case .select:
-            editor.endSelectionDrag(at: imagePoint(event))
+            editor.endSelectionDrag(at: end)
         case .primary, .secondary:
             stopSpraying()
             editor.endStroke()

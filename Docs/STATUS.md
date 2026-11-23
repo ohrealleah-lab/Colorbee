@@ -7,12 +7,13 @@ Update it at the end of every stage or significant change, and commit it with th
 - **How to build it:** [../CLAUDE.md](../CLAUDE.md).
 - **What it looks like:** [Design/](Design/) mockups.
 
-_Last updated: 2026-11-22 · 887 core tests and 422 app tests passing (the monkey's second hardening round: Trim, Revert Layer, drops, History panel jumps, wand, lasso, badges, Measure, Eyedropper, open-object handles, Copy Text and several subjects; Before/After ends a drag under way, and Leah's four other monkey answers recorded in FRD §23; the monkey hardened for the App Store: raw input, damaged files, hygiene, saving, leaks, limits, four new rules and a Release run, [Review/monkey-hardening.md](Review/monkey-hardening.md); the build has no warnings again: opening files is marked as main-thread work, and noting a saved file's name may run off it; stage 36 passed Leah's hand test 2026-11-21: Settings ▸ General ▸ Make Colorbee the default for, eight checkboxes from JPEG to PDF, macOS asks before each change and Keep is no error; the Mac App Store planned as stage 37; stage 35 passed Leah's hand test 2026-11-21: curved text, a Curve slider for one smooth arc; review round 13 fixed and passed Leah's hand test 2026-11-21: the original file is never written with a project, a faded or blank picture, Batch Redact refuses a piece off the picture, the tool settings file can't crash Colorbee, Esc mid hand drag is its own step ([Review/RESULTS.md](Review/RESULTS.md)); stage 34 passed Leah's hand test 2026-11-21; stage 34c: a picture goes back to its file once it's one plain layer again, and new windows start with the tool settings last used; stage 34b: Esc on floating pixels goes back to before the lift or paste, placed text keeps your layer active, hidden layers refuse pixel changes, Batch Redact needs a selection, a 5-minute monkey run with Esc broke no rule; stage 34a: Adjust Photo's own undo, and Esc asks before discarding; usability review planned as stage 34; Straighten no longer crashes on a picture with a layer mask; the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
+_Last updated: 2026-11-23 · 888 core tests and 424 app tests passing (the overnight monkey of 2026-11-22 triaged: 20 findings, all replayed; fixed a small callout with a thick outline vanishing, a drag whose mouse-up was lost leaving a selection move off the undo list, and a drag carrying over to a page ⇧⌘Z brought back; Align and Distribute allowed on a layer with transparent pixels locked (Leah, FRD §23 2026-11-23); 15 were the monkey's own mistakes, from 6 causes, fixed; the monkey's second hardening round: Trim, Revert Layer, drops, History panel jumps, wand, lasso, badges, Measure, Eyedropper, open-object handles, Copy Text and several subjects; Before/After ends a drag under way, and Leah's four other monkey answers recorded in FRD §23; the monkey hardened for the App Store: raw input, damaged files, hygiene, saving, leaks, limits, four new rules and a Release run, [Review/monkey-hardening.md](Review/monkey-hardening.md); the build has no warnings again: opening files is marked as main-thread work, and noting a saved file's name may run off it; stage 36 passed Leah's hand test 2026-11-21: Settings ▸ General ▸ Make Colorbee the default for, eight checkboxes from JPEG to PDF, macOS asks before each change and Keep is no error; the Mac App Store planned as stage 37; stage 35 passed Leah's hand test 2026-11-21: curved text, a Curve slider for one smooth arc; review round 13 fixed and passed Leah's hand test 2026-11-21: the original file is never written with a project, a faded or blank picture, Batch Redact refuses a piece off the picture, the tool settings file can't crash Colorbee, Esc mid hand drag is its own step ([Review/RESULTS.md](Review/RESULTS.md)); stage 34 passed Leah's hand test 2026-11-21; stage 34c: a picture goes back to its file once it's one plain layer again, and new windows start with the tool settings last used; stage 34b: Esc on floating pixels goes back to before the lift or paste, placed text keeps your layer active, hidden layers refuse pixel changes, Batch Redact needs a selection, a 5-minute monkey run with Esc broke no rule; stage 34a: Adjust Photo's own undo, and Esc asks before discarding; usability review planned as stage 34; Straighten no longer crashes on a picture with a layer mask; the monkey checks PNG and PDF exports and drives effect dialogs, racing them; known-good pictures for Adjust Photo; the screen blurs as the export does, so strong Adjust Photo settings look the same on screen and exported; the monkey builds whole random Adjust Photo settings, applies the dialog on selections and checks screen against export; a blur inside a selection keeps a flat color flat; the monkey's memory rule allows for a picture that just shrank; pixel commands with new text still open are refused; monkey audit: redactions proven to cover, larger pictures, shapes and text left open; AH 4, 5, 7: stricter monkey rules for background saves, redactions and Forget History; AH 2: the monkey checks undo exactly on every page; menu tidy-up: adjustment layers grouped, New Snapshot moved, subject commands in the layer right-click menu; review round 12, session AF's three fixes; untangling ignores cut-off subjects; Refine Edge; subject outlines, untangling, Shift-click and the wand's Object mode; a redaction deletes History Snapshots, after asking; review round 11, tiers 1, 2 and 4 done; stage 31 passed Leah's test); the full `make perf` passed 2026-11-01 (20 tests in 52 s; the 8000 × 8000 soak's slowest step Flatten 0.63 s, history 334 MB in memory)_
 
 ## Waiting for Leah's tests
 
 Each link jumps to that test's numbered steps. When a test passes, its line comes off this list.
 
+- [Fixes from the overnight monkey of 2026-11-22](#test-fixes-from-the-overnight-monkey-of-2026-11-22)
 - [Before/After ends a drag](#test-beforeafter-ends-a-drag)
 - [Opening and saving after the warning fix](#test-opening-and-saving-after-the-warning-fix)
 
@@ -91,7 +92,7 @@ Each link jumps to that test's numbered steps. When a test passes, its line come
 | 14 · 29. Re-editable text 1: text layers | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 30. Re-editable text 2: when text becomes pixels | ✅ Done; passed Leah's test 2026-10-31 | High |
 | 14 · 31. Stroke smoothing | ✅ Done; passed Leah's test 2026-10-31 ("feels great") | High |
-| 14 · 32. Overnight monkey test | Built 2026-10-31. Full 8 hours with every new rule passed 2026-11-11 apart from two borderline screen checks, since allowed for. 8-hour runs on 2026-11-01 (12 rules broken, since fixed) and 2026-11-02 (1, fixed). Audited 2026-11-09 ([Review/monkey-gaps.md](Review/monkey-gaps.md)). Hardened for the App Store 2026-11-21 ([Review/monkey-hardening.md](Review/monkey-hardening.md)): raw input through the canvas view, damaged and unusual files, preferences, disk and network hygiene, saving through the document, leaks, limits, new rules (marked edited, snapshots, locks, references) and `make monkey-release`. 2 h 48 min with the newest rules that day (stopped by an app relaunch; 554,609 steps) found the open-text bug, fixed. The full 8 hours that night (40,938 pictures, 2,456,244 steps) found the speckled blur, fixed, and one false alarm in the monkey's memory rule, fixed | High |
+| 14 · 32. Overnight monkey test | Built 2026-10-31. Full 8 hours with every new rule passed 2026-11-11 apart from two borderline screen checks, since allowed for. 8-hour runs on 2026-11-01 (12 rules broken, since fixed) and 2026-11-02 (1, fixed). Audited 2026-11-09 ([Review/monkey-gaps.md](Review/monkey-gaps.md)). Hardened for the App Store 2026-11-21 ([Review/monkey-hardening.md](Review/monkey-hardening.md)): raw input through the canvas view, damaged and unusual files, preferences, disk and network hygiene, saving through the document, leaks, limits, new rules (marked edited, snapshots, locks, references) and `make monkey-release`. 2 h 48 min with the newest rules that day (stopped by an app relaunch; 554,609 steps) found the open-text bug, fixed. The full 8 hours that night (40,938 pictures, 2,456,244 steps) found the speckled blur, fixed, and one false alarm in the monkey's memory rule, fixed. The 8 hours on 2026-11-22 stopped at its 20-finding limit after 1 h 51 min (3,587 pictures): 4 real bugs from 3 causes, 1 question for Leah (Align with transparent pixels locked) and 15 of the monkey's own mistakes from 6 causes, all fixed 2026-11-23 | High |
 | 14 · 33. Code reviews (Leah, 2026-10-31) | Round 10 done, fixed, and passed Leah's test 2026-10-31 ([Review/RESULTS.md](Review/RESULTS.md)); the stricter monkey's new reports are being sorted | High |
 | 14 · 33b. Review round 11: refactoring and reuse (Leah, 2026-10-31) | Tiers 1, 2 and 4 done 2026-11-01 (the rest of tier 4 left as not worth the churn; R5, AB 5 and AD 8 with Leah / tier 3). The monkey after tier 1 found 5 older bugs, fixed; 5 minutes after tier 2 found none ([Review/RANKED-12.md](Review/RANKED-12.md)) | High |
 | 14 · 33c. Review round 12: refactors checked, subjects, redaction safety (Leah, 2026-11-02) | Sessions AF, AG, AH done ([Review/PLAN-13.md](Review/PLAN-13.md)). Fixed and passed Leah's tests 2026-11-02: AF's three, and tier 1 (AH 1, AG 1, AG 2), plus AH 3 and AH 8. AH 2 fixed 2026-11-07: the monkey keeps an undo line per page, so episodes with pages check undo and redo exactly again (a self-test proves it catches a wrong picture after another page was shown). AH 4, 5 and 7 fixed 2026-11-08: background saves now encode while the next steps edit; after a redaction every page it changed is checked for snapshots, Cancel is answered sometimes and must change nothing, and the monkey's words include an email and an IP address so Auto-Redact finds something; Forget History also checks page undo and Before/After's As Opened. A 5-minute monkey (615 pictures) broke no rule. The rest (AG 3 to 7, AH 6) set aside by Leah 2026-11-08 as not worth doing; seven `ImageDocument.swift` Release warnings left on purpose | High |
@@ -467,6 +468,46 @@ Logs in `build/soak-results*.txt` (not committed).
 1. Adjustments panel ▸ **Merge** (was Apply) on Adjust Photo: the look is unchanged, the layers below become one, ⌘Z brings them back ("Undo Merge Adjustment").
 2. ⌘A ⌘C with Adjust Photo active, paste into another app: the whole visible picture, not a transparent one. On Subject: just Subject.
 3. A locked visible layer below greys out Merge. Merge Down is greyed out on an adjustment layer (menu, Layers panel ↓, ⇧⌘E) and works as before on a pixel layer.
+
+### Test: Fixes from the overnight monkey of 2026-11-22
+
+_2026-11-23: three fixes and one decision from the overnight monkey (FRD §23, 2026-11-23). A fourth fix, a press while a drag's mouse-up was lost, can't be done by hand; an automated test covers it. Use `TestImages/Stage 9 Practice Photo.png`._
+
+**A small callout with a thick outline**
+1. File ▸ Open `Stage 9 Practice Photo.png`.
+2. Click Shapes in the toolbar, and choose Oval Callout from its gallery.
+3. In the toolbar, set Outline to Solid, Fill to None, and Size to 50.
+4. Watch the pointer position in the status bar. Press at about 100, 100 px and drag to about 160, 140 px, then let go.
+5. Press Return.
+   Expected: a thick blob in Color 1 stays on the picture. Before, nothing was left.
+6. Edit ▸ Undo.
+   Expected: the blob goes away.
+7. Repeat steps 2–6 with Rounded Rectangle Callout.
+   Expected: the same.
+
+**A drag doesn't carry over to another page**
+8. Page ▸ New Page.
+9. Edit ▸ Undo.
+   Expected: one page again.
+10. View ▸ Zoom Out until there's gray around the whole picture.
+11. Press and hold on the small square handle at the picture's bottom-right corner. Drag outward a little and keep holding.
+12. Still holding, press ⇧⌘Z.
+    Expected: the new page comes back and is shown. The outline goes away.
+13. Drag a little more, then let go.
+    Expected: the shown page stays the same size as before.
+14. Click page 1 in the page sidebar.
+    Expected: it's the same size as before too.
+
+**Align on a layer with transparent pixels locked**
+15. Close the picture without saving, and open `Stage 9 Practice Photo.png` again.
+16. Layer ▸ New Layer.
+17. Click Shapes, choose Rectangle, set Fill to Solid, and drag a small box near the left edge. Press Return.
+18. Layer ▸ Lock Transparent Pixels.
+19. Layer ▸ Select All Layers.
+20. Layer ▸ Align ▸ Right.
+    Expected: the box moves to the right edge, whole and the same shape.
+21. Edit ▸ Undo.
+    Expected: the box goes back to the left.
 
 ### Test: Before/After ends a drag
 

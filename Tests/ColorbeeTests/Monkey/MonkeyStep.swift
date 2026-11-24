@@ -589,6 +589,9 @@ enum MonkeyStep: CustomStringConvertible {
             let canvas = MonkeyCanvas.view(for: editor)
             Self.inputFailure = canvas.play(events)
             Self.inputPageChanges = canvas.pageChanges
+            // A redaction's question about snapshots blocks the window, so it's answered, as Return would, before the
+            // next step; left up, the next step's own answer took it (monkey, 2026-11-23 overnight).
+            Self.answerSnapshots(editor, cancels: false)
             await Self.settle(editor)
         case let .solidFill(color, cancels):
             editor.color1 = color

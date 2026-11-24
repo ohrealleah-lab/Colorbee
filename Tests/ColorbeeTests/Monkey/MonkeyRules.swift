@@ -427,7 +427,19 @@ enum MonkeyRules {
               abs(shape.start.x - shape.end.x) >= 4, abs(shape.start.y - shape.end.y) >= 4,
               layer.isPixelLayer, !canvas.isLocked(layer), !canvas.isHidden(layer), !canvas.locksTransparency(layer),
               !canvas.editsMask else { return nil }
-        return "shape"
+        // Placing it records nothing if it changes nothing: Color 1 on a picture already that color, inside the
+        // selection (monkey, 2026-11-23 overnight).
+        guard let spec = editor.pendingShapeSpec,
+              let drawn = ShapeRenderer.render(spec, colorSpace: canvas.colorSpace, clippedTo: canvas.bounds) else { return nil }
+        let marquee = canvas.selection.marquee
+        let changes = (0..<drawn.pixels.height).contains { y in
+            (0..<drawn.pixels.width).contains { x in
+                let pixel = drawn.pixels[x, y], at = IntPoint(x: drawn.origin.x + x, y: drawn.origin.y + y)
+                return pixel.a > 0 && (marquee.map { $0[at.x, at.y] > 0 } ?? true)
+                    && layer.buffer[at.x, at.y] != Pixel(r: pixel.r, g: pixel.g, b: pixel.b)
+            }
+        }
+        return changes ? "shape" : nil
     }
 
     /// An open object that's gone must be in history. Not after Undo or Esc, which discard an open shape, or after a new shape

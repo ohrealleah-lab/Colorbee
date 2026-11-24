@@ -117,6 +117,20 @@ struct SelectionRangeBarTests {
         #expect(editor.luminancePresetIndex == 2)
         editor.cancelEffect()
     }
+
+    /// A flip or rotate frees the layer's memory in place, so the preview still being worked out in the background
+    /// mustn't be reading it (monkey, 2026-11-23 overnight: a crash).
+    @Test func flippingWhileThePreviewIsWorkedOutIsSafe() async throws {
+        let editor = makeEditor(width: 1500, height: 1000)
+        for orientation in [Orientation.flipHorizontal, .rotate90Clockwise, .flipVertical, .rotate90CounterClockwise, .rotate180] {
+            editor.beginEffect(.luminanceRange)
+            editor.renderEffectPreview()
+            editor.cancelEffect()
+            editor.apply(orientation)
+        }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(editor.canvasSize == IntSize(width: 1500, height: 1000))
+    }
 }
 
 /// Edit ▸ Graduated Selection (FR-9.7 item 3), dragged the way `CanvasView` does.

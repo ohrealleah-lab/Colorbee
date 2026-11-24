@@ -412,7 +412,9 @@ extension Editor {
         if let rangeSource { return rangeSource }
         // A graduated selection reads no pixels, only the canvas's size.
         if activeEffect == .graduatedSelection { return canvas.paintLayer.buffer }
-        let source = rangeSamplesAllLayers ? canvas.flattened() : canvas.paintLayer.buffer
+        // A copy, since the preview reads it in the background: a flip or rotate frees the layer's memory in place
+        // (monkey, 2026-11-23 overnight).
+        let source = rangeSamplesAllLayers ? canvas.flattened() : canvas.paintLayer.buffer.copy()
         rangeSource = source
         return source
     }

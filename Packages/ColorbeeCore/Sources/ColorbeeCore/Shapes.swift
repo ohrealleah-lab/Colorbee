@@ -110,6 +110,17 @@ public struct ShapeSpec: Equatable, Sendable {
         )
     }
 
+    /// An outline as thick as the box is small, or thicker, would squash the shape to a line or a point: it's drawn
+    /// as the shape filled with the outline's color and style instead, inside the box (Leah, 2026-11-24).
+    var drawn: ShapeSpec {
+        guard kind.isBoxShape, let outline else { return self }
+        let side = min(abs(end.x - start.x), abs(end.y - start.y))
+        guard side > 0, lineWidth >= side else { return self }
+        var filled = self
+        (filled.fill, filled.fillStyle, filled.outline) = (outline, outlineStyle, nil)
+        return filled
+    }
+
     public var boxCenter: Point2D {
         Point2D(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
     }
@@ -328,6 +339,7 @@ public enum ShapeRenderer {
     /// Draws the shape into a straight-alpha buffer covering its painted area within `canvasBounds`.
     /// Returns nil when nothing would be visible.
     public static func render(_ shape: ShapeSpec, colorSpace: CGColorSpace, clippedTo canvasBounds: IntRect) -> (pixels: PixelBuffer, origin: IntPoint)? {
+        let shape = shape.drawn
         let area = shape.paintedBounds.intersection(canvasBounds)
         let hasFill = shape.fill != nil && !shape.kind.isOpen
         guard !area.isEmpty, shape.outline != nil || hasFill else { return nil }

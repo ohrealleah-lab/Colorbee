@@ -107,6 +107,23 @@ struct ShapeGalleryTests {
         #expect(render(shape).contentHash() != render(ShapeSpec(kind: kind, start: .zero, end: .zero, lineWidth: 1, outline: nil, fill: nil)).contentHash(), "\(kind.name)")
     }
 
+    /// An outline as thick as a square box, or thicker, squashed the shape to a point and drew nothing (monkey,
+    /// 2026-11-23 overnight). It fills the shape with the outline's color instead, inside the box (Leah, 2026-11-24).
+    @Test(arguments: ShapeKind.allCases.filter(\.isBoxShape))
+    func anOutlineThickerThanTheBoxFillsIt(kind: ShapeKind) {
+        let thick = ShapeSpec(kind: kind, start: Point2D(x: 40, y: 80), end: Point2D(x: 62, y: 58), lineWidth: 49, outline: .black, fill: blue)
+        let filled = ShapeSpec(kind: kind, start: Point2D(x: 40, y: 80), end: Point2D(x: 62, y: 58), lineWidth: 1, outline: nil, fill: .black)
+        #expect(render(thick).contentHash() == render(filled).contentHash(), "\(kind.name)")
+        #expect(render(thick).contentHash() != render(ShapeSpec(kind: kind, start: .zero, end: .zero, lineWidth: 1, outline: nil, fill: nil)).contentHash(), "\(kind.name)")
+    }
+
+    @Test func aThickOutlineStaysInsideTheBox() {
+        let thick = ShapeSpec(kind: .rectangle, start: Point2D(x: 40, y: 60), end: Point2D(x: 80, y: 70), lineWidth: 30, outline: .black, fill: nil)
+        let picture = render(thick)
+        #expect(picture[60, 65] == .black)
+        #expect(picture[60, 56] == .white && picture[36, 65] == .white)
+    }
+
     @Test(arguments: [ShapeKind.triangle, .diamond, .ellipse, .star5, .heart])
     func shapesWithEmptyCornersLeaveThem(kind: ShapeKind) {
         let shape = ShapeSpec(kind: kind, start: Point2D(x: 40, y: 40), end: Point2D(x: 160, y: 160), lineWidth: 2, outline: .black, fill: blue)

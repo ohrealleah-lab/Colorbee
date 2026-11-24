@@ -27,7 +27,8 @@ public enum SelectionHandle: CaseIterable, Sendable {
 
     /// `original` after dragging this handle by `delta` image pixels. Stretching is free; with
     /// `keepProportions` the aspect ratio is kept (edge handles grow the other side around the center).
-    /// The result is never smaller than 1×1 and never flips over.
+    /// The result is never smaller than 1×1 and never flips over. A box with no width or height has no proportions to
+    /// keep, so it stretches freely (monkey, 2026-11-24 overnight; Leah).
     public func resize(_ original: IntRect, by delta: Point2D, keepProportions: Bool) -> IntRect {
         var minX = Double(original.minX), maxX = Double(original.maxX)
         var minY = Double(original.minY), maxY = Double(original.maxY)
@@ -36,7 +37,7 @@ public enum SelectionHandle: CaseIterable, Sendable {
         if movesTop { minY = min(minY + delta.y, maxY - 1) }
         if movesBottom { maxY = max(maxY + delta.y, minY + 1) }
 
-        if keepProportions {
+        if keepProportions, original.width > 0, original.height > 0 {
             let width = Double(original.width), height = Double(original.height)
             if isCorner {
                 // Follow whichever axis the pointer moved more, so corners can shrink as well as grow.

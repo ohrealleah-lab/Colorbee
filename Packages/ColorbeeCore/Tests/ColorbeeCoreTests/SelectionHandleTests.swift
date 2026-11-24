@@ -31,6 +31,16 @@ struct SelectionHandleTests {
         #expect(resized == IntRect(x: 10, y: 0, width: 80, height: 40))
     }
 
+    /// A shape dragged straight down has no width; Shift-dragging its handle divided by zero and crashed (monkey,
+    /// 2026-11-24 overnight). With no proportions to keep, it stretches freely (Leah).
+    @Test(arguments: SelectionHandle.allCases)
+    func aBoxWithNoWidthOrHeightStretchesFreely(handle: SelectionHandle) {
+        for flat in [IntRect(x: 104, y: 0, width: 0, height: 43), IntRect(x: 10, y: 50, width: 43, height: 0)] {
+            let delta = Point2D(x: -84, y: -9)
+            #expect(handle.resize(flat, by: delta, keepProportions: true) == handle.resize(flat, by: delta, keepProportions: false), "\(handle)")
+        }
+    }
+
     @Test func neverFlipsOrVanishes() {
         let resized = SelectionHandle.right.resize(rect, by: Point2D(x: -500, y: 0), keepProportions: false)
         #expect(resized == IntRect(x: 10, y: 10, width: 1, height: 20))

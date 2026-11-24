@@ -411,8 +411,10 @@ struct UndoTracker {
     private var leftLines: [UUID: (line: [Mark?], knowsRedo: Bool, revision: Int)] = [:]
     /// Where each floating piece began: the undo count and picture just before the step that lifted or pasted it, kept
     /// apart from the line (a later placing can blank the line there), so Esc can be checked to stop exactly there
-    /// (review AJ, finding 3). The picture is nil when several steps came at once.
-    private var floatStarts: [UUID: (count: Int, layers: [String]?)] = [:]
+    /// (review AJ, finding 3). When one action made several steps, the piece may have begun floating with any of them
+    /// (two nudges with a press between are two steps), so it's the range of counts it can have begun after, and the
+    /// picture is nil (monkey, 2026-11-23). A low of -1 means unknown.
+    private var floatStarts: [UUID: (low: Int, high: Int, layers: [String]?)] = [:]
     /// The piece floating, and the layers, after the last step.
     private var floatingID: UUID?
     private var lastLayers: [String]
@@ -431,7 +433,7 @@ struct UndoTracker {
     private mutating func noteFloating(count: Int, before: Int, layersBefore: [String], floatedBefore: UUID?) {
         let id = editor.canvas.selection.floating?.id
         if let id, floatStarts[id] == nil, count > before {
-            floatStarts[id] = count == before + 1 ? (before, floatedBefore == nil ? layersBefore : nil) : (count - 1, nil)
+            floatStarts[id] = count == before + 1 ? (before, before, floatedBefore == nil ? layersBefore : nil) : (before, count - 1, nil)
         }
         floatingID = id
     }
@@ -503,10 +505,11 @@ struct UndoTracker {
             return
         case .escape where count < before.undoCount:
             // Esc on floating pixels (stage 34b): back exactly to before they were lifted or pasted, with nothing to redo.
-            if let id = floatedBefore, let start = floatStarts.removeValue(forKey: id), start.count >= 0 {
-                if count != start.count {
+            if let id = floatedBefore, let start = floatStarts.removeValue(forKey: id), start.low >= 0 {
+                if !(start.low...start.high).contains(count) {
+                    let began = start.low == start.high ? "\(start.low)" : "somewhere from \(start.low) to \(start.high)"
                     throw MonkeyFailure(rule: "Esc on floating pixels didn't stop where they began floating",
-                                        detail: "It stopped at undo count \(count), but they began floating after \(start.count).")
+                                        detail: "It stopped at undo count \(count), but they began floating after \(began).")
                 }
                 if let layers = start.layers, layers != now.layers {
                     throw MonkeyFailure(rule: "Esc on floating pixels didn't give back the picture from before they floated",
@@ -574,7 +577,7 @@ struct UndoTracker {
         lastLayers = editor.documentState
         floatingID = editor.canvas.selection.floating?.id
         // A piece already floating began somewhere this line can't see.
-        if let floatingID { floatStarts[floatingID] = (-1, nil) }
+        if let floatingID { floatStarts[floatingID] = (-1, -1, nil) }
     }
 
     private mutating func startLine() {
@@ -594,7 +597,7 @@ struct UndoTracker {
         lastLayers = editor.documentState
         floatingID = editor.canvas.selection.floating?.id
         // A piece already floating began somewhere this line can't see.
-        if let floatingID { floatStarts[floatingID] = (-1, nil) }
+        if let floatingID { floatStarts[floatingID] = (-1, -1, nil) }
     }
 
     private mutating func takeLine() {

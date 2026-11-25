@@ -54,8 +54,9 @@ public final class Edit {
     private(set) var snapshots: [TileKey: TileSnapshot] = [:]
     /// Text layers this edit changed or turned into pixels, and layers it renamed, as they were.
     private(set) var textsBefore: [LayerID: TextChange] = [:]
-    /// A redaction: it renames a layer whose name came from its words, and that layer's mask, so the words don't
-    /// survive in a name (stage 29; review Y, findings 1 and 2, X, finding 7). Nothing else renames (Y, finding 9).
+    /// A redaction: it renames a layer whose name came from its words, and names every covered layer's mask after its
+    /// layer, so the words don't survive in a name (stage 29; review Y, findings 1 and 2, X, finding 7; monkey,
+    /// 2026-11-24). Nothing else renames (Y, finding 9).
     public var isRedaction = false
     public private(set) var dirtyRect: IntRect = .zero
     /// Areas written on layers that lock their transparency, not yet put back (`keepLockedTransparency`).
@@ -83,7 +84,12 @@ public final class Edit {
             willChangeText(of: layer)
             layer.name = "Text"
             layer.nameFromWords = false
-            layer.mask?.name = "Text Mask"
+        }
+        // A mask made while the layer was named after its words keeps them after the layer is renamed (monkey,
+        // 2026-11-24 overnight), so every redaction names the mask after its layer.
+        if isRedaction, let mask = layer.mask, mask.name != "\(layer.name) Mask" {
+            willChangeText(of: layer)
+            mask.name = "\(layer.name) Mask"
         }
         let bounds = layer.buffer.bounds
         let target = rect.intersection(bounds)

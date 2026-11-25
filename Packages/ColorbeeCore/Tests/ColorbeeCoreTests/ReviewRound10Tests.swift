@@ -175,6 +175,21 @@ struct ReviewRound10Tests {
         #expect(other.layers[1].text == nil && other.layers[1].name == "Card 4111")
     }
 
+    /// A mask made while the layer was named after its words kept them after the layer was renamed (monkey, 2026-11-24
+    /// overnight). Every redaction names a covered layer's mask after the layer.
+    @Test func aRenamedLayersMaskLosesTheWordsToo() throws {
+        let (canvas, history) = textPicture()
+        LayerActions.addMask(.revealAll, canvas: canvas, history: history, context: context)
+        canvas.editsMask = false
+        LayerActions.update("Rename", layerAt: 1, canvas: canvas, history: history) { $0.name = "Layer 6" }
+        #expect(canvas.layers[1].mask?.name == "Card 4111 Mask")
+        redactEverything(canvas, history)
+        #expect(canvas.layers[1].name == "Layer 6" && canvas.layers[1].mask?.name == "Layer 6 Mask")
+        #expect(try ProjectFile.encode(canvas).range(of: Data("4111".utf8)) == nil)
+        history.undo(on: canvas)
+        #expect(canvas.layers[1].mask?.name == "Card 4111 Mask")
+    }
+
     @Test func aCancelledRedactionPreviewPutsTheTextBack() {
         let (canvas, history) = textPicture()
         let layer = canvas.layers[1]

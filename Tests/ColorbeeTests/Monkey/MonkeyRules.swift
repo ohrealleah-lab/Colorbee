@@ -164,9 +164,11 @@ enum MonkeyRules {
         }
     }
 
-    /// After a redaction (monkey gaps, R1): no layer it changed is still a text layer or carries those words in its name or
-    /// its mask's, and the saved project holds them nowhere unless a layer it didn't touch still does.
-    static func checkNothingLeft(_ editor: Editor, redacted: [Layer], words: [LayerID: String]) throws(MonkeyFailure) {
+    /// After a redaction (monkey gaps, R1): no layer it changed is still a text layer, still has a name Colorbee made from
+    /// those words, or has a mask named with words its layer's name doesn't hold. A name typed by hand is the person's
+    /// own and stays (2026-10-31, "Names"). The saved project holds the words nowhere unless a name or a layer it didn't
+    /// touch still does.
+    static func checkNothingLeft(_ editor: Editor, redacted: [Layer], words: [LayerID: String], namedFromWords: Set<LayerID>) throws(MonkeyFailure) {
         let canvas = editor.canvas
         var gone: [String] = []
         for layer in redacted {
@@ -174,8 +176,11 @@ enum MonkeyRules {
             if layer.text != nil {
                 throw MonkeyFailure(rule: "A redacted text layer kept its words", detail: "\"\(layer.name)\" is still a text layer.")
             }
-            if layer.name.contains(text) || layer.mask?.name.contains(text) == true {
+            if namedFromWords.contains(layer.id), layer.name.contains(text) {
                 throw MonkeyFailure(rule: "Redacted words survive in a layer's name", detail: "\"\(layer.name)\" still names \"\(text)\".")
+            }
+            if let mask = layer.mask, mask.name.contains(text), !layer.name.contains(text) {
+                throw MonkeyFailure(rule: "Redacted words survive in a layer's name", detail: "\"\(layer.name)\"'s mask \"\(mask.name)\" still names \"\(text)\".")
             }
             gone.append(text)
         }
@@ -371,6 +376,7 @@ enum MonkeyRules {
     /// the layer wasn't flat, and need `before`; without it (a floating piece was placed first) they aren't checked.
     static func checkCovered(_ canvas: Canvas, area: SelectionMask, effect: Effect, before: [LayerID: [Pixel]]) throws(MonkeyFailure) {
         let inArea = points(of: area), width = canvas.size.width
+        let blurPieces = if case .gaussianBlur = effect { area.hardened().connectedRegions().map(points(of:)) } else { [[IntPoint]]() }
         for layer in canvas.layers where layer.isPixelLayer {
             if case .solidFill(let color) = effect {
                 let left = inArea.first { point in
@@ -392,8 +398,11 @@ enum MonkeyRules {
                     cell.dropFirst().contains { differ(was[$0.y * width + $0.x], was[cell[0].y * width + cell[0].x]) }
                 }
             case .gaussianBlur:
-                guard let first = inArea.first else { continue }
-                mustChange = inArea.contains { differ(was[$0.y * width + $0.x], was[first.y * width + first.x]) }
+                // Blur works on each separate piece of the area by itself, so a piece that's flat stays as it was.
+                mustChange = blurPieces.contains { piece in
+                    guard let first = piece.first else { return false }
+                    return piece.contains { differ(was[$0.y * width + $0.x], was[first.y * width + first.x]) }
+                }
             default:
                 continue
             }

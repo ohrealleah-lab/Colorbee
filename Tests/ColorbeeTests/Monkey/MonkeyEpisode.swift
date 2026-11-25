@@ -162,6 +162,8 @@ struct MonkeyEpisode {
         var leftPages: [(page: Page, layers: [String])] = []
         // Each text layer's words, so a redaction can be checked for leaving them anywhere (monkey gaps, R1).
         var words: [LayerID: String] = [:]
+        /// Layers whose name Colorbee made from their words, as of the last step: only those names does redaction change.
+        var namedFromWords: Set<LayerID> = []
         var pendingSave: BackgroundSave?
         var largestStep = 0
         let lastPhoto = PhotoSettingsStore.shared.last
@@ -329,7 +331,7 @@ struct MonkeyEpisode {
                     // missed mustn't be let off. Placing a floating piece or open object first changes what was there,
                     // so it can't be told then.
                     let under = editor.lastRedaction.filter { $0.page == shownPage.id }.flatMap { MonkeyRules.layersUnder($0.area, in: editor.canvas, before: pixelsBefore) }
-                    try MonkeyRules.checkNothingLeft(editor, redacted: under, words: words)
+                    try MonkeyRules.checkNothingLeft(editor, redacted: under, words: words, namedFromWords: namedFromWords)
                 }
                 // Another page is shown: the one left must be as it was when it's shown again, and this one as it was left.
                 // An effect's bar placed what was open or floating before the page changed: the page was left as then.
@@ -353,7 +355,10 @@ struct MonkeyEpisode {
                 } else {
                     try tracker.note(step, before: before, hadOpen: hadOpen)
                 }
-                for layer in editor.canvas.layers { if let text = layer.text { words[layer.id] = text.spec.text } }
+                for layer in editor.canvas.layers {
+                    if let text = layer.text { words[layer.id] = text.spec.text }
+                    if layer.nameFromWords { namedFromWords.insert(layer.id) } else { namedFromWords.remove(layer.id) }
+                }
                 try await checkPendingSave(force: false)
             } catch {
                 throw MonkeyFailureAt(failure: error as? MonkeyFailure ?? MonkeyFailure(rule: "The monkey itself failed", detail: "\(error)"), steps: done)

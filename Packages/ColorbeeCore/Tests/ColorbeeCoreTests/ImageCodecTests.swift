@@ -111,3 +111,31 @@ struct TIFFCompressionTests {
         }
     }
 }
+
+/// Apple's HEIC decoder can loop forever on a damaged file, which froze Colorbee (monkey, 2026-11-24 overnight). Past
+/// the time limit the file counts as damaged (Leah, 2026-11-24). The real file isn't used here: its decode would keep a
+/// core busy for the rest of the test run.
+struct DecodeTimeLimitTests {
+    @Test func quickWorkGivesItsResult() throws {
+        #expect(try ImageCodec.withinTimeLimit(.seconds(5)) { 42 } == 42)
+    }
+
+    @Test func slowWorkGivesUp() {
+        let start = Date()
+        #expect(throws: ImageCodecError.tookTooLong) {
+            try ImageCodec.withinTimeLimit(.milliseconds(50)) { Thread.sleep(forTimeInterval: 2); return 1 }
+        }
+        #expect(Date().timeIntervalSince(start) < 1)
+    }
+
+    @Test func workThatFailsSaysWhy() {
+        #expect(throws: ImageCodecError.unreadableData) {
+            try ImageCodec.withinTimeLimit(.seconds(5)) { () throws -> Int in throw ImageCodecError.unreadableData }
+        }
+    }
+
+    @Test func theLimitIsTenSeconds() {
+        #expect(ImageCodec.decodeTimeLimit == .seconds(10))
+        #expect(ImageCodecError.tookTooLong.errorDescription?.contains("10 seconds") == true)
+    }
+}

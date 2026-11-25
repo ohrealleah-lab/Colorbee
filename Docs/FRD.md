@@ -657,6 +657,9 @@ Colorbee's next aim is editing one picture at a time the way Lightroom does, wit
 | HEIC | ✓ | ✓ | |
 | .colorproj | ✓ | ✓ | Native format with layers (FR-8.5). |
 
+If macOS hasn't finished reading a picture after 10 seconds, Colorbee stops waiting and says it may be damaged: Apple's
+HEIC decoder can loop forever on a damaged file. macOS may go on working on it until Colorbee quits (§23, 2026-11-24).
+
 ### FR-11.2 Export presets
 - **File → Export As ▸** a preset exports a PNG scaled to a set width (or to fit a square). The aspect ratio is kept, and the image is never made larger than its original size (Leah, 2026-10-03).
 - Presets: Slack (760px), 1280px, 1920px, Mobile (750px), Square 1024.
@@ -1013,6 +1016,7 @@ None right now.
 
 | Date | Decision |
 |---|---|
+| 2026-11-24 | **A picture macOS can't finish reading** (Leah, as recommended; FR-11.1). The overnight monkey of 2026-11-24 froze opening a damaged HEIC (seed 1795544448): Apple's decoder looped forever on it, as `sips` and Quick Look do. Reading a picture's pixels (opening, pasting, dropping, a PDF's scanned pages, Choose Frame's thumbnails) now gives up after 10 seconds with "Colorbee stopped trying to read this picture after 10 seconds. It may be damaged." Nothing can stop Apple's decoder, so it may keep the Mac busy until Colorbee quits. My choices (veto any): the second line of the message says "If your Mac stays busy, quitting Colorbee stops it."; the 10 seconds covers only macOS's part, not turning a photo upright. |
 | 2026-11-24 | **From the overnight monkey of 2026-11-24** (Leah, as recommended; FR-5.1). Shift-dragging a handle of a shape whose box has no width or height (a rectangle dragged straight down, say) crashed Colorbee: keeping the proportions divided by zero (seed 1795528959). Such a box has no proportions to keep, so the handle stretches it freely, as without Shift. The same holds for every handle of `SelectionHandle.resize`, though only shapes can be that thin. |
 | 2026-11-24 | **From the overnight monkey of 2026-11-23** (Leah, all recommended; FR-5.1, FR-9.7 item 3). (1) An outline as thick as a shape's box is narrow, or thicker, fills the shape with the outline's color and style, inside the box: on a square box it used to shrink to a point and draw nothing (seed 1795495451), and on a longer box it spilled past the box as a fat line. (2) Color Range and Luminance Range work out their preview from their own copy of the layer, so a flip or rotate while it's still being worked out no longer crashes Colorbee (seed 1795496604). |
 | 2026-11-23 | **From the overnight monkey of 2026-11-22** (Leah, all recommended; FR-11.6, FR-7). (1) Showing another page ends a drag under way, as Before/After does: a canvas-edge drag begun on one page no longer resizes the page ⇧⌘Z brought back (seed 1795400231). (2) Align and Distribute move a layer whose transparent pixels are locked, outline and all, like Flip and Rotate (and Photoshop); a fully locked layer is still refused. (Veto any, Claude's choices: a press while a drag is still under way, because its mouse-up was lost, first ends that drag where it last was, so a selection move is still a step Undo takes back (seed 1795399445); a small Oval or Rounded Rectangle Callout whose outline is thick enough to squash the bubble flat now draws its bubble and tail as two overlapping pieces instead of vanishing (seeds 1795401311, 1795402363).) |

@@ -14,6 +14,8 @@ public enum ImageCodecError: Error, Equatable {
     /// Export's Limit file size (FR-9.7 item 8): even the lowest quality is over the limit; this is the smallest it
     /// can be, in bytes.
     case overSizeLimit(limit: Int, smallest: Int)
+    /// macOS didn't finish decoding within `ImageCodec.decodeTimeLimit`.
+    case tookTooLong
 }
 
 extension ImageCodecError: LocalizedError {
@@ -26,6 +28,7 @@ extension ImageCodecError: LocalizedError {
         case .unsupportedColorSpace: "This image uses colors Colorbee can't read."
         case .conversionFailed: "This image couldn't be read."
         case .encodingFailed: "The image couldn't be written in this format."
+        case .tookTooLong: "Colorbee stopped trying to read this picture after 10 seconds. It may be damaged."
         case .overSizeLimit(let limit, let smallest):
             "This picture can't be made as small as \(ByteCountFormatter.string(fromByteCount: Int64(limit), countStyle: .file)). The smallest it can be at this size is \(ByteCountFormatter.string(fromByteCount: Int64(smallest), countStyle: .file))."
         }
@@ -34,6 +37,7 @@ extension ImageCodecError: LocalizedError {
     public var recoverySuggestion: String? {
         switch self {
         case .overSizeLimit: "Nothing was saved. Raise the limit, or use File ▸ Export As to make the picture smaller in pixels first."
+        case .tookTooLong: "If your Mac stays busy, quitting Colorbee stops it."
         default: nil
         }
     }
@@ -58,9 +62,36 @@ public struct DecodedImage {
 
 /// Converts between image files and straight-alpha BGRA8 buffers, preserving color profiles.
 public enum ImageCodec {
+    /// How long Colorbee waits for macOS to decode a picture. Apple's HEIC decoder can loop forever on a damaged file
+    /// (monkey, 2026-11-24 overnight); after this the file counts as damaged and the stuck decode is left behind, since
+    /// nothing can stop it (Leah, 2026-11-24).
+    public static let decodeTimeLimit: DispatchTimeInterval = .seconds(10)
+
     /// Decodes one frame (the first, by default) of `data`, upright. With no target, the image keeps its own
     /// RGB color space.
     public static func decode(_ data: Data, convertingTo target: CGColorSpace? = nil, frame: Int = 0) throws -> DecodedImage {
+        let (decoded, properties, frameCount, isDeep) = try withinTimeLimit(decodeTimeLimit) {
+            try decodeFrame(data, convertingTo: target, frame: frame)
+        }
+        var upright = decoded
+        // Photos are often stored turned, with a tag saying how to show them (review J, finding 3).
+        let tag = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+        let turns = uprightingTurns(forOrientationTag: tag)
+        if !turns.isEmpty {
+            var buffer = decoded.buffer
+            for turn in turns { buffer = buffer.transformed(turn) }
+            upright = DecodedImage(buffer: buffer, colorSpace: decoded.colorSpace)
+        }
+        upright.frameCount = frameCount
+        upright.isDeep = isDeep
+        upright.cameraDetails = CameraDetails(properties: properties)
+        upright.locationRemoved = CameraDetails.hasLocation(properties: properties)
+        return upright
+    }
+
+    /// The part macOS does: reading the file and decoding the frame's pixels.
+    private static func decodeFrame(_ data: Data, convertingTo target: CGColorSpace?, frame: Int) throws
+        -> (DecodedImage, [CFString: Any], frameCount: Int, isDeep: Bool) {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { throw ImageCodecError.unreadableData }
         let frameCount = CGImageSourceGetCount(source)
         guard frame >= 0, frame < max(frameCount, 1) else { throw ImageCodecError.unreadableData }
@@ -72,20 +103,18 @@ public enum ImageCodec {
             throw ImageCodecError.tooLarge
         }
         guard let image = CGImageSourceCreateImageAtIndex(source, frame, nil) else { throw ImageCodecError.unreadableData }
-        var decoded = try decode(image, convertingTo: target)
-        // Photos are often stored turned, with a tag saying how to show them (review J, finding 3).
-        let tag = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
-        let turns = uprightingTurns(forOrientationTag: tag)
-        if !turns.isEmpty {
-            var buffer = decoded.buffer
-            for turn in turns { buffer = buffer.transformed(turn) }
-            decoded = DecodedImage(buffer: buffer, colorSpace: decoded.colorSpace)
+        return (try decode(image, convertingTo: target), properties, frameCount, image.bitsPerComponent > 8)
+    }
+
+    /// `work`'s result, or `tookTooLong` if it isn't done within `limit`. Work that overruns keeps running, unwatched.
+    static func withinTimeLimit<T>(_ limit: DispatchTimeInterval, _ work: @escaping @Sendable () throws -> T) throws -> T {
+        let outcome = TimedOutcome<T>(), done = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            outcome.result = Result { try work() }
+            done.signal()
         }
-        decoded.frameCount = frameCount
-        decoded.isDeep = image.bitsPerComponent > 8
-        decoded.cameraDetails = CameraDetails(properties: properties)
-        decoded.locationRemoved = CameraDetails.hasLocation(properties: properties)
-        return decoded
+        guard done.wait(timeout: .now() + limit) == .success, let result = outcome.result else { throw ImageCodecError.tookTooLong }
+        return try result.get()
     }
 
     /// The turns that show an image stored with EXIF orientation `tag` (1–8) the right way up.
@@ -104,14 +133,17 @@ public enum ImageCodec {
 
     /// A small picture of each frame, for Choose Frame… (review J, finding 2).
     public static func frameThumbnails(_ data: Data, maxSide: Int, limit: Int = 300) -> [CGImage] {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return [] }
-        return (0..<min(CGImageSourceGetCount(source), limit)).compactMap { index in
-            CGImageSourceCreateThumbnailAtIndex(source, index, [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceThumbnailMaxPixelSize: maxSide,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-            ] as CFDictionary)
+        let thumbnails = try? withinTimeLimit(decodeTimeLimit) { () -> [CGImage] in
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return [] }
+            return (0..<min(CGImageSourceGetCount(source), limit)).compactMap { index in
+                CGImageSourceCreateThumbnailAtIndex(source, index, [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceThumbnailMaxPixelSize: maxSide,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                ] as CFDictionary)
+            }
         }
+        return thumbnails ?? []
     }
 
     public static func fitsEditing(width: Int, height: Int) -> Bool {
@@ -305,4 +337,9 @@ public enum ImageFileFormat: CaseIterable, Sendable {
         let writable = CGImageDestinationCopyTypeIdentifiers() as? [String] ?? []
         return writable.contains(type.identifier)
     }
+}
+
+/// Hands a timed piece of work's result back; only read after the work signals it's done.
+private final class TimedOutcome<T>: @unchecked Sendable {
+    var result: Result<T, Error>?
 }

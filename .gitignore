@@ -13,3 +13,5 @@ xcuserdata/
 
 # Personal Claude Code settings
 .claude/settings.local.json
+# Unzipped for a hand test; macOS's decoder loops forever on it.
+TestImages/Hardening/Damaged Photo.heic

@@ -98,6 +98,9 @@ final class MonkeyCanvas {
     private(set) var comparedFrom: [String]?
     /// The pages shown by keys or menu commands in the last `play` (`MonkeyStep.inputPageChanges`).
     private(set) var pageChanges: [(left: Page, leftLayers: [String]?, shown: Page, shownLayers: [String])] = []
+    /// The fewest steps the shown page's History held during the last `play`: ⌘Z inside a burst can undo steps from
+    /// before it (`MonkeyStep.inputLowestUndoCount`).
+    private(set) var lowestUndoCount = 0
 
     private init(editor: Editor) {
         self.editor = editor
@@ -140,6 +143,7 @@ final class MonkeyCanvas {
     private func playing(_ events: [InputEvent]) -> MonkeyFailure? {
         var failure: MonkeyFailure?
         pageChanges = []
+        lowestUndoCount = editor.history.undoCount
         for event in events {
             let page = editor.page
             var leftLayers: [String]?
@@ -148,6 +152,7 @@ final class MonkeyCanvas {
             }
             send(event)
             if editor.page !== page { pageChanges.append((page, leftLayers, editor.page, editor.documentState)) }
+            lowestUndoCount = min(lowestUndoCount, editor.history.undoCount)
             // While Before/After shows, the canvas only moves its divider; keys and menu commands may still edit (§23,
             // 2026-11-22), so the picture after one is the new starting point.
             switch event {

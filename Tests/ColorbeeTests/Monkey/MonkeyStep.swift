@@ -589,6 +589,7 @@ enum MonkeyStep: CustomStringConvertible {
             let canvas = MonkeyCanvas.view(for: editor)
             Self.inputFailure = canvas.play(events)
             Self.inputPageChanges = canvas.pageChanges
+            Self.inputLowestUndoCount = canvas.lowestUndoCount
             // A redaction's question about snapshots blocks the window, so it's answered, as Return would, before the
             // next step; left up, the next step's own answer took it (monkey, 2026-11-23 overnight).
             Self.answerSnapshots(editor, cancels: false)
@@ -794,6 +795,7 @@ extension MonkeyStep {
     /// when something open or floating would be placed on the way out), and the page shown with its layers as it came
     /// into view. What followed may edit the new page, so it's checked as it arrived (monkey, seed 1795400231).
     @MainActor static var inputPageChanges: [(left: Page, leftLayers: [String]?, shown: Page, shownLayers: [String])] = []
+    @MainActor static var inputLowestUndoCount = 0
     /// What Copy, Copy Merged or Cut took, and where from, for Paste in Place. Cleared at the start of each episode.
     @MainActor static var copied: (pixels: PixelBuffer, place: IntPoint)?
 

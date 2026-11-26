@@ -564,9 +564,14 @@ struct UndoTracker {
         }
         // A step that ended in an undo (Undo while an effect's bar was open) can leave redo steps this line never saw.
         knowsRedo = history.redoActionName == nil
+        let lowest = if case .input = step { MonkeyStep.inputLowestUndoCount } else { before.undoCount }
         if case .undoOnActiveLayer = step {
             // It took one older step out of history, leaving its change in the steps before: none of them can be checked.
             line = Array(repeating: nil, count: count) + [now]
+        } else if lowest < before.undoCount, count > lowest {
+            // ⌘Z inside a burst of input undid steps from before it, and new steps replaced them (monkey, 2026-11-26
+            // overnight): only the line up to where it undid to still holds.
+            line = Array(line.prefix(lowest + 1)) + Array(repeating: nil, count: count - lowest - 1) + [now]
         } else if count > before.undoCount + 1 {
             // One action, several steps (a paste can place what floated first): the ones in between weren't seen.
             line = Array(line.prefix(before.undoCount + 1)) + Array(repeating: nil, count: count - before.undoCount - 1) + [now]

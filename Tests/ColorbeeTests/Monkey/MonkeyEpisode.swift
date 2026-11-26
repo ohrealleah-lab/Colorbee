@@ -231,6 +231,9 @@ struct MonkeyEpisode {
                 editor.history.snapshots[index % editor.history.snapshots.count].id
             } else { nil }
             await step.perform(on: editor)
+            // A step that grew the picture (Drop Shadow, Border) holds the bigger layers once undone, and the end's undo
+            // and redo of everything may undo it (monkey, 2026-11-25 overnight).
+            largestStep = max(largestStep, MonkeyRules.stepBytes(editor.canvas))
             let redacted = step.redacts && editor.redactedSinceSave
             if step.redacts { editor.redactedSinceSave = editor.redactedSinceSave || redactedBefore }
             done += 1

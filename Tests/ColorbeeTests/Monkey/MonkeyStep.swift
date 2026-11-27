@@ -195,10 +195,11 @@ enum MonkeyStep: CustomStringConvertible {
         }
     }
 
-    /// Merge Down, Merge Visible or Flatten: a new combined picture, which may paint over locked clear pixels (§23, 2026-11-22).
+    /// Merge Down, Merge Visible, Merge Adjustment or Flatten: a new combined picture, which may paint over locked clear
+    /// pixels (§23, 2026-11-22; Merge Adjustment from the monkey, 2026-11-26).
     var merges: Bool {
         switch self {
-        case .mergeDown, .mergeVisible, .flatten: true
+        case .mergeDown, .mergeVisible, .mergeAdjustment, .flatten: true
         default: false
         }
     }

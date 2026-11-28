@@ -437,11 +437,14 @@ struct UndoTracker {
 
     /// Notes a piece that began floating with this step. One seen first after an undo or redo began somewhere unknown.
     /// A piece already floating before was placed by this step, folded into the step that lifted it, so going back to
-    /// `before` gives that placed picture, not the one seen (monkey, 2026-11-22 finding 17).
-    private mutating func noteFloating(count: Int, before: Int, layersBefore: [String], floatedBefore: UUID?) {
+    /// `before` gives that placed picture, not the one seen (monkey, 2026-11-22 finding 17). ⌘Z inside a burst of input
+    /// can undo below `before` and new steps replace those undone, so the piece began somewhere from `lowest` on and
+    /// the picture is unknown (monkey, 2026-11-27).
+    private mutating func noteFloating(count: Int, before: Int, lowest: Int, layersBefore: [String], floatedBefore: UUID?) {
         let id = editor.canvas.selection.floating?.id
         if let id, floatStarts[id] == nil, count > before {
-            floatStarts[id] = count == before + 1 ? (before, before, floatedBefore == nil ? layersBefore : nil) : (before, count - 1, nil)
+            floatStarts[id] = count == before + 1 && lowest == before
+                ? (before, before, floatedBefore == nil ? layersBefore : nil) : (lowest, count - 1, nil)
         }
         floatingID = id
     }
@@ -458,7 +461,8 @@ struct UndoTracker {
         let layersBefore = lastLayers, floatedBefore = floatingID
         defer {
             lastLayers = now.layers
-            noteFloating(count: count, before: before.undoCount, layersBefore: layersBefore, floatedBefore: floatedBefore)
+            let lowest = if case .input = step { min(MonkeyStep.inputLowestUndoCount, before.undoCount) } else { before.undoCount }
+            noteFloating(count: count, before: before.undoCount, lowest: lowest, layersBefore: layersBefore, floatedBefore: floatedBefore)
         }
         switch step {
         case .undo, .redo, .historyJump:
